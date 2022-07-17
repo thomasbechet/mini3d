@@ -1,5 +1,5 @@
 [package]
-name = "nucleus_wgpu"
+name = "mini3d_wgpu"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,4 +8,4 @@ winit = "0.26.0"
 wgpu = "0.13.0"
 bytemuck = { version = "1.10.0", features = [ "derive" ] }
 rand = "0.8.5"
-nucleus_renderer = { path = "../nucleus_renderer" }
+mini3d_core = { path = "../../mini3d_core" }

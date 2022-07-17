@@ -9,29 +9,28 @@ use winit::{
 use winit_input_helper::WinitInputHelper;
 use nucleus_app::App;
 
-pub async fn run() {
-    // Window setup
-    env_logger::init();
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_inner_size(PhysicalSize::new(600, 400))
-        .with_resizable(true)
-        .build(&event_loop)
-        .unwrap();
-    let mut input = WinitInputHelper::new();
+// pub async fn run() {
+//     // Window setup
+//     env_logger::init();
+//     let event_loop = EventLoop::new();
+//     let window = WindowBuilder::new()
+//         .with_inner_size(PhysicalSize::new(600, 400))
+//         .with_resizable(true)
+//         .build(&event_loop)
+//         .unwrap();
+//     let mut input = WinitInputHelper::new();
 
-    let mut renderer = Renderer::new(&window).await;
+//     let mut renderer = Renderer::new(&window).await;
 
     
-}
+// }
 
 fn main() {
-    App::new(PlatformProvider {
 
-    }).run();
-        .with_window(WinitWindow::new())
-        .with_renderer(WGPURenderer::new())
-        .run();
+    let window = mini3d::platform::WinitWindow::new();
+    let renderer = mini3d::platform::WGPURenderer::new(&window);
+    let runner = mini3d::platform::WinitRunner::new()
+    App::new(window, renderer, ).run();
 
-    block_on(run());
+    // block_on(run());
 }

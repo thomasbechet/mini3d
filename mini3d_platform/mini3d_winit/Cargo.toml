@@ -1,0 +1,9 @@
+[package]
+name = "mini3d_winit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+winit = "0.26.0"
+wgpu = "0.13.0"
+mini3d_core = { path = "../../mini3d_core" }

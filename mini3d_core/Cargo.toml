@@ -1,0 +1,7 @@
+[package]
+name = "mini3d_core"
+version = "0.1.0"
+authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
+edition = "2021"
+
+[dependencies]

@@ -1,5 +1,5 @@
 [package]
-name = "nucleus-rs"
+name = "mini3d"
 version = "0.1.0"
 authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
@@ -11,5 +11,6 @@ anyhow = "1.0"
 env_logger = "0.9"
 log = "0.4"
 futures = { version = "0.3", features = ["compat"] }
-nucleus_wgpu = { path = "crates/nucleus_wgpu" }
-nucleus_app = { path = "crates/nucleus_app" }
+mini3d_core = { path = "mini3d_core" }
+mini3d_wgpu = { path = "mini3d_platform/mini3d_wgpu" }
+mini3d_winit = { path = "mini3d_platform/mini3d_winit" }

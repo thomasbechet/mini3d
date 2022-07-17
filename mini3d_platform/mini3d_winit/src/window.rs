@@ -6,18 +6,17 @@ use nucleus_runner::Runner;
 
 pub struct WinitWindow {
     window: window::Window,
-    event_loop: event_loop::EventLoop,
+    event_loop: ,
     input_helper: WinitInputHelper,
 }
 
 impl WinitWindow {
-    fn new() -> Self {
+    fn new(event_loop: &event_loop::EventLoop) -> Self {
         env_logger::init();
-        let event_loop = event_loop::EventLoop::new();
         let window = window::WindowBuilder::new()
             .with_inner_size(PhysicalSize::new(600, 400))
             .with_resizable(true)
-            .build(&event_loop)
+            .build(event_loop)
             .unwrap();
         let mut input = WinitInputHelper::new();
 

@@ -1,7 +1,0 @@
-[package]
-name = "nucleus_app"
-
-[dependencies]
-nucleus_renderer = { path = "../../platform/nucleus_renderer" }
-nucleus_window = { path = "../../platform/nucleus_window" }
-nucleus_runner = { path = "../../platform/nucleus_runner" }
