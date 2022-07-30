@@ -24,7 +24,7 @@ pub enum RendererError {
     OutOfMemory
 }
 
-pub trait Renderer {
+pub trait RendererService {
     fn render(&mut self) -> Result<(), RendererError>;
     fn resize(&mut self, width: u32, height: u32) -> Result<(), RendererError>;
 }

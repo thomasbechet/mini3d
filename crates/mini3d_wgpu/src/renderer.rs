@@ -1,7 +1,8 @@
-use nucleus_renderer::{DISPLAY_PIXEL_COUNT, RendererError, Renderer, DISPLAY_WIDTH, DISPLAY_HEIGHT};
+use mini3d_core::service::renderer::{RendererService, DISPLAY_PIXEL_COUNT, RendererError, DISPLAY_WIDTH, DISPLAY_HEIGHT};
 use rand::RngCore;
 use wgpu::include_wgsl;
 use winit::{window::Window};
+use futures::executor;
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
@@ -27,7 +28,7 @@ impl RenderBuffer {
     }
 }
 
-pub struct WGPURenderer {
+pub struct WGPUContext {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -55,21 +56,21 @@ struct Vertex {
     position: [f32; 3]
 }
 
-impl WGPURenderer {
-    pub async fn new(window: &Window) -> Self {
+impl WGPUContext {
+    pub fn new(window: &Window) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
         let surface = unsafe { instance.create_surface(window) };
-        let adapter = instance.request_adapter(
+        let adapter = executor::block_on(instance.request_adapter(
             &wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false
             },
-        ).await.unwrap();
+        )).unwrap();
 
-        let (device, queue) = adapter.request_device(
+        let (device, queue) = executor::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 features: wgpu::Features::empty(),
                 limits: if cfg!(target_arch = "wasm32") {
@@ -80,7 +81,7 @@ impl WGPURenderer {
                 label: None
             },
             None
-        ).await.unwrap();
+        )).unwrap();
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -223,7 +224,7 @@ impl WGPURenderer {
 
 }
 
-impl Renderer for WGPURenderer {
+impl RendererService for WGPUContext {
     fn render(&mut self) -> Result<(), RendererError> {
         let output = self.surface.get_current_texture()
             .map_err(map_surface_to_renderer_error)?;
@@ -301,7 +302,8 @@ impl Renderer for WGPURenderer {
     }
     fn resize(&mut self, width: u32, height: u32) -> Result<(), RendererError> {
         if width > 0 && height > 0 {
-            // self.size = new_size; TODO:
+            self.size.width = width;
+            self.size.height = height;
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);

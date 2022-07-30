@@ -13,8 +13,12 @@
 
 # Platform Layer
 - Window
+
 - Input
 - Renderer
+    - draw line
+    - draw ...
+    - draw scene
 - IO
 
 # Editor Windows
