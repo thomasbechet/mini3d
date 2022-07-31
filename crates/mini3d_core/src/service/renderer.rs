@@ -1,3 +1,5 @@
+use crate::asset::{font::Font, Asset};
+
 // 3:2 aspect ration
 pub const DISPLAY_WIDTH: u16 = 480;
 pub const DISPLAY_HEIGHT: u16 = 320;
@@ -27,4 +29,5 @@ pub enum RendererError {
 pub trait RendererService {
     fn render(&mut self) -> Result<(), RendererError>;
     fn resize(&mut self, width: u32, height: u32) -> Result<(), RendererError>;
+    fn print(&mut self, x: u16, y: u16, text: String, font: &Asset<Font>) -> Result<(), RendererError>;
 }

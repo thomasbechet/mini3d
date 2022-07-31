@@ -11,6 +11,7 @@ pub struct ActionEvent {
 
 pub struct AxisEvent {
     pub name: &'static str,
+    pub value: f32,
 }
 
 pub enum InputEvent {

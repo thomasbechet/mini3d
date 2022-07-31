@@ -29,14 +29,38 @@ impl ActionInput {
     }
 }
 
-pub struct AxisInput {
-    pub value: f32,
-    pub range: [f32; 2],
+pub enum RangeType {
+    Clamped { min: f32, max: f32 },
+    Normalized { norm: f32 },
+    ClampedNormalized { min: f32, max: f32, norm: f32 },
+    Infinite,
 }
 
-impl AxisInput {
-    pub fn new() -> Self {
-        AxisInput { value: 0.0, range: [0f32, 1f32] }
+pub struct RangeInput {
+    pub value: f32,
+    pub range: RangeType,
+}
+
+impl RangeInput {
+    pub fn new(range: RangeType) -> Self {
+        RangeInput { value: 0.0, range: range }
+    }
+
+    pub fn set_value(&mut self, value: f32) {
+        self.value = match self.range {
+            RangeType::Clamped { min, max } => {
+                value.max(min).min(max)
+            },
+            RangeType::Normalized { norm } => {
+                value / norm
+            },
+            RangeType::ClampedNormalized { min, max, norm } => {
+                value.max(min).min(max) / norm
+            },
+            RangeType::Infinite => {
+                value
+            },
+        }
     }
 }
 
@@ -44,12 +68,14 @@ pub const ACTION_UP: &'static str = "up";
 pub const ACTION_DOWN: &'static str = "down";
 pub const ACTION_LEFT: &'static str = "left";
 pub const ACTION_RIGHT: &'static str = "right";
+pub const AXIS_VIEW_X: &'static str = "view_x";
+pub const AXIS_VIEW_Y: &'static str = "view_y";
 
 pub type InputName = &'static str;
 
 pub struct InputTable {
     pub actions: HashMap<InputName, ActionInput>,
-    pub axes: HashMap<InputName, AxisInput>,
+    pub axes: HashMap<InputName, RangeInput>,
 }
 
 impl InputTable {
@@ -67,7 +93,11 @@ impl InputTable {
                     }
                 }
             },
-            InputEvent::Axis(_) => {},
+            InputEvent::Axis(axis_event) => {
+                if let Some(axis) = self.axes.get_mut(axis_event.name) {
+                    axis.set_value(axis_event.value);
+                }
+            },
         }
     }
 
@@ -84,7 +114,10 @@ impl Default for InputTable {
             actions: HashMap::from([
                 (ACTION_UP, ActionInput::new())
             ]),
-            axes: HashMap::from([]),
+            axes: HashMap::from([
+                (AXIS_VIEW_X, RangeInput::new(RangeType::Infinite)),
+                (AXIS_VIEW_Y, RangeInput::new(RangeType::Infinite)),
+            ]),
         }
     }
 }

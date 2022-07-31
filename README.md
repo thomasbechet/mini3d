@@ -29,3 +29,12 @@
 - Sound editor
 - Music editor
 - Page editor
+
+Inputs:
+- Keyboard button
+- Mouse button
+- Mouse motion
+- Controller joystick
+- Controller button
+- Mobile click
+- Mobile motion

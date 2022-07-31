@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError}}, input::{input_table::{ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT}, event::{ActionEvent, ActionState}}, event};
+use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError}}, input::{input_table::{ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, AXIS_VIEW_X, AXIS_VIEW_Y}, event::{ActionEvent, ActionState, AxisEvent}}, event};
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
 
@@ -38,6 +38,7 @@ impl WinitContext {
             .with_resizable(true)
             .build(&event_loop)
             .unwrap();
+        window.set_cursor_visible(false);
         let input = WinitInput::new();
         WinitContext { window, event_loop, input }
     }
@@ -55,7 +56,15 @@ impl WinitContext {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
                     *control_flow = ControlFlow::Exit;
                 }
-            } 
+                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                    name: AXIS_VIEW_X,
+                    value: self.input.input_helper.mouse_diff().0,
+                })));
+                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                    name: AXIS_VIEW_Y,
+                    value: self.input.input_helper.mouse_diff().1,
+                })));
+            }
 
             // Match window events
             match event {

@@ -1,4 +1,4 @@
-use mini3d_core::service::renderer::{RendererService, DISPLAY_PIXEL_COUNT, RendererError, DISPLAY_WIDTH, DISPLAY_HEIGHT};
+use mini3d_core::{service::renderer::{RendererService, DISPLAY_PIXEL_COUNT, RendererError, DISPLAY_WIDTH, DISPLAY_HEIGHT}, asset::{Asset, font::Font}};
 use rand::RngCore;
 use wgpu::include_wgsl;
 use winit::{window::Window};
@@ -308,6 +308,9 @@ impl RendererService for WGPUContext {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
         }
+        Ok(())
+    }
+    fn print(&mut self, x: u16, y: u16, text: String, font: &Asset<Font>) -> Result<(), RendererError> {
         Ok(())
     }
 }
