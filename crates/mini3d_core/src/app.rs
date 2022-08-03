@@ -1,12 +1,15 @@
-use crate::asset::AssetManager;
+use crate::asset::{AssetManager, Asset};
+use crate::asset::font::Font;
 use crate::event::Event;
-use crate::input::input_table::{InputTable, AXIS_VIEW_X};
+use crate::input::input_table::InputTable;
 use crate::service::renderer::RendererService;
 
 pub struct App {
     event_queue: Vec<Event>,
     input_table: InputTable,
     asset_manager: AssetManager,
+    default_font: Asset<Font>,
+    count: usize,
 }
 
 impl App {
@@ -16,6 +19,8 @@ impl App {
             event_queue: Vec::new(),
             input_table: Default::default(),
             asset_manager: AssetManager::new(),
+            default_font: Asset::<Font> { name: "default", id: 0, resource: Default::default() },
+            count: 0,
         }
     }
 
@@ -49,7 +54,20 @@ impl App {
         self.dispatch_events();
     }
 
-    pub fn render(&mut self, renderer: &impl RendererService) {
-        
+    pub fn render(&mut self, renderer: &mut impl RendererService) {
+        renderer.clear();
+        renderer.print(8, 8, format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), &self.default_font);
+        renderer.print(8, 32, format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), &self.default_font);
+        renderer.print(8, 52, format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), &self.default_font);
+        renderer.print(8, 70, format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), &self.default_font);
+        renderer.print(8, 100, format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), &self.default_font);
+        renderer.print(8, 150, format!("{} This is a very important message from Thomas !!!", self.count).as_str(), &self.default_font);
+        renderer.print(8, 170, format!("{} if self.is_defined() [], '''", self.count).as_str(), &self.default_font);
+        renderer.draw_line(0, self.count as u16 % 200, self.count as u16 % 200, 100);
+        renderer.fill_rect(100, 150, 150, 200);
+        renderer.draw_vline(220, 50, 100);
+        renderer.draw_hline(150, 200, 250);
+        renderer.draw_rect(250, 200, 400, 300);
+        self.count += 1;
     }
 }

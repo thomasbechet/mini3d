@@ -8,12 +8,13 @@ type AssetName = &'static str;
 type AssetID = u16;
 
 pub struct Asset<R> {
-    name: AssetName,
-    id: AssetID,
-    resource: R,
+    pub name: AssetName,
+    pub id: AssetID,
+    pub resource: R,
 }
 
 pub struct AssetManager {
+    #[allow(dead_code)]
     fonts: HashMap<AssetID, Asset<Font>>,
 }
 
@@ -22,7 +23,7 @@ impl AssetManager {
         AssetManager { fonts: HashMap::new() }
     }
 
-    pub fn dispatch_event(&mut self, event: &AssetImportEvent) {
+    pub fn dispatch_event(&mut self, _event: &AssetImportEvent) {
         
     }
 }

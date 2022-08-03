@@ -38,7 +38,7 @@ impl WinitContext {
             .with_resizable(true)
             .build(&event_loop)
             .unwrap();
-        window.set_cursor_visible(false);
+        window.set_cursor_visible(true);
         let input = WinitInput::new();
         WinitContext { window, event_loop, input }
     }
@@ -118,6 +118,7 @@ impl WinitContext {
                 }
                 Event::MainEventsCleared => {
                     app.progress();
+                    app.render(&mut renderer);
                     self.window.request_redraw();
                 }
                 _ => {}

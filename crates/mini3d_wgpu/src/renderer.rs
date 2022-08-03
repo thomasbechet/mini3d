@@ -1,5 +1,4 @@
-use mini3d_core::{service::renderer::{RendererService, DISPLAY_PIXEL_COUNT, RendererError, DISPLAY_WIDTH, DISPLAY_HEIGHT}, asset::{Asset, font::Font}};
-use rand::RngCore;
+use mini3d_core::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, DISPLAY_PIXEL_COUNT, RendererError, DISPLAY_WIDTH, DISPLAY_HEIGHT}, asset::{Asset, font::Font}};
 use wgpu::include_wgsl;
 use winit::{window::Window};
 use futures::executor;
@@ -13,8 +12,10 @@ pub struct Pixel {
     a: u8,
 }
 
+const PIXEL_WHITE: Pixel = Pixel { r: 255, g: 255, b: 255, a: 255 };
+
 struct RenderBuffer {
-    buffer: Box<[Pixel]>
+    buffer: Box<[Pixel]>,
 }
 
 impl RenderBuffer {
@@ -234,14 +235,9 @@ impl RendererService for WGPUContext {
         });
 
         {
-            let index = rand::thread_rng().next_u32() % self.render_buffer.buffer.len() as u32;
-            self.render_buffer.buffer[index as usize].r = 255u8;
-        }
-
-        {
             self.queue.write_texture(
                 wgpu::ImageCopyTexture {
-                    texture: &&self.render_texture,
+                    texture: &self.render_texture,
                     mip_level: 0,
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All
@@ -310,7 +306,44 @@ impl RendererService for WGPUContext {
         }
         Ok(())
     }
-    fn print(&mut self, x: u16, y: u16, text: String, font: &Asset<Font>) -> Result<(), RendererError> {
+    fn print(&mut self, x: u16, y: u16, text: &str, font: &Asset<Font>) -> Result<(), RendererError> {
+        rasterizer::print(self, x, y, text, &font.resource);
         Ok(())
+    }
+
+    fn clear(&mut self) -> Result<(), RendererError> {
+        self.render_buffer.buffer.fill(Pixel::default());
+        Ok(())
+    }
+
+    fn draw_line(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError> {
+        rasterizer::draw_line(self, x0, y0, x1, y1);
+        Ok(())
+    }
+
+    fn draw_rect(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError> {
+        rasterizer::draw_rect(self, x0, y0, x1, y1);
+        Ok(())
+    }
+
+    fn fill_rect(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError> {
+        rasterizer::fill_rect(self, x0, y0, x1, y1);
+        Ok(())
+    }
+
+    fn draw_vline(&mut self, x: u16, y0: u16, y1: u16) -> Result<(), RendererError> {
+        rasterizer::draw_vline(self, x, y0, y1);
+        Ok(())
+    }
+
+    fn draw_hline(&mut self, y: u16, x0: u16, x1: u16) -> Result<(), RendererError> {
+        rasterizer::draw_hline(self, y, x0, x1);
+        Ok(())
+    }
+}
+
+impl Plotable for WGPUContext {
+    fn plot(&mut self, x: u16, y: u16) {
+        self.render_buffer.buffer[y as usize * DISPLAY_WIDTH as usize + x as usize] = PIXEL_WHITE;
     }
 }
