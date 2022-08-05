@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError}}, input::{input_table::{ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, AXIS_VIEW_X, AXIS_VIEW_Y}, event::{ActionEvent, ActionState, AxisEvent}}, event};
+use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError}}, input::{input_table::{ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, AXIS_VIEW_X, AXIS_VIEW_Y}, event::{ActionEvent, ActionState, AxisEvent, TextEvent}}, event::{self, InputEvent}};
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
 
@@ -56,11 +56,11 @@ impl WinitContext {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
                     *control_flow = ControlFlow::Exit;
                 }
-                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                app.push_event(event::PlatformEvent::Input(event::InputEvent::Axis(AxisEvent {
                     name: AXIS_VIEW_X,
                     value: self.input.input_helper.mouse_diff().0,
                 })));
-                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                app.push_event(event::PlatformEvent::Input(event::InputEvent::Axis(AxisEvent {
                     name: AXIS_VIEW_Y,
                     value: self.input.input_helper.mouse_diff().1,
                 })));
@@ -85,7 +85,7 @@ impl WinitContext {
                                 };
                                 if let Some(names) = self.input.action_mapping.get(&keycode) {
                                     for name in names {
-                                        app.push_event(event::Event::Input(mini3d_core::input::event::InputEvent::Action(ActionEvent {
+                                        app.push_event(event::PlatformEvent::Input(InputEvent::Action(ActionEvent {
                                             name: name,
                                             state: action_state
                                         })));
@@ -93,7 +93,7 @@ impl WinitContext {
                                 }
                             }
                             WindowEvent::CloseRequested => {
-                                app.push_event(event::Event::CloseRequested);
+                                app.push_event(event::PlatformEvent::CloseRequested);
                                 *control_flow = ControlFlow::Exit;
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -102,6 +102,9 @@ impl WinitContext {
                             WindowEvent::Resized(_) => {
                                 let inner_size = self.window.inner_size(); 
                                 renderer.resize(inner_size.width, inner_size.height);
+                            }
+                            WindowEvent::ReceivedCharacter(c) => {
+                                app.push_event(event::PlatformEvent::Input(InputEvent::Text(TextEvent::Character(c))));
                             }
                             _ => {}
                         }

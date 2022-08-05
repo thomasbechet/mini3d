@@ -98,6 +98,16 @@ impl InputTable {
                     axis.set_value(axis_event.value);
                 }
             },
+            InputEvent::Text(text_event) => {
+                match text_event {
+                    super::event::TextEvent::Character(char) => {
+                        
+                    },
+                    super::event::TextEvent::String(String) => {
+                        
+                    },
+                }
+            },
         }
     }
 

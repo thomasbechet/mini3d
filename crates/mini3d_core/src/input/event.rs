@@ -14,7 +14,13 @@ pub struct AxisEvent {
     pub value: f32,
 }
 
+pub enum TextEvent {
+    Character(char),
+    String(String),
+}
+
 pub enum InputEvent {
     Action(ActionEvent),
     Axis(AxisEvent),
+    Text(TextEvent),
 }

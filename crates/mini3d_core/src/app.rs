@@ -1,11 +1,11 @@
 use crate::asset::{AssetManager, Asset};
 use crate::asset::font::Font;
-use crate::event::Event;
+use crate::event::PlatformEvent;
 use crate::input::input_table::InputTable;
 use crate::service::renderer::RendererService;
 
 pub struct App {
-    event_queue: Vec<Event>,
+    event_queue: Vec<PlatformEvent>,
     input_table: InputTable,
     asset_manager: AssetManager,
     default_font: Asset<Font>,
@@ -24,20 +24,24 @@ impl App {
         }
     }
 
-    pub fn push_event(&mut self, event: Event) {
+    pub fn push_event(&mut self, event: PlatformEvent) {
         self.event_queue.push(event);
+    }
+
+    pub fn pull_events(&self) {
+
     }
 
     fn dispatch_events(&mut self) {
         for event in &self.event_queue {
             match event {
-                Event::CloseRequested => {
+                PlatformEvent::CloseRequested => {
 
                 },
-                Event::Input(input_event) => { 
+                PlatformEvent::Input(input_event) => { 
                     self.input_table.dispatch_event(input_event);
                 },
-                Event::AssetImport(asset_import_event) => {
+                PlatformEvent::AssetImport(asset_import_event) => {
                     self.asset_manager.dispatch_event(asset_import_event);
                 },
             }
