@@ -1,23 +1,26 @@
 use std::collections::HashMap;
 
-use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError}}, input::{input_table::{ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, AXIS_VIEW_X, AXIS_VIEW_Y}, event::{ActionEvent, ActionState, AxisEvent, TextEvent}}, event::{self, InputEvent}};
+use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError, SCREEN_RESOLUTION}}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent}, binding::{Button, Axis}, input_manager::InputName}, event::{self, InputEvent}, glam::{Vec2, UVec2}};
+use mini3d_wgpu::compute_viewport;
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
 
 struct WinitInput {
     pub input_helper: WinitInputHelper,
-    pub action_mapping: HashMap<VirtualKeyCode, Vec<&'static str>>,
+    pub button_mapping: HashMap<VirtualKeyCode, Vec<InputName>>,
 }
 
 impl WinitInput {
     pub fn new() -> Self {
         WinitInput { 
             input_helper: WinitInputHelper::new(),
-            action_mapping: HashMap::from([
-                (VirtualKeyCode::Z, vec![ACTION_UP]),
-                (VirtualKeyCode::S, vec![ACTION_DOWN]),
-                (VirtualKeyCode::D, vec![ACTION_LEFT]),
-                (VirtualKeyCode::Q, vec![ACTION_RIGHT]),
+            button_mapping: HashMap::from([
+                (VirtualKeyCode::Z, vec![Button::UP]),
+                (VirtualKeyCode::S, vec![Button::DOWN]),
+                (VirtualKeyCode::D, vec![Button::RIGHT]),
+                (VirtualKeyCode::Q, vec![Button::LEFT]),
+                (VirtualKeyCode::M, vec![Button::SWITCH_SELECTION_MODE]),
+                (VirtualKeyCode::Space, vec![Button::CLICK]),
             ])
         }
     }
@@ -38,7 +41,7 @@ impl WinitContext {
             .with_resizable(true)
             .build(&event_loop)
             .unwrap();
-        window.set_cursor_visible(true);
+        window.set_cursor_visible(false);
         let input = WinitInput::new();
         WinitContext { window, event_loop, input }
     }
@@ -56,12 +59,12 @@ impl WinitContext {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
                     *control_flow = ControlFlow::Exit;
                 }
-                app.push_event(event::PlatformEvent::Input(event::InputEvent::Axis(AxisEvent {
-                    name: AXIS_VIEW_X,
+                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                    name: Axis::CURSOR_X,
                     value: self.input.input_helper.mouse_diff().0,
                 })));
-                app.push_event(event::PlatformEvent::Input(event::InputEvent::Axis(AxisEvent {
-                    name: AXIS_VIEW_Y,
+                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                    name: Axis::CURSOR_Y,
                     value: self.input.input_helper.mouse_diff().1,
                 })));
             }
@@ -80,12 +83,12 @@ impl WinitContext {
                                 ..
                             } => {
                                 let action_state = match state {
-                                    ElementState::Pressed => ActionState::Pressed,
-                                    ElementState::Released => ActionState::Released,
+                                    ElementState::Pressed => ButtonState::Pressed,
+                                    ElementState::Released => ButtonState::Released,
                                 };
-                                if let Some(names) = self.input.action_mapping.get(&keycode) {
+                                if let Some(names) = self.input.button_mapping.get(&keycode) {
                                     for name in names {
-                                        app.push_event(event::PlatformEvent::Input(InputEvent::Action(ActionEvent {
+                                        app.push_event(event::Event::Input(InputEvent::Button(ButtonEvent {
                                             name: name,
                                             state: action_state
                                         })));
@@ -93,7 +96,7 @@ impl WinitContext {
                                 }
                             }
                             WindowEvent::CloseRequested => {
-                                app.push_event(event::PlatformEvent::CloseRequested);
+                                app.push_event(event::Event::CloseRequested);
                                 *control_flow = ControlFlow::Exit;
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -104,7 +107,17 @@ impl WinitContext {
                                 renderer.resize(inner_size.width, inner_size.height);
                             }
                             WindowEvent::ReceivedCharacter(c) => {
-                                app.push_event(event::PlatformEvent::Input(InputEvent::Text(TextEvent::Character(c))));
+                                app.push_event(event::Event::Input(InputEvent::Text(TextEvent::Character(c))));
+                            }
+                            WindowEvent::CursorMoved { device_id: _, position, .. } => {
+                                let p = Vec2::new(position.x as f32, position.y as f32);
+                                let wsize: UVec2 = (self.window.inner_size().width, self.window.inner_size().height).into();
+                                let viewport = compute_viewport(wsize);
+                                let relp = p - Vec2::new(viewport.x, viewport.y);
+
+                                app.push_event(event::Event::Input(event::InputEvent::Cursor(CursorEvent::Update { 
+                                    position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2()).into()
+                                })));
                             }
                             _ => {}
                         }

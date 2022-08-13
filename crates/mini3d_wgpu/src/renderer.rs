@@ -1,4 +1,5 @@
-use mini3d_core::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, DISPLAY_PIXEL_COUNT, RendererError, DISPLAY_WIDTH, DISPLAY_HEIGHT}, asset::{Asset, font::Font}};
+use glam::{IVec2, UVec2};
+use mini3d_core::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, SCREEN_PIXEL_COUNT, RendererError, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT}, asset::{Asset, font::Font}, glam::{self, Vec4}, math::rect::IRect};
 use wgpu::include_wgsl;
 use winit::{window::Window};
 use futures::executor;
@@ -21,7 +22,7 @@ struct RenderBuffer {
 impl RenderBuffer {
     pub fn new() -> RenderBuffer {
         RenderBuffer {
-            buffer: vec![Pixel::default(); DISPLAY_PIXEL_COUNT].into_boxed_slice()
+            buffer: vec![Pixel::default(); SCREEN_PIXEL_COUNT].into_boxed_slice()
         }
     }
     pub fn as_bytes(&self) -> &[u8] {
@@ -97,8 +98,8 @@ impl WGPUContext {
         let shader = device.create_shader_module(include_wgsl!("shader.wgsl"));
 
         let render_texture_size = wgpu::Extent3d {
-            width: DISPLAY_WIDTH as u32,
-            height: DISPLAY_HEIGHT as u32,
+            width: SCREEN_WIDTH as u32,
+            height: SCREEN_HEIGHT as u32,
             depth_or_array_layers: 1
         };
         let render_texture = device.create_texture(
@@ -225,10 +226,26 @@ impl WGPUContext {
 
 }
 
+pub fn compute_viewport(size: UVec2) -> Vec4 {
+    if size.x as f32 / size.y as f32 >= (SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32) {
+        let w = SCREEN_WIDTH as f32 * size.y as f32 / SCREEN_HEIGHT as f32;
+        let h = size.y as f32;
+        let x = (size.x / 2) as f32 - (w / 2.0);
+        let y = 0.0;
+        (x, y, w, h).into()
+    } else {
+        let w = size.x as f32;
+        let h = SCREEN_HEIGHT as f32 * size.x as f32 / SCREEN_WIDTH as f32;
+        let x = 0.0;
+        let y = (size.y / 2) as f32 - (h / 2.0);
+        (x, y, w, h).into()
+    }
+}
+
 impl RendererService for WGPUContext {
     fn render(&mut self) -> Result<(), RendererError> {
         let output = self.surface.get_current_texture()
-            .map_err(map_surface_to_renderer_error)?;
+            .map_err(map_surface_to_renderer_error).unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder")
@@ -245,8 +262,8 @@ impl RendererService for WGPUContext {
                 self.render_buffer.as_bytes(),
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4 * DISPLAY_WIDTH as u32),
-                    rows_per_image: std::num::NonZeroU32::new(DISPLAY_HEIGHT as u32)
+                    bytes_per_row: std::num::NonZeroU32::new(4 * SCREEN_WIDTH as u32),
+                    rows_per_image: std::num::NonZeroU32::new(SCREEN_HEIGHT as u32)
                 },
                 self.render_texture_size
             );
@@ -269,24 +286,10 @@ impl RendererService for WGPUContext {
             });
 
             // Compute viewport
-            let (x, y, w, h) = {
-                if self.size.width as f32 / self.size.height as f32 >= (DISPLAY_WIDTH as f32 / DISPLAY_HEIGHT as f32) {
-                    let w = DISPLAY_WIDTH as f32 * self.size.height as f32 / DISPLAY_HEIGHT as f32;
-                    let h = self.size.height as f32;
-                    let x = (self.size.width / 2) as f32 - (w / 2.0);
-                    let y = 0.0;
-                    (x, y, w, h)
-                } else {
-                    let w = self.size.width as f32;
-                    let h = DISPLAY_HEIGHT as f32 * self.size.width as f32 / DISPLAY_WIDTH as f32;
-                    let x = 0.0;
-                    let y = (self.size.height / 2) as f32 - (h / 2.0);
-                    (x, y, w, h)
-                }
-            };
+            let viewport = compute_viewport((self.size.width, self.size.height).into());
         
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_viewport(x, y, w, h, 0.0, 1.0);
+            render_pass.set_viewport(viewport.x, viewport.y, viewport.z, viewport.w, 0.0, 1.0);
             render_pass.set_bind_group(0, &self.render_texture_bind_group, &[]);
             render_pass.draw(0..3, 0..1);
         }
@@ -296,7 +299,8 @@ impl RendererService for WGPUContext {
 
         Ok(())
     }
-    fn resize(&mut self, width: u32, height: u32) -> Result<(), RendererError> {
+
+    fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.size.width = width;
             self.size.height = height;
@@ -304,46 +308,40 @@ impl RendererService for WGPUContext {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
         }
-        Ok(())
-    }
-    fn print(&mut self, x: u16, y: u16, text: &str, font: &Asset<Font>) -> Result<(), RendererError> {
-        rasterizer::print(self, x, y, text, &font.resource);
-        Ok(())
     }
 
-    fn clear(&mut self) -> Result<(), RendererError> {
+    fn print(&mut self, p: IVec2, text: &str, font: &Asset<Font>) {
+        rasterizer::print(self, p, text, &font.resource);
+    }
+
+    fn clear(&mut self) {
         self.render_buffer.buffer.fill(Pixel::default());
-        Ok(())
     }
 
-    fn draw_line(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError> {
-        rasterizer::draw_line(self, x0, y0, x1, y1);
-        Ok(())
+    fn draw_line(&mut self, p0: IVec2, p1: IVec2) {
+        rasterizer::draw_line(self, p0, p1);
     }
 
-    fn draw_rect(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError> {
-        rasterizer::draw_rect(self, x0, y0, x1, y1);
-        Ok(())
+    fn draw_rect(&mut self, rect: IRect) {
+        rasterizer::draw_rect(self, rect);
     }
 
-    fn fill_rect(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError> {
-        rasterizer::fill_rect(self, x0, y0, x1, y1);
-        Ok(())
+    fn fill_rect(&mut self, mut rect: IRect) {
+        rect.clamp(&SCREEN_VIEWPORT);
+        rasterizer::fill_rect(self, rect);
     }
 
-    fn draw_vline(&mut self, x: u16, y0: u16, y1: u16) -> Result<(), RendererError> {
+    fn draw_vline(&mut self, x: i32, y0: i32, y1: i32) {
         rasterizer::draw_vline(self, x, y0, y1);
-        Ok(())
     }
 
-    fn draw_hline(&mut self, y: u16, x0: u16, x1: u16) -> Result<(), RendererError> {
+    fn draw_hline(&mut self, y: i32, x0: i32, x1: i32) {
         rasterizer::draw_hline(self, y, x0, x1);
-        Ok(())
     }
 }
 
 impl Plotable for WGPUContext {
-    fn plot(&mut self, x: u16, y: u16) {
-        self.render_buffer.buffer[y as usize * DISPLAY_WIDTH as usize + x as usize] = PIXEL_WHITE;
+    fn plot(&mut self, p: UVec2) {
+        self.render_buffer.buffer[p.y as usize * SCREEN_WIDTH as usize + p.x as usize] = PIXEL_WHITE;
     }
 }

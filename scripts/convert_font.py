@@ -10,7 +10,7 @@ draw = ImageDraw.Draw(im)
 
 ba = bitarray()
 
-ascii = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+ascii = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê"
 for c in ascii:
     draw.text((0, 0), c, font=font)
 

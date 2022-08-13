@@ -1,16 +1,20 @@
-use crate::asset::{font::Font, Asset};
+use glam::{UVec2, uvec2, IVec2};
+
+use crate::{asset::{font::Font, Asset}, math::rect::IRect};
 
 // 3:2 aspect ration
-pub const DISPLAY_WIDTH: u16 = 480;
-pub const DISPLAY_HEIGHT: u16 = 320;
+// pub const SCREEN_WIDTH: u32 = 480;
+// pub const SCREEN_HEIGHT: u32 = 320;
 // // 4:3 aspect ration
-// pub const DISPLAY_WIDTH: u16 = 512;
-// pub const DISPLAY_HEIGHT: u16 = 384;
+// pub const SCREEN_WIDTH: u32 = 512;
+// pub const SCREEN_HEIGHT: u32 = 384;
 // // 16:10 aspect ration
-// pub const DISPLAY_WIDTH: u16 = 432;
-// pub const DISPLAY_HEIGHT: u16 = 240;
+pub const SCREEN_WIDTH: u32 = 432;
+pub const SCREEN_HEIGHT: u32 = 240;
 
-pub const DISPLAY_PIXEL_COUNT: usize = DISPLAY_WIDTH as usize * DISPLAY_HEIGHT as usize;
+pub const SCREEN_PIXEL_COUNT: usize = SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize;
+pub const SCREEN_RESOLUTION: UVec2 = uvec2(SCREEN_WIDTH, SCREEN_HEIGHT);
+pub const SCREEN_VIEWPORT: IRect = IRect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
 #[derive(Debug)]
 pub enum RendererError {
@@ -22,12 +26,12 @@ pub enum RendererError {
 
 pub trait RendererService {
     fn render(&mut self) -> Result<(), RendererError>;
-    fn resize(&mut self, width: u32, height: u32) -> Result<(), RendererError>;
-    fn print(&mut self, x: u16, y: u16, text: &str, font: &Asset<Font>) -> Result<(), RendererError>;
-    fn draw_line(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError>;
-    fn draw_vline(&mut self, x: u16, y0: u16, y1: u16) -> Result<(), RendererError>;
-    fn draw_hline(&mut self, y: u16, x0: u16, x1: u16) -> Result<(), RendererError>;
-    fn draw_rect(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError>;
-    fn fill_rect(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<(), RendererError>;
-    fn clear(&mut self) -> Result<(), RendererError>;
+    fn resize(&mut self, width: u32, height: u32);
+    fn print(&mut self, p: IVec2, text: &str, font: &Asset<Font>);
+    fn draw_line(&mut self, p0: IVec2, p1: IVec2);
+    fn draw_vline(&mut self, x: i32, y0: i32, y1: i32);
+    fn draw_hline(&mut self, y: i32, x0: i32, x1: i32);
+    fn draw_rect(&mut self, rect: IRect);
+    fn fill_rect(&mut self, rect: IRect);
+    fn clear(&mut self);
 }

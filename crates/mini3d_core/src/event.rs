@@ -1,7 +1,7 @@
 use crate::asset::AssetImportEvent;
 pub use crate::input::event::InputEvent;
 
-pub enum PlatformEvent {
+pub enum Event {
     CloseRequested,
     Input(InputEvent),
     AssetImport(AssetImportEvent),

@@ -13,7 +13,7 @@ impl Default for Font {
         let glyph_width = 8;
         let glyph_height = 8;
         let data = BitVec::from_slice(include_bytes!("../../../../scripts/font.bin"));
-        let glyph_locations: HashMap<_, _> = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+        let glyph_locations: HashMap<_, _> = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê"
             .chars().enumerate().map(|(i, x)| (x, i * (glyph_height * glyph_width))).collect();
         Font {
             glyph_width: glyph_width as u8,

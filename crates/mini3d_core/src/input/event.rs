@@ -1,12 +1,14 @@
+use glam::Vec2;
+
 #[derive(Copy, Clone)]
-pub enum ActionState {
+pub enum ButtonState {
     Pressed,
     Released,
 }
 
-pub struct ActionEvent {
+pub struct ButtonEvent {
     pub name: &'static str,
-    pub state: ActionState,
+    pub state: ButtonState,
 }
 
 pub struct AxisEvent {
@@ -19,8 +21,14 @@ pub enum TextEvent {
     String(String),
 }
 
+pub enum CursorEvent {
+    Move { delta: Vec2 },
+    Update { position: Vec2 },
+}
+
 pub enum InputEvent {
-    Action(ActionEvent),
+    Button(ButtonEvent),
     Axis(AxisEvent),
     Text(TextEvent),
+    Cursor(CursorEvent),
 }
