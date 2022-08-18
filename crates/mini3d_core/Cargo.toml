@@ -7,3 +7,4 @@ edition = "2021"
 [dependencies]
 bitvec = "1.0.1"
 glam = "0.21.3"
+indexmap = "1.9.1"

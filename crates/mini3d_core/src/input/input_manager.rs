@@ -2,86 +2,18 @@ use std::collections::HashMap;
 
 use crate::{service::renderer::RendererService, math::rect::IRect};
 
-use super::{event::{InputEvent, ButtonState, CursorEvent, TextEvent}, cursor::Cursor, binding::{Button, Axis}, input_layout::{InputLayout, AreaId, self}, direction::Direction};
+use super::{event::{InputEvent, ButtonState, CursorEvent, TextEvent}, cursor::Cursor, binding::{Button, Axis}, control_layout::{ControlLayout, ControlId}, direction::Direction, input::{InputName, ButtonInput, RangeInput, RangeType}};
 
-/// Store input state
-pub struct ButtonInput {
-    /// The button is pressed or released
-    pub pressed: bool,
-    /// Keep the previous state to detect just pressed and released
-    pub(crate) was_pressed: bool,
-}
-
-impl ButtonInput {
-
-    pub fn new() -> Self {
-        ButtonInput { pressed: false, was_pressed: false }
-    }
-
-    pub fn is_pressed(&self) -> bool {
-        self.pressed
-    }
-
-    pub fn is_released(&self) -> bool {
-        !self.pressed
-    }
-
-    pub fn is_just_pressed(&self) -> bool {
-        self.pressed && !self.was_pressed
-    }
-
-    pub fn is_just_released(&self) -> bool {
-        !self.pressed && self.was_pressed
-    }
-}
-
-pub enum RangeType {
-    Clamped { min: f32, max: f32 },
-    Normalized { norm: f32 },
-    ClampedNormalized { min: f32, max: f32, norm: f32 },
-    Infinite,
-}
-
-pub struct RangeInput {
-    pub value: f32,
-    pub range: RangeType,
-}
-
-impl RangeInput {
-    pub fn new(range: RangeType) -> Self {
-        RangeInput { value: 0.0, range: range }
-    }
-
-    pub fn set_value(&mut self, value: f32) {
-        self.value = match self.range {
-            RangeType::Clamped { min, max } => {
-                value.max(min).min(max)
-            },
-            RangeType::Normalized { norm } => {
-                value / norm
-            },
-            RangeType::ClampedNormalized { min, max, norm } => {
-                value.max(min).min(max) / norm
-            },
-            RangeType::Infinite => {
-                value
-            },
-        }
-    }
-}
-
-pub type InputName = &'static str;
-
-pub enum SelectionMode {
-    Area { selected_area: Option<AreaId> },
+pub enum ControlMode {
+    Selection { selected_area: Option<ControlId> },
     Cursor { cursor: Cursor },
 }
 
 pub struct InputManager {
     pub buttons: HashMap<InputName, ButtonInput>,
     pub axes: HashMap<InputName, RangeInput>,
-    input_layout: Option<InputLayout>,
-    selection_mode: SelectionMode,
+    control_layout: Option<ControlLayout>,
+    control_mode: ControlMode,
 }
 
 impl InputManager {
@@ -95,7 +27,7 @@ impl InputManager {
         }
 
         // Reset the mouse motion for the current frame
-        if let SelectionMode::Cursor { cursor } = &mut self.selection_mode {
+        if let ControlMode::Cursor { cursor } = &mut self.control_mode {
             cursor.reset_motion();
         }
     }
@@ -131,7 +63,7 @@ impl InputManager {
                 }
             },
             InputEvent::Cursor(cursor_event) => {
-                if let SelectionMode::Cursor { cursor } = &mut self.selection_mode {
+                if let ControlMode::Cursor { cursor } = &mut self.control_mode {
                     match cursor_event {
                         CursorEvent::Move { delta } => {
                             cursor.translate(*delta);
@@ -150,25 +82,25 @@ impl InputManager {
 
         // Check selection mode
         if self.buttons.get(Button::SWITCH_SELECTION_MODE).unwrap().is_just_pressed() {
-            match self.selection_mode {
-                SelectionMode::Area { selected_area: _ } => {
-                    self.selection_mode = SelectionMode::Cursor { cursor: Cursor::new() };
+            match self.control_mode {
+                ControlMode::Selection { selected_area: _ } => {
+                    self.control_mode = ControlMode::Cursor { cursor: Cursor::new() };
                 },
-                SelectionMode::Cursor { cursor: _ } => {
-                    self.selection_mode = SelectionMode::Area { selected_area: None }
+                ControlMode::Cursor { cursor: _ } => {
+                    self.control_mode = ControlMode::Selection { selected_area: None }
                 },
             }
         }
 
         // Selection behaviour differ with the cursor mode
-        match &mut self.selection_mode {
-            SelectionMode::Area { selected_area } => {
+        match &mut self.control_mode {
+            ControlMode::Selection { selected_area } => {
 
                 // Handle movement
-                if let Some(input_layout) = &mut self.input_layout {
+                if let Some(input_layout) = &mut self.control_layout {
                     for direction in Direction::iterator() {
                         if self.buttons.get(Button::from_direction(direction)).unwrap().is_just_pressed() {
-                            let id = input_layout.move_next(*selected_area, direction);
+                            let id = input_layout.get_control_from_direction(*selected_area, direction);
                             // Update the selected area
                             *selected_area = id;
                         }
@@ -182,12 +114,12 @@ impl InputManager {
                     }
                 }
             },
-            SelectionMode::Cursor { cursor } => {
+            ControlMode::Cursor { cursor } => {
 
                 // Handle click
                 if self.buttons.get(Button::CLICK).unwrap().is_just_pressed() {
-                    if let Some(input_layout) = &self.input_layout {
-                        let id = input_layout.find_area(cursor.screen_position());
+                    if let Some(input_layout) = &self.control_layout {
+                        let id = input_layout.get_control_from_position(cursor.screen_position());
                         if let Some(id) = id {
                             println!("{}", id);
                         }
@@ -198,17 +130,17 @@ impl InputManager {
     }
 
     pub(crate) fn render(&self, renderer: &mut impl RendererService) {
-        match &self.selection_mode {
-            SelectionMode::Area { selected_area } => {
-                if self.input_layout.is_some() && selected_area.is_some() {
-                    let input_layout = self.input_layout.as_ref().unwrap();
-                    let extent = input_layout.get_area_extent(selected_area.unwrap());
+        match &self.control_mode {
+            ControlMode::Selection { selected_area } => {
+                if self.control_layout.is_some() && selected_area.is_some() {
+                    let input_layout = self.control_layout.as_ref().unwrap();
+                    let extent = input_layout.get_control_extent(selected_area.unwrap());
                     if let Some(extent) = extent {
                         renderer.draw_rect(extent);
                     }
                 }
             },
-            SelectionMode::Cursor { cursor } => {
+            ControlMode::Cursor { cursor } => {
                 let sp = cursor.screen_position();
                 renderer.fill_rect(IRect::new(sp.x, sp.y, 2, 2));
             },
@@ -231,8 +163,8 @@ impl Default for InputManager {
                 (Axis::CURSOR_X, RangeInput::new(RangeType::Infinite)),
                 (Axis::CURSOR_Y, RangeInput::new(RangeType::Infinite)),
             ]),
-            input_layout: Some(InputLayout::new()),
-            selection_mode: SelectionMode::Area { selected_area: None },
+            control_layout: Some(ControlLayout::new()),
+            control_mode: ControlMode::Selection { selected_area: None },
         }
     }
 }

@@ -9,6 +9,7 @@ pub struct IRect {
 }
 
 impl IRect {
+
     pub const fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
         IRect {
             tl: IVec2::new(x, y),
@@ -17,19 +18,64 @@ impl IRect {
     }
 
     /// Top-Left point
+    #[inline]
     pub fn tl(&self) -> IVec2 {
         self.tl
     }
 
     /// Bottom-Right point
+    #[inline]
     pub fn br(&self) -> IVec2 {
         self.br
     }
 
+    /// Top-Right point
+    #[inline]
+    pub fn tr(&self) -> IVec2 {
+        IVec2::new(self.br.x, self.tl.y)
+    }
+
+    /// Bottom-Left point
+    #[inline]
+    pub fn bl(&self) -> IVec2 {
+        IVec2::new(self.tl.x, self.br.y)
+    }
+
+    /// Center-Up point
+    #[inline]
+    pub fn cu(&self) -> IVec2 {
+        IVec2::new((self.tl.x + self.br.x) / 2, self.tl.y)
+    }
+
+    /// Center-Bottom point
+    #[inline]
+    pub fn cb(&self) -> IVec2 {
+        IVec2::new((self.tl.x + self.br.x) / 2, self.br.y)
+    }
+
+    /// Center-Right point
+    #[inline]
+    pub fn cr(&self) -> IVec2 {
+        IVec2::new(self.br.x, (self.tl.y + self.br.y) / 2)
+    }
+
+    /// Center-Right point
+    #[inline]
+    pub fn cl(&self) -> IVec2 {
+        IVec2::new(self.tl.x, (self.tl.y + self.br.y) / 2)
+    }
+
+    #[inline]
+    pub fn center(&self) -> IVec2 {
+        IVec2::new((self.tl.x + self.br.x) / 2, (self.tl.y + self.br.y) / 2)
+    }
+
+    #[inline]
     pub fn width(&self) -> u32 {
         self.br.x as u32 - self.tl.x as u32
     }
 
+    #[inline]
     pub fn height(&self) -> u32 {
         self.br.y as u32 - self.tl.y as u32
     }
