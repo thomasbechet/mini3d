@@ -1,15 +1,7 @@
-[package]
-name = "mini3d"
-version = "0.1.0"
-authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
-edition = "2021"
-
-[dependencies]
-winit = "0.26.0"
-winit_input_helper = "0.12.0"
-anyhow = "1.0"
-env_logger = "0.9"
-log = "0.4"
-mini3d_core = { path = "crates/mini3d_core" }
-mini3d_wgpu = { path = "crates/mini3d_wgpu" }
-mini3d_winit = { path = "crates/mini3d_winit" }
+[workspace]
+members = [
+    "mini3d",
+    "mini3d_wgpu",
+    "mini3d_winit",
+]
+resolver = "2"

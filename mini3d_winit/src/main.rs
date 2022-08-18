@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use mini3d_core::{app::{App}, service::{renderer::{RendererService, RendererError, SCREEN_RESOLUTION}}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent}, binding::{Button, Axis}, input::InputName}, event::{self, InputEvent}, glam::{Vec2, UVec2}};
-use mini3d_wgpu::compute_viewport;
+use mini3d::{app::{App}, service::{renderer::{RendererService, RendererError, SCREEN_RESOLUTION}}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent}, binding::{Button, Axis}, input::InputName}, event::{self, InputEvent}, glam::{Vec2, UVec2}};
+use mini3d_wgpu::{compute_viewport, WGPUContext};
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
 
@@ -141,4 +141,11 @@ impl WinitContext {
             }
         });
     }
+}
+
+fn main() {
+    let winit_context = WinitContext::new();
+    let wgpu_context = WGPUContext::new(&winit_context.window);
+    let app = App::new();
+    winit_context.run(app, wgpu_context);
 }

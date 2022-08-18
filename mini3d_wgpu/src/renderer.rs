@@ -1,5 +1,5 @@
 use glam::{IVec2, UVec2};
-use mini3d_core::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, SCREEN_PIXEL_COUNT, RendererError, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT}, asset::{Asset, font::Font}, glam::{self, Vec4}, math::rect::IRect};
+use mini3d::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, SCREEN_PIXEL_COUNT, RendererError, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT}, asset::{Asset, font::Font}, glam::{self, Vec4}, math::rect::IRect};
 use wgpu::include_wgsl;
 use winit::{window::Window};
 use futures::executor;
