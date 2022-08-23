@@ -143,8 +143,7 @@ impl ControlLayout {
     }
 
     pub fn get_control_extent(&self, id: ControlId) -> Option<IRect> {
-        self.extents.get(&id)
-            .map_or(None, |x| Some(*x))
+        self.extents.get(&id).copied()
     }
 
     pub fn get_control_from_direction(&mut self, id: Option<ControlId>, direction: Direction) -> Option<ControlId> {
