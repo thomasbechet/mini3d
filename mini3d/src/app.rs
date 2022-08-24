@@ -15,6 +15,7 @@ pub struct App {
 impl App {
 
     pub fn new() -> Self {
+        println!("Hello from app !");
         App { 
             event_queue: Vec::new(),
             input_manager: Default::default(),
