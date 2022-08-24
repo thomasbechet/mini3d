@@ -5,8 +5,11 @@ edition = "2021"
 
 [lib]
 name = "mini3d"
-crate-type = ["staticlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 mini3d = { path = "../mini3d" }
 libc="0.2.132"
+
+[build-dependencies]
+cbindgen = "0.24.3"

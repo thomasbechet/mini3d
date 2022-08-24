@@ -3,25 +3,35 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef enum ButtonState {
-  Pressed,
-  Released,
-} ButtonState;
+typedef enum mini3d_button_state {
+  MINI3D_BUTTON_STATE_PRESSED,
+  MINI3D_BUTTON_STATE_RELEASED,
+} mini3d_button_state;
 
-typedef struct App {
-  uint8_t private_[0];
-} App;
+typedef struct mini3d_app {
+  uint8_t _data[0];
+} mini3d_app;
 
-struct App *mini3d_app_new(void);
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 
-void mini3d_app_delete(struct App *app);
+struct mini3d_app *mini3d_app_new(void);
 
-void mini3d_app_push_close_requested(struct App *app);
+void mini3d_app_delete(struct mini3d_app *app);
 
-void mini3d_app_push_input_button(struct App *app, const char *name, enum ButtonState state);
+void mini3d_app_push_close_requested(struct mini3d_app *app);
 
-void mini3d_app_push_input_axis(struct App *app, const char *name, float value);
+void mini3d_app_push_input_button(struct mini3d_app *app,
+                                  const char *name,
+                                  enum mini3d_button_state state);
 
-void mini3d_app_push_input_cursor_move(struct App *app, const float *delta);
+void mini3d_app_push_input_axis(struct mini3d_app *app, const char *name, float value);
 
-void mini3d_app_push_input_cursor_position(struct App *app, const float *position);
+void mini3d_app_push_input_cursor_move(struct mini3d_app *app, const float *delta);
+
+void mini3d_app_push_input_cursor_position(struct mini3d_app *app, const float *position);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus

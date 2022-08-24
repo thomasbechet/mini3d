@@ -1,8 +1,6 @@
 language = "C"
-
-[export.rename]
-# "App" = "mini3d_app_t"
+cpp_compat = true
 
 [enum]
-# rename_variants = "UpperCase"
-prefix_with_name = false
+rename_variants = "UpperCase"
+prefix_with_name = true
