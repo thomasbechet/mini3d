@@ -1,3 +1,6 @@
+#ifndef MINI3D_H
+#define MINI3D_H
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -45,3 +48,5 @@ void mini3d_renderer_delete(struct mini3d_renderer *app);
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus
+
+#endif /* MINI3D_H */

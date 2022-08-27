@@ -1,5 +1,6 @@
 language = "C"
 cpp_compat = true
+include_guard = "MINI3D_H"
 
 [enum]
 rename_variants = "UpperCase"
