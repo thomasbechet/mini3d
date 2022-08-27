@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 winit = "0.26.0"
 wgpu = "0.13.1"
+raw-window-handle = "0.4.3"
 bytemuck = { version = "1.10.0", features = [ "derive" ] }
 rand = "0.8.5"
 futures = { version = "0.3", features = ["compat"] }

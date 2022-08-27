@@ -1,7 +1,7 @@
 use glam::{IVec2, UVec2};
 use mini3d::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, SCREEN_PIXEL_COUNT, RendererError, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT}, asset::{Asset, font::Font}, glam::{self, Vec4}, math::rect::IRect};
 use wgpu::include_wgsl;
-use winit::{window::Window};
+use winit::dpi::PhysicalSize;
 use futures::executor;
 
 #[derive(Copy, Clone, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -59,8 +59,8 @@ struct Vertex {
 }
 
 impl WGPUContext {
-    pub fn new(window: &Window) -> Self {
-        let size = window.inner_size();
+    pub fn new<W: raw_window_handle::HasRawWindowHandle>(window: &W) -> Self {
+        let size = PhysicalSize::new(SCREEN_WIDTH, SCREEN_HEIGHT);
 
         let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
         let surface = unsafe { instance.create_surface(window) };

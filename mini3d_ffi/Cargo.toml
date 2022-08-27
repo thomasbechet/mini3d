@@ -9,6 +9,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 mini3d = { path = "../mini3d" }
+mini3d_wgpu = { path = "../mini3d_wgpu" }
+raw-window-handle = "0.4.3"
 libc="0.2.132"
 
 [build-dependencies]
