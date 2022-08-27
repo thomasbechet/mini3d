@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d::{app::{App}, service::{renderer::{RendererService, RendererError, SCREEN_RESOLUTION}}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent}, binding::{Button, Axis}, input::InputName}, event::{self, InputEvent}, glam::{Vec2, UVec2}};
+use mini3d::{app::{App}, service::{renderer::{RendererService, RendererError, SCREEN_RESOLUTION}}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent}, binding::{Button, Axis}, range::InputName}, event::{self, InputEvent}, glam::{Vec2, UVec2}};
 use mini3d_wgpu::{compute_viewport, WGPUContext};
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
@@ -32,9 +32,8 @@ pub struct WinitContext {
     input: WinitInput,
 }
 
-impl WinitContext {
-
-    pub fn new() -> Self {
+impl Default for WinitContext {
+    fn default() -> Self {
         let event_loop = event_loop::EventLoop::new();
         let window = window::WindowBuilder::new()
             .with_inner_size(PhysicalSize::new(600, 400))
@@ -43,9 +42,11 @@ impl WinitContext {
             .unwrap();
         window.set_cursor_visible(false);
         let input = WinitInput::new();
-        WinitContext { window, event_loop, input }
+        Self { window, event_loop, input }
     }
+}
 
+impl WinitContext {
     pub fn run(
         mut self, 
         mut app: App, 
@@ -89,7 +90,7 @@ impl WinitContext {
                                 if let Some(names) = self.input.button_mapping.get(&keycode) {
                                     for name in names {
                                         app.push_event(event::Event::Input(InputEvent::Button(ButtonEvent {
-                                            name: name,
+                                            name,
                                             state: action_state
                                         })));
                                     }
@@ -116,7 +117,7 @@ impl WinitContext {
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
 
                                 app.push_event(event::Event::Input(event::InputEvent::Cursor(CursorEvent::Update { 
-                                    position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2()).into()
+                                    position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2())
                                 })));
                             }
                             _ => {}
@@ -144,8 +145,8 @@ impl WinitContext {
 }
 
 fn main() {
-    let winit_context = WinitContext::new();
+    let winit_context = WinitContext::default();
     let wgpu_context = WGPUContext::new(&winit_context.window);
-    let app = App::new();
+    let app = App::default();
     winit_context.run(app, wgpu_context);
 }

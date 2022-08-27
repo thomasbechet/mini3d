@@ -12,19 +12,20 @@ pub struct App {
     count: usize,
 }
 
-impl App {
-
-    pub fn new() -> Self {
+impl Default for App {
+    fn default() -> Self {
         println!("Hello from app !");
-        App { 
+        Self { 
             event_queue: Vec::new(),
             input_manager: Default::default(),
-            asset_manager: AssetManager::new(),
+            asset_manager: Default::default(),
             default_font: Asset::<Font> { name: "default", id: 0, resource: Default::default() },
             count: 0,
         }
     }
+}
 
+impl App {
     pub fn push_event(&mut self, event: Event) {
         self.event_queue.push(event);
     }

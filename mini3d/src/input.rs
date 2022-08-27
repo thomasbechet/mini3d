@@ -4,4 +4,5 @@ pub mod direction;
 pub mod event;
 pub mod control_layout;
 pub mod input_manager;
-pub mod input;
+pub mod range;
+pub mod button;

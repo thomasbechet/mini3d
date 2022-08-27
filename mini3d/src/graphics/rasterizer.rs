@@ -36,7 +36,7 @@ pub fn draw_line(p: &mut impl Plotable, mut p0: IVec2, p1: IVec2) {
                 break;
             }
             error += dx;
-            p0.y = p0.y + sy;
+            p0.y += sy;
         }
     }
 }

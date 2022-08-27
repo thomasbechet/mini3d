@@ -1,34 +1,3 @@
-/// Store input state
-pub struct ButtonInput {
-    /// The button is pressed or released
-    pub pressed: bool,
-    /// Keep the previous state to detect just pressed and released
-    pub(crate) was_pressed: bool,
-}
-
-impl ButtonInput {
-
-    pub fn new() -> Self {
-        ButtonInput { pressed: false, was_pressed: false }
-    }
-
-    pub fn is_pressed(&self) -> bool {
-        self.pressed
-    }
-
-    pub fn is_released(&self) -> bool {
-        !self.pressed
-    }
-
-    pub fn is_just_pressed(&self) -> bool {
-        self.pressed && !self.was_pressed
-    }
-
-    pub fn is_just_released(&self) -> bool {
-        !self.pressed && self.was_pressed
-    }
-}
-
 pub enum RangeType {
     Clamped { min: f32, max: f32 },
     Normalized { norm: f32 },
@@ -44,7 +13,7 @@ pub struct RangeInput {
 impl RangeInput {
     
     pub fn new(range: RangeType) -> Self {
-        RangeInput { value: 0.0, range: range }
+        RangeInput { value: 0.0, range }
     }
 
     pub fn set_value(&mut self, value: f32) {

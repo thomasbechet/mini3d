@@ -13,16 +13,13 @@ pub struct Asset<R> {
     pub resource: R,
 }
 
+#[derive(Default)]
 pub struct AssetManager {
     #[allow(dead_code)]
     fonts: HashMap<AssetID, Asset<Font>>,
 }
 
 impl AssetManager {
-    pub fn new() -> Self {
-        AssetManager { fonts: HashMap::new() }
-    }
-
     pub fn dispatch_event(&mut self, _event: &AssetImportEvent) {
         
     }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{service::renderer::RendererService, math::rect::IRect};
 
-use super::{event::{InputEvent, ButtonState, CursorEvent, TextEvent}, cursor::Cursor, binding::{Button, Axis}, control_layout::{ControlLayout, ControlId}, direction::Direction, input::{InputName, ButtonInput, RangeInput, RangeType}};
+use super::{event::{InputEvent, ButtonState, CursorEvent, TextEvent}, cursor::Cursor, binding::{Button, Axis}, control_layout::{ControlLayout, ControlId}, direction::Direction, range::{InputName, RangeInput, RangeType}, button::ButtonInput};
 
 pub enum ControlMode {
     Selection { selected_area: Option<ControlId> },
@@ -84,7 +84,7 @@ impl InputManager {
         if self.buttons.get(Button::SWITCH_SELECTION_MODE).unwrap().is_just_pressed() {
             match self.control_mode {
                 ControlMode::Selection { selected_area: _ } => {
-                    self.control_mode = ControlMode::Cursor { cursor: Cursor::new() };
+                    self.control_mode = ControlMode::Cursor { cursor: Default::default() };
                 },
                 ControlMode::Cursor { cursor: _ } => {
                     self.control_mode = ControlMode::Selection { selected_area: None }
@@ -152,12 +152,12 @@ impl Default for InputManager {
     fn default() -> Self {
         InputManager {
             buttons: HashMap::from([
-                (Button::UP, ButtonInput::new()),
-                (Button::DOWN, ButtonInput::new()),
-                (Button::LEFT, ButtonInput::new()),
-                (Button::RIGHT, ButtonInput::new()),
-                (Button::CLICK, ButtonInput::new()),
-                (Button::SWITCH_SELECTION_MODE, ButtonInput::new()),
+                (Button::UP, ButtonInput::default()),
+                (Button::DOWN, ButtonInput::default()),
+                (Button::LEFT, ButtonInput::default()),
+                (Button::RIGHT, ButtonInput::default()),
+                (Button::CLICK, ButtonInput::default()),
+                (Button::SWITCH_SELECTION_MODE, ButtonInput::default()),
             ]),
             axes: HashMap::from([
                 (Axis::CURSOR_X, RangeInput::new(RangeType::Infinite)),

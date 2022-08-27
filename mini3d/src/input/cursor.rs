@@ -8,11 +8,13 @@ pub struct Cursor {
     motion: Vec2,
 }
 
-impl Cursor {
-    pub fn new() -> Self {
-        Cursor { position: Vec2::ZERO, motion: Vec2::ZERO }
+impl Default for Cursor {
+    fn default() -> Self {
+        Self { position: Vec2::ZERO, motion: Vec2::ZERO }
     }
+}
 
+impl Cursor {
     pub fn screen_position(&self) -> IVec2 {
         self.position.as_ivec2()
     }

@@ -24,7 +24,7 @@ struct mini3d_app *mini3d_app_new(void);
 
 void mini3d_app_delete(struct mini3d_app *app);
 
-void mini3d_app_renderer(struct mini3d_app *app, struct mini3d_renderer *renderer);
+void mini3d_app_render(struct mini3d_app *app, struct mini3d_renderer *renderer);
 
 void mini3d_app_push_close_requested(struct mini3d_app *app);
 
