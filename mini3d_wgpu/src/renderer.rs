@@ -243,9 +243,9 @@ pub fn compute_viewport(size: UVec2) -> Vec4 {
 }
 
 impl RendererService for WGPUContext {
-    fn render(&mut self) -> Result<(), RendererError> {
+    fn present(&mut self) -> Result<(), RendererError> {
         let output = self.surface.get_current_texture()
-            .map_err(map_surface_to_renderer_error).unwrap();
+            .map_err(map_surface_to_renderer_error)?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder")

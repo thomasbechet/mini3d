@@ -1,4 +1,5 @@
 use libc::c_void;
+use mini3d::service::renderer::{RendererError, RendererService};
 use mini3d_wgpu::WGPUContext;
 
 #[repr(C)] 
@@ -23,11 +24,59 @@ unsafe impl raw_window_handle::HasRawWindowHandle for RawWindowHandle {
 pub extern "C" fn mini3d_renderer_new_wgpu_win32(hinstance: *mut c_void, hwnd: *mut c_void) -> *mut mini3d_renderer {
     let mut handle = raw_window_handle::Win32Handle::empty();
     handle.hinstance = hinstance;
-    handle.hwnd = hwnd; 
+    handle.hwnd = hwnd;
     Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPUContext::new(&RawWindowHandle(handle))) })) as *mut mini3d_renderer
 }
 
 #[no_mangle]
-pub extern "C" fn mini3d_renderer_delete(app: *mut mini3d_renderer) {
-    unsafe { Box::from_raw(app as *mut RendererContext); }
+pub extern "C" fn mini3d_renderer_delete(renderer: *mut mini3d_renderer) {
+    unsafe { Box::from_raw(renderer as *mut RendererContext); }
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn mini3d_renderer_present(renderer: *mut mini3d_renderer) -> bool {
+    let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
+    match renderer {
+        RendererContext::None => { true },
+        RendererContext::Wgpu { context } => {
+            match context.as_mut().present() {
+                Ok(_) => {
+                    true
+                }
+                Err(RendererError::OutOfMemory) => {
+                    println!("renderer:error:out_of_memory");
+                    false
+                },
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    false
+                } 
+            }
+        },
+    }
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn mini3d_renderer_resize(renderer: *mut mini3d_renderer, width: u32, height: u32) {
+    let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
+    match renderer {
+        RendererContext::None => {},
+        RendererContext::Wgpu { context } => {
+            context.resize(width, height);
+        },
+    }
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn mini3d_renderer_recreate(renderer: *mut mini3d_renderer) {
+    let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
+    match renderer {
+        RendererContext::None => {},
+        RendererContext::Wgpu { context } => {
+            context.recreate();
+        },
+    }
 }

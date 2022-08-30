@@ -2,15 +2,18 @@ use glam::{UVec2, uvec2, IVec2};
 
 use crate::{asset::{font::Font, Asset}, math::rect::IRect};
 
-// 3:2 aspect ration
+// 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
 // pub const SCREEN_HEIGHT: u32 = 320;
-// // 4:3 aspect ration
+// // 4:3 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 512;
 // pub const SCREEN_HEIGHT: u32 = 384;
-// // 16:10 aspect ration
-pub const SCREEN_WIDTH: u32 = 432;
-pub const SCREEN_HEIGHT: u32 = 240;
+// // 16:10 aspect ratio
+// pub const SCREEN_WIDTH: u32 = 432;
+// pub const SCREEN_HEIGHT: u32 = 240;
+// // 16:9 aspect ratio
+pub const SCREEN_WIDTH: u32 = 384;
+pub const SCREEN_HEIGHT: u32 = 216;
 
 pub const SCREEN_PIXEL_COUNT: usize = SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize;
 pub const SCREEN_RESOLUTION: UVec2 = uvec2(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -25,7 +28,7 @@ pub enum RendererError {
 }
 
 pub trait RendererService {
-    fn render(&mut self) -> Result<(), RendererError>;
+    fn present(&mut self) -> Result<(), RendererError>;
     fn resize(&mut self, width: u32, height: u32);
     fn print(&mut self, p: IVec2, text: &str, font: &Asset<Font>);
     fn draw_line(&mut self, p0: IVec2, p1: IVec2);

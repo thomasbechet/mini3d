@@ -27,6 +27,8 @@ struct mini3d_app *mini3d_app_new(void);
 
 void mini3d_app_delete(struct mini3d_app *app);
 
+void mini3d_app_progress(struct mini3d_app *app);
+
 void mini3d_app_render(struct mini3d_app *app, struct mini3d_renderer *renderer);
 
 void mini3d_app_push_close_requested(struct mini3d_app *app);
@@ -39,11 +41,21 @@ void mini3d_app_push_input_axis(struct mini3d_app *app, const char *name, float 
 
 void mini3d_app_push_input_cursor_move(struct mini3d_app *app, const float *delta);
 
-void mini3d_app_push_input_cursor_position(struct mini3d_app *app, const float *position);
+void mini3d_app_push_input_cursor_position(struct mini3d_app *app,
+                                           float x,
+                                           float y,
+                                           uint32_t width,
+                                           uint32_t height);
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 
-void mini3d_renderer_delete(struct mini3d_renderer *app);
+void mini3d_renderer_delete(struct mini3d_renderer *renderer);
+
+bool mini3d_renderer_present(struct mini3d_renderer *renderer);
+
+void mini3d_renderer_resize(struct mini3d_renderer *renderer, uint32_t width, uint32_t height);
+
+void mini3d_renderer_recreate(struct mini3d_renderer *renderer);
 
 #ifdef __cplusplus
 } // extern "C"

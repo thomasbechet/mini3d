@@ -126,7 +126,7 @@ impl WinitContext {
                 }
                 Event::RedrawRequested(window_id) => {
                     if window_id == self.window.id() {
-                        match renderer.render() {
+                        match renderer.present() {
                             Ok(_) => {}
                             Err(RendererError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                             Err(e) => eprintln!("{:?}", e),

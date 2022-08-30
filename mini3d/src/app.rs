@@ -14,8 +14,7 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        println!("Hello from app !");
-        Self { 
+        Self {
             event_queue: Vec::new(),
             input_manager: Default::default(),
             asset_manager: Default::default(),
