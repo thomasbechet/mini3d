@@ -1,4 +1,4 @@
-use libc::c_void;
+use libc::{c_void, c_ulong};
 use mini3d::service::renderer::{RendererError, RendererService};
 use mini3d_wgpu::WGPUContext;
 
@@ -35,7 +35,7 @@ pub extern "C" fn mini3d_renderer_new_wgpu_win32(hinstance: *mut c_void, hwnd: *
 }
 
 #[no_mangle]
-pub extern "C" fn mini3d_renderer_new_wgpu_xlib(window: u64, display: *mut c_void) -> *mut mini3d_renderer {
+pub extern "C" fn mini3d_renderer_new_wgpu_xlib(window: c_ulong, display: *mut c_void) -> *mut mini3d_renderer {
     let mut handle = raw_window_handle::XlibHandle::empty();
     handle.window = window;
     handle.display = display;
