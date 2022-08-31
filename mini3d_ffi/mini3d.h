@@ -49,6 +49,8 @@ void mini3d_app_push_input_cursor_position(struct mini3d_app *app,
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 
+struct mini3d_renderer *mini3d_renderer_new_wgpu_xlib(uint64_t window, void *display);
+
 void mini3d_renderer_delete(struct mini3d_renderer *renderer);
 
 bool mini3d_renderer_present(struct mini3d_renderer *renderer);

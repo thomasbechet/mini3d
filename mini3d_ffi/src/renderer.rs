@@ -12,11 +12,17 @@ pub enum RendererContext {
     }
 }
 
-struct RawWindowHandle(raw_window_handle::Win32Handle);
+enum RawWindowHandle {
+    Win32(raw_window_handle::Win32Handle),
+    Xlib(raw_window_handle::XlibHandle)
+}
 
 unsafe impl raw_window_handle::HasRawWindowHandle for RawWindowHandle {
     fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-        raw_window_handle::RawWindowHandle::Win32(self.0)
+        match self {
+            RawWindowHandle::Win32(handle) => raw_window_handle::RawWindowHandle::Win32(*handle),
+            RawWindowHandle::Xlib(handle) => raw_window_handle::RawWindowHandle::Xlib(*handle),
+        }
     }
 }
 
@@ -25,7 +31,16 @@ pub extern "C" fn mini3d_renderer_new_wgpu_win32(hinstance: *mut c_void, hwnd: *
     let mut handle = raw_window_handle::Win32Handle::empty();
     handle.hinstance = hinstance;
     handle.hwnd = hwnd;
-    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPUContext::new(&RawWindowHandle(handle))) })) as *mut mini3d_renderer
+    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPUContext::new(&RawWindowHandle::Win32(handle))) })) as *mut mini3d_renderer
+}
+
+#[no_mangle]
+pub extern "C" fn mini3d_renderer_new_wgpu_xlib(window: u64, display: *mut c_void) -> *mut mini3d_renderer {
+    let mut handle = raw_window_handle::XlibHandle::empty();
+    handle.window = window;
+    handle.display = display;
+    handle.visual_id = 0;
+    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPUContext::new(&RawWindowHandle::Xlib(handle))) })) as *mut mini3d_renderer
 }
 
 #[no_mangle]
