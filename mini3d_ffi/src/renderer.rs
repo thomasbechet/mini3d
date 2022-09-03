@@ -1,6 +1,8 @@
 use libc::{c_void, c_ulong};
-use mini3d::service::renderer::{RendererError, RendererService};
+use mini3d::{application::Application};
 use mini3d_wgpu::WGPUContext;
+
+use crate::application::mini3d_application;
 
 #[repr(C)] 
 pub struct mini3d_renderer(*mut c_void);
@@ -50,6 +52,19 @@ pub extern "C" fn mini3d_renderer_delete(renderer: *mut mini3d_renderer) {
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, app: *const mini3d_application) {
+    let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
+    let app = (app as *const Application).as_ref().unwrap();
+    match renderer {
+        RendererContext::None => {},
+        RendererContext::Wgpu { context } => {
+            context.render(app);
+        },
+    }
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn mini3d_renderer_present(renderer: *mut mini3d_renderer) -> bool {
     let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
     match renderer {
@@ -58,10 +73,6 @@ pub unsafe extern "C" fn mini3d_renderer_present(renderer: *mut mini3d_renderer)
             match context.as_mut().present() {
                 Ok(_) => {
                     true
-                }
-                Err(RendererError::OutOfMemory) => {
-                    println!("renderer:error:out_of_memory");
-                    false
                 },
                 Err(e) => {
                     eprintln!("{:?}", e);

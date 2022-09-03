@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{service::renderer::RendererService, math::rect::IRect};
+use crate::{math::rect::IRect, graphics::Graphics};
 
 use super::{event::{InputEvent, ButtonState, CursorEvent, TextEvent}, cursor::Cursor, binding::{Button, Axis}, control_layout::{ControlLayout, ControlId}, direction::Direction, range::{InputName, RangeInput, RangeType}, button::ButtonInput};
 
@@ -129,20 +129,20 @@ impl InputManager {
         }
     }
 
-    pub(crate) fn render(&self, renderer: &mut impl RendererService) {
+    pub(crate) fn render(&self, gfx: &mut Graphics) {
         match &self.control_mode {
             ControlMode::Selection { selected_area } => {
                 if self.control_layout.is_some() && selected_area.is_some() {
                     let input_layout = self.control_layout.as_ref().unwrap();
                     let extent = input_layout.get_control_extent(selected_area.unwrap());
                     if let Some(extent) = extent {
-                        renderer.draw_rect(extent);
+                        gfx.draw_rect(extent);
                     }
                 }
             },
             ControlMode::Cursor { cursor } => {
                 let sp = cursor.screen_position();
-                renderer.fill_rect(IRect::new(sp.x, sp.y, 2, 2));
+                gfx.fill_rect(IRect::new(sp.x, sp.y, 2, 2));
             },
         }
     }

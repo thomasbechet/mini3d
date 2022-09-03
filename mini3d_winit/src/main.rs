@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use mini3d::{app::{App}, service::{renderer::{RendererService, RendererError, SCREEN_RESOLUTION}}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent}, binding::{Button, Axis}, range::InputName}, event::{self, InputEvent}, glam::{Vec2, UVec2}};
+use mini3d::{application::{Application}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent, self, InputEvent}, binding::{Button, Axis}, range::InputName}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, event_recorder::EventRecorder};
 use mini3d_wgpu::{compute_viewport, WGPUContext};
+use wgpu::SurfaceError;
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
 
@@ -49,8 +50,9 @@ impl Default for WinitContext {
 impl WinitContext {
     pub fn run(
         mut self, 
-        mut app: App, 
-        mut renderer: impl RendererService + 'static
+        mut app: Application, 
+        mut recorder: EventRecorder,
+        mut renderer: WGPUContext,
     ) {
         let event_loop = self.event_loop;
         event_loop.run(move |event, _, control_flow| {
@@ -60,14 +62,14 @@ impl WinitContext {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
                     *control_flow = ControlFlow::Exit;
                 }
-                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                recorder.push_input_event(event::InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_X,
                     value: self.input.input_helper.mouse_diff().0,
-                })));
-                app.push_event(event::Event::Input(event::InputEvent::Axis(AxisEvent {
+                }));
+                recorder.push_input_event(event::InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_Y,
                     value: self.input.input_helper.mouse_diff().1,
-                })));
+                }));
             }
 
             // Match window events
@@ -89,15 +91,14 @@ impl WinitContext {
                                 };
                                 if let Some(names) = self.input.button_mapping.get(&keycode) {
                                     for name in names {
-                                        app.push_event(event::Event::Input(InputEvent::Button(ButtonEvent {
+                                        recorder.push_input_event(InputEvent::Button(ButtonEvent {
                                             name,
                                             state: action_state
-                                        })));
+                                        }));
                                     }
                                 }
                             }
                             WindowEvent::CloseRequested => {
-                                app.push_event(event::Event::CloseRequested);
                                 *control_flow = ControlFlow::Exit;
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -108,7 +109,7 @@ impl WinitContext {
                                 renderer.resize(inner_size.width, inner_size.height);
                             }
                             WindowEvent::ReceivedCharacter(c) => {
-                                app.push_event(event::Event::Input(InputEvent::Text(TextEvent::Character(c))));
+                                recorder.push_input_event(InputEvent::Text(TextEvent::Character(c)));
                             }
                             WindowEvent::CursorMoved { device_id: _, position, .. } => {
                                 let p = Vec2::new(position.x as f32, position.y as f32);
@@ -116,9 +117,9 @@ impl WinitContext {
                                 let viewport = compute_viewport(wsize);
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
 
-                                app.push_event(event::Event::Input(event::InputEvent::Cursor(CursorEvent::Update { 
+                                recorder.push_input_event(event::InputEvent::Cursor(CursorEvent::Update { 
                                     position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2())
-                                })));
+                                }));
                             }
                             _ => {}
                         }
@@ -128,14 +129,17 @@ impl WinitContext {
                     if window_id == self.window.id() {
                         match renderer.present() {
                             Ok(_) => {}
-                            Err(RendererError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                            Err(SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                             Err(e) => eprintln!("{:?}", e),
                         }
                     }
                 }
                 Event::MainEventsCleared => {
-                    app.progress();
-                    app.render(&mut renderer);
+                    app.progress(&recorder);
+                    recorder.reset();
+                    renderer.clear();
+                    renderer.render(&app);
+                    renderer.present();
                     self.window.request_redraw();
                 }
                 _ => {}
@@ -147,6 +151,7 @@ impl WinitContext {
 fn main() {
     let winit_context = WinitContext::default();
     let wgpu_context = WGPUContext::new(&winit_context.window);
-    let app = App::default();
-    winit_context.run(app, wgpu_context);
+    let app = Application::default();
+    let recorder = EventRecorder::default();
+    winit_context.run(app, recorder, wgpu_context);
 }

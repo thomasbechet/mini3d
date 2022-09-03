@@ -4,8 +4,8 @@ use self::font::Font;
 
 pub mod font;
 
-type AssetName = &'static str;
-type AssetID = u16;
+pub type AssetName = &'static str;
+pub type AssetID = u16;
 
 pub struct Asset<R> {
     pub name: AssetName,
@@ -16,7 +16,7 @@ pub struct Asset<R> {
 #[derive(Default)]
 pub struct AssetManager {
     #[allow(dead_code)]
-    fonts: HashMap<AssetID, Asset<Font>>,
+    pub fonts: HashMap<AssetID, Asset<Font>>,
 }
 
 impl AssetManager {

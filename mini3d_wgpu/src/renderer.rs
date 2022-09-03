@@ -1,6 +1,6 @@
-use glam::{IVec2, UVec2};
-use mini3d::{graphics::rasterizer::{Plotable, self}, service::renderer::{RendererService, SCREEN_PIXEL_COUNT, RendererError, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT}, asset::{Asset, font::Font}, glam::{self, Vec4}, math::rect::IRect};
-use wgpu::include_wgsl;
+use mini3d::glam::{UVec2, Vec4};
+use mini3d::{graphics::{rasterizer::{Plotable, self}, SCREEN_PIXEL_COUNT, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT},application::Application};
+use wgpu::{include_wgsl, SurfaceError};
 use winit::dpi::PhysicalSize;
 use futures::executor;
 
@@ -41,15 +41,6 @@ pub struct WGPUContext {
     render_texture_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
     render_buffer: RenderBuffer
-}
-
-fn map_surface_to_renderer_error(error: wgpu::SurfaceError) -> RendererError {
-    match error {
-        wgpu::SurfaceError::Timeout => RendererError::Timeout,
-        wgpu::SurfaceError::Outdated => RendererError::Outdated,
-        wgpu::SurfaceError::Lost => RendererError::Lost,
-        wgpu::SurfaceError::OutOfMemory => RendererError::OutOfMemory
-    }
 }
 
 #[repr(C)]
@@ -224,28 +215,8 @@ impl WGPUContext {
         self.resize(self.size.width, self.size.height);
     }
 
-}
-
-pub fn compute_viewport(size: UVec2) -> Vec4 {
-    if size.x as f32 / size.y as f32 >= (SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32) {
-        let w = SCREEN_WIDTH as f32 * size.y as f32 / SCREEN_HEIGHT as f32;
-        let h = size.y as f32;
-        let x = (size.x / 2) as f32 - (w / 2.0);
-        let y = 0.0;
-        (x, y, w, h).into()
-    } else {
-        let w = size.x as f32;
-        let h = SCREEN_HEIGHT as f32 * size.x as f32 / SCREEN_WIDTH as f32;
-        let x = 0.0;
-        let y = (size.y / 2) as f32 - (h / 2.0);
-        (x, y, w, h).into()
-    }
-}
-
-impl RendererService for WGPUContext {
-    fn present(&mut self) -> Result<(), RendererError> {
-        let output = self.surface.get_current_texture()
-            .map_err(map_surface_to_renderer_error)?;
+    pub fn present(&mut self) -> Result<(), SurfaceError> {
+        let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder")
@@ -300,7 +271,7 @@ impl RendererService for WGPUContext {
         Ok(())
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
+    pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.size.width = width;
             self.size.height = height;
@@ -310,33 +281,54 @@ impl RendererService for WGPUContext {
         }
     }
 
-    fn print(&mut self, p: IVec2, text: &str, font: &Asset<Font>) {
-        rasterizer::print(self, p, text, &font.resource);
+    pub fn render(&mut self, app: &Application) {
+        for cmd in &app.graphics.commands {
+            match cmd {
+                mini3d::graphics::immediate_command::ImmediateCommand::Print { p, text, font_id } => {
+                    rasterizer::print(self, *p, text.as_str(), &app.asset_manager.fonts.get(font_id).unwrap().resource);
+                },
+                mini3d::graphics::immediate_command::ImmediateCommand::DrawLine { p0, p1 } => {
+                    rasterizer::draw_line(self, *p0, *p1);
+                },
+                mini3d::graphics::immediate_command::ImmediateCommand::DrawVLine { x, y0, y1 } => {
+                    rasterizer::draw_vline(self, *x, *y0, *y1);
+                },
+                mini3d::graphics::immediate_command::ImmediateCommand::DrawHLine { y, x0, x1 } => {
+                    rasterizer::draw_hline(self, *y, *x0, *x1);
+                },
+                mini3d::graphics::immediate_command::ImmediateCommand::DrawRect { rect } => {
+                    let mut rect = *rect;
+                    rect.clamp(&SCREEN_VIEWPORT);
+                    rasterizer::draw_rect(self, rect);
+                },
+                mini3d::graphics::immediate_command::ImmediateCommand::FillRect { rect } => {
+                    let mut rect = *rect;
+                    rect.clamp(&SCREEN_VIEWPORT);
+                    rasterizer::fill_rect(self, rect);
+                },
+            }
+        }
     }
 
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.render_buffer.buffer.fill(Pixel::default());
     }
 
-    fn draw_line(&mut self, p0: IVec2, p1: IVec2) {
-        rasterizer::draw_line(self, p0, p1);
-    }
+}
 
-    fn draw_rect(&mut self, rect: IRect) {
-        rasterizer::draw_rect(self, rect);
-    }
-
-    fn fill_rect(&mut self, mut rect: IRect) {
-        rect.clamp(&SCREEN_VIEWPORT);
-        rasterizer::fill_rect(self, rect);
-    }
-
-    fn draw_vline(&mut self, x: i32, y0: i32, y1: i32) {
-        rasterizer::draw_vline(self, x, y0, y1);
-    }
-
-    fn draw_hline(&mut self, y: i32, x0: i32, x1: i32) {
-        rasterizer::draw_hline(self, y, x0, x1);
+pub fn compute_viewport(size: UVec2) -> Vec4 {
+    if size.x as f32 / size.y as f32 >= (SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32) {
+        let w = SCREEN_WIDTH as f32 * size.y as f32 / SCREEN_HEIGHT as f32;
+        let h = size.y as f32;
+        let x = (size.x / 2) as f32 - (w / 2.0);
+        let y = 0.0;
+        (x, y, w, h).into()
+    } else {
+        let w = size.x as f32;
+        let h = SCREEN_HEIGHT as f32 * size.x as f32 / SCREEN_WIDTH as f32;
+        let x = 0.0;
+        let y = (size.y / 2) as f32 - (h / 2.0);
+        (x, y, w, h).into()
     }
 }
 

@@ -1,6 +1,6 @@
 use glam::{Vec2, IVec2};
 
-use crate::service::renderer::SCREEN_RESOLUTION;
+use crate::graphics::SCREEN_RESOLUTION;
 
 #[derive(Clone, Copy)]
 pub struct Cursor {

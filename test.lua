@@ -3,10 +3,6 @@ function _start()
 end
 
 function _update()
-
-    if Input.action_pressed("shoot") then
-
-    end
-
-    x, y Input.axis("")
+    gfx:fillrect()
+    gfx!
 end
