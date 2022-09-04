@@ -52,25 +52,13 @@ pub extern "C" fn mini3d_renderer_delete(renderer: *mut mini3d_renderer) {
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, app: *const mini3d_application) {
+pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, app: *const mini3d_application) -> bool {
     let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
     let app = (app as *const Application).as_ref().unwrap();
     match renderer {
-        RendererContext::None => {},
-        RendererContext::Wgpu { context } => {
-            context.render(app);
-        },
-    }
-}
-
-#[no_mangle]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_renderer_present(renderer: *mut mini3d_renderer) -> bool {
-    let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
-    match renderer {
         RendererContext::None => { true },
         RendererContext::Wgpu { context } => {
-            match context.as_mut().present() {
+            match context.render(app) {
                 Ok(_) => {
                     true
                 },

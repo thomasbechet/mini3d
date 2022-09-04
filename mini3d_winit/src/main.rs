@@ -127,7 +127,7 @@ impl WinitContext {
                 }
                 Event::RedrawRequested(window_id) => {
                     if window_id == self.window.id() {
-                        match renderer.present() {
+                        match renderer.render(&app) {
                             Ok(_) => {}
                             Err(SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                             Err(e) => eprintln!("{:?}", e),
@@ -137,9 +137,6 @@ impl WinitContext {
                 Event::MainEventsCleared => {
                     app.progress(&recorder);
                     recorder.reset();
-                    renderer.clear();
-                    renderer.render(&app);
-                    renderer.present();
                     self.window.request_redraw();
                 }
                 _ => {}

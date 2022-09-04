@@ -21,6 +21,13 @@ pub extern "C" fn mini3d_event_recorder_delete(app: *mut mini3d_event_recorder) 
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn mini3d_event_recorder_reset(recorder: *mut mini3d_event_recorder) {
+    let recorder = recorder as *mut EventRecorder;
+    (&mut *recorder).reset();
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn mini3d_record_input_button(recorder: *mut mini3d_event_recorder, name: *const libc::c_char, state: mini3d_button_state) {
     let recorder = recorder as *mut EventRecorder;
     let name = CStr::from_ptr(name).to_str().expect("Invalid");
