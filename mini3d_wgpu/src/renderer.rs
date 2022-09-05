@@ -1,5 +1,9 @@
+use std::f32::consts;
+use std::mem;
+
 use futures::executor;
-use mini3d::glam::{UVec2, Vec4};
+use mini3d::glam::{UVec2, Vec4, Mat4, Vec3};
+use mini3d::graphics::SCREEN_ASPECT_RATIO;
 use mini3d::{
     application::Application,
     graphics::{
@@ -7,6 +11,7 @@ use mini3d::{
         SCREEN_HEIGHT, SCREEN_PIXEL_COUNT, SCREEN_VIEWPORT, SCREEN_WIDTH,
     },
 };
+use wgpu::util::DeviceExt;
 use wgpu::{include_wgsl, SurfaceError};
 use winit::dpi::PhysicalSize;
 
@@ -49,9 +54,15 @@ pub struct WGPUContext {
     size: winit::dpi::PhysicalSize<u32>,
 
     texture_size: wgpu::Extent3d,
-    
+
+    camera_matrix: Mat4,
+
     // Buffers
     ui_buffer: RenderBuffer,
+    vertex_buffer: wgpu::Buffer,
+    indice_buffer: wgpu::Buffer,
+    indice_count: usize,
+    uniform_buffer: wgpu::Buffer,
 
     // Textures
     ui_texture: wgpu::Texture,
@@ -60,19 +71,75 @@ pub struct WGPUContext {
 
     // Pipelines
     blit_pipeline: wgpu::RenderPipeline,
-    render_pipeline: wgpu::RenderPipeline,
+    scene_pipeline: wgpu::RenderPipeline,
     post_process_pipeline: wgpu::RenderPipeline,
 
     // Bind Groups
     ui_bind_group: wgpu::BindGroup,
-    // TODO: scene_bind_group: wgpu::BindGroup,
+    scene_bind_group: wgpu::BindGroup,
     render_bind_group: wgpu::BindGroup, 
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
-    position: [f32; 3],
+    position: [f32; 4],
+}
+
+fn create_vertices() -> (Vec<Vertex>, Vec<u16>) {
+    let vertex_data = [
+        // top (0, 0, 1)
+        Vertex{position: [-1.0, -1.0, 1.0, 1.0]},
+        Vertex{position: [1.0, -1.0, 1.0, 1.0]},
+        Vertex{position: [1.0, 1.0, 1.0, 1.0]},
+        Vertex{position: [-1.0, 1.0, 1.0, 1.0]},
+        // bottom (0, 0, -1)
+        Vertex{position: [-1.0, 1.0, -1.0, 1.0]},
+        Vertex{position: [1.0, 1.0, -1.0, 1.0]},
+        Vertex{position: [1.0, -1.0, -1.0, 1.0]},
+        Vertex{position: [-1.0, -1.0, -1.0, 1.0]},
+        // right (1, 0, 0)
+        Vertex{position: [1.0, -1.0, -1.0, 1.0]},
+        Vertex{position: [1.0, 1.0, -1.0, 1.0]},
+        Vertex{position: [1.0, 1.0, 1.0, 1.0]},
+        Vertex{position: [1.0, -1.0, 1.0, 1.0]},
+        // left (-1, 0, 0)
+        Vertex{position: [-1.0, -1.0, 1.0, 1.0]},
+        Vertex{position: [-1.0, 1.0, 1.0, 1.0]},
+        Vertex{position: [-1.0, 1.0, -1.0, 1.0]},
+        Vertex{position: [-1.0, -1.0, -1.0, 1.0]},
+        // front (0, 1, 0)
+        Vertex{position: [1.0, 1.0, -1.0, 1.0]},
+        Vertex{position: [-1.0, 1.0, -1.0, 1.0]},
+        Vertex{position: [-1.0, 1.0, 1.0, 1.0]},
+        Vertex{position: [1.0, 1.0, 1.0, 1.0]},
+        // back (0, -1, 0)
+        Vertex{position: [1.0, -1.0, 1.0, 1.0]},
+        Vertex{position: [-1.0, -1.0, 1.0, 1.0]},
+        Vertex{position: [-1.0, -1.0, -1.0, 1.0]},
+        Vertex{position: [1.0, -1.0, -1.0, 1.0]},
+    ];
+
+    let index_data: &[u16] = &[
+        0, 1, 2, 2, 3, 0, // top
+        4, 5, 6, 6, 7, 4, // bottom
+        8, 9, 10, 10, 11, 8, // right
+        12, 13, 14, 14, 15, 12, // left
+        16, 17, 18, 18, 19, 16, // front
+        20, 21, 22, 22, 23, 20, // back
+    ];
+
+    (vertex_data.to_vec(), index_data.to_vec())
+}
+
+fn generate_matrix(aspect_ratio: f32) -> Mat4 {
+    let projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+    let view = Mat4::look_at_rh(
+        Vec3::new(1.5f32, -5.0, 3.0),
+        Vec3::ZERO,
+        Vec3::Z,
+    );
+    projection * view
 }
 
 impl WGPUContext {
@@ -116,6 +183,28 @@ impl WGPUContext {
         // Create buffers
         let ui_buffer = RenderBuffer::new();
 
+        let vertex_size = mem::size_of::<Vertex>();
+        let (vertex_data, indice_data) = create_vertices();
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("vertex_buffer"),
+            contents: bytemuck::cast_slice(&vertex_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let indice_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("indice_buffer"),
+            contents: bytemuck::cast_slice(&indice_data),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let camera_matrix = generate_matrix(SCREEN_ASPECT_RATIO);
+        let mat_ref: &[f32; 16] = camera_matrix.as_ref();
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("uniform_buffer"),
+            contents: bytemuck::cast_slice(mat_ref),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
         // Create textures
         let texture_size = wgpu::Extent3d {
             width: SCREEN_WIDTH as u32,
@@ -129,7 +218,7 @@ impl WGPUContext {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            label: Some("UI Texture"),
+            label: Some("ui_texture"),
         });
         let ui_texture_view = ui_texture.create_view(&wgpu::TextureViewDescriptor::default());
         let render_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -139,7 +228,7 @@ impl WGPUContext {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: Some("Render Texture"),
+            label: Some("render_texture"),
         });
         let render_texture_view = render_texture.create_view(&wgpu::TextureViewDescriptor::default());
         let texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -178,12 +267,12 @@ impl WGPUContext {
             });
         let blit_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Blit Pipeline Layout"),
+                label: Some("blit_pipeline_layout"),
                 bind_group_layouts: &[&blit_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let blit_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Blit Pipeline"),
+            label: Some("blit_pipeline"),
             layout: Some(&blit_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &blit_shader,
@@ -217,23 +306,50 @@ impl WGPUContext {
             multiview: None,
         });
 
-        let render_shader = device.create_shader_module(include_wgsl!("render.wgsl"));
-        let render_pipeline_layout =
+        let scene_shader = device.create_shader_module(include_wgsl!("scene.wgsl"));
+        let scene_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer { 
+                            ty: wgpu::BufferBindingType::Uniform, 
+                            has_dynamic_offset: false, 
+                            min_binding_size: wgpu::BufferSize::new(64),
+                        },
+                        count: None,
+                    },
+                ],
+                label: None,
+            });
+        let scene_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline"),
-                bind_group_layouts: &[],
+                label: Some("scene_pipeline_layout"),
+                bind_group_layouts: &[&scene_bind_group_layout],
                 push_constant_ranges: &[],
             });
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
+        let scene_vertex_layout = wgpu::VertexBufferLayout {
+            array_stride: vertex_size as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
+                    offset: 0,
+                    shader_location: 0,
+                }
+            ],
+        };
+        let scene_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("scene_pipeline"),
+            layout: Some(&scene_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &render_shader,
+                module: &scene_shader,
                 entry_point: "vs_main",
-                buffers: &[],
+                buffers: &[scene_vertex_layout],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &render_shader,
+                module: &scene_shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8Unorm,
@@ -260,7 +376,7 @@ impl WGPUContext {
         });
 
         let post_process_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Post Process Pipeline"),
+            label: Some("post_process_pipeline"),
             layout: Some(&blit_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &blit_shader,
@@ -307,7 +423,17 @@ impl WGPUContext {
                     resource: wgpu::BindingResource::Sampler(&texture_sampler),
                 },
             ],
-            label: None,
+            label: Some("ui_bind_group"),
+        });
+        let scene_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &scene_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+            ],
+            label: Some("scene_bind_group"),
         });
         let render_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &blit_bind_group_layout,
@@ -321,7 +447,7 @@ impl WGPUContext {
                     resource: wgpu::BindingResource::Sampler(&texture_sampler),
                 },
             ],
-            label: None,
+            label: Some("render_bind_group"),
         });
 
         Self {
@@ -333,17 +459,24 @@ impl WGPUContext {
 
             texture_size,
 
+            camera_matrix,
+
             ui_buffer,
+            vertex_buffer,
+            indice_buffer,
+            indice_count: indice_data.len(),
+            uniform_buffer,
 
             ui_texture,
             render_texture,
             render_texture_view,
 
             blit_pipeline,
-            render_pipeline,
+            scene_pipeline,
             post_process_pipeline,
 
             ui_bind_group,
+            scene_bind_group,
             render_bind_group,
         }
     }
@@ -412,7 +545,7 @@ impl WGPUContext {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
+                label: Some("main_encoder"),
             });
 
         // Copy software render buffer to gpu
@@ -439,7 +572,7 @@ impl WGPUContext {
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Texture Pass"),
+                label: Some("render_to_texture"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.render_texture_view,
                     resolve_target: None,
@@ -451,8 +584,11 @@ impl WGPUContext {
                 depth_stencil_attachment: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_pipeline(&self.scene_pipeline);
+            render_pass.set_bind_group(0, &self.scene_bind_group, &[]);
+            render_pass.set_index_buffer(self.indice_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw_indexed(0..self.indice_count as u32, 0, 0..1);
 
             render_pass.set_pipeline(&self.blit_pipeline);
             render_pass.set_bind_group(0, &self.ui_bind_group, &[]);
@@ -461,7 +597,7 @@ impl WGPUContext {
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Target Texture Pass"),
+                label: Some("render_to_target"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &target_view,
                     resolve_target: None,
