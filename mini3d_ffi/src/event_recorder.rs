@@ -16,7 +16,7 @@ pub extern "C" fn mini3d_event_recorder_new() -> *mut mini3d_event_recorder {
 
 #[no_mangle]
 pub extern "C" fn mini3d_event_recorder_delete(app: *mut mini3d_event_recorder) {
-    unsafe { Box::from_raw(app as *mut EventRecorder); }
+    unsafe { drop(Box::from_raw(app as *mut EventRecorder)); }
 }
 
 #[no_mangle]

@@ -11,3 +11,5 @@ bytemuck = { version = "1.10.0", features = [ "derive" ] }
 rand = "0.8.5"
 futures = { version = "0.3", features = ["compat"] }
 mini3d = { path = "../mini3d" }
+wavefront_obj = "10.0.0"
+image = "0.24.3"

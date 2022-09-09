@@ -47,7 +47,7 @@ pub extern "C" fn mini3d_renderer_new_wgpu_xlib(window: c_ulong, display: *mut c
 
 #[no_mangle]
 pub extern "C" fn mini3d_renderer_delete(renderer: *mut mini3d_renderer) {
-    unsafe { Box::from_raw(renderer as *mut RendererContext); }
+    unsafe { drop(Box::from_raw(renderer as *mut RendererContext)); }
 }
 
 #[no_mangle]

@@ -28,7 +28,7 @@ pub extern "C" fn mini3d_application_new() -> *mut mini3d_application {
 
 #[no_mangle]
 pub extern "C" fn mini3d_application_delete(app: *mut mini3d_application) {
-    unsafe { Box::from_raw(app as *mut application::Application); }
+    unsafe { drop(Box::from_raw(app as *mut application::Application)); }
 }
 
 #[no_mangle]

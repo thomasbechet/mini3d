@@ -49,7 +49,7 @@ impl Application {
         self.graphics.print((8, 52).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
         self.graphics.print((8, 70).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
         self.graphics.print((8, 100).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
-        self.graphics.print((8, 150).into(), format!("{} Ceci est un message trèéês important olala !!!", self.count).as_str(), 0);
+        self.graphics.print((8, 150).into(), format!("{} {{|}}~éèê!\"#$%&\'()*+,-./:;<=>?[]^_`", self.count).as_str(), 0);
         self.graphics.print((8, 170).into(), format!("{} if self.is_defined() [], '''", self.count).as_str(), 0);
         self.count += 1;
 
