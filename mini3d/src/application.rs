@@ -27,7 +27,7 @@ impl Application {
 
     pub fn progress(&mut self) {
 
-        self.graphics.immediate_commands.clear();
+        self.graphics.prepare();
 
         // Dispatch asset events
         for event in self.events.assets.drain(..) {

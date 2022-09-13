@@ -1,12 +1,12 @@
 use glam::IVec2;
 
-use crate::{math::rect::IRect, asset::AssetId};
+use crate::{math::rect::IRect, asset::FontId};
 
 pub enum ImmediateCommand {
     Print {
         p: IVec2,
         text: String,
-        font_id: AssetId,
+        font_id: FontId,
     },
     DrawLine {
         p0: IVec2,

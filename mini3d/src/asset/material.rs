@@ -1,8 +1,8 @@
-use super::{Asset, AssetId};
+use super::{Asset, TextureId};
 
 #[derive(Default)]
 pub struct Material {
-    pub diffuse: AssetId,
+    pub diffuse: TextureId,
 }
 
 impl Asset for Material {

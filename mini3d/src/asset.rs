@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use slotmap::{SlotMap, SecondaryMap, new_key_type};
+use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
 use crate::event::asset::{AssetEvent, ImportAssetEvent};
 
@@ -41,53 +41,62 @@ impl From<String> for AssetName {
     }
 }
 
-new_key_type! { pub struct AssetId; }
+new_key_type! { 
+    pub struct FontId;
+    pub struct MaterialId;
+    pub struct MeshId;
+    pub struct TextureId;
+}
 
 pub trait Asset {
     fn typename() -> &'static str;
     fn default() -> Self;
 }
 
-pub struct AssetRegistry<T: Asset> {
-    assets: SlotMap<AssetId, Box<T>>,
-    names: SecondaryMap<AssetId, AssetName>,
-    default_id: AssetId,
+pub struct AssetRegistry<K: Key, A: Asset> {
+    assets: SlotMap<K, Box<A>>,
+    names: SecondaryMap<K, AssetName>,
+    default_id: K,
 }
 
-impl<T: Asset> AssetRegistry<T> {
-    pub(crate) fn register(&mut self, name: AssetName, data: Box<T>) -> AssetId {
+impl<K: Key, A: Asset> AssetRegistry<K, A> {
+    pub(crate) fn register(&mut self, name: AssetName, data: Box<A>) -> K {
         let id = self.assets.insert(data);
         self.names.insert(id, name);
         id
     }
 
-    pub fn get<'a>(&'a self, id: AssetId) -> &'a T {
-        &self.assets.get(id).unwrap_or(self.assets.get(self.default_id).expect(&format!("No default {}.", T::typename())))
+    pub fn get<'a>(&'a self, id: K) -> &'a A {
+        &self.assets.get(id).unwrap_or(self.assets.get(self.default_id).expect(&format!("No default {}.", A::typename())))
     }
 
-    pub fn default<'a>(&'a self) -> &'a T {
+    pub fn default<'a>(&'a self) -> &'a A {
         self.get(self.default_id)
+    }
+
+    pub fn default_id(&self) -> K {
+        self.default_id
     }
 }
 
-impl<T: Asset> Default for AssetRegistry<T> {
+impl<K: Key, A: Asset> Default for AssetRegistry<K, A> {
     fn default() -> Self {
         let mut registry = Self { 
             assets: SlotMap::default(), 
             names: SecondaryMap::default(), 
-            default_id: AssetId::default()
+            default_id: K::default()
         };
-        registry.default_id = registry.register(AssetName::default(), Box::new(T::default()));
+        registry.default_id = registry.register(AssetName::default(), Box::new(A::default()));
         registry
     }
 }
 
 #[derive(Default)]
 pub struct AssetManager {
-    pub fonts: AssetRegistry<Font>,
-    pub materials: AssetRegistry<Material>,
-    pub meshes: AssetRegistry<Mesh>,
-    pub textures: AssetRegistry<Texture>,
+    pub fonts: AssetRegistry<FontId, Font>,
+    pub materials: AssetRegistry<MaterialId, Material>,
+    pub meshes: AssetRegistry<MeshId, Mesh>,
+    pub textures: AssetRegistry<TextureId, Texture>,
 }
 
 impl AssetManager {
