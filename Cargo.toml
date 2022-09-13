@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "mini3d",
+    "mini3d_utils",
     "mini3d_wgpu",
     "mini3d_winit",
     "mini3d_ffi",

@@ -262,7 +262,7 @@ impl WGPUContext {
         });
 
         // Create pipelines
-        let blit_shader = device.create_shader_module(include_wgsl!("blit.wgsl"));
+        let blit_shader = device.create_shader_module(include_wgsl!("shader/blit.wgsl"));
         let blit_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -326,7 +326,7 @@ impl WGPUContext {
             multiview: None,
         });
 
-        let scene_shader = device.create_shader_module(include_wgsl!("scene.wgsl"));
+        let scene_shader = device.create_shader_module(include_wgsl!("shader/scene.wgsl"));
         let scene_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -559,7 +559,7 @@ impl WGPUContext {
         self.clear();
 
         // Process immediate commands
-        for cmd in &app.graphics.commands {
+        for cmd in app.graphics.immediate_commands() {
             match cmd {
                 mini3d::graphics::immediate_command::ImmediateCommand::Print {
                     p,
@@ -570,7 +570,7 @@ impl WGPUContext {
                         self,
                         *p,
                         text.as_str(),
-                        &app.asset_manager.fonts.get(font_id).unwrap().resource,
+                        app.assets.fonts.get(*font_id),
                     );
                 }
                 mini3d::graphics::immediate_command::ImmediateCommand::DrawLine { p0, p1 } => {

@@ -35,7 +35,9 @@ var s_texture: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let light_dir = normalize(vec3<f32>(1.0, 1.0, 1.0));
-    let color = textureSample(t_texture, s_texture, vec2<f32>(in.uv.x, 1.0 - in.uv.y));
-    return color * dot(in.world_normal, light_dir);
+    let light_dir = normalize(vec3<f32>(1.0, 1.0, 0.0));
+    let kdiffuse = max(dot(in.world_normal, light_dir), 0.0);
+    let kambient = 0.1; 
+    let color = textureSample(t_texture, s_texture, vec2<f32>(in.uv.x, 1.0 - in.uv.y)); 
+    return color * max(kdiffuse, kambient);
 }

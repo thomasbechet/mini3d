@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
-use mini3d::{application::{Application}, input::{event::{ButtonEvent, ButtonState, AxisEvent, TextEvent, CursorEvent, self, InputEvent}, binding::{Button, Axis}, range::InputName}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, event_recorder::EventRecorder};
+use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}}};
+use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_viewport, WGPUContext};
 use wgpu::SurfaceError;
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
@@ -51,7 +52,6 @@ impl WinitContext {
     pub fn run(
         mut self, 
         mut app: Application, 
-        mut recorder: EventRecorder,
         mut renderer: WGPUContext,
     ) {
         let event_loop = self.event_loop;
@@ -62,11 +62,11 @@ impl WinitContext {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
                     *control_flow = ControlFlow::Exit;
                 }
-                recorder.push_input_event(event::InputEvent::Axis(AxisEvent {
+                app.events.push_input(InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_X,
                     value: self.input.input_helper.mouse_diff().0,
                 }));
-                recorder.push_input_event(event::InputEvent::Axis(AxisEvent {
+                app.events.push_input(InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_Y,
                     value: self.input.input_helper.mouse_diff().1,
                 }));
@@ -91,7 +91,7 @@ impl WinitContext {
                                 };
                                 if let Some(names) = self.input.button_mapping.get(&keycode) {
                                     for name in names {
-                                        recorder.push_input_event(InputEvent::Button(ButtonEvent {
+                                        app.events.push_input(InputEvent::Button(ButtonEvent {
                                             name,
                                             state: action_state
                                         }));
@@ -109,7 +109,7 @@ impl WinitContext {
                                 renderer.resize(inner_size.width, inner_size.height);
                             }
                             WindowEvent::ReceivedCharacter(c) => {
-                                recorder.push_input_event(InputEvent::Text(TextEvent::Character(c)));
+                                app.events.push_input(InputEvent::Text(TextEvent::Character(c)));
                             }
                             WindowEvent::CursorMoved { device_id: _, position, .. } => {
                                 let p = Vec2::new(position.x as f32, position.y as f32);
@@ -117,7 +117,7 @@ impl WinitContext {
                                 let viewport = compute_viewport(wsize);
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
 
-                                recorder.push_input_event(event::InputEvent::Cursor(CursorEvent::Update { 
+                                app.events.push_input(InputEvent::Cursor(CursorEvent::Update { 
                                     position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2())
                                 }));
                             }
@@ -135,8 +135,7 @@ impl WinitContext {
                     }
                 }
                 Event::MainEventsCleared => {
-                    app.progress(&recorder);
-                    recorder.reset();
+                    app.progress();
                     self.window.request_redraw();
                 }
                 _ => {}
@@ -148,7 +147,20 @@ impl WinitContext {
 fn main() {
     let winit_context = WinitContext::default();
     let wgpu_context = WGPUContext::new(&winit_context.window);
-    let app = Application::default();
-    let recorder = EventRecorder::default();
-    winit_context.run(app, recorder, wgpu_context);
+    let mut app = Application::default();
+    
+    let texture = ImageImporter::new()
+        .from_source(Path::new("car.png"))
+        .with_name("car".into())
+        .import().expect("Failed to import texture.");
+    let model = ModelImporter::new()
+        .from_obj(Path::new("Car.obj"))
+        .with_flat_normals(false)
+        .with_name("car".into())
+        .import().expect("Failed to import model.");
+    
+    model.push_events(&mut app);
+    texture.push_events(&mut app);
+
+    winit_context.run(app, wgpu_context);
 }

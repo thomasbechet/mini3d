@@ -1,5 +1,5 @@
 pub mod application;
-pub mod event_recorder;
+pub mod event;
 pub mod input;
 pub mod asset;
 pub mod program;

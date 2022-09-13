@@ -1,6 +1,6 @@
-use glam::{UVec2, uvec2, IVec2};
+use glam::{UVec2, uvec2, IVec2, Mat4};
 
-use crate::{math::rect::IRect, asset::AssetID};
+use crate::{math::rect::IRect, asset::AssetId};
 
 use self::immediate_command::ImmediateCommand;
 
@@ -25,14 +25,25 @@ pub const SCREEN_RESOLUTION: UVec2 = uvec2(SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_VIEWPORT: IRect = IRect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_ASPECT_RATIO: f32 = SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32;
 
+pub type ModelId = u32;
+
+pub struct Model {
+    id: ModelId,
+    transform: Mat4,
+    mesh: AssetId,
+    materials: Vec<AssetId>,
+}
+
 #[derive(Default)]
 pub struct Graphics {
-    pub commands: Vec<ImmediateCommand>
+    pub(crate) immediate_commands: Vec<ImmediateCommand>,
+    pub(crate) models: Vec<Model>,
+    next_id: u32,
 }
 
 impl Graphics {
-    pub(crate) fn print(&mut self, p: IVec2, text: &str, font_id: AssetID) {
-        self.commands.push(ImmediateCommand::Print { p, text: String::from(text), font_id })
+    pub(crate) fn print(&mut self, p: IVec2, text: &str, font_id: AssetId) {
+        self.immediate_commands.push(ImmediateCommand::Print { p, text: String::from(text), font_id })
     }
     // pub(crate) fn draw_line(&mut self, p0: IVec2, p1: IVec2) {
     //     self.commands.push(ImmediateCommand::DrawLine { p0, p1 });
@@ -44,9 +55,23 @@ impl Graphics {
     //     self.commands.push(ImmediateCommand::DrawHLine { y, x0, x1 });
     // }
     pub(crate) fn draw_rect(&mut self, rect: IRect) {
-        self.commands.push(ImmediateCommand::DrawRect { rect });
+        self.immediate_commands.push(ImmediateCommand::DrawRect { rect });
     }
     pub(crate) fn fill_rect(&mut self, rect: IRect) {
-        self.commands.push(ImmediateCommand::FillRect { rect });
+        self.immediate_commands.push(ImmediateCommand::FillRect { rect });
+    }
+
+    pub(crate) fn add_model(&mut self) -> ModelId {
+        0
+    }
+    pub(crate) fn remove_model(&mut self, id: ModelId) {
+        
+    }
+
+    pub fn immediate_commands(&self) -> &Vec<ImmediateCommand> {
+        &self.immediate_commands
+    }
+    pub fn models(&self) -> &Vec<Model> {
+        &self.models
     }
 }

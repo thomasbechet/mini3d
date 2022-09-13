@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{math::rect::IRect, graphics::Graphics};
+use crate::{math::rect::IRect, graphics::Graphics, event::input::{InputEvent, TextEvent, CursorEvent}};
 
-use super::{event::{InputEvent, ButtonState, CursorEvent, TextEvent}, cursor::Cursor, binding::{Button, Axis}, control_layout::{ControlLayout, ControlId}, direction::Direction, range::{InputName, RangeInput, RangeType}, button::ButtonInput};
+use super::{cursor::Cursor, binding::{Button, Axis}, control_layout::{ControlLayout, ControlId}, direction::Direction, range::{InputName, RangeInput, RangeType}, button::{ButtonInput, ButtonState}};
 
 pub enum ControlMode {
     Selection { selected_area: Option<ControlId> },

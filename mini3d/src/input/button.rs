@@ -7,6 +7,12 @@ pub struct ButtonInput {
     pub(crate) was_pressed: bool,
 }
 
+#[derive(Copy, Clone)]
+pub enum ButtonState {
+    Pressed,
+    Released,
+}
+
 impl ButtonInput {
     pub fn is_pressed(&self) -> bool {
         self.pressed

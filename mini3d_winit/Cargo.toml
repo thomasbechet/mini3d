@@ -9,3 +9,4 @@ winit_input_helper = "0.12.0"
 wgpu = "0.13.1"
 mini3d = { path = "../mini3d" }
 mini3d_wgpu = { path = "../mini3d_wgpu" }
+mini3d_utils = { path = "../mini3d_utils" }

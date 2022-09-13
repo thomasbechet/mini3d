@@ -1,56 +1,60 @@
-use crate::asset::{AssetManager, Asset};
-use crate::asset::font::Font;
-use crate::event_recorder::EventRecorder;
+use crate::asset::AssetManager;
+use crate::event::EventManager;
 use crate::graphics::Graphics;
 use crate::input::input_manager::InputManager;
 
 pub struct Application {
     pub graphics: Graphics,
-    pub asset_manager: AssetManager,
-    input_manager: InputManager,
+    pub events: EventManager,
+    pub assets: AssetManager,
+    inputs: InputManager,
     count: usize,
 }
 
 impl Default for Application {
     fn default() -> Self {
-        let mut app = Self {
+        Self {
             graphics: Default::default(),
-            asset_manager: Default::default(),
-            input_manager: Default::default(),
+            events: Default::default(),
+            assets: Default::default(),
+            inputs: Default::default(),
             count: 0,
-        };
-        app.asset_manager.fonts.insert(0, Asset::<Font> { name: "default", id: 0, resource: Default::default() });
-        app
+        }
     }
 }
 
 impl Application {
 
-    pub fn progress(&mut self, event_recorder: &EventRecorder) {
+    pub fn progress(&mut self) {
 
-        self.graphics.commands.clear();
+        self.graphics.immediate_commands.clear();
+
+        // Dispatch asset events
+        for event in self.events.assets.drain(..) {
+            self.assets.dispatch_event(event);
+        }
 
         // Prepare input manager
-        self.input_manager.prepare_dispatch();
+        self.inputs.prepare_dispatch();
         // Dispatch input events
-        for event in &event_recorder.input_events {
-            self.input_manager.dispatch_event(event);
+        for event in self.events.inputs.drain(..) {
+            self.inputs.dispatch_event(&event);
         }
 
         // TODO: dispatch more events ...
 
         // Update input layout
-        self.input_manager.update();
-        self.input_manager.render(&mut self.graphics);
+        self.inputs.update();
+        self.inputs.render(&mut self.graphics);
 
 
-        self.graphics.print((8, 8).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
-        self.graphics.print((8, 32).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
-        self.graphics.print((8, 52).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
-        self.graphics.print((8, 70).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
-        self.graphics.print((8, 100).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), 0);
-        self.graphics.print((8, 150).into(), format!("{} {{|}}~éèê!\"#$%&\'()*+,-./:;<=>?[]^_`", self.count).as_str(), 0);
-        self.graphics.print((8, 170).into(), format!("{} if self.is_defined() [], '''", self.count).as_str(), 0);
+        self.graphics.print((8, 8).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
+        self.graphics.print((8, 32).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
+        self.graphics.print((8, 52).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
+        self.graphics.print((8, 70).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
+        self.graphics.print((8, 100).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
+        self.graphics.print((8, 150).into(), format!("{} {{|}}~éèê!\"#$%&\'()*+,-./:;<=>?[]^_`", self.count).as_str(), Default::default());
+        self.graphics.print((8, 170).into(), format!("{} if self.is_defined() [], '''", self.count).as_str(), Default::default());
         self.count += 1;
 
     }

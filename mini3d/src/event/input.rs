@@ -1,10 +1,6 @@
 use glam::Vec2;
 
-#[derive(Copy, Clone)]
-pub enum ButtonState {
-    Pressed,
-    Released,
-}
+use crate::input::button::ButtonState;
 
 pub struct ButtonEvent {
     pub name: &'static str,
