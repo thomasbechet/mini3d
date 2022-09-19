@@ -1,5 +1,6 @@
 use crate::asset::AssetManager;
 use crate::event::EventManager;
+use crate::event::system::SystemEvent;
 use crate::graphics::Graphics;
 use crate::input::input_manager::InputManager;
 
@@ -9,6 +10,7 @@ pub struct Application {
     pub assets: AssetManager,
     inputs: InputManager,
     count: usize,
+    close_requested: bool,
 }
 
 impl Default for Application {
@@ -19,6 +21,7 @@ impl Default for Application {
             assets: Default::default(),
             inputs: Default::default(),
             count: 0,
+            close_requested: false,
         }
     }
 }
@@ -41,6 +44,15 @@ impl Application {
             self.inputs.dispatch_event(&event);
         }
 
+        // Dispatch system events
+        for event in self.events.systems.drain(..) {
+            match event {
+                SystemEvent::CloseRequested => {
+                    self.close_requested = true;
+                },
+            }
+        }
+
         // TODO: dispatch more events ...
 
         // Update input layout
@@ -57,5 +69,9 @@ impl Application {
         self.graphics.print((8, 170).into(), format!("{} if self.is_defined() [], '''", self.count).as_str(), Default::default());
         self.count += 1;
 
+    }
+
+    pub fn close_requested(&self) -> bool {
+        self.close_requested
     }
 }

@@ -15,8 +15,10 @@ pub mod immediate_command;
 // pub const SCREEN_WIDTH: u32 = 512;
 // pub const SCREEN_HEIGHT: u32 = 384;
 // // 16:10 aspect ratio
-pub const SCREEN_WIDTH: u32 = 432;
-pub const SCREEN_HEIGHT: u32 = 240;
+// pub const SCREEN_WIDTH: u32 = 320;
+// pub const SCREEN_HEIGHT: u32 = 200;
+pub const SCREEN_WIDTH: u32 = 640;
+pub const SCREEN_HEIGHT: u32 = 400;
 // // 16:9 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 384;
 // pub const SCREEN_HEIGHT: u32 = 216;

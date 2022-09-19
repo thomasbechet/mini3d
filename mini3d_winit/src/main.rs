@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}}};
+use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}, system::SystemEvent}};
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
@@ -38,11 +38,21 @@ impl Default for WinitContext {
     fn default() -> Self {
         let event_loop = event_loop::EventLoop::new();
         let window = window::WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(600, 400))
+            .with_inner_size(PhysicalSize::new(1024, 640))
             .with_resizable(true)
             .build(&event_loop)
             .unwrap();
         window.set_cursor_visible(false);
+        if let Some(monitor) = window.current_monitor() {
+            let screen_size = monitor.size();
+            let window_size = window.outer_size();
+            window.set_outer_position(winit::dpi::PhysicalPosition {
+                x: screen_size.width.saturating_sub(window_size.width) as f64 / 2.
+                    + monitor.position().x as f64,
+                y: screen_size.height.saturating_sub(window_size.height) as f64 / 2.
+                    + monitor.position().y as f64,
+            });
+        }
         let input = WinitInput::new();
         Self { window, event_loop, input }
     }
@@ -60,7 +70,7 @@ impl WinitContext {
             // Handle inputs
             if self.input.input_helper.update(&event) {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
-                    *control_flow = ControlFlow::Exit;
+                    app.events.push_system(SystemEvent::CloseRequested);
                 }
                 app.events.push_input(InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_X,
@@ -99,7 +109,7 @@ impl WinitContext {
                                 }
                             }
                             WindowEvent::CloseRequested => {
-                                *control_flow = ControlFlow::Exit;
+                                app.events.push_system(SystemEvent::CloseRequested);
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                                 renderer.resize(new_inner_size.width, new_inner_size.height);
@@ -134,11 +144,15 @@ impl WinitContext {
                         }
                     }
                 }
-                Event::MainEventsCleared => {
-                    app.progress();
-                    self.window.request_redraw();
-                }
                 _ => {}
+            }
+
+            // Progress app and check close requested event
+            app.progress();
+            if app.close_requested() {
+                *control_flow = ControlFlow::Exit;
+            } else {
+                self.window.request_redraw();
             }
         });
     }
