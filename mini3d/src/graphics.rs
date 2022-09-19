@@ -1,7 +1,7 @@
 use glam::{UVec2, uvec2, IVec2, Mat4};
 use slotmap::{SlotMap, new_key_type};
 
-use crate::{math::rect::IRect, asset::{AssetManager, MeshId, MaterialId, FontId}};
+use crate::{math::rect::IRect, asset::{MeshId, MaterialId, FontId}};
 
 use self::immediate_command::ImmediateCommand;
 
@@ -38,15 +38,15 @@ pub struct Model {
     pub materials: Vec<MaterialId>,
 }
 
-impl Model {
-    pub(crate) fn set_transform(&mut self, transform: Mat4) {
-        self.transform = transform;
-        self.transform_changed = true;
-    }
-    pub(crate) fn set_mesh(&mut self, mesh: MeshId) {
-        self.mesh = mesh;
-    }
-}
+// impl Model {
+//     pub(crate) fn set_transform(&mut self, transform: Mat4) {
+//         self.transform = transform;
+//         self.transform_changed = true;
+//     }
+//     pub(crate) fn set_mesh(&mut self, mesh: MeshId) {
+//         self.mesh = mesh;
+//     }
+// }
 
 #[derive(Default)]
 pub struct Graphics {
@@ -86,21 +86,21 @@ impl Graphics {
         self.immediate_commands.push(ImmediateCommand::FillRect { rect });
     }
 
-    pub(crate) fn add_model(&mut self, mesh: MeshId, material: MaterialId) -> ModelId {
-        let id = self.models.insert(Model { 
-            transform: Mat4::IDENTITY,
-            transform_changed: true,
-            mesh,
-            materials: vec![material],
-        });
-        self.added_models.push(id);
-        id
-    }
-    pub(crate) fn remove_model(&mut self, id: ModelId) {
-        if self.models.remove(id).is_some() {
-            self.removed_models.push(id);
-        }
-    }
+    // pub(crate) fn add_model(&mut self, mesh: MeshId, material: MaterialId) -> ModelId {
+    //     let id = self.models.insert(Model { 
+    //         transform: Mat4::IDENTITY,
+    //         transform_changed: true,
+    //         mesh,
+    //         materials: vec![material],
+    //     });
+    //     self.added_models.push(id);
+    //     id
+    // }
+    // pub(crate) fn remove_model(&mut self, id: ModelId) {
+    //     if self.models.remove(id).is_some() {
+    //         self.removed_models.push(id);
+    //     }
+    // }
 
     pub fn immediate_commands(&self) -> &[ImmediateCommand] {
         &self.immediate_commands

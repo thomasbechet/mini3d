@@ -14,7 +14,7 @@ pub mod material;
 pub mod mesh;
 pub mod texture;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AssetName(String);
 
 impl Default for AssetName {
@@ -68,6 +68,11 @@ impl<K: Key, A: Asset> AssetRegistry<K, A> {
 
     pub fn get<'a>(&'a self, id: K) -> &'a A {
         &self.assets.get(id).unwrap_or(self.assets.get(self.default_id).expect(&format!("No default {}.", A::typename())))
+    }
+
+    pub fn get_from_name<'a>(&'a self, name: &str) -> &'a A {
+        let id = self.names.iter().find(|(_, v)| v.0.as_str() == name).map_or(self.default_id, |(k, _)| k);
+        &self.assets.get(id).unwrap()
     }
 
     pub fn default<'a>(&'a self) -> &'a A {

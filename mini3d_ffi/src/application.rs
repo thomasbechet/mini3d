@@ -2,7 +2,7 @@ use std::{ffi::CStr, slice};
 
 use libc::c_void;
 use mini3d::{application::{self, Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::button::ButtonState, event::input::{InputEvent, ButtonEvent, AxisEvent, CursorEvent}};
-use mini3d_wgpu::compute_viewport;
+use mini3d_wgpu::compute_fixed_viewport;
 
 #[repr(C)]
 pub enum mini3d_button_state {
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn mini3d_app_push_input_cursor_position(app: *mut mini3d_
 
     let p: Vec2 = (x, y).into();
     let wsize: UVec2 = (width, height).into();
-    let viewport = compute_viewport(wsize);
+    let viewport = compute_fixed_viewport(wsize);
     let relp = p - Vec2::new(viewport.x, viewport.y);
     let position: Vec2 = (relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2();
 

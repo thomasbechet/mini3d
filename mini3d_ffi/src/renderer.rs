@@ -1,6 +1,6 @@
 use libc::{c_void, c_ulong};
 use mini3d::{application::Application};
-use mini3d_wgpu::WGPUContext;
+use mini3d_wgpu::WGPURenderer;
 
 use crate::application::mini3d_app;
 
@@ -10,7 +10,7 @@ pub struct mini3d_renderer(*mut c_void);
 pub enum RendererContext {
     None,
     Wgpu {
-        context: Box<WGPUContext>
+        context: Box<WGPURenderer>
     }
 }
 
@@ -33,7 +33,7 @@ pub extern "C" fn mini3d_renderer_new_wgpu_win32(hinstance: *mut c_void, hwnd: *
     let mut handle = raw_window_handle::Win32Handle::empty();
     handle.hinstance = hinstance;
     handle.hwnd = hwnd;
-    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPUContext::new(&RawWindowHandle::Win32(handle))) })) as *mut mini3d_renderer
+    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPURenderer::new(&RawWindowHandle::Win32(handle))) })) as *mut mini3d_renderer
 }
 
 #[no_mangle]
@@ -42,7 +42,7 @@ pub extern "C" fn mini3d_renderer_new_wgpu_xlib(window: c_ulong, display: *mut c
     handle.window = window;
     handle.display = display;
     handle.visual_id = 0;
-    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPUContext::new(&RawWindowHandle::Xlib(handle))) })) as *mut mini3d_renderer
+    Box::into_raw(Box::new(RendererContext::Wgpu { context: Box::new(WGPURenderer::new(&RawWindowHandle::Xlib(handle))) })) as *mut mini3d_renderer
 }
 
 #[no_mangle]

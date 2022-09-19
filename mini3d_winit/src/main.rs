@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}}};
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
-use mini3d_wgpu::{compute_viewport, WGPUContext};
+use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
 use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
 use winit_input_helper::WinitInputHelper;
@@ -52,7 +52,7 @@ impl WinitContext {
     pub fn run(
         mut self, 
         mut app: Application, 
-        mut renderer: WGPUContext,
+        mut renderer: WGPURenderer,
     ) {
         let event_loop = self.event_loop;
         event_loop.run(move |event, _, control_flow| {
@@ -114,7 +114,7 @@ impl WinitContext {
                             WindowEvent::CursorMoved { device_id: _, position, .. } => {
                                 let p = Vec2::new(position.x as f32, position.y as f32);
                                 let wsize: UVec2 = (self.window.inner_size().width, self.window.inner_size().height).into();
-                                let viewport = compute_viewport(wsize);
+                                let viewport = compute_fixed_viewport(wsize);
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
 
                                 app.events.push_input(InputEvent::Cursor(CursorEvent::Update { 
@@ -146,7 +146,7 @@ impl WinitContext {
 
 fn main() {
     let winit_context = WinitContext::default();
-    let wgpu_context = WGPUContext::new(&winit_context.window);
+    let wgpu_context = WGPURenderer::new(&winit_context.window);
     let mut app = Application::default();
     
     let texture = ImageImporter::new()

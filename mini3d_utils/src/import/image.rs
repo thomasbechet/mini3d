@@ -43,7 +43,7 @@ impl ImageImporter {
         let image = image::open(&self.path)
             .map_err(|err| format!("Failed open image: {err}").to_string())?;
         // Convert to rgba8
-        let data = image.to_rgb8();
+        let data = image.to_rgba8();
         // Build the texture
         let texture = Box::new(Texture {
             data: data.to_vec(),

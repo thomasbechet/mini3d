@@ -119,7 +119,7 @@ impl InputManager {
                 // Handle click
                 if self.buttons.get(Button::CLICK).unwrap().is_just_pressed() {
                     if let Some(input_layout) = &self.control_layout {
-                        let id = input_layout.get_control_from_position(cursor.screen_position());
+                        let _id = input_layout.get_control_from_position(cursor.screen_position());
                         // if let Some(id) = id {
                         //     println!("{}", id);
                         // }
