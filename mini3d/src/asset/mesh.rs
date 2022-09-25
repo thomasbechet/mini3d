@@ -1,4 +1,5 @@
 use glam::{Vec3, Vec2, Vec4};
+use slotmap::new_key_type;
 
 use super::Asset;
 
@@ -18,12 +19,12 @@ pub struct Mesh {
     pub submeshes: Vec<SubMesh>,
 }
 
+new_key_type! { pub struct MeshId; }
+
 impl Asset for Mesh {
+    type Id = MeshId;
+
     fn typename() -> &'static str {
         "mesh"
-    }
-
-    fn default() -> Self {
-        Default::default()
     }
 }

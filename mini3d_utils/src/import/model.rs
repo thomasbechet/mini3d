@@ -1,6 +1,6 @@
 use std::{path::{Path, PathBuf}, fs::File, io::Read};
 
-use mini3d::{event::asset::{AssetImport, ImportAssetEvent, AssetEvent}, asset::{AssetName, mesh::{Mesh, Vertex, SubMesh}, material::Material}, glam::{Vec3, Vec2, Vec4}, application::Application};
+use mini3d::{event::{asset::{AssetImport, ImportAssetEvent}, FrameEvents}, asset::{mesh::{Mesh, Vertex, SubMesh}, material::Material}, glam::{Vec3, Vec2, Vec4}};
 use wavefront_obj::obj::{Primitive, self};
 
 fn vec3_from_vertex(v: &obj::Vertex) -> Vec3 {
@@ -18,19 +18,19 @@ pub struct ModelImport {
 }
 
 impl ModelImport {
-    pub fn push_events(self, app: &mut Application) {
+    pub fn push(self, events: &mut FrameEvents) {
         self.meshes.into_iter().for_each(|asset| {
-            app.events.push_asset(AssetEvent::Import(ImportAssetEvent::Mesh(asset)));
+            events.push_asset(ImportAssetEvent::Mesh(asset));
         });
         self.materials.into_iter().for_each(|material| {
-            app.events.push_asset(AssetEvent::Import(ImportAssetEvent::Material(material)));
+            events.push_asset(ImportAssetEvent::Material(material));
         });
     }
 }
 
 #[derive(Default)]
 pub struct ModelImporter {
-    name: Option<AssetName>,
+    name: Option<String>,
     path: Option<PathBuf>,
     flat_normals: bool,
 }
@@ -46,8 +46,8 @@ impl ModelImporter {
         self
     }
 
-    pub fn with_name(&mut self, name: AssetName) -> &mut Self {
-        self.name = Some(name);
+    pub fn with_name(&mut self, name: &str) -> &mut Self {
+        self.name = Some(name.to_string());
         self
     }
 
@@ -77,9 +77,9 @@ impl ModelImporter {
         for (object_index, object) in obj.objects.iter().enumerate() {
 
             // Create object mesh
-            let mut mesh = Box::new(Mesh {
+            let mut mesh = Mesh {
                 submeshes: Default::default(),
-            });
+            };
 
             // Iterate over geometries
             for geometry in &object.geometry {

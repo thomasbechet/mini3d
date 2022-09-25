@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT}, glam::UVec2, application::Application};
+use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, application::Application, asset::{AssetReader, font::Font}};
 use wgpu::TextureViewDescriptor;
 
 use crate::context::WGPUContext;
@@ -30,6 +30,7 @@ pub(crate) struct SurfaceBuffer {
 }
 
 impl SurfaceBuffer {
+    
     pub(crate) fn extent() -> wgpu::Extent3d {
         wgpu::Extent3d {
             width: SCREEN_WIDTH,
@@ -85,10 +86,14 @@ impl SurfaceBuffer {
         self.buffer.fill(color);
     }
 
-    pub(crate) fn draw_immediate_commands(&mut self, app: &Application) {
-        for cmd in app.graphics.immediate_commands() {
-            match cmd {
-                mini3d::graphics::immediate_command::ImmediateCommand::Print {
+    pub(crate) fn draw_command_buffer(
+        &mut self,
+        app: &Application,
+        cb: &CommandBuffer,
+    ) {
+        for command in cb.iter() {
+            match command {
+                mini3d::graphics::command_buffer::Command::Print {
                     p,
                     text,
                     font_id,
@@ -97,29 +102,29 @@ impl SurfaceBuffer {
                         self,
                         *p,
                         text.as_str(),
-                        app.assets.fonts.get(*font_id),
+                        &AssetReader::get::<Font>(app, *font_id).expect("Invalid font id").data,
                     );
                 }
-                mini3d::graphics::immediate_command::ImmediateCommand::DrawLine { p0, p1 } => {
+                mini3d::graphics::command_buffer::Command::DrawLine { p0, p1 } => {
                     rasterizer::draw_line(self, *p0, *p1);
                 }
-                mini3d::graphics::immediate_command::ImmediateCommand::DrawVLine { x, y0, y1 } => {
+                mini3d::graphics::command_buffer::Command::DrawVLine { x, y0, y1 } => {
                     rasterizer::draw_vline(self, *x, *y0, *y1);
                 }
-                mini3d::graphics::immediate_command::ImmediateCommand::DrawHLine { y, x0, x1 } => {
+                mini3d::graphics::command_buffer::Command::DrawHLine { y, x0, x1 } => {
                     rasterizer::draw_hline(self, *y, *x0, *x1);
                 }
-                mini3d::graphics::immediate_command::ImmediateCommand::DrawRect { rect } => {
+                mini3d::graphics::command_buffer::Command::DrawRect { rect } => {
                     let mut rect = *rect;
                     rect.clamp(&SCREEN_VIEWPORT);
                     rasterizer::draw_rect(self, rect);
                 }
-                mini3d::graphics::immediate_command::ImmediateCommand::FillRect { rect } => {
+                mini3d::graphics::command_buffer::Command::FillRect { rect } => {
                     let mut rect = *rect;
                     rect.clamp(&SCREEN_VIEWPORT);
                     rasterizer::fill_rect(self, rect);
                 }
-            }
+            }   
         }
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use bitvec::prelude::*;
+use slotmap::new_key_type;
 
 use super::Asset;
 
@@ -10,11 +11,18 @@ pub struct Font {
     pub glyph_locations: HashMap<char, usize>,
 }
 
+new_key_type! { pub struct FontId; }
+
 impl Asset for Font {
+
+    type Id = FontId;
+
     fn typename() -> &'static str {
         "font"
     }
+}
 
+impl Default for Font {
     fn default() -> Self {
         let glyph_width = 8;
         let glyph_height = 8;

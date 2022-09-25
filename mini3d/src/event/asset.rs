@@ -1,8 +1,8 @@
-use crate::asset::{font::Font, material::Material, mesh::Mesh, texture::Texture, Asset, AssetName};
+use crate::asset::{font::Font, material::Material, mesh::Mesh, texture::Texture, Asset};
 
 pub struct AssetImport<T: Asset> {
-    pub data: Box<T>,
-    pub name: AssetName,
+    pub data: T,
+    pub name: String,
 }
 
 pub enum ImportAssetEvent {
@@ -10,8 +10,4 @@ pub enum ImportAssetEvent {
     Material(AssetImport<Material>),
     Mesh(AssetImport<Mesh>),
     Texture(AssetImport<Texture>),
-}
-
-pub enum AssetEvent {
-    Import(ImportAssetEvent),
 }

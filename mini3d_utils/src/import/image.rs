@@ -1,20 +1,20 @@
 use std::path::{Path, PathBuf};
 
-use mini3d::{event::asset::{AssetImport, AssetEvent, ImportAssetEvent}, asset::{texture::Texture, AssetName}, application::Application};
+use mini3d::{event::{asset::{AssetImport, ImportAssetEvent}, FrameEvents}, asset::texture::Texture};
 
 pub struct ImageImport {
     texture: AssetImport<Texture>
 }
 
 impl ImageImport {
-    pub fn push_events(self, app: &mut Application) {
-        app.events.push_asset(AssetEvent::Import(ImportAssetEvent::Texture(self.texture)));
+    pub fn push(self, events: &mut FrameEvents) {
+        events.push_asset(ImportAssetEvent::Texture(self.texture));
     }
 }
 
 #[derive(Default)]
 pub struct ImageImporter {
-    name: Option<AssetName>,
+    name: Option<String>,
     path: PathBuf,
 }
 
@@ -29,8 +29,8 @@ impl ImageImporter {
         self
     }
 
-    pub fn with_name(&mut self, name: AssetName) -> &mut Self {
-        self.name = Some(name);
+    pub fn with_name(&mut self, name: &str) -> &mut Self {
+        self.name = Some(name.to_string());
         self
     }
 
@@ -45,11 +45,11 @@ impl ImageImporter {
         // Convert to rgba8
         let data = image.to_rgba8();
         // Build the texture
-        let texture = Box::new(Texture {
+        let texture = Texture {
             data: data.to_vec(),
             width: image.width(),
             height: image.height(),
-        });
+        };
         // Return the texture import
         Ok(ImageImport {
             texture: AssetImport::<Texture> {

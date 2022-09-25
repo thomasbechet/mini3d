@@ -7,6 +7,7 @@ pub mod global_bind_group;
 pub mod scene_pipeline;
 pub mod blit_pipeline;
 pub mod vertex_buffer;
+pub mod draw_command_buffer;
 pub mod blit_bind_group;
 pub mod texture;
 pub mod render_target;

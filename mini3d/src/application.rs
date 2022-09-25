@@ -1,51 +1,62 @@
+use anyhow::{Context, Result};
+
 use crate::asset::AssetManager;
-use crate::event::EventManager;
+use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
+use crate::event::FrameEvents;
 use crate::event::system::SystemEvent;
-use crate::graphics::Graphics;
-use crate::input::input_manager::InputManager;
+use crate::input::InputManager;
+use crate::program::{ProgramManager, Program, ProgramBuilder};
 
 pub struct Application {
-    pub graphics: Graphics,
-    pub events: EventManager,
-    pub assets: AssetManager,
-    inputs: InputManager,
-    count: usize,
-    close_requested: bool,
-}
+    pub(crate) asset_manager: AssetManager,
+    pub(crate) input_manager: InputManager,
+    pub(crate) program_manager: ProgramManager,
 
-impl Default for Application {
-    fn default() -> Self {
-        Self {
-            graphics: Default::default(),
-            events: Default::default(),
-            assets: Default::default(),
-            inputs: Default::default(),
-            count: 0,
-            close_requested: false,
-        }
-    }
+    default_backend: DefaultBackend,
+
+    pub(crate) close_requested: bool,
 }
 
 impl Application {
 
-    pub fn progress(&mut self) {
+    pub fn new<P: Program + ProgramBuilder + 'static>(data: P::BuildData) -> Result<Self> {
+        // Default application state
+        let mut app = Self {
+            asset_manager: Default::default(), 
+            input_manager: Default::default(), 
+            program_manager: Default::default(), 
+            default_backend: Default::default(), 
+            close_requested: false,
+        };
+        // Start initial program
+        app.program_manager.run::<P>("core", data, None)?;
+        // Return application
+        Ok(app)
+    }
 
-        self.graphics.prepare();
+    pub fn progress<'a>(
+        &'a mut self, 
+        backend_descriptor: BackendDescriptor<'a>, 
+        events: &mut FrameEvents
+    ) -> Result<()> {
+    
+        // Build the backend
+        let mut backend = Backend::build(backend_descriptor, &mut self.default_backend);
 
-        // Dispatch asset events
-        for event in self.events.assets.drain(..) {
-            self.assets.dispatch_event(event);
+        // Dispatch import asset events
+        for event in events.assets.drain(..) {
+            self.asset_manager.dispatch_event(event)?;
         }
 
         // Prepare input manager
-        self.inputs.prepare_dispatch();
+        self.input_manager.prepare_dispatch();
         // Dispatch input events
-        for event in self.events.inputs.drain(..) {
-            self.inputs.dispatch_event(&event);
+        for event in events.inputs.drain(..) {
+            self.input_manager.dispatch_event(&event);
         }
 
         // Dispatch system events
-        for event in self.events.systems.drain(..) {
+        for event in events.systems.drain(..) {
             match event {
                 SystemEvent::CloseRequested => {
                     self.close_requested = true;
@@ -55,23 +66,23 @@ impl Application {
 
         // TODO: dispatch more events ...
 
-        // Update input layout
-        self.inputs.update();
-        self.inputs.render(&mut self.graphics);
+        // Ensure all events have been dispatched
+        events.clear();
 
+        // Prepare resources for drawing
+        backend.renderer.reset_command_buffers();
 
-        self.graphics.print((8, 8).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
-        self.graphics.print((8, 32).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
-        self.graphics.print((8, 52).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
-        self.graphics.print((8, 70).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
-        self.graphics.print((8, 100).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), Default::default());
-        self.graphics.print((8, 150).into(), format!("{} {{|}}~éèê!\"#$%&\'()*+,-./:;<=>?[]^_`", self.count).as_str(), Default::default());
-        self.graphics.print((8, 170).into(), format!("{} if self.is_defined() [], '''", self.count).as_str(), Default::default());
-        self.count += 1;
+        // Update programs
+        self.program_manager.update(
+            &mut self.asset_manager, 
+            &mut self.input_manager, 
+            &mut backend
+        ).context("Failed to update program manager")?;
 
+        Ok(())
     }
 
-    pub fn close_requested(&self) -> bool {
+    pub fn close_requested(&mut self) -> bool {
         self.close_requested
     }
 }

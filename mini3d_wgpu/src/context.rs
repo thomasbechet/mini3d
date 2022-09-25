@@ -27,7 +27,8 @@ impl WGPUContext {
         // Request device and queue from adaptor
         let (device, queue) = executor::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
+                // TODO: add conditional rendering (alternative)
+                features: wgpu::Features::INDIRECT_FIRST_INSTANCE,
                 limits: if cfg!(target_arch = "wasm32") {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {

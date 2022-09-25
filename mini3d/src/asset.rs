@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use anyhow::{Result, anyhow};
+use slotmap::{SlotMap, Key, new_key_type};
 
-use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
-
-use crate::event::asset::{AssetEvent, ImportAssetEvent};
+use crate::application::Application;
+use crate::event::asset::ImportAssetEvent;
 
 use self::font::Font;
 use self::material::Material;
@@ -14,111 +14,243 @@ pub mod material;
 pub mod mesh;
 pub mod texture;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AssetName(String);
+new_key_type! { pub struct GroupId; }
 
-impl Default for AssetName {
-    fn default() -> Self {
-        Self("default".into())
-    }
-}
-
-impl Display for AssetName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
-    }
-}
-
-impl From<&str> for AssetName {
-    fn from(name: &str) -> Self {
-        Self(name.into())
-    }
-}
-
-impl From<String> for AssetName {
-    fn from(name: String) -> Self {
-        Self(name)
-    }
-}
-
-new_key_type! { 
-    pub struct FontId;
-    pub struct MaterialId;
-    pub struct MeshId;
-    pub struct TextureId;
-}
-
-pub trait Asset {
+pub trait Asset: Default {
+    type Id: Key;
     fn typename() -> &'static str;
-    fn default() -> Self;
 }
 
-pub struct AssetRegistry<K: Key, A: Asset> {
-    assets: SlotMap<K, Box<A>>,
-    names: SecondaryMap<K, AssetName>,
-    default_id: K,
-}
-
-impl<K: Key, A: Asset> AssetRegistry<K, A> {
-    pub(crate) fn register(&mut self, name: AssetName, data: Box<A>) -> K {
-        let id = self.assets.insert(data);
-        self.names.insert(id, name);
-        id
-    }
-
-    pub fn get<'a>(&'a self, id: K) -> &'a A {
-        &self.assets.get(id).unwrap_or(self.assets.get(self.default_id).expect(&format!("No default {}.", A::typename())))
-    }
-
-    pub fn get_from_name<'a>(&'a self, name: &str) -> &'a A {
-        let id = self.names.iter().find(|(_, v)| v.0.as_str() == name).map_or(self.default_id, |(k, _)| k);
-        &self.assets.get(id).unwrap()
-    }
-
-    pub fn default<'a>(&'a self) -> &'a A {
-        self.get(self.default_id)
-    }
-
-    pub fn default_id(&self) -> K {
-        self.default_id
-    }
-}
-
-impl<K: Key, A: Asset> Default for AssetRegistry<K, A> {
-    fn default() -> Self {
-        let mut registry = Self { 
-            assets: SlotMap::default(), 
-            names: SecondaryMap::default(), 
-            default_id: K::default()
-        };
-        registry.default_id = registry.register(AssetName::default(), Box::new(A::default()));
-        registry
-    }
+pub struct AssetEntry<A: Asset> {
+    pub data: A,
+    pub name: String,
+    pub id: A::Id,
+    pub group: GroupId,
 }
 
 #[derive(Default)]
-pub struct AssetManager {
-    pub fonts: AssetRegistry<FontId, Font>,
-    pub materials: AssetRegistry<MaterialId, Material>,
-    pub meshes: AssetRegistry<MeshId, Mesh>,
-    pub textures: AssetRegistry<TextureId, Texture>,
+pub struct AssetRegistry<A: Asset> {
+    entries: SlotMap<A::Id, AssetEntry<A>>,
+    default_id: Option<A::Id>,
 }
 
+impl<'a, A: Asset> AssetRegistry<A> {
+
+    pub fn register(&mut self, name: &str, group: GroupId, data: A) -> Result<A::Id> {
+        if self.entries.iter().any(|(_, e)| e.group == group && e.name == name) {
+            Err(anyhow!("Asset name '{}' already exists", name))
+        } else {
+            let new_entry = self.entries.insert(AssetEntry { 
+                data,
+                name: name.to_string(), 
+                id: A::Id::default(),
+                group,
+            });
+            self.entries.get_mut(new_entry).unwrap().id = new_entry;
+            Ok(new_entry)
+        }
+    }
+    
+    pub fn get(&self, id: A::Id) -> Option<&AssetEntry<A>> {
+        self.entries.get(id)
+    }
+    
+    pub fn default(&self) -> Option<&AssetEntry<A>> {
+        self.default_id.and_then(|id| self.get(id))
+    }
+    
+    pub fn set_default(&mut self, id: A::Id) -> Result<()> {
+        if !self.entries.contains_key(id) {
+            Err(anyhow!("Trying to set default asset with invalid id"))
+        } else {
+            self.default_id = Some(id);
+            Ok(())
+        }
+    }
+    
+    pub fn find(&self, name: &str, group: GroupId) -> Option<&AssetEntry<A>> {
+        self.entries.iter()
+            .find(|(_, e)| {
+                e.name == name && e.group == group
+            })
+            .map(|(_, e)| e)
+    }
+
+    pub fn iter(&'a self) -> impl Iterator<Item = &'a AssetEntry<A>> {
+        self.entries.values()
+    }
+    
+    pub fn iter_group(&self, group: GroupId) -> impl Iterator<Item = &AssetEntry<A>> {
+        self.entries.values().filter(move |e| e.group == group)
+    }
+
+    pub fn transfer(&mut self, id: A::Id, new_group: GroupId) -> Result<()> {
+        if let Some(e) = self.entries.get_mut(id) {
+            e.group = new_group;
+            Ok(())
+        } else {
+            Err(anyhow!("Failed to transfer <{}> because id was not found", A::typename()))
+        }
+    }
+}
+
+pub struct AssetGroup {
+    pub name: String,
+    pub id: GroupId,
+} 
+
+pub struct AssetManager {
+
+    // Assets
+    fonts: AssetRegistry<Font>,
+    materials: AssetRegistry<Material>,
+    meshes: AssetRegistry<Mesh>,
+    textures: AssetRegistry<Texture>,    
+
+    // Groups
+    groups: SlotMap<GroupId, AssetGroup>,
+    import_group: GroupId,
+}
+
+impl Default for AssetManager {
+    fn default() -> Self {
+        // Default manager
+        let mut manager = Self { 
+            fonts: Default::default(), 
+            materials: Default::default(), 
+            meshes: Default::default(), 
+            textures: Default::default(), 
+            groups: Default::default(), 
+            import_group: Default::default() 
+        };
+        // Register default import group
+        manager.import_group = manager.register_group("import")
+            .expect("Failed to register import group");
+        // Return manager
+        manager
+    }
+}
+
+macro_rules! into_registry {
+    ($asset:ty, $field:ident) => {
+        impl AsRef<AssetRegistry<$asset>> for AssetManager {
+            fn as_ref(&self) -> &AssetRegistry<$asset> {
+                &self.$field
+            }
+        }
+        impl AsMut<AssetRegistry<$asset>> for AssetManager {
+            fn as_mut(&mut self) -> &mut AssetRegistry<$asset> {
+                &mut self.$field
+            }
+        }
+    };
+}
+
+into_registry!(Font, fonts);
+into_registry!(Material, materials);
+into_registry!(Mesh, meshes);
+into_registry!(Texture, textures);
+
 impl AssetManager {
-    pub(crate) fn dispatch_event(&mut self, event: AssetEvent) {
+
+    pub(crate) fn dispatch_event(&mut self, event: ImportAssetEvent) -> Result<()> {
         match event {
-            AssetEvent::Import(importer) => {
-                match importer {
-                    ImportAssetEvent::Font(_) => { },
-                    ImportAssetEvent::Material(_) => { },
-                    ImportAssetEvent::Mesh(mesh) => { 
-                        self.meshes.register(mesh.name, mesh.data);
-                    },
-                    ImportAssetEvent::Texture(texture) => {
-                        self.textures.register(texture.name, texture.data);
-                    },
-                }
+            ImportAssetEvent::Font(font) => {
+                self.register(&font.name, self.import_group, font.data);
+            },
+            ImportAssetEvent::Material(material) => {
+                self.register(&material.name, self.import_group, material.data);
+            },
+            ImportAssetEvent::Mesh(mesh) => {
+                self.register(&mesh.name, self.import_group, mesh.data);
+            },
+            ImportAssetEvent::Texture(texture) => {
+                self.register(&texture.name, self.import_group, texture.data);
             },
         }
+        Ok(())
+    }
+
+    pub fn get_group(&self, id: GroupId) -> Option<&AssetGroup> {
+        self.groups.get(id)
+    }
+    
+    pub fn find_group(&self, name: &str) -> Option<&AssetGroup> {
+        self.groups.iter()
+            .find(|(_, e)| e.name.as_str() == name)
+            .and_then(|(_, group)| Some(group))
+    }
+
+    pub fn register_group(&mut self, name: &str) -> Result<GroupId> {
+        if self.find_group(&name).is_some() {
+            Err(anyhow!("Asset group '{}' already exists", name))
+        } else {
+            let new_group = self.groups.insert(AssetGroup { 
+                name: name.to_string(), 
+                id: GroupId::null() 
+            });
+            self.groups.get_mut(new_group).unwrap().id = new_group;
+            Ok(new_group)
+        }
+    }
+
+    pub fn register<'a, A: Asset>(&mut self, name: &str, group: GroupId, data: A) -> Result<A::Id> 
+        where Self: AsMut<AssetRegistry<A>> {
+        if !self.groups.contains_key(group) {
+            return Err(anyhow!("Trying to register asset with invalid group id"));
+        }
+        self.as_mut().register(name, group, data)
+    }
+    
+    pub fn get<'a, A: Asset>(&self, id: A::Id) -> Option<&AssetEntry<A>> 
+        where Self: AsRef<AssetRegistry<A>> {
+        self.as_ref().get(id)
+    }
+    
+    pub fn default<'a, A: Asset>(&self) -> Option<&AssetEntry<A>>
+        where Self: AsRef<AssetRegistry<A>> {
+        self.as_ref().default()
+    }
+    
+    pub fn set_default<'a, A: Asset>(&mut self, id: A::Id) -> Result<()>
+        where Self: AsMut<AssetRegistry<A>> {
+        self.as_mut().set_default(id)
+    }
+    
+    pub fn find<'a, A: Asset>(&self, name: &str, group: GroupId) -> Option<&AssetEntry<A>>
+        where Self: AsRef<AssetRegistry<A>> {
+        self.as_ref().find(name, group)
+    }
+
+    pub fn iter<'a, A: Asset + 'a>(&'a self) -> impl Iterator<Item = &AssetEntry<A>>
+        where Self: AsRef<AssetRegistry<A>> {
+        self.as_ref().iter()
+    }
+    
+    pub fn iter_group<'a, A: Asset + 'a>(&'a self, group: GroupId) -> impl Iterator<Item = &AssetEntry<A>>
+        where Self: AsRef<AssetRegistry<A>> {
+        self.as_ref().iter_group(group)
+    }
+
+    pub fn iter_import<'a, A: Asset + 'a>(&'a self) -> impl Iterator<Item = &AssetEntry<A>> 
+        where Self: AsRef<AssetRegistry<A>> {
+        self.iter_group(self.import_group)
+    }
+
+    pub fn transfer<'a, A: Asset>(&mut self, id: A::Id, new_group: GroupId) -> Result<()>
+        where Self: AsMut<AssetRegistry<A>> {
+        if !self.groups.contains_key(new_group) {
+            return Err(anyhow!("Trying to transfer asset with invalid group id"));
+        }
+        self.as_mut().transfer(id, new_group)
+    }    
+}
+
+pub struct AssetReader;
+
+impl AssetReader {
+    pub fn get<A: Asset>(app: &Application, id: A::Id) -> Option<&AssetEntry<A>> 
+        where AssetManager: AsRef<AssetRegistry<A>> {
+        app.asset_manager.get(id)
     }
 }

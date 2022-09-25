@@ -1,8 +1,8 @@
 use glam::IVec2;
 
-use crate::{math::rect::IRect, asset::FontId};
+use crate::{math::rect::IRect, asset::font::FontId};
 
-pub enum ImmediateCommand {
+pub enum Command {
     Print {
         p: IVec2,
         text: String,

@@ -23,7 +23,10 @@ pub(crate) struct InstanceUniformBuffer {
     transfer: [GPUInstanceData; MAX_INSTANCE_COUNT],
 }
 
+pub(crate) type InstanceIndex = usize;
+
 impl InstanceUniformBuffer {
+    
     pub(crate) fn new(context: &WGPUContext) -> Self {
         Self {
             buffer: context.device.create_buffer(&wgpu::BufferDescriptor {
@@ -36,7 +39,7 @@ impl InstanceUniformBuffer {
         }
     }
 
-    pub(crate) fn set_model(&mut self, instance: usize, mat: &Mat4) {
+    pub(crate) fn set_model(&mut self, instance: InstanceIndex, mat: &Mat4) {
         self.transfer[instance].model = mat.to_cols_array();
     }
 

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
-use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}, system::SystemEvent}};
+use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}, system::SystemEvent, FrameEvents}, backend::BackendDescriptor};
+use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
@@ -59,24 +60,20 @@ impl Default for WinitContext {
 }
 
 impl WinitContext {
-    pub fn run(
-        mut self, 
-        mut app: Application, 
-        mut renderer: WGPURenderer,
-    ) {
+    pub fn run(mut self, mut app: Application, mut events: FrameEvents, mut renderer: WGPURenderer) {
         let event_loop = self.event_loop;
-        event_loop.run(move |event, _, control_flow| {
+        event_loop.run(move |event, _, control_flow| {            // Create event collector
 
             // Handle inputs
             if self.input.input_helper.update(&event) {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
-                    app.events.push_system(SystemEvent::CloseRequested);
+                    events.push_system(SystemEvent::CloseRequested);
                 }
-                app.events.push_input(InputEvent::Axis(AxisEvent {
+                events.push_input(InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_X,
                     value: self.input.input_helper.mouse_diff().0,
                 }));
-                app.events.push_input(InputEvent::Axis(AxisEvent {
+                events.push_input(InputEvent::Axis(AxisEvent {
                     name: Axis::CURSOR_Y,
                     value: self.input.input_helper.mouse_diff().1,
                 }));
@@ -101,7 +98,7 @@ impl WinitContext {
                                 };
                                 if let Some(names) = self.input.button_mapping.get(&keycode) {
                                     for name in names {
-                                        app.events.push_input(InputEvent::Button(ButtonEvent {
+                                        events.push_input(InputEvent::Button(ButtonEvent {
                                             name,
                                             state: action_state
                                         }));
@@ -109,7 +106,7 @@ impl WinitContext {
                                 }
                             }
                             WindowEvent::CloseRequested => {
-                                app.events.push_system(SystemEvent::CloseRequested);
+                                events.push_system(SystemEvent::CloseRequested);
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                                 renderer.resize(new_inner_size.width, new_inner_size.height);
@@ -119,7 +116,7 @@ impl WinitContext {
                                 renderer.resize(inner_size.width, inner_size.height);
                             }
                             WindowEvent::ReceivedCharacter(c) => {
-                                app.events.push_input(InputEvent::Text(TextEvent::Character(c)));
+                                events.push_input(InputEvent::Text(TextEvent::Character(c)));
                             }
                             WindowEvent::CursorMoved { device_id: _, position, .. } => {
                                 let p = Vec2::new(position.x as f32, position.y as f32);
@@ -127,7 +124,7 @@ impl WinitContext {
                                 let viewport = compute_fixed_viewport(wsize);
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
 
-                                app.events.push_input(InputEvent::Cursor(CursorEvent::Update { 
+                                events.push_input(InputEvent::Cursor(CursorEvent::Update { 
                                     position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2())
                                 }));
                             }
@@ -137,7 +134,7 @@ impl WinitContext {
                 }
                 Event::RedrawRequested(window_id) => {
                     if window_id == self.window.id() {
-                        match renderer.render(&app) {
+                        match renderer.render(&mut app) {
                             Ok(_) => {}
                             Err(SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                             Err(e) => eprintln!("{:?}", e),
@@ -148,7 +145,9 @@ impl WinitContext {
             }
 
             // Progress app and check close requested event
-            app.progress();
+            let desc = BackendDescriptor::new()
+                .with_renderer(&mut renderer);
+            app.progress(desc, &mut events).expect("Failed to progress application");
             if app.close_requested() {
                 *control_flow = ControlFlow::Exit;
             } else {
@@ -161,20 +160,32 @@ impl WinitContext {
 fn main() {
     let winit_context = WinitContext::default();
     let wgpu_context = WGPURenderer::new(&winit_context.window);
-    let mut app = Application::default();
+    let app = Application::new::<OSProgram>(())
+        .expect("Failed to create application with OS program");
+    let mut events = FrameEvents::new();
     
-    let texture = ImageImporter::new()
-        .from_source(Path::new("car.png"))
+    ImageImporter::new()
+        .from_source(Path::new("assets/car.png"))
         .with_name("car".into())
-        .import().expect("Failed to import texture.");
-    let model = ModelImporter::new()
-        .from_obj(Path::new("Car.obj"))
+        .import().expect("Failed to import car texture.")
+        .push(&mut events);
+    ModelImporter::new()
+        .from_obj(Path::new("assets/car.obj"))
         .with_flat_normals(false)
         .with_name("car".into())
-        .import().expect("Failed to import model.");
-    
-    model.push_events(&mut app);
-    texture.push_events(&mut app);
+        .import().expect("Failed to import car model.")
+        .push(&mut events);  
+    ImageImporter::new()
+        .from_source(Path::new("assets/alfred.png"))
+        .with_name("alfred".into())
+        .import().expect("Failed to import alfred texture.")
+        .push(&mut events);
+    ModelImporter::new()
+        .from_obj(Path::new("assets/alfred.obj"))
+        .with_flat_normals(false)
+        .with_name("alfred".into())
+        .import().expect("Failed to import alfred model.")
+        .push(&mut events);
 
-    winit_context.run(app, wgpu_context);
+    winit_context.run(app, events, wgpu_context);
 }
