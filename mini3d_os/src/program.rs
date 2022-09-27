@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{GroupId, font::Font, texture::Texture, mesh::Mesh}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent}, system::transform::system_transfer_model_transforms}, graphics::CommandBuffer, anyhow::{Result, Context}};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{GroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::Vec3};
 
 pub struct OSProgram {
     id: ProgramId,
@@ -36,17 +36,52 @@ impl Program for OSProgram {
             .iter().for_each(|id| { ctx.asset.transfer::<Mesh>(*id, self.core_group); });
 
         // Initialize world
+        let texture = ctx.asset.find::<Texture>("alfred", self.core_group)
+            .context("Failed to get alfred texture")?.id;
+        let alfred_material = ctx.asset.register("alfred", self.core_group, Material {
+            diffuse: texture,
+        }).context("Failed to create alfred material")?;
+        let texture = ctx.asset.find::<Texture>("car", self.core_group).unwrap().id;
+        let car_material = ctx.asset.register("car", self.core_group, Material {
+            diffuse: texture,
+        }).context("Failed to create car material")?;
         let alfred_mesh = ctx.asset.find::<Mesh>("alfred", self.core_group)
             .context("Failed to find alfred mesh")?.id;
         let car_mesh = ctx.asset.find::<Mesh>("car", self.core_group)
             .context("Failed to find car mesh")?.id;
         self.world.spawn((
-            TransformComponent::default(),
-            ModelComponent::new(ctx.renderer, alfred_mesh)
+            TransformComponent::from_translation(Vec3::new(0.0, -7.0, 0.0)),
+            RotatorComponent {},
+            ModelComponent::new(ctx.renderer, &RendererModelDescriptor {
+                mesh: alfred_mesh,
+                materials: &[alfred_material, alfred_material, alfred_material],
+                dynamic_materials: &[],
+            })
         ));
         self.world.spawn((
-            TransformComponent::default(),
-            ModelComponent::new(ctx.renderer, car_mesh)
+            TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
+            ModelComponent::new(ctx.renderer, &RendererModelDescriptor {
+                mesh: alfred_mesh,
+                materials: &[alfred_material, alfred_material, alfred_material],
+                dynamic_materials: &[],
+            })
+        ));
+        self.world.spawn((
+            TransformComponent::from_translation(Vec3::new(4.0, 0.0, 0.0)),
+            ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
+                mesh: car_mesh, 
+                materials: &[car_material], 
+                dynamic_materials: &[] 
+            })
+        ));
+        self.world.spawn((
+            TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
+            ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
+                mesh: car_mesh, 
+                materials: &[car_material], 
+                dynamic_materials: &[] 
+            }),
+            RotatorComponent {}
         ));
 
         Ok(())
@@ -57,6 +92,7 @@ impl Program for OSProgram {
         // Call ECS systems
         let mut query = PreparedQuery::<(&TransformComponent, &ModelComponent)>::new();
         system_transfer_model_transforms(&mut self.world, &mut query, ctx.renderer);
+        system_rotator(&mut self.world);
 
         // Custom code
         {

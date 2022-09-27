@@ -14,12 +14,8 @@ pub struct Font {
 new_key_type! { pub struct FontId; }
 
 impl Asset for Font {
-
     type Id = FontId;
-
-    fn typename() -> &'static str {
-        "font"
-    }
+    fn typename() -> &'static str { "font" }
 }
 
 impl Default for Font {

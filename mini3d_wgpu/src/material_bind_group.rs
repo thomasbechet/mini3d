@@ -1,10 +1,10 @@
 use crate::context::WGPUContext;
 
-pub(crate) fn create_material_bind_group_layout(
+pub(crate) fn create_flat_material_bind_group_layout(
     context: &WGPUContext
 ) -> wgpu::BindGroupLayout {
     context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("material_bind_group_layout"),
+        label: Some("flat_material_bind_group_layout"),
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -20,7 +20,7 @@ pub(crate) fn create_material_bind_group_layout(
     })
 }
 
-pub(crate) fn create_material_bind_group(
+pub(crate) fn create_flat_material_bind_group(
     context: &WGPUContext, 
     layout: &wgpu::BindGroupLayout,
     texture_view: &wgpu::TextureView,

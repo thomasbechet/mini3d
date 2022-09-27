@@ -1,42 +1,42 @@
-use mini3d::asset;
+use mini3d::{asset, anyhow::{anyhow, Result}};
 
 use crate::context::WGPUContext;
 
 #[derive(Clone, Copy)]
 pub(crate) struct VertexBufferDescriptor {
-    pub(crate) vertex_count: u64,
-    pub(crate) start_index: u64,
+    pub(crate) vertex_count: u32,
+    pub(crate) base_index: u32,
 }
 
 pub(crate) struct VertexBuffer {
-    position_buffer: wgpu::Buffer,
-    normal_buffer: wgpu::Buffer,
-    uv_buffer: wgpu::Buffer,
-    max_vertex_count: u64,
-    vertex_count: u64,
+    pub(crate) position_buffer: wgpu::Buffer,
+    pub(crate) normal_buffer: wgpu::Buffer,
+    pub(crate) uv_buffer: wgpu::Buffer,
+    max_vertex_count: usize,
+    vertex_count: usize,
 }
 
 impl VertexBuffer {
     pub fn new(
         context: &WGPUContext,
-        max_vertex_count: u64,
+        max_vertex_count: usize,
     ) -> Self {
         // Create buffers
         let position_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: wgpu::VertexFormat::Float32x3.size() * max_vertex_count,
+            size: wgpu::VertexFormat::Float32x3.size() * max_vertex_count as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let normal_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: wgpu::VertexFormat::Float32x3.size() * max_vertex_count,
+            size: wgpu::VertexFormat::Float32x3.size() * max_vertex_count as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let uv_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: wgpu::VertexFormat::Float32x2.size() * max_vertex_count,
+            size: wgpu::VertexFormat::Float32x2.size() * max_vertex_count as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -50,20 +50,28 @@ impl VertexBuffer {
         }
     }
 
-    pub fn test(&mut self) {}
-
     pub fn add(
         &mut self,
         context: &WGPUContext,
         vertices: &Vec<asset::mesh::Vertex>,
-    ) -> Option<VertexBufferDescriptor> {
+    ) -> Result<VertexBufferDescriptor> {
+
+        // Check vertex count
+        
 
         // Create the vertex descriptor
         let descriptor = VertexBufferDescriptor { 
-            vertex_count: vertices.len() as u64, 
-            start_index: self.vertex_count, 
+            vertex_count: vertices.len() as u32, 
+            base_index: self.vertex_count as u32,
         };
-        self.vertex_count += descriptor.vertex_count;
+
+        // Check vertex count
+        if self.vertex_count + (descriptor.vertex_count as usize) > self.max_vertex_count {
+            return Err(anyhow!("Maximum vertex count reached"));
+        }
+
+        // Increment vertex count
+        self.vertex_count += descriptor.vertex_count as usize;
 
         // Convert vertices
         let positions: &[f32] = &vertices.iter().map(|v| v.position.to_array()).collect::<Vec<[f32; 3]>>().concat();
@@ -73,51 +81,21 @@ impl VertexBuffer {
         // Write buffers
         context.queue.write_buffer(
             &self.position_buffer, 
-            wgpu::VertexFormat::Float32x3.size() * descriptor.start_index as u64, 
+            wgpu::VertexFormat::Float32x3.size() * descriptor.base_index as u64, 
             bytemuck::cast_slice(positions)
         );
         context.queue.write_buffer(
             &self.normal_buffer, 
-            wgpu::VertexFormat::Float32x3.size() * descriptor.start_index as u64, 
+            wgpu::VertexFormat::Float32x3.size() * descriptor.base_index as u64, 
             bytemuck::cast_slice(normals)
         );
         context.queue.write_buffer(
             &self.uv_buffer, 
-            wgpu::VertexFormat::Float32x2.size() * descriptor.start_index as u64, 
+            wgpu::VertexFormat::Float32x2.size() * descriptor.base_index as u64, 
             bytemuck::cast_slice(uvs)
         );
 
         // Return descriptor
-        Some(descriptor)
-    }
-
-    pub(crate) fn position_slice(
-        &self,
-        descriptor: &VertexBufferDescriptor,
-    ) -> wgpu::BufferSlice {
-        let stride = wgpu::VertexFormat::Float32x3.size();
-        let start = descriptor.start_index * stride;
-        let end = start + descriptor.vertex_count * stride;
-        self.position_buffer.slice(start..end)
-    }
-
-    pub(crate) fn normal_slice(
-        &self,
-        descriptor: &VertexBufferDescriptor,
-    ) -> wgpu::BufferSlice {
-        let stride = wgpu::VertexFormat::Float32x3.size();
-        let start = descriptor.start_index * stride;
-        let end = start + descriptor.vertex_count * stride;
-        self.normal_buffer.slice(start..end)
-    }
-
-    pub(crate) fn uv_slice(
-        &self,
-        descriptor: &VertexBufferDescriptor,
-    ) -> wgpu::BufferSlice {
-        let stride = wgpu::VertexFormat::Float32x2.size();
-        let start = descriptor.start_index * stride;
-        let end = start + descriptor.vertex_count * stride;
-        self.uv_buffer.slice(start..end)
+        Ok(descriptor)
     }
 }

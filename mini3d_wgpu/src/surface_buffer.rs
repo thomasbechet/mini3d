@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, application::Application, asset::{AssetReader, font::Font}};
+use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, application::Application, asset::{AssetDatabase, font::Font}};
 use wgpu::TextureViewDescriptor;
 
 use crate::context::WGPUContext;
@@ -102,7 +102,7 @@ impl SurfaceBuffer {
                         self,
                         *p,
                         text.as_str(),
-                        &AssetReader::get::<Font>(app, *font_id).expect("Invalid font id").data,
+                        &AssetDatabase::read::<Font>(app, *font_id).expect("Invalid font id").data,
                     );
                 }
                 mini3d::graphics::command_buffer::Command::DrawLine { p0, p1 } => {

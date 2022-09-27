@@ -246,10 +246,10 @@ impl AssetManager {
     }    
 }
 
-pub struct AssetReader;
+pub struct AssetDatabase;
 
-impl AssetReader {
-    pub fn get<A: Asset>(app: &Application, id: A::Id) -> Option<&AssetEntry<A>> 
+impl AssetDatabase {
+    pub fn read<A: Asset>(app: &Application, id: A::Id) -> Option<&AssetEntry<A>> 
         where AssetManager: AsRef<AssetRegistry<A>> {
         app.asset_manager.get(id)
     }

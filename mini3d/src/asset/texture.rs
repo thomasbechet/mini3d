@@ -12,10 +12,6 @@ pub struct Texture {
 new_key_type! { pub struct TextureId; }
 
 impl Asset for Texture {
-
     type Id = TextureId;
-
-    fn typename() -> &'static str {
-        "texture"
-    }
+    fn typename() -> &'static str { "texture" }
 }

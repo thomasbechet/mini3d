@@ -1,10 +1,27 @@
 // Vertex Shader
 
+// group0 -> Global Bind Group
+// group1 -> Mesh-Pass Bind Group
+// group2 -> Flat-Material Bind Group
+
 struct GlobalData {
     world_to_clip: mat4x4<f32>,
 };
 @group(0) @binding(0)
 var<uniform> global: GlobalData;
+
+struct ModelData {
+    transform: mat4x4<f32>,
+};
+@group(0) @binding(1)
+var<storage> models: array<ModelData>;
+
+struct InstanceData {
+    model_id: u32,
+    batch_id: u32,
+};
+@group(1) @binding(0)
+var<storage> instances: array<InstanceData>;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -17,18 +34,10 @@ fn vs_main(
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
-    @location(3) model_row0: vec4<f32>,
-    @location(4) model_row1: vec4<f32>,
-    @location(5) model_row2: vec4<f32>,
-    @location(6) model_row3: vec4<f32>,
+    @builtin(instance_index) instance_index: u32,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let model = mat4x4<f32>(
-        model_row0,
-        model_row1,
-        model_row2,
-        model_row3,
-    );
+    let model = models[instances[instance_index].model_id].transform;
     out.clip_position = global.world_to_clip * model * vec4<f32>(position, 1.0);
     out.world_normal = (model * vec4<f32>(normal, 0.0)).xyz;
     out.uv = uv;
@@ -37,9 +46,9 @@ fn vs_main(
 
 // Fragment shader
 
-@group(0) @binding(1)
+@group(0) @binding(2)
 var s_texture: sampler;
-@group(1) @binding(0)
+@group(2) @binding(0)
 var t_texture: texture_2d<f32>;
 
 @fragment

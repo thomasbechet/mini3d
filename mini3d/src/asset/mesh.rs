@@ -23,8 +23,5 @@ new_key_type! { pub struct MeshId; }
 
 impl Asset for Mesh {
     type Id = MeshId;
-
-    fn typename() -> &'static str {
-        "mesh"
-    }
+    fn typename() -> &'static str { "mesh" }
 }

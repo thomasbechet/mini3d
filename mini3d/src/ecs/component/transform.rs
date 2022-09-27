@@ -1,4 +1,4 @@
-use glam::Mat4;
+use glam::{Mat4, Vec3};
 
 pub struct TransformComponent {
     pub has_changed: bool,
@@ -10,6 +10,15 @@ impl Default for TransformComponent {
         Self { 
             has_changed: true, 
             matrix: Mat4::IDENTITY 
+        }
+    }
+}
+
+impl TransformComponent {
+    pub fn from_translation(translation: Vec3) -> Self {
+        Self {
+            has_changed: true,
+            matrix: Mat4::from_translation(translation),
         }
     }
 }

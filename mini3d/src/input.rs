@@ -150,7 +150,7 @@ impl InputManager {
             },
             ControlMode::Cursor { cursor } => {
                 let sp = cursor.screen_position();
-                builder.fill_rect(IRect::new(sp.x, sp.y, 2, 2));
+                builder.fill_rect(IRect::new(sp.x, sp.y, 3, 3));
             },
         }
         builder.build()

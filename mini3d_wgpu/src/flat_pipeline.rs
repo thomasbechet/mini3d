@@ -1,17 +1,22 @@
 use wgpu::{include_wgsl, vertex_attr_array};
 
-use crate::{context::WGPUContext, render_target::RenderTarget, instance_uniform_buffer::GPUInstanceData};
+use crate::{context::WGPUContext, render_target::RenderTarget};
 
-pub(crate) fn create_scene_pipeline(
+pub(crate) fn create_flat_pipeline(
     context: &WGPUContext,
     global_bind_group_layout: &wgpu::BindGroupLayout,
-    material_bind_group_layout: &wgpu::BindGroupLayout,
+    mesh_pass_bind_group_layout: &wgpu::BindGroupLayout,
+    flat_material_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
     
     // Pipeline layout
     let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("scene_pipeline_layout"),
-        bind_group_layouts: &[&global_bind_group_layout, &material_bind_group_layout],
+        label: Some("flat_pipeline_layout"),
+        bind_group_layouts: &[
+            &global_bind_group_layout,
+            &mesh_pass_bind_group_layout, 
+            &flat_material_bind_group_layout
+        ],
         push_constant_ranges: &[],
     });
     
@@ -31,44 +36,18 @@ pub(crate) fn create_scene_pipeline(
         step_mode: wgpu::VertexStepMode::Vertex,
         attributes: &vertex_attr_array![2 => Float32x2]
     };
-    let instance_layout = wgpu::VertexBufferLayout {
-        array_stride: (GPUInstanceData::size()) as wgpu::BufferAddress,
-        step_mode: wgpu::VertexStepMode::Instance,
-        attributes: &[
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x4,
-                offset: wgpu::VertexFormat::Float32x4.size() * 0,
-                shader_location: 3,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x4,
-                offset: wgpu::VertexFormat::Float32x4.size() * 1,
-                shader_location: 4,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x4,
-                offset: wgpu::VertexFormat::Float32x4.size() * 2,
-                shader_location: 5,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x4,
-                offset: wgpu::VertexFormat::Float32x4.size() * 3,
-                shader_location: 6,
-            },
-        ]
-    };
 
     // Compile modules
-    let module = context.device.create_shader_module(include_wgsl!("shader/scene.wgsl"));
+    let module = context.device.create_shader_module(include_wgsl!("shader/flat.wgsl"));
 
     // Create pipeline
     context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("scene_pipeline"),
+        label: Some("flat_pipeline"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &module,
             entry_point: "vs_main",
-            buffers: &[position_layout, normal_layout, uv_layout, instance_layout],
+            buffers: &[position_layout, normal_layout, uv_layout],
         },
         fragment: Some(wgpu::FragmentState {
             module: &module,

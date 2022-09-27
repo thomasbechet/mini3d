@@ -11,8 +11,5 @@ new_key_type! { pub struct MaterialId; }
 
 impl Asset for Material {
     type Id = MaterialId;
-
-    fn typename() -> &'static str {
-        "material"
-    }
+    fn typename() -> &'static str { "material" }
 }
