@@ -1,11 +1,10 @@
 use anyhow::{Result, anyhow};
 use slotmap::{new_key_type, SlotMap, Key};
 
-use crate::{event::input::{InputEvent, TextEvent, MouseEvent}, program::ProgramId, app::App};
+use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT}};
 
-use self::{axis::{AxisInput, AxisKind, AxisInputId}, button::{ButtonInput, ButtonState, ButtonInputId}, cursor::Cursor};
+use self::{axis::{AxisInput, AxisKind, AxisInputId}, button::{ButtonInput, ButtonState, ButtonInputId}};
 
-pub mod cursor;
 pub mod direction;
 pub mod control_layout;
 pub mod axis;
@@ -20,12 +19,41 @@ pub struct InputGroup {
 }
 
 pub struct InputManager {
-    mouse: Cursor,
     text: String,
     buttons: SlotMap<ButtonInputId, ButtonInput>,
     axis: SlotMap<AxisInputId, AxisInput>,
     groups: SlotMap<InputGroupId, InputGroup>,
+    default_group: InputGroupId,
     pub(crate) reload_bindings: bool,
+}
+
+impl Default for InputManager {
+    fn default() -> Self {
+        // Default manager
+        let mut manager = Self {
+            text: Default::default(),
+            buttons: Default::default(),
+            axis: Default::default(),
+            groups: Default::default(),
+            default_group: InputGroupId::null(),
+            reload_bindings: false,
+        };
+        // Register default input group
+        manager.default_group = manager.register_group("default", ProgramId::null())
+            .expect("Failed to register default group");
+        // Register default buttons and axis
+        manager.register_axis(AxisInput::CURSOR_X, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 }).unwrap();
+        manager.register_axis(AxisInput::CURSOR_Y, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 }).unwrap();
+        manager.register_axis(AxisInput::MOTION_X, manager.default_group, AxisKind::Infinite).unwrap();
+        manager.register_axis(AxisInput::MOTION_Y, manager.default_group, AxisKind::Infinite).unwrap();
+        manager.register_button(ButtonInput::MOVE_UP, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::MOVE_DOWN, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::MOVE_LEFT, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::MOVE_RIGHT, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::SWITCH_CONTROL_MODE, manager.default_group).unwrap();
+        // Return the manager
+        manager
+    }
 }
 
 impl InputManager {
@@ -37,9 +65,6 @@ impl InputManager {
         for (_, button) in self.buttons.iter_mut() {
             button.was_pressed = button.pressed;
         }
-
-        // Reset the mouse motion for the current frame
-        self.mouse.reset_motion();
 
         // Reset text for current frame
         self.text.clear();
@@ -76,21 +101,7 @@ impl InputManager {
                     },
                 }
             },
-            InputEvent::Mouse(cursor_event) => {
-                match cursor_event {
-                    MouseEvent::Move { delta } => {
-                        self.mouse.translate(*delta);
-                    },
-                    MouseEvent::Update { position } => {
-                        self.mouse.set_position(*position);
-                    },
-                }  
-            },
         }
-    }
-
-    pub fn mouse(&self) -> &Cursor {
-        &self.mouse
     }
 
     pub fn text(&self) -> &str {
@@ -182,20 +193,6 @@ impl InputManager {
 
     pub fn iter_axis(&self) -> impl Iterator<Item = &AxisInput> {
         self.axis.values()
-    }
-
-}
-
-impl Default for InputManager {
-    fn default() -> Self {
-        InputManager {
-            mouse: Default::default(),
-            text: Default::default(),
-            buttons: Default::default(),
-            axis: Default::default(),
-            groups: Default::default(),
-            reload_bindings: false,
-        }
     }
 }
 

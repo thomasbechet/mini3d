@@ -26,5 +26,4 @@ pub enum InputEvent {
     Button(ButtonEvent),
     Axis(AxisEvent),
     Text(TextEvent),
-    Mouse(MouseEvent),
 }

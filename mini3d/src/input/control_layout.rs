@@ -1,30 +1,40 @@
 use glam::Vec2;
 use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
-use crate::{math::rect::IRect, graphics::CommandBuffer};
+use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_CENTER, SCREEN_RESOLUTION}};
 
-use super::{direction::Direction, InputManager, button::ButtonInputId, axis::AxisInputId, cursor::Cursor};
+use super::{direction::Direction, InputManager, button::ButtonInputId, axis::AxisInputId};
 
 new_key_type! { 
     pub struct ControlId;
     pub struct ControlProfileId;
 }
 
+pub struct ControlBindings {
+    pub switch_mode: ButtonInputId,
+
+    // Selection bindings
+    pub move_up: ButtonInputId,
+    pub move_down: ButtonInputId,
+    pub move_left: ButtonInputId,
+    pub move_right: ButtonInputId,
+
+    // Cursor bindings
+    pub cursor_x: AxisInputId,
+    pub cursor_y: AxisInputId,
+    pub motion_x: AxisInputId,
+    pub motion_y: AxisInputId,
+}
+
 enum ControlMode {
     Selection { selected: ControlId },
-    VirtualCursor { cursor: Cursor },
+    Cursor { position: Vec2 },
 }
 
 struct ControlProfile {
     mode: ControlMode,
-    switch_mode: ButtonInputId,
-    up: ButtonInputId,
-    down: ButtonInputId,
-    left: ButtonInputId,
-    right: ButtonInputId,
-    motion_x: AxisInputId,
-    motion_y: AxisInputId,
-    use_mouse: bool,
+    bindings: ControlBindings,
+    last_cursor_position: Vec2,
 }
 
 pub struct ControlLayout {
@@ -125,35 +135,20 @@ impl ControlLayout {
         id
     }
 
-    pub fn add_profile(&mut self,
-        switch_mode: ButtonInputId,
-        up: ButtonInputId,
-        down: ButtonInputId,
-        left: ButtonInputId,
-        right: ButtonInputId,
-        motion_x: AxisInputId,
-        motion_y: AxisInputId,
-        use_mouse: bool,
-    ) -> ControlProfileId {
+    pub fn add_profile(&mut self, bindings: ControlBindings) -> ControlProfileId {
         self.profiles.insert(ControlProfile {
             mode: ControlMode::Selection { selected: ControlId::null() },
-            switch_mode,
-            up,
-            down,
-            left,
-            right,
-            motion_x,
-            motion_y,
-            use_mouse,
+            bindings,
+            last_cursor_position: Default::default(),
         })
     }
 
     pub fn target_control(&self, id: ControlProfileId) -> ControlId {
         match self.profiles.get(id).unwrap().mode {
             ControlMode::Selection { selected } => selected,
-            ControlMode::VirtualCursor { cursor } => {
+            ControlMode::Cursor { position } => {
                 // Find the area that contains the point
-                self.extents.iter().find(|(_, &extent)| { extent.contains(cursor.screen_position()) })
+                self.extents.iter().find(|(_, &extent)| { extent.contains(position.as_ivec2()) })
                     .map_or(ControlId::null(), |(id, _)| id)    
             },
         }
@@ -165,16 +160,16 @@ impl ControlLayout {
         for (_, profile) in self.profiles.iter_mut() {
 
             // Check selection mode
-            if input.button(profile.switch_mode).map_or_else(|| false, |b| b.is_just_pressed()) {
+            if input.button(profile.bindings.switch_mode).map_or_else(|| false, |b| b.is_just_pressed()) {
                 match profile.mode {
                     // TODO: switching from selection to cursor mode should place the cursor
                     // to the nearest selected extent or the middle screen position.
                     ControlMode::Selection { .. } => {
-                        profile.mode = ControlMode::VirtualCursor { cursor: Cursor::default() };
+                        profile.mode = ControlMode::Cursor { position: SCREEN_CENTER.as_vec2() };
                     },
                     // TODO: switching from cursor to selection mode should place the selection
                     // to the nearest extent or none (impossible ?).
-                    ControlMode::VirtualCursor { .. } => {
+                    ControlMode::Cursor { .. } => {
                         profile.mode = ControlMode::Selection { selected: ControlId::null() };
                     },
                 }
@@ -186,13 +181,13 @@ impl ControlLayout {
 
                     // Find the new control id
                     let new_selected = {
-                        if input.button(profile.up).map_or_else(|| false, |b| b.is_just_pressed()) {
+                        if input.button(profile.bindings.move_up).map_or_else(|| false, |b| b.is_just_pressed()) {
                             self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Up as usize]) 
-                        } else if input.button(profile.down).map_or_else(|| false, |b| b.is_just_pressed()) {
+                        } else if input.button(profile.bindings.move_down).map_or_else(|| false, |b| b.is_just_pressed()) {
                             self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Down as usize]) 
-                        } else if input.button(profile.left).map_or_else(|| false, |b| b.is_just_pressed()) {
+                        } else if input.button(profile.bindings.move_left).map_or_else(|| false, |b| b.is_just_pressed()) {
                             self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Left as usize]) 
-                        } else if input.button(profile.right).map_or_else(|| false, |b| b.is_just_pressed()) {
+                        } else if input.button(profile.bindings.move_right).map_or_else(|| false, |b| b.is_just_pressed()) {
                             self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Right as usize]) 
                         } else {
                             *selected
@@ -202,18 +197,16 @@ impl ControlLayout {
                     // Update the selected extent
                     *selected = new_selected;
                 },
-                ControlMode::VirtualCursor { cursor } => {
-
-                    // Check if the profile is using the mouse to control the virtual cursor
-                    // or is using motion axis (such as controll inputs)
-                    if profile.use_mouse {
-                        cursor.reset_motion();
-                        cursor.set_position(input.mouse().position());
+                ControlMode::Cursor { position } => {
+                    let cursor_x = input.axis(profile.bindings.cursor_x).map_or(position.x, |a| a.value);
+                    let cursor_y = input.axis(profile.bindings.cursor_y).map_or(position.y, |a| a.value);
+                    if cursor_x != profile.last_cursor_position.x || cursor_y != profile.last_cursor_position.y {
+                        *position = Vec2::new(cursor_x, cursor_y);
+                        profile.last_cursor_position = *position;
                     } else {
-                        cursor.translate(Vec2::new(
-                            input.axis(profile.motion_x).map_or(0.0, |r| r.value),
-                            input.axis(profile.motion_y).map_or(0.0, |r| r.value),
-                        ));
+                        position.x = input.axis(profile.bindings.motion_x).map_or(position.x, |a| position.x + a.value);
+                        position.y = input.axis(profile.bindings.motion_y).map_or(position.y, |a| position.y + a.value);
+                        *position = position.clamp(Vec2::ZERO, SCREEN_RESOLUTION.as_vec2());
                     }
                 },
             }
@@ -235,8 +228,8 @@ impl ControlLayout {
                         cbb.draw_rect(*extent);
                     }
                 },
-                ControlMode::VirtualCursor { cursor } => {
-                    let sp = cursor.screen_position();
+                ControlMode::Cursor { position } => {
+                    let sp = position.as_ivec2();
                     cbb.fill_rect(IRect::new(sp.x, sp.y, 3, 3));
                 },
             } 

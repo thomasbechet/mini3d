@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
-use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{button::{ButtonState, ButtonInputId}, InputDatabase, axis::AxisInputId}, event::{input::{InputEvent, ButtonEvent, TextEvent, MouseEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
-use mini3d_os::{program::OSProgram, input::Button};
+use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{button::{ButtonState, ButtonInputId, ButtonInput}, InputDatabase, axis::{AxisInputId, AxisInput}}, event::{input::{InputEvent, ButtonEvent, TextEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
+use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
@@ -12,6 +12,8 @@ struct WinitInput {
     pub input_helper: WinitInputHelper,
     pub button_bindings: HashMap<VirtualKeyCode, (String, ButtonInputId)>,
     pub axis_bindings: HashMap<VirtualKeyCode, (String, f32, AxisInputId)>,
+    pub cursor_x: AxisInputId,
+    pub cursor_y: AxisInputId,
 }
 
 impl WinitInput {
@@ -19,19 +21,21 @@ impl WinitInput {
         Self { 
             input_helper: WinitInputHelper::new(),
             button_bindings: HashMap::from([
-                (VirtualKeyCode::Z, (Button::UP.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::Q, (Button::LEFT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::S, (Button::RIGHT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::D, (Button::DOWN.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::Space, (Button::SWITCH_CONTROL_MODE.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Z, (ButtonInput::MOVE_UP.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Q, (ButtonInput::MOVE_LEFT.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::S, (ButtonInput::MOVE_RIGHT.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::D, (ButtonInput::MOVE_DOWN.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Space, (ButtonInput::SWITCH_CONTROL_MODE.to_string(), ButtonInputId::null())),
                 (VirtualKeyCode::C, ("switch2".to_string(), ButtonInputId::null())),
             ]),
             axis_bindings: HashMap::from([
-                (VirtualKeyCode::O, ("cursor_y".to_string(), -1.0, AxisInputId::null())),
-                (VirtualKeyCode::L, ("cursor_y".to_string(), 1.0, AxisInputId::null())),
-                (VirtualKeyCode::K, ("cursor_x".to_string(), -1.0,AxisInputId::null())),
-                (VirtualKeyCode::M, ("cursor_x".to_string(), 1.0, AxisInputId::null())),
-            ])
+                (VirtualKeyCode::O, (AxisInput::MOTION_Y.to_string(), -1.0, AxisInputId::null())),
+                (VirtualKeyCode::L, (AxisInput::MOTION_Y.to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::K, (AxisInput::MOTION_X.to_string(), -1.0,AxisInputId::null())),
+                (VirtualKeyCode::M, (AxisInput::MOTION_X.to_string(), 1.0, AxisInputId::null())),
+            ]),
+            cursor_x: AxisInputId::null(),
+            cursor_y: AxisInputId::null(),
         }
     }
 
@@ -50,6 +54,11 @@ impl WinitInput {
         
         // Update axis
         for axis in InputDatabase::iter_axis(app) {
+            if axis.name == AxisInput::CURSOR_X {
+                self.cursor_x = axis.id;
+            } else if axis.name == AxisInput::CURSOR_Y {
+                self.cursor_y = axis.id;
+            }
             self.axis_bindings.values_mut()
                 .filter(|e| e.0 == axis.name)
                 .for_each(|e| e.2 = axis.id);
@@ -153,9 +162,9 @@ impl WinitContext {
                                 let wsize: UVec2 = (self.window.inner_size().width, self.window.inner_size().height).into();
                                 let viewport = compute_fixed_viewport(wsize);
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
-                                events.push_input(InputEvent::Mouse(MouseEvent::Update { 
-                                    position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2())
-                                }));
+                                let final_position = (relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2();
+                                events.push_input(InputEvent::Axis(AxisEvent { id: self.input.cursor_x, value: final_position.x }));
+                                events.push_input(InputEvent::Axis(AxisEvent { id: self.input.cursor_y, value: final_position.y }));                                    
                             }
                             _ => {}
                         }

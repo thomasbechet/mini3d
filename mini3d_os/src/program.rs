@@ -1,6 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::Vec3, input::{InputGroupId, axis::AxisKind, control_layout::{ControlLayout, ControlProfileId}}, slotmap::Key};
-
-use crate::input::{Button, Axis};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::Vec3, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::ButtonInput, axis::AxisInput}, slotmap::Key};
 
 pub struct OSProgram {
     id: ProgramId,
@@ -48,20 +46,21 @@ impl Program for OSProgram {
             .context("Failed to set default font asset")?;
 
         // Register default inuts
-        let up = ctx.input.register_button(Button::UP, self.input_group)?;
-        let down = ctx.input.register_button(Button::DOWN, self.input_group)?;
-        let left = ctx.input.register_button(Button::LEFT, self.input_group)?;
-        let right = ctx.input.register_button(Button::RIGHT, self.input_group)?;
-        let click = ctx.input.register_button(Button::CLICK, self.input_group)?;
-        let switch_control_mode = ctx.input.register_button(Button::SWITCH_CONTROL_MODE, self.input_group)?;
-
-        let motion_x = ctx.input.register_axis(Axis::CURSOR_X, self.input_group, AxisKind::Infinite)?;
-        let motion_y = ctx.input.register_axis(Axis::CURSOR_Y, self.input_group, AxisKind::Infinite)?;
-        let switch_mode2 = ctx.input.register_button("switch2", self.input_group)?;
+        // let click = ctx.input.register_button("click", self.input_group)?;
+        // let switch_mode2 = ctx.input.register_button("switch2", self.input_group)?;
 
         // Add initial control profile
-        self.control_profile = self.control_layout.add_profile(switch_control_mode, up, down, left, right, motion_x, motion_y, true);
-        self.control_profile = self.control_layout.add_profile(switch_mode2, up, down, left, right, motion_x, motion_y, false);
+        self.control_profile = self.control_layout.add_profile(ControlBindings {
+            switch_mode: ctx.input.find_button(ButtonInput::SWITCH_CONTROL_MODE).unwrap().id,
+            move_up: ctx.input.find_button(ButtonInput::MOVE_UP).unwrap().id,
+            move_down: ctx.input.find_button(ButtonInput::MOVE_DOWN).unwrap().id,
+            move_left: ctx.input.find_button(ButtonInput::MOVE_LEFT).unwrap().id,
+            move_right: ctx.input.find_button(ButtonInput::MOVE_RIGHT).unwrap().id,
+            cursor_x: ctx.input.find_axis(AxisInput::CURSOR_X).unwrap().id, 
+            cursor_y: ctx.input.find_axis(AxisInput::CURSOR_Y).unwrap().id,
+            motion_x: ctx.input.find_axis(AxisInput::MOTION_X).unwrap().id,
+            motion_y: ctx.input.find_axis(AxisInput::MOTION_Y).unwrap().id,
+        });
 
         // Import initial assets
         ctx.asset.iter_import::<Texture>().map(|e| e.id).collect::<Vec<_>>()

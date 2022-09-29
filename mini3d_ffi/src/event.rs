@@ -1,8 +1,5 @@
-use std::slice;
-
 use libc::c_void;
-use mini3d::{glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{button::{ButtonState, ButtonInputId}, axis::AxisInputId}, event::{input::{InputEvent, ButtonEvent, AxisEvent, MouseEvent}, AppEvents}, slotmap::KeyData};
-use mini3d_wgpu::compute_fixed_viewport;
+use mini3d::{input::{button::{ButtonState, ButtonInputId}, axis::AxisInputId}, event::{input::{InputEvent, ButtonEvent, AxisEvent}, AppEvents}, slotmap::KeyData};
 
 #[repr(C)]
 pub enum mini3d_button_state {
@@ -58,35 +55,4 @@ pub unsafe extern "C" fn mini3d_app_events_push_input_axis(
         id: AxisInputId::from(KeyData::from_ffi(id)), 
         value,
     }));
-}
-
-#[no_mangle]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_app_events_push_input_mouse_move(
-    event: *mut mini3d_app_events, 
-    delta: *const f32
-) {
-    let event = (event as *mut AppEvents).as_mut().unwrap();
-    let delta = slice::from_raw_parts(delta, 2);
-    event.push_input(InputEvent::Mouse(MouseEvent::Move { delta: Vec2::from_slice(delta) }));
-}
-
-#[no_mangle]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_app_events_push_input_mouse_position(
-    event: *mut mini3d_app_events, 
-    x: f32, 
-    y: f32, 
-    width: u32, 
-    height: u32
-) {
-    let event = (event as *mut AppEvents).as_mut().unwrap();
-
-    let p: Vec2 = (x, y).into();
-    let wsize: UVec2 = (width, height).into();
-    let viewport = compute_fixed_viewport(wsize);
-    let relp = p - Vec2::new(viewport.x, viewport.y);
-    let position: Vec2 = (relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2();
-
-    event.push_input(InputEvent::Mouse(MouseEvent::Update { position }));
 }

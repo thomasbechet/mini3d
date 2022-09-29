@@ -52,14 +52,6 @@ void mini3d_app_events_push_input_axis(struct mini3d_app_events *event,
                                        unsigned long id,
                                        float value);
 
-void mini3d_app_events_push_input_mouse_move(struct mini3d_app_events *event, const float *delta);
-
-void mini3d_app_events_push_input_mouse_position(struct mini3d_app_events *event,
-                                                 float x,
-                                                 float y,
-                                                 uint32_t width,
-                                                 uint32_t height);
-
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_xlib(unsigned long window, void *display);
