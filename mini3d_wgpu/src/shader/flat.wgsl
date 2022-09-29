@@ -14,14 +14,16 @@ struct ModelData {
     transform: mat4x4<f32>,
 };
 @group(0) @binding(1)
-var<storage> models: array<ModelData>;
+var<uniform> models: array<ModelData, 256>;
 
 struct InstanceData {
     model_id: u32,
     batch_id: u32,
+    _pad0: u32,
+    _pad1: u32,
 };
 @group(1) @binding(0)
-var<storage> instances: array<InstanceData>;
+var<uniform> instances: array<InstanceData, 256>;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,

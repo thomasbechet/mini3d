@@ -1,14 +1,14 @@
 use glam::Vec2;
 
-use crate::input::button::ButtonState;
+use crate::input::{button::{ButtonState, ButtonInputId}, axis::AxisInputId};
 
 pub struct ButtonEvent {
-    pub name: &'static str,
+    pub id: ButtonInputId,
     pub state: ButtonState,
 }
 
 pub struct AxisEvent {
-    pub name: &'static str,
+    pub id: AxisInputId,
     pub value: f32,
 }
 
@@ -17,7 +17,7 @@ pub enum TextEvent {
     String(String),
 }
 
-pub enum CursorEvent {
+pub enum MouseEvent {
     Move { delta: Vec2 },
     Update { position: Vec2 },
 }
@@ -26,5 +26,5 @@ pub enum InputEvent {
     Button(ButtonEvent),
     Axis(AxisEvent),
     Text(TextEvent),
-    Cursor(CursorEvent),
+    Mouse(MouseEvent),
 }

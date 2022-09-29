@@ -14,20 +14,12 @@ pub trait Program {
     fn stop(&mut self, ctx: &mut ProgramContext) -> Result<()>;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ProgramStatus {
-    STARTING,
-    RUNNING,
-    STOPPING,
-}
-
 new_key_type! { pub struct ProgramId; }
 
 struct ProgramInstance {
     name: String,
-    parent: Option<ProgramId>,
+    parent: ProgramId,
     program: Option<Box<dyn Program>>,
-    status: ProgramStatus,
 }
 
 pub struct ProgramContext<'a> {
@@ -53,24 +45,24 @@ impl<'a> ProgramContext<'a> {
 #[derive(Default)]
 pub(crate) struct ProgramManager {
     programs: SlotMap<ProgramId, ProgramInstance>,
-    active_program: ProgramId,
+    starting_programs: Vec<ProgramId>,
+    stopping_programs: Vec<ProgramId>,
 }
 
 impl ProgramManager {
 
-    pub(crate) fn run<P>(&mut self, name: &str, data: P::BuildData, parent: Option<ProgramId>) -> Result<ProgramId> 
+    pub(crate) fn run<P>(&mut self, name: &str, data: P::BuildData, parent: ProgramId) -> Result<ProgramId> 
         where P: Program + ProgramBuilder + 'static {
         // Prepare program instance
         let id = self.programs.insert(ProgramInstance {
             name: name.to_string(),
             parent,
             program: None,
-            status: ProgramStatus::STARTING,
         });
         // Build the program
         self.programs.get_mut(id).unwrap().program = Some(Box::new(P::build(id, data)));
-        // Set program as active
-        self.active_program = id;
+        // Add program to starting programs
+        self.starting_programs.push(id);
         // Return the id
         Ok(id)
     }
@@ -78,36 +70,27 @@ impl ProgramManager {
     pub(crate) fn update(&mut self, asset: &mut AssetManager, input: &mut InputManager, backend: &mut Backend) -> Result<()> {
         
         // Create service wrapper
-        let mut services = ProgramContext::wrap(asset, input, backend.renderer);
+        let mut services = ProgramContext::wrap(asset, input, backend.renderer);       
 
-        // Collect program status before progress to resolve ABA problem
-        let programs = self.programs.iter()
-            .map(|(id, program)| (id, program.status))
-            .collect::<Vec<_>>();        
-
-        // Start, stop or update programs
-        for (id, status) in &programs {
-            let instance = self.programs.get_mut(*id).unwrap();
-            match status {
-                ProgramStatus::STARTING => {
-                    instance.program.as_mut().unwrap().start(&mut services)
-                        .context(format!("Failed to start program '{}'", instance.name))?;
-                    instance.status = ProgramStatus::RUNNING;
-                }
-                ProgramStatus::STOPPING => {
-                    instance.program.as_mut().unwrap().stop(&mut services)
-                        .context(format!("Failed to stop program '{}'", instance.name))?;
-                }
-                ProgramStatus::RUNNING => {
-                    instance.program.as_mut().unwrap().update(&mut services)
-                       .context(format!("Failed to update program '{}'", instance.name))?;
-                }
-            }
+        // Start programs
+        for id in self.starting_programs.drain(..) {
+            let instance = self.programs.get_mut(id).unwrap();
+            instance.program.as_mut().unwrap().start(&mut services)
+                .context(format!("Failed to start program '{}'", instance.name))?;
         }
 
-        // Remove stopped programs
-        for (id, _) in programs.iter().filter(|(_, status)| *status == ProgramStatus::STOPPING) {
-            self.programs.remove(*id);
+        // Update programs
+        for (_, instance) in self.programs.iter_mut() {
+            instance.program.as_mut().unwrap().update(&mut services)
+                .context(format!("Failed to update program '{}'", instance.name))?;
+        }
+
+        // Stop and remove programs
+        for id in self.starting_programs.drain(..) {
+            let instance = self.programs.get_mut(id).unwrap();
+            instance.program.as_mut().unwrap().stop(&mut services)
+                .context(format!("Failed to stop program '{}'", instance.name))?;
+            self.programs.remove(id);
         }
 
         Ok(())

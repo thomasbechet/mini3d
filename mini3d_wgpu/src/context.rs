@@ -10,41 +10,50 @@ pub(crate) struct WGPUContext {
 impl WGPUContext {
     pub(crate) fn new<W: raw_window_handle::HasRawWindowHandle>(window: &W) -> Self {
         
+        let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+
         // Create instance
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let instance = wgpu::Instance::new(backend);
         
         // Create surface
         let surface = unsafe { instance.create_surface(window) };
-        
-        // Create WGPU adapter
-        let adapter = executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::default(),
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        }))
-        .unwrap();
+
+        // Build the adaptor based on backend environment
+        let adapter = executor::block_on(
+            wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
+        )
+        .expect("Failed to create adapter");
+
+        // Display adaptor info
+        let adapter_info = adapter.get_info();
+        println!("Using {} ({:?})", adapter_info.name, adapter_info.backend);
+
+        // Find features
+        let mut features = adapter.features(); 
+        features = features | wgpu::Features::INDIRECT_FIRST_INSTANCE;
+        features = features | wgpu::Features::MULTI_DRAW_INDIRECT;
+
+        // Find correct limit levels
+        // let limits = wgpu::Limits::default();
+        // let limits = wgpu::Limits::downlevel_defaults();
+        let limits = wgpu::Limits::downlevel_webgl2_defaults();
 
         // Request device and queue from adaptor
         let (device, queue) = executor::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                // TODO: add conditional rendering (alternative)
-                features: wgpu::Features::INDIRECT_FIRST_INSTANCE | wgpu::Features::MULTI_DRAW_INDIRECT,
-                limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
-                label: None,
-            },
+            &wgpu::DeviceDescriptor { features, limits, label: None },
             None,
         ))
-        .unwrap();
+        .expect("Failed to find suitable GPU adapter");
+
+        println!("Supported formats: ");
+        for format in surface.get_supported_formats(&adapter) {
+            println!("- {:?}", format);
+        }
 
         // Configure the surface
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            // format: surface.get_supported_formats(&adapter).first().unwrap().to_owned(),
-            format: wgpu::TextureFormat::Bgra8Unorm,
+            format: surface.get_supported_formats(&adapter).first().unwrap().to_owned(),
             width: 1600,
             height: 900,
             present_mode: wgpu::PresentMode::Fifo,

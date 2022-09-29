@@ -1,6 +1,6 @@
 use std::{path::{Path, PathBuf}, fs::File, io::Read};
 
-use mini3d::{event::{asset::{AssetImport, ImportAssetEvent}, FrameEvents}, asset::{mesh::{Mesh, Vertex, SubMesh}, material::Material}, glam::{Vec3, Vec2, Vec4}};
+use mini3d::{event::{asset::{AssetImport, ImportAssetEvent}, AppEvents}, asset::{mesh::{Mesh, Vertex, SubMesh}, material::Material}, glam::{Vec3, Vec2, Vec4}};
 use wavefront_obj::obj::{Primitive, self};
 
 fn vec3_from_vertex(v: &obj::Vertex) -> Vec3 {
@@ -18,7 +18,7 @@ pub struct ModelImport {
 }
 
 impl ModelImport {
-    pub fn push(self, events: &mut FrameEvents) {
+    pub fn push(self, events: &mut AppEvents) {
         self.meshes.into_iter().for_each(|asset| {
             events.push_asset(ImportAssetEvent::Mesh(asset));
         });

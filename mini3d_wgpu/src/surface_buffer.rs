@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, application::Application, asset::{AssetDatabase, font::Font}};
+use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, app::App, asset::{AssetDatabase, font::Font}};
 use wgpu::TextureViewDescriptor;
 
 use crate::context::WGPUContext;
@@ -88,7 +88,7 @@ impl SurfaceBuffer {
 
     pub(crate) fn draw_command_buffer(
         &mut self,
-        app: &Application,
+        app: &App,
         cb: &CommandBuffer,
     ) {
         for command in cb.iter() {

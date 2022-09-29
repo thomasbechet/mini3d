@@ -1,8 +1,8 @@
 use libc::{c_void, c_ulong};
-use mini3d::{application::Application};
+use mini3d::{app::App};
 use mini3d_wgpu::WGPURenderer;
 
-use crate::application::mini3d_application;
+use crate::app::mini3d_app;
 
 #[repr(C)] 
 pub struct mini3d_renderer(*mut c_void);
@@ -52,9 +52,9 @@ pub extern "C" fn mini3d_renderer_delete(renderer: *mut mini3d_renderer) {
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, app: *const mini3d_application) -> bool {
+pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, app: *const mini3d_app) -> bool {
     let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
-    let app = (app as *const Application).as_ref().unwrap();
+    let app = (app as *const App).as_ref().unwrap();
     match renderer {
         RendererContext::None => { true },
         RendererContext::Wgpu { context } => {

@@ -1,10 +1,15 @@
-/// Store input state
-#[derive(Default)]
+use slotmap::new_key_type;
+
+use super::InputGroupId;
+
+new_key_type! { pub struct ButtonInputId; }
+
 pub struct ButtonInput {
-    /// The button is pressed or released
-    pub pressed: bool,
-    /// Keep the previous state to detect just pressed and released
+    pub(crate) pressed: bool,
     pub(crate) was_pressed: bool,
+    pub name: String,
+    pub group: InputGroupId,
+    pub id: ButtonInputId,
 }
 
 #[derive(Copy, Clone)]
@@ -14,6 +19,7 @@ pub enum ButtonState {
 }
 
 impl ButtonInput {
+    
     pub fn is_pressed(&self) -> bool {
         self.pressed
     }

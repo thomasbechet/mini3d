@@ -13,7 +13,7 @@ pub(crate) fn create_mesh_pass_bind_group_layout(
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer { 
-                    ty: wgpu::BufferBindingType::Storage { read_only: true }, 
+                    ty: wgpu::BufferBindingType::Uniform, 
                     has_dynamic_offset: false, 
                     min_binding_size: wgpu::BufferSize::new(64), 
                 },
@@ -24,7 +24,7 @@ pub(crate) fn create_mesh_pass_bind_group_layout(
                 binding: 1,
                 visibility: wgpu::ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer { 
-                    ty: wgpu::BufferBindingType::Storage { read_only: true }, 
+                    ty: wgpu::BufferBindingType::Uniform, 
                     has_dynamic_offset: false, 
                     min_binding_size: wgpu::BufferSize::new(64), 
                 },
@@ -41,6 +41,9 @@ pub(crate) struct GPUInstanceData {
     pub(crate) model_id: u32,
     // Use to identify the associated batch
     pub(crate) batch_id: u32,
+
+    // Ensure 16 bytes alignment
+    _pad0: u64,
 }
 
 #[repr(C)]
@@ -119,14 +122,14 @@ impl MeshPass {
         let instance_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("instance_buffer"), // TODO: custom name
             size: (std::mem::size_of::<GPUInstanceData>() * max_pass_object_count) as u64,
-            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let indirect_command_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("indirect_buffer"), // TODO: custom name
             size: (std::mem::size_of::<GPUDrawIndirect>() * max_pass_command_count) as u64,
-            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 

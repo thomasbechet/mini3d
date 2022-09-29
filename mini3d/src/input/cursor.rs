@@ -15,12 +15,17 @@ impl Default for Cursor {
 }
 
 impl Cursor {
+
     pub fn screen_position(&self) -> IVec2 {
         self.position.as_ivec2()
     }
 
     pub fn motion(&self) -> Vec2 {
         self.motion
+    }
+
+    pub fn position(&self) -> Vec2 {
+        self.position
     }
 
     pub fn reset_motion(&mut self) {

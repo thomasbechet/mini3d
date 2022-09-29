@@ -4,13 +4,13 @@ pub mod asset;
 pub mod input;
 pub mod system;
 
-pub struct FrameEvents {
+pub struct AppEvents {
     pub(crate) assets: Vec<ImportAssetEvent>,
     pub(crate) inputs: Vec<InputEvent>,
     pub(crate) systems: Vec<SystemEvent>,
 }
 
-impl FrameEvents {
+impl AppEvents {
 
     pub fn new() -> Self {
         Self {

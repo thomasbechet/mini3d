@@ -20,7 +20,7 @@ pub(crate) fn create_global_bind_group_layout(
                 binding: 1,
                 visibility: wgpu::ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer { 
-                    ty: wgpu::BufferBindingType::Storage { read_only: true }, 
+                    ty: wgpu::BufferBindingType::Uniform, 
                     has_dynamic_offset: false, 
                     min_binding_size: wgpu::BufferSize::new(64), 
                 },

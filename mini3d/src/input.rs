@@ -1,26 +1,31 @@
-use std::collections::HashMap;
+use anyhow::{Result, anyhow};
+use slotmap::{new_key_type, SlotMap, Key};
 
-use crate::{event::input::{InputEvent, TextEvent, CursorEvent}, graphics::CommandBuffer, math::rect::IRect};
+use crate::{event::input::{InputEvent, TextEvent, MouseEvent}, program::ProgramId, app::App};
 
-use self::{control_layout::{ControlId, ControlLayout}, range::{InputName, RangeInput, RangeType}, button::{ButtonInput, ButtonState}, cursor::Cursor, binding::{Button, Axis}, direction::Direction};
+use self::{axis::{AxisInput, AxisKind, AxisInputId}, button::{ButtonInput, ButtonState, ButtonInputId}, cursor::Cursor};
 
-pub mod binding;
 pub mod cursor;
 pub mod direction;
 pub mod control_layout;
-pub mod range;
+pub mod axis;
 pub mod button;
 
-pub enum ControlMode {
-    Selection { selected_area: Option<ControlId> },
-    Cursor { cursor: Cursor },
+new_key_type! { pub struct InputGroupId; }
+
+pub struct InputGroup {
+    pub name: String,
+    pub id: InputGroupId,
+    pub owner: ProgramId,
 }
 
 pub struct InputManager {
-    pub buttons: HashMap<InputName, ButtonInput>,
-    pub axes: HashMap<InputName, RangeInput>,
-    control_layout: Option<ControlLayout>,
-    control_mode: ControlMode,
+    mouse: Cursor,
+    text: String,
+    buttons: SlotMap<ButtonInputId, ButtonInput>,
+    axis: SlotMap<AxisInputId, AxisInput>,
+    groups: SlotMap<InputGroupId, InputGroup>,
+    pub(crate) reload_bindings: bool,
 }
 
 impl InputManager {
@@ -34,17 +39,19 @@ impl InputManager {
         }
 
         // Reset the mouse motion for the current frame
-        if let ControlMode::Cursor { cursor } = &mut self.control_mode {
-            cursor.reset_motion();
-        }
+        self.mouse.reset_motion();
+
+        // Reset text for current frame
+        self.text.clear();
     }
 
     /// Process input events
     pub(crate) fn dispatch_event(&mut self, event: &InputEvent) {
+
         match event {
-            InputEvent::Button(button_event) => {
-                if let Some(action) = self.buttons.get_mut(button_event.name) {
-                    match button_event.state {
+            InputEvent::Button(button) => {
+                if let Some(action) = self.buttons.get_mut(button.id) {
+                    match button.state {
                         ButtonState::Pressed => {
                             action.pressed = true;
                         },
@@ -54,126 +61,154 @@ impl InputManager {
                     }
                 }
             },
-            InputEvent::Axis(axis_event) => {
-                if let Some(axis) = self.axes.get_mut(axis_event.name) {
-                    axis.set_value(axis_event.value);
+            InputEvent::Axis(event) => {
+                if let Some(axis) = self.axis.get_mut(event.id) {
+                    axis.set_value(event.value);
                 }
             },
             InputEvent::Text(text_event) => {
                 match text_event {
-                    TextEvent::Character(_char) => {
-                        
+                    TextEvent::Character(char) => {
+                        self.text.push(*char);
                     },
-                    TextEvent::String(_string) => {
-                        
+                    TextEvent::String(string) => {
+                        self.text += string;
                     },
                 }
             },
-            InputEvent::Cursor(cursor_event) => {
-                if let ControlMode::Cursor { cursor } = &mut self.control_mode {
-                    match cursor_event {
-                        CursorEvent::Move { delta } => {
-                            cursor.translate(*delta);
-                        },
-                        CursorEvent::Update { position } => {
-                            cursor.set_position(*position);
-                        },
-                    }
-                }   
+            InputEvent::Mouse(cursor_event) => {
+                match cursor_event {
+                    MouseEvent::Move { delta } => {
+                        self.mouse.translate(*delta);
+                    },
+                    MouseEvent::Update { position } => {
+                        self.mouse.set_position(*position);
+                    },
+                }  
             },
         }
     }
 
-    /// Update selections
-    pub fn update(&mut self) {
+    pub fn mouse(&self) -> &Cursor {
+        &self.mouse
+    }
 
-        // Check selection mode
-        if self.buttons.get(Button::SWITCH_SELECTION_MODE).unwrap().is_just_pressed() {
-            match self.control_mode {
-                ControlMode::Selection { selected_area: _ } => {
-                    self.control_mode = ControlMode::Cursor { cursor: Default::default() };
-                },
-                ControlMode::Cursor { cursor: _ } => {
-                    self.control_mode = ControlMode::Selection { selected_area: None }
-                },
-            }
-        }
+    pub fn text(&self) -> &str {
+        &self.text
+    }
 
-        // Selection behaviour differ with the cursor mode
-        match &mut self.control_mode {
-            ControlMode::Selection { selected_area } => {
+    pub fn find_group(&self, name: &str) -> Option<&InputGroup> {
+        self.groups.iter()
+            .find(|(_, e)| e.name.as_str() == name)
+            .and_then(|(_, group)| Some(group))
+    }
 
-                // Handle movement
-                if let Some(input_layout) = &mut self.control_layout {
-                    for direction in Direction::iterator() {
-                        if self.buttons.get(Button::from_direction(direction)).unwrap().is_just_pressed() {
-                            let id = input_layout.get_control_from_direction(*selected_area, direction);
-                            // Update the selected area
-                            *selected_area = id;
-                        }
-                    }
-                }
-
-                // Handle click
-                if self.buttons.get(Button::CLICK).unwrap().is_just_pressed() {
-                    // if let Some(id) = selected_area {
-                    //     println!("{}", id);
-                    // }
-                }
-            },
-            ControlMode::Cursor { cursor } => {
-
-                // Handle click
-                if self.buttons.get(Button::CLICK).unwrap().is_just_pressed() {
-                    if let Some(input_layout) = &self.control_layout {
-                        let _id = input_layout.get_control_from_position(cursor.screen_position());
-                        // if let Some(id) = id {
-                        //     println!("{}", id);
-                        // }
-                    }
-                }
-            },
+    pub fn register_group(&mut self, name: &str, owner: ProgramId) -> Result<InputGroupId> {
+        if self.find_group(&name).is_some() {
+            Err(anyhow!("Input group '{}' already exists", name))
+        } else {
+            let new_group = self.groups.insert(InputGroup { 
+                name: name.to_string(), 
+                id: InputGroupId::null(), 
+                owner,
+            });
+            self.groups.get_mut(new_group).unwrap().id = new_group;
+            self.reload_bindings = true;
+            Ok(new_group)
         }
     }
 
-    pub fn render(&self) -> CommandBuffer {
-        let mut builder = CommandBuffer::builder();
-        match &self.control_mode {
-            ControlMode::Selection { selected_area } => {
-                if self.control_layout.is_some() && selected_area.is_some() {
-                    let input_layout = self.control_layout.as_ref().unwrap();
-                    let extent = input_layout.get_control_extent(selected_area.unwrap());
-                    if let Some(extent) = extent {
-                        builder.draw_rect(extent);
-                    }
-                }
-            },
-            ControlMode::Cursor { cursor } => {
-                let sp = cursor.screen_position();
-                builder.fill_rect(IRect::new(sp.x, sp.y, 3, 3));
-            },
-        }
-        builder.build()
+    pub fn find_button(&self, name: &str) -> Option<&ButtonInput> {
+        self.buttons.iter()
+            .find(|(_, e)| e.name.as_str() == name)
+            .map(|(_, e)| e)
     }
+
+    pub fn find_axis(&self, name: &str) -> Option<&AxisInput> {
+        self.axis.iter()
+            .find(|(_, e)| e.name.as_str() == name)
+            .map(|(_, e)| e)
+    }
+
+    pub fn register_button(&mut self, name: &str, group: InputGroupId) -> Result<ButtonInputId> {
+        if self.find_axis(name).is_some() {
+            Err(anyhow!("Button input name '{}' already exists", name))
+        } else {
+            let id = self.buttons.insert(ButtonInput { 
+                pressed: false, 
+                was_pressed: false, 
+                name: name.to_string(),
+                group,
+                id: ButtonInputId::null(),
+            });
+            self.buttons.get_mut(id).unwrap().id = id;
+            self.reload_bindings = true;
+            Ok(id)
+        }
+    }
+
+    pub fn register_axis(&mut self, name: &str, group: InputGroupId, axis: AxisKind) -> Result<AxisInputId> {
+        if self.find_axis(name).is_some() {
+            Err(anyhow!("Axis input name '{}' already exists", name))
+        } else {
+            let id = self.axis.insert(AxisInput { 
+                name: name.to_string(),
+                id: AxisInputId::null(),
+                value: 0.0,
+                group,
+                kind: axis,
+            });
+            self.axis.get_mut(id).unwrap().id = id;
+            self.reload_bindings = true;
+            Ok(id)
+        }
+    }
+
+    pub fn group(&self, id: InputGroupId) -> Option<&InputGroup> {
+        self.groups.get(id)
+    }
+
+    pub fn button(&self, id: ButtonInputId) -> Option<&ButtonInput> {
+        self.buttons.get(id)
+    }
+
+    pub fn axis(&self, id: AxisInputId) -> Option<&AxisInput> {
+        self.axis.get(id)
+    }
+
+    pub fn iter_buttons(&self) -> impl Iterator<Item = &ButtonInput> {
+        self.buttons.values()
+    } 
+
+    pub fn iter_axis(&self) -> impl Iterator<Item = &AxisInput> {
+        self.axis.values()
+    }
+
 }
 
 impl Default for InputManager {
     fn default() -> Self {
         InputManager {
-            buttons: HashMap::from([
-                (Button::UP, ButtonInput::default()),
-                (Button::DOWN, ButtonInput::default()),
-                (Button::LEFT, ButtonInput::default()),
-                (Button::RIGHT, ButtonInput::default()),
-                (Button::CLICK, ButtonInput::default()),
-                (Button::SWITCH_SELECTION_MODE, ButtonInput::default()),
-            ]),
-            axes: HashMap::from([
-                (Axis::CURSOR_X, RangeInput::new(RangeType::Infinite)),
-                (Axis::CURSOR_Y, RangeInput::new(RangeType::Infinite)),
-            ]),
-            control_layout: Some(ControlLayout::new()),
-            control_mode: ControlMode::Selection { selected_area: None },
+            mouse: Default::default(),
+            text: Default::default(),
+            buttons: Default::default(),
+            axis: Default::default(),
+            groups: Default::default(),
+            reload_bindings: false,
         }
+    }
+}
+
+pub struct InputDatabase;
+
+impl InputDatabase {
+    pub fn iter_buttons(app: &App) -> impl Iterator<Item = &ButtonInput> {
+        app.input_manager.iter_buttons()
+    }
+    pub fn iter_axis(app: &App) -> impl Iterator<Item = &AxisInput> {
+        app.input_manager.iter_axis()
+    }
+    pub fn group(app: &App, id: InputGroupId) -> Option<&InputGroup> {
+        app.input_manager.group(id)
     }
 }

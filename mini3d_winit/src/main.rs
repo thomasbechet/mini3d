@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
-use mini3d::{application::{Application}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{range::InputName, binding::{Button, Axis}, button::ButtonState}, event::{input::{AxisEvent, InputEvent, ButtonEvent, TextEvent, CursorEvent}, system::SystemEvent, FrameEvents}, backend::BackendDescriptor};
-use mini3d_os::program::OSProgram;
+use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{button::{ButtonState, ButtonInputId}, InputDatabase, axis::AxisInputId}, event::{input::{InputEvent, ButtonEvent, TextEvent, MouseEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
+use mini3d_os::{program::OSProgram, input::Button};
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
@@ -10,21 +10,49 @@ use winit_input_helper::WinitInputHelper;
 
 struct WinitInput {
     pub input_helper: WinitInputHelper,
-    pub button_mapping: HashMap<VirtualKeyCode, Vec<InputName>>,
+    pub button_bindings: HashMap<VirtualKeyCode, (String, ButtonInputId)>,
+    pub axis_bindings: HashMap<VirtualKeyCode, (String, f32, AxisInputId)>,
 }
 
 impl WinitInput {
     pub fn new() -> Self {
-        WinitInput { 
+        Self { 
             input_helper: WinitInputHelper::new(),
-            button_mapping: HashMap::from([
-                (VirtualKeyCode::Z, vec![Button::UP]),
-                (VirtualKeyCode::S, vec![Button::DOWN]),
-                (VirtualKeyCode::D, vec![Button::RIGHT]),
-                (VirtualKeyCode::Q, vec![Button::LEFT]),
-                (VirtualKeyCode::M, vec![Button::SWITCH_SELECTION_MODE]),
-                (VirtualKeyCode::Space, vec![Button::CLICK]),
+            button_bindings: HashMap::from([
+                (VirtualKeyCode::Z, (Button::UP.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Q, (Button::LEFT.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::S, (Button::RIGHT.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::D, (Button::DOWN.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Space, (Button::SWITCH_CONTROL_MODE.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::C, ("switch2".to_string(), ButtonInputId::null())),
+            ]),
+            axis_bindings: HashMap::from([
+                (VirtualKeyCode::O, ("cursor_y".to_string(), -1.0, AxisInputId::null())),
+                (VirtualKeyCode::L, ("cursor_y".to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::K, ("cursor_x".to_string(), -1.0,AxisInputId::null())),
+                (VirtualKeyCode::M, ("cursor_x".to_string(), 1.0, AxisInputId::null())),
             ])
+        }
+    }
+
+    pub fn reload(&mut self, app: &App) {
+
+        println!("reload bindings");
+
+        // Update buttons
+        for button in InputDatabase::iter_buttons(app) {
+            let entry = self.button_bindings.values_mut()
+                .find(|e| e.0 == button.name);
+            if let Some(entry) = entry {
+                entry.1 = button.id;
+            }
+        }
+        
+        // Update axis
+        for axis in InputDatabase::iter_axis(app) {
+            self.axis_bindings.values_mut()
+                .filter(|e| e.0 == axis.name)
+                .for_each(|e| e.2 = axis.id);
         }
     }
 }
@@ -60,23 +88,21 @@ impl Default for WinitContext {
 }
 
 impl WinitContext {
-    pub fn run(mut self, mut app: Application, mut events: FrameEvents, mut renderer: WGPURenderer) {
+    pub fn run(
+        mut self, 
+        mut app: App, 
+        mut events: AppEvents, 
+        mut requests: AppRequests,
+        mut renderer: WGPURenderer,
+    ) {
         let event_loop = self.event_loop;
-        event_loop.run(move |event, _, control_flow| {            // Create event collector
+        event_loop.run(move |event, _, control_flow| {
 
             // Handle inputs
             if self.input.input_helper.update(&event) {
                 if self.input.input_helper.key_pressed(VirtualKeyCode::Escape) {
-                    events.push_system(SystemEvent::CloseRequested);
+                    events.push_system(SystemEvent::Shutdown);
                 }
-                events.push_input(InputEvent::Axis(AxisEvent {
-                    name: Axis::CURSOR_X,
-                    value: self.input.input_helper.mouse_diff().0,
-                }));
-                events.push_input(InputEvent::Axis(AxisEvent {
-                    name: Axis::CURSOR_Y,
-                    value: self.input.input_helper.mouse_diff().1,
-                }));
             }
 
             // Match window events
@@ -96,17 +122,21 @@ impl WinitContext {
                                     ElementState::Pressed => ButtonState::Pressed,
                                     ElementState::Released => ButtonState::Released,
                                 };
-                                if let Some(names) = self.input.button_mapping.get(&keycode) {
-                                    for name in names {
-                                        events.push_input(InputEvent::Button(ButtonEvent {
-                                            name,
-                                            state: action_state
-                                        }));
-                                    }
+                                if let Some((_, id)) = self.input.button_bindings.get(&keycode) {
+                                    events.push_input(InputEvent::Button(ButtonEvent { id: *id, state: action_state }));
+                                }
+
+                                if let Some((_, dir, id)) = self.input.axis_bindings.get(&keycode) {
+                                    let value = match action_state {
+                                        ButtonState::Pressed => *dir,
+                                        ButtonState::Released => 0.0,
+                                    };
+                                    // println!("{:?} {:?} {:?}", keycode, value, *id);
+                                    events.push_input(InputEvent::Axis(AxisEvent { id: *id, value: value * 2.0}));
                                 }
                             }
                             WindowEvent::CloseRequested => {
-                                events.push_system(SystemEvent::CloseRequested);
+                                events.push_system(SystemEvent::Shutdown);
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                                 renderer.resize(new_inner_size.width, new_inner_size.height);
@@ -123,8 +153,7 @@ impl WinitContext {
                                 let wsize: UVec2 = (self.window.inner_size().width, self.window.inner_size().height).into();
                                 let viewport = compute_fixed_viewport(wsize);
                                 let relp = p - Vec2::new(viewport.x, viewport.y);
-
-                                events.push_input(InputEvent::Cursor(CursorEvent::Update { 
+                                events.push_input(InputEvent::Mouse(MouseEvent::Update { 
                                     position: ((relp / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2())
                                 }));
                             }
@@ -141,17 +170,28 @@ impl WinitContext {
                         }
                     }
                 }
-                _ => {}
-            }
+                Event::MainEventsCleared => {
 
-            // Progress app and check close requested event
-            let desc = BackendDescriptor::new()
-                .with_renderer(&mut renderer);
-            app.progress(desc, &mut events).expect("Failed to progress application");
-            if app.close_requested() {
-                *control_flow = ControlFlow::Exit;
-            } else {
-                self.window.request_redraw();
+                    // Build backend descriptor
+                    let desc = BackendDescriptor::new()
+                        .with_renderer(&mut renderer);
+                    
+                    // Progress application
+                    app.progress(desc, &mut events, &mut requests)
+                        .expect("Failed to progress application");
+
+                    // Handle requests
+                    if requests.shutdown() {
+                        println!("Request Shutdown");
+                        *control_flow = ControlFlow::Exit;
+                    } else {
+                        self.window.request_redraw();
+                    }
+                    if requests.reload_bindings() {
+                        self.input.reload(&app);
+                    }
+                }
+                _ => {}
             }
         });
     }
@@ -160,32 +200,33 @@ impl WinitContext {
 fn main() {
     let winit_context = WinitContext::default();
     let wgpu_context = WGPURenderer::new(&winit_context.window);
-    let app = Application::new::<OSProgram>(())
+    let app = App::new::<OSProgram>(())
         .expect("Failed to create application with OS program");
-    let mut events = FrameEvents::new();
+    let mut events = AppEvents::new();
+    let requests = AppRequests::new();
     
     ImageImporter::new()
         .from_source(Path::new("assets/car.png"))
-        .with_name("car".into())
+        .with_name("car")
         .import().expect("Failed to import car texture.")
         .push(&mut events);
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
         .with_flat_normals(false)
-        .with_name("car".into())
+        .with_name("car")
         .import().expect("Failed to import car model.")
         .push(&mut events);  
     ImageImporter::new()
         .from_source(Path::new("assets/alfred.png"))
-        .with_name("alfred".into())
+        .with_name("alfred")
         .import().expect("Failed to import alfred texture.")
         .push(&mut events);
     ModelImporter::new()
         .from_obj(Path::new("assets/alfred.obj"))
         .with_flat_normals(false)
-        .with_name("alfred".into())
+        .with_name("alfred")
         .import().expect("Failed to import alfred model.")
         .push(&mut events);
 
-    winit_context.run(app, events, wgpu_context);
+    winit_context.run(app, events, requests, wgpu_context);
 }

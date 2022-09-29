@@ -1,3 +1,3 @@
 pub enum SystemEvent {
-    CloseRequested,
+    Shutdown,
 }

@@ -33,7 +33,7 @@ impl ModelBuffer {
             buffer: context.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("model_buffer"),
                 size: (GPUModelData::size() * max_model_count) as u64,
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             }),
             local: vec![GPUModelData::default(); max_model_count].into_boxed_slice(),

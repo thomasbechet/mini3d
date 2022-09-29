@@ -56,9 +56,6 @@ impl VertexBuffer {
         vertices: &Vec<asset::mesh::Vertex>,
     ) -> Result<VertexBufferDescriptor> {
 
-        // Check vertex count
-        
-
         // Create the vertex descriptor
         let descriptor = VertexBufferDescriptor { 
             vertex_count: vertices.len() as u32, 

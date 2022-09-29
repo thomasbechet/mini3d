@@ -1,4 +1,4 @@
-pub mod application;
+pub mod app;
 pub mod asset;
 pub mod backend;
 pub mod ecs;
@@ -7,6 +7,7 @@ pub mod graphics;
 pub mod input;
 pub mod math;
 pub mod program;
+pub mod request;
 
 pub use glam;
 pub use slotmap;

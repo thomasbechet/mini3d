@@ -28,7 +28,6 @@ pub const SCREEN_RESOLUTION: UVec2 = uvec2(SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_VIEWPORT: IRect = IRect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_ASPECT_RATIO: f32 = SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32;
 
-#[derive(Default)]
 pub struct CommandBufferBuilder {
     commands: Vec<Command>,
 }
@@ -72,7 +71,7 @@ impl CommandBufferBuilder {
 impl CommandBuffer {
 
     pub fn builder() -> CommandBufferBuilder {
-        Default::default()
+        CommandBufferBuilder { commands: Default::default() }
     }
     pub fn build_with<F: Fn(&mut CommandBufferBuilder) -> &mut CommandBufferBuilder>(f: F) -> CommandBuffer {
         let mut builder = Self::builder();

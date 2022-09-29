@@ -1,6 +1,6 @@
 use std::f32::consts::FRAC_PI_4;
 
-use mini3d::application::Application;
+use mini3d::app::App;
 use mini3d::asset::texture::TextureId;
 use mini3d::asset::{AssetDatabase, self};
 use mini3d::asset::material::MaterialId;
@@ -251,7 +251,7 @@ impl WGPURenderer {
         }
     }
 
-    fn load_texture(textures: &mut SecondaryMap<TextureId, Texture>, context: &WGPUContext, id: TextureId, app: &Application) {
+    fn load_texture(textures: &mut SecondaryMap<TextureId, Texture>, context: &WGPUContext, id: TextureId, app: &App) {
         let texture = AssetDatabase::read::<asset::texture::Texture>(app, id)
             .expect("Failed to read texture");
         textures.insert(id, Texture::from_asset(
@@ -262,7 +262,7 @@ impl WGPURenderer {
         ));
     }
 
-    pub fn render(&mut self, app: &Application) -> Result<(), SurfaceError> {
+    pub fn render(&mut self, app: &App) -> Result<(), SurfaceError> {
         
         // Process immediate commands
         self.surface_buffer.clear(Color::from_color_alpha(Color::BLACK, 0));

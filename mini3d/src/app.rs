@@ -1,23 +1,23 @@
 use anyhow::{Context, Result};
+use slotmap::Key;
 
 use crate::asset::AssetManager;
 use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
-use crate::event::FrameEvents;
+use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
-use crate::program::{ProgramManager, Program, ProgramBuilder};
+use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId};
+use crate::request::AppRequests;
 
-pub struct Application {
+pub struct App {
     pub(crate) asset_manager: AssetManager,
     pub(crate) input_manager: InputManager,
     pub(crate) program_manager: ProgramManager,
 
     default_backend: DefaultBackend,
-
-    pub(crate) close_requested: bool,
 }
 
-impl Application {
+impl App {
 
     pub fn new<P: Program + ProgramBuilder + 'static>(data: P::BuildData) -> Result<Self> {
         // Default application state
@@ -26,10 +26,9 @@ impl Application {
             input_manager: Default::default(), 
             program_manager: Default::default(), 
             default_backend: Default::default(), 
-            close_requested: false,
         };
         // Start initial program
-        app.program_manager.run::<P>("core", data, None)?;
+        app.program_manager.run::<P>("root", data, ProgramId::null())?;
         // Return application
         Ok(app)
     }
@@ -37,7 +36,8 @@ impl Application {
     pub fn progress<'a>(
         &'a mut self, 
         backend_descriptor: BackendDescriptor<'a>, 
-        events: &mut FrameEvents
+        events: &mut AppEvents,
+        requests: &mut AppRequests,
     ) -> Result<()> {
     
         // Build the backend
@@ -58,8 +58,8 @@ impl Application {
         // Dispatch system events
         for event in events.systems.drain(..) {
             match event {
-                SystemEvent::CloseRequested => {
-                    self.close_requested = true;
+                SystemEvent::Shutdown => {
+                    requests.shutdown = true;
                 },
             }
         }
@@ -79,10 +79,12 @@ impl Application {
             &mut backend
         ).context("Failed to update program manager")?;
 
-        Ok(())
-    }
+        // Check input requests
+        if self.input_manager.reload_bindings {
+            requests.reload_bindings = true;
+            self.input_manager.reload_bindings = false;
+        }
 
-    pub fn close_requested(&mut self) -> bool {
-        self.close_requested
+        Ok(())
     }
 }
