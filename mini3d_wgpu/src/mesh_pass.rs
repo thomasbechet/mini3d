@@ -71,12 +71,14 @@ pub(crate) struct InstancedRenderBatch {
     pub(crate) material: MaterialId,
     pub(crate) first_instance: usize,
     pub(crate) instance_count: usize,
+    pub(crate) triangle_count: usize,
 }
 
 pub(crate) struct MultiInstancedRenderBatch {
     pub(crate) material: MaterialId,
     pub(crate) first: usize,
     pub(crate) count: usize,
+    pub(crate) triangle_count: usize,
 }
 
 pub(crate) struct MeshPass {
@@ -224,6 +226,7 @@ impl MeshPass {
                 material: self.batches.first().unwrap().material,
                 first_instance: 0,
                 instance_count: 0,
+                triangle_count: 0,
             });
 
             // Prepare instance object id
@@ -241,7 +244,8 @@ impl MeshPass {
                         submesh: batch.submesh, 
                         material: batch.material, 
                         first_instance: instance_id, 
-                        instance_count: 1, 
+                        instance_count: 1,
+                        triangle_count: 0,
                     });
                 }
 
@@ -251,13 +255,14 @@ impl MeshPass {
             }
         }
 
-        // Write indirect command
-        for (batch_id, batch) in self.instanced_batches.iter().enumerate() {
+        // Write indirect command and compute total triangle count
+        for (batch_id, batch) in self.instanced_batches.iter_mut().enumerate() {
             self.indirect_commands[batch_id].base_instance  = batch.first_instance as u32;
             self.indirect_commands[batch_id].instance_count = batch.instance_count as u32;
             let descriptor = submeshes.get(batch.submesh).unwrap();
             self.indirect_commands[batch_id].base_vertex = descriptor.base_index;
             self.indirect_commands[batch_id].vertex_count = descriptor.vertex_count;
+            batch.triangle_count = descriptor.vertex_count as usize * batch.instance_count;
         }
 
         // Build multi instanced batches
@@ -269,17 +274,21 @@ impl MeshPass {
                 material: self.instanced_batches.first().unwrap().material,
                 first: 0,
                 count: 0,
+                triangle_count: 0,
             });
 
             // Build multi instanced render batches
             for (batch_id, batch) in self.instanced_batches.iter().enumerate() {
                 if batch.material == self.multi_instanced_batches.last().unwrap().material {
-                    self.multi_instanced_batches.last_mut().unwrap().count += 1;
+                    let multi_batch = self.multi_instanced_batches.last_mut().unwrap();
+                    multi_batch.count += 1;
+                    multi_batch.triangle_count += batch.triangle_count;
                 } else {
                     self.multi_instanced_batches.push(MultiInstancedRenderBatch { 
                         material: batch.material, 
                         first: batch_id, 
-                        count: 1, 
+                        count: 1,
+                        triangle_count: batch.triangle_count,
                     });
                 }
             }

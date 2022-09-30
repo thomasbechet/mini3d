@@ -289,7 +289,7 @@ impl ControlLayout {
                     let sp = position.as_ivec2();
                     cbb.fill_rect(IRect::new(sp.x, sp.y, 3, 3));
                 },
-            } 
+            }
         }
 
         cbb.build()

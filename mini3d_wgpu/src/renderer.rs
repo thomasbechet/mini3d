@@ -3,7 +3,7 @@ use mini3d::asset::texture::TextureId;
 use mini3d::asset::{AssetDatabase, self};
 use mini3d::asset::material::MaterialId;
 use mini3d::asset::mesh::MeshId;
-use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererDynamicMaterialId, RendererModelDescriptor, RendererCameraId};
+use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererDynamicMaterialId, RendererModelDescriptor, RendererCameraId, RendererStatistics};
 use mini3d::glam::{UVec2, Vec4, Mat4, Vec3};
 use mini3d::graphics::CommandBuffer;
 use mini3d::graphics::{SCREEN_HEIGHT, SCREEN_WIDTH};
@@ -115,6 +115,9 @@ pub struct WGPURenderer {
     // Mesh passes
     mesh_pass_bind_group_layout: wgpu::BindGroupLayout,
     forward_mesh_pass: MeshPass,
+
+    // Statistics
+    statistics: RendererStatistics,
 }
 
 impl WGPURenderer {
@@ -239,6 +242,8 @@ impl WGPURenderer {
         
             mesh_pass_bind_group_layout,
             forward_mesh_pass,
+
+            statistics: RendererStatistics::default(),
         }
     }
     
@@ -431,6 +436,7 @@ impl WGPURenderer {
             forward_render_pass.set_vertex_buffer(1, self.vertex_buffer.normal_buffer.slice(..));
             forward_render_pass.set_vertex_buffer(2, self.vertex_buffer.uv_buffer.slice(..));
 
+            let mut triangle_count = 0;
             for batch in &self.forward_mesh_pass.multi_instanced_batches {
 
                 // Bind materials
@@ -444,7 +450,11 @@ impl WGPURenderer {
                     (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
                     batch.count as u32,
                 );
+                triangle_count += batch.triangle_count;
             }
+            self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
+            self.statistics.triangle_count = triangle_count;
+            self.statistics.viewport = (RenderTarget::extent().width, RenderTarget::extent().height);
 
             // let mut previous_material: MaterialId = Default::default();
             // for batch in &self.forward_mesh_pass.instanced_batches {
@@ -568,11 +578,9 @@ impl RendererBackend for WGPURenderer {
         self.added_models.push(id);
         id
     }
-
     fn remove_model(&mut self, _id: RendererModelId) {
         todo!()
     }
-
     fn transfer_model_transform(&mut self, id: RendererModelId, mat: Mat4) {
         if let Some(model) = self.models.get(id) {
             self.model_buffer.set_transform(model.model_index, &mat);
@@ -582,7 +590,6 @@ impl RendererBackend for WGPURenderer {
     fn add_dynamic_material(&mut self) -> RendererDynamicMaterialId {
         Default::default()
     }
-
     fn remove_dynamic_material(&mut self, _id: RendererDynamicMaterialId) {
         todo!()
     }
@@ -590,8 +597,11 @@ impl RendererBackend for WGPURenderer {
     fn push_command_buffer(&mut self, command: CommandBuffer) {
         self.command_buffers.push(command);
     }
-
     fn reset_command_buffers(&mut self) {
         self.command_buffers.clear();
+    }
+
+    fn statistics(&self) -> RendererStatistics {
+        self.statistics
     }
 }

@@ -31,6 +31,7 @@ impl WinitInput {
                 (VirtualKeyCode::C, ("switch_mode".to_string(), ButtonInputId::null())),
                 (VirtualKeyCode::A, ("roll_left".to_string(), ButtonInputId::null())),
                 (VirtualKeyCode::E, ("roll_right".to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::F, ("toggle_layout".to_string(), ButtonInputId::null())),
             ]),
             keycode_to_axis: HashMap::from([
                 (VirtualKeyCode::O, (AxisInput::MOTION_Y.to_string(), -1.0, AxisInputId::null())),

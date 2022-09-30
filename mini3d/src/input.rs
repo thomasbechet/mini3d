@@ -8,6 +8,7 @@ use self::{axis::{AxisInput, AxisKind, AxisInputId}, button::{ButtonInput, Butto
 pub mod control_layout;
 pub mod axis;
 pub mod button;
+pub mod macros;
 
 new_key_type! { pub struct InputGroupId; }
 

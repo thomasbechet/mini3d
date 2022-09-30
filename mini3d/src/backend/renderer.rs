@@ -17,6 +17,13 @@ pub struct RendererModelDescriptor<'a> {
     pub dynamic_materials: &'a [RendererDynamicMaterialId],
 }
 
+#[derive(Default, Clone, Copy)]
+pub struct RendererStatistics {
+    pub triangle_count: usize,
+    pub draw_count: usize,
+    pub viewport: (u32, u32),
+}
+
 pub trait RendererBackend {
 
     fn add_camera(&mut self) -> RendererCameraId;
@@ -32,6 +39,8 @@ pub trait RendererBackend {
 
     fn push_command_buffer(&mut self, command: CommandBuffer);
     fn reset_command_buffers(&mut self);
+
+    fn statistics(&self) -> RendererStatistics;
 }
 
 #[derive(Default)]
@@ -52,4 +61,6 @@ impl RendererBackend for DefaultRendererBackend {
 
     fn push_command_buffer(&mut self, _: CommandBuffer) {}
     fn reset_command_buffers(&mut self) {}
+
+    fn statistics(&self) -> RendererStatistics { RendererStatistics { triangle_count: 0, draw_count: 0, viewport: (0, 0) } }
 }

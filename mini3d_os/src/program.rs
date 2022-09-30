@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::{ButtonInput}, axis::{AxisInput, AxisKind}}, slotmap::Key, math::rect::IRect};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::{ButtonInput}, axis::{AxisInput, AxisKind}}, slotmap::Key, math::rect::IRect, button_just_pressed};
 
 pub struct OSProgram {
     id: ProgramId,
@@ -7,7 +7,9 @@ pub struct OSProgram {
     world: World,
     control_layout: ControlLayout,
     control_profile: ControlProfileId,
-    count: u32,
+    layout_active: bool,
+    frame_count: u32,
+    last_fps: f32,
 }
 
 impl ProgramBuilder for OSProgram {
@@ -22,7 +24,9 @@ impl ProgramBuilder for OSProgram {
             world: Default::default(),
             control_layout: ControlLayout::new(),
             control_profile: ControlProfileId::null(),
-            count: 0
+            layout_active: true,
+            frame_count: 0,
+            last_fps: 0.0,
         }
     }
 }
@@ -34,7 +38,6 @@ impl Program for OSProgram {
         // Register core asset group
         self.asset_group = ctx.asset.register_group("core", self.id)
             .context("Failed to register core asset group")?;
-        
         // Register core input group
         self.input_group = ctx.input.register_group("core", self.id)
             .context("Failed to register core input group")?;
@@ -56,6 +59,7 @@ impl Program for OSProgram {
         ctx.input.register_button("switch_mode", self.input_group).unwrap();
         ctx.input.register_button("roll_left", self.input_group).unwrap();
         ctx.input.register_button("roll_right", self.input_group).unwrap();
+        ctx.input.register_button("toggle_layout", self.input_group).unwrap();
 
         // Add initial control profile
         self.control_profile = self.control_layout.add_profile(ControlBindings {
@@ -115,14 +119,18 @@ impl Program for OSProgram {
                 dynamic_materials: &[],
             })
         ));
-        self.world.spawn((
-            TransformComponent::from_translation(Vec3::new(4.0, 0.0, 0.0)),
-            ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
-                mesh: car_mesh, 
-                materials: &[car_material], 
-                dynamic_materials: &[] 
-            })
-        ));
+        for i in 0..100 {
+            self.world.spawn((
+                TransformComponent::from_translation(
+                    Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
+                )),
+                ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
+                    mesh: car_mesh, 
+                    materials: &[car_material], 
+                    dynamic_materials: &[] 
+                })
+            ));
+        }
         self.world.spawn((
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
             ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
@@ -161,29 +169,40 @@ impl Program for OSProgram {
         // Call ECS systems
         let mut query = PreparedQuery::<(&mut TransformComponent, &ModelComponent)>::new();
         system_rotator(&mut self.world, ctx.delta_time);
-        system_free_fly(&mut self.world, ctx.input, ctx.delta_time);
         system_transfer_model_transforms(&mut self.world, &mut query, ctx.renderer);
         system_update_camera(&mut self.world, ctx.renderer);
 
         // Custom code
         {
-            self.control_layout.update(ctx.input);
-            let cb0 = self.control_layout.render();
+            // Compute fps
+            if self.frame_count == 0 {
+                self.last_fps = 1.0 / ctx.delta_time;
+            }
+            self.frame_count = (self.frame_count + 1) % 30;
+
+            // if ctx.input.find_button("toggle_layout").unwrap().is_just_pressed() {
+            if button_just_pressed!(ctx.input, "toggle_layout") {
+                self.layout_active = !self.layout_active;
+            }
+
+            if self.layout_active {
+                self.control_layout.update(ctx.input);
+                let cb0 = self.control_layout.render();
+                ctx.renderer.push_command_buffer(cb0);
+            } else {
+                system_free_fly(&mut self.world, ctx.input, ctx.delta_time);
+            }
+
             let id = ctx.asset.default::<Font>()
                 .expect("Failed to find default font.").id;
             let cb1 = CommandBuffer::build_with(|builder| {
                 builder
-                .print((8, 8).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), id)
-                .print((8, 32).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), id)
-                .print((8, 52).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), id)
-                .print((8, 70).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), id)
-                .print((8, 100).into(), format!("{} zefiozefjzoefijzeofijzoeifjâzpkeazêpfzeojfzoeijf", self.count).as_str(), id)
-                .print((8, 150).into(), format!("{} {{|}}~éèê!\"#$%&\'()*+,-./:;<=>?[]^_`", self.count).as_str(), id)
-                .print((8, 170).into(), format!("{} if self.is_defined() [], '''", self.count).as_str(), id)
+                .print((8, 8).into(), format!("fps           : {:.1}", self.last_fps).as_str(), id)
+                .print((8, 17).into(), format!("draw count    : {}", ctx.renderer.statistics().draw_count).as_str(), id)
+                .print((8, 26).into(), format!("triangle count: {}", ctx.renderer.statistics().triangle_count).as_str(), id)
+                .print((8, 35).into(), format!("viewport      : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), id)
             });
-            ctx.renderer.push_command_buffer(cb0);
             ctx.renderer.push_command_buffer(cb1);
-            self.count += 1;
         }
 
         Ok(())

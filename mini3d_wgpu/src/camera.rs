@@ -26,7 +26,7 @@ impl Camera {
         let fov_x = f32::to_radians(self.fov);
         let inv_aspect_ration = 1.0 / SCREEN_ASPECT_RATIO as f32;
         let fov_y = 2.0 * f32::atan(inv_aspect_ration * f32::tan(fov_x * 0.5));
-        Mat4::perspective_rh(fov_y, SCREEN_ASPECT_RATIO, 0.5, 50.0)
+        Mat4::perspective_rh(fov_y, SCREEN_ASPECT_RATIO, 0.5, 300.0)
     }
 
     pub(crate) fn view(&self) -> Mat4 {
