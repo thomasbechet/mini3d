@@ -5,7 +5,6 @@ use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App,
 
 use self::{axis::{AxisInput, AxisKind, AxisInputId}, button::{ButtonInput, ButtonState, ButtonInputId}};
 
-pub mod direction;
 pub mod control_layout;
 pub mod axis;
 pub mod button;
@@ -50,7 +49,6 @@ impl Default for InputManager {
         manager.register_button(ButtonInput::MOVE_DOWN, manager.default_group).unwrap();
         manager.register_button(ButtonInput::MOVE_LEFT, manager.default_group).unwrap();
         manager.register_button(ButtonInput::MOVE_RIGHT, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::SWITCH_CONTROL_MODE, manager.default_group).unwrap();
         // Return the manager
         manager
     }

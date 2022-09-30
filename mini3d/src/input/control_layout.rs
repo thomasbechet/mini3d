@@ -1,17 +1,28 @@
 use glam::Vec2;
 use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
-use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_CENTER, SCREEN_RESOLUTION}};
+use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}};
 
-use super::{direction::Direction, InputManager, button::ButtonInputId, axis::AxisInputId};
+use super::{InputManager, button::ButtonInputId, axis::AxisInputId};
 
 new_key_type! { 
     pub struct ControlId;
     pub struct ControlProfileId;
 }
 
+#[derive(Clone, Copy)]
+enum Direction {
+    Up = 0,
+    Down = 1,
+    Left = 2,
+    Right = 3,
+}
+
+impl Direction {
+    pub(crate) const COUNT: usize = 4;
+}
+
 pub struct ControlBindings {
-    pub switch_mode: ButtonInputId,
 
     // Selection bindings
     pub move_up: ButtonInputId,
@@ -85,6 +96,8 @@ impl ControlLayout {
                         if n_extent.br().y > concurrent.br().y {
                             current[Direction::Up as usize] = n_id;
                         }
+                    } else {
+                        current[Direction::Up as usize] = n_id;
                     }
                 } else if v[0] && h[2] { // Top-Right
 
@@ -93,20 +106,26 @@ impl ControlLayout {
                         if n_extent.br().x > concurrent.br().x {
                             current[Direction::Left as usize] = n_id;
                         }
+                    } else {
+                        current[Direction::Left as usize] = n_id;
                     }
                 } else if v[1] && h[2] { // Right
                     if let Some(concurrent) = self.extents.get(current[Direction::Right as usize]) {
                         if n_extent.tl().x < concurrent.tl().x {
                             current[Direction::Right as usize] = n_id;
                         }
+                    } else {
+                        current[Direction::Right as usize] = n_id;
                     }
                 } else if v[2] && h[0] { // Bottom-Left
 
-                } else if v[2] && h[1] { // Bottom
+                } else if v[2] && h[1] { // Bottom                    
                     if let Some(concurrent) = self.extents.get(current[Direction::Down as usize]) {
                         if n_extent.tl().y < concurrent.tl().y {
                             current[Direction::Down as usize] = n_id;
                         }
+                    } else {
+                        current[Direction::Down as usize] = n_id;
                     }
                 } else if v[2] && h[2] { // Bottom-Right
 
@@ -132,6 +151,9 @@ impl ControlLayout {
     pub fn add_control(&mut self, extent: IRect) -> ControlId {
         let id = self.extents.insert(extent);
         self.compute_directions();
+        if self.default_control.is_null() {
+            self.default_control = id;
+        }
         id
     }
 
@@ -159,56 +181,91 @@ impl ControlLayout {
         // Update per profile
         for (_, profile) in self.profiles.iter_mut() {
 
-            // Check selection mode
-            if input.button(profile.bindings.switch_mode).map_or_else(|| false, |b| b.is_just_pressed()) {
-                match profile.mode {
-                    // TODO: switching from selection to cursor mode should place the cursor
-                    // to the nearest selected extent or the middle screen position.
-                    ControlMode::Selection { .. } => {
-                        profile.mode = ControlMode::Cursor { position: SCREEN_CENTER.as_vec2() };
-                    },
-                    // TODO: switching from cursor to selection mode should place the selection
-                    // to the nearest extent or none (impossible ?).
-                    ControlMode::Cursor { .. } => {
-                        profile.mode = ControlMode::Selection { selected: ControlId::null() };
-                    },
-                }
-            }
+            // Selection inputs
+            let move_up = input.button(profile.bindings.move_up).map_or_else(|| false, |b| b.is_just_pressed());
+            let move_down = input.button(profile.bindings.move_down).map_or_else(|| false, |b| b.is_just_pressed());
+            let move_left = input.button(profile.bindings.move_left).map_or_else(|| false, |b| b.is_just_pressed());
+            let move_right = input.button(profile.bindings.move_right).map_or_else(|| false, |b| b.is_just_pressed());
+            
+            // Cursor inputs
+            let cursor_x = input.axis(profile.bindings.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);
+            let cursor_y = input.axis(profile.bindings.cursor_y).map_or(profile.last_cursor_position.y, |a| a.value);
+            let motion_x = input.axis(profile.bindings.motion_x).map_or(0.0, |a| a.value);
+            let motion_y = input.axis(profile.bindings.motion_y).map_or(0.0, |a| a.value);
+            
+            // Update detection
+            let selection_update = move_up || move_down || move_left || move_right;
+            let motion_update = motion_x != 0.0 || motion_y != 0.0;
+            let cursor_update = cursor_x != profile.last_cursor_position.x || cursor_y != profile.last_cursor_position.y;
 
-            // Selection behaviour differ with the cursor mode
-            match &mut profile.mode {
-                ControlMode::Selection { selected } => {
+            // Selection or cursor mode
+            if selection_update {
 
-                    // Find the new control id
-                    let new_selected = {
-                        if input.button(profile.bindings.move_up).map_or_else(|| false, |b| b.is_just_pressed()) {
-                            self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Up as usize]) 
-                        } else if input.button(profile.bindings.move_down).map_or_else(|| false, |b| b.is_just_pressed()) {
-                            self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Down as usize]) 
-                        } else if input.button(profile.bindings.move_left).map_or_else(|| false, |b| b.is_just_pressed()) {
-                            self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Left as usize]) 
-                        } else if input.button(profile.bindings.move_right).map_or_else(|| false, |b| b.is_just_pressed()) {
-                            self.directions.get(*selected).map_or(self.default_control, |d| d[Direction::Right as usize]) 
-                        } else {
-                            *selected
-                        }
-                    };
+                // Find the current selection
+                let current_selection = match profile.mode {
+                    ControlMode::Selection { selected } => selected,
+                    ControlMode::Cursor { .. } => { ControlId::null() },
+                };
 
-                    // Update the selected extent
-                    *selected = new_selected;
-                },
-                ControlMode::Cursor { position } => {
-                    let cursor_x = input.axis(profile.bindings.cursor_x).map_or(position.x, |a| a.value);
-                    let cursor_y = input.axis(profile.bindings.cursor_y).map_or(position.y, |a| a.value);
-                    if cursor_x != profile.last_cursor_position.x || cursor_y != profile.last_cursor_position.y {
-                        *position = Vec2::new(cursor_x, cursor_y);
-                        profile.last_cursor_position = *position;
+                // Find the new selection
+                let new_selection = {
+                    if current_selection.is_null() {
+                        self.default_control   
                     } else {
-                        position.x = input.axis(profile.bindings.motion_x).map_or(position.x, |a| position.x + a.value);
-                        position.y = input.axis(profile.bindings.motion_y).map_or(position.y, |a| position.y + a.value);
-                        *position = position.clamp(Vec2::ZERO, SCREEN_RESOLUTION.as_vec2());
+                        // Find the next selection
+                        let next_selection = {
+                            if move_up {
+                                self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Up as usize]) 
+                            } else if move_down {
+                                self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Down as usize]) 
+                            } else if move_left {
+                                self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Left as usize]) 
+                            } else if move_right {
+                                self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Right as usize]) 
+                            } else {
+                                ControlId::null()
+                            }
+                        };
+                        // Check no direction assigned (just keep the old selection)
+                        if next_selection.is_null() {
+                            current_selection
+                        } else {
+                            next_selection
+                        }
                     }
-                },
+                };
+                
+                // Update mode
+                profile.mode = ControlMode::Selection { selected: new_selection };
+            } else if motion_update || cursor_update {
+                
+                // Find the current cursor position
+                let mut current_position = match profile.mode {
+                    ControlMode::Selection { selected } => {
+                        // Find the center of the selection. This help the user 
+                        // by navigating with the selection mode then using the 
+                        // cursor to reach the target.
+                        if let Some(rect) = self.extents.get(selected) {
+                            rect.center().as_vec2()
+                        } else {
+                            profile.last_cursor_position
+                        }
+                    },
+                    ControlMode::Cursor { position } => position,
+                };
+
+                // Update the position according the event
+                if cursor_update {
+                    current_position = Vec2::new(cursor_x, cursor_y);
+                    profile.last_cursor_position = current_position;
+                } else if motion_update {
+                    current_position += Vec2::new(motion_x, motion_y);
+                }
+
+                // Update the mode
+                profile.mode = ControlMode::Cursor { 
+                    position: current_position.clamp(Vec2::ZERO, SCREEN_RESOLUTION.as_vec2()), 
+                };
             }
         }
     }

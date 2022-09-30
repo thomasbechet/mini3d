@@ -23,10 +23,8 @@ impl WinitInput {
             button_bindings: HashMap::from([
                 (VirtualKeyCode::Z, (ButtonInput::MOVE_UP.to_string(), ButtonInputId::null())),
                 (VirtualKeyCode::Q, (ButtonInput::MOVE_LEFT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::S, (ButtonInput::MOVE_RIGHT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::D, (ButtonInput::MOVE_DOWN.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::Space, (ButtonInput::SWITCH_CONTROL_MODE.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::C, ("switch2".to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::S, (ButtonInput::MOVE_DOWN.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::D, (ButtonInput::MOVE_RIGHT.to_string(), ButtonInputId::null())),
             ]),
             axis_bindings: HashMap::from([
                 (VirtualKeyCode::O, (AxisInput::MOTION_Y.to_string(), -1.0, AxisInputId::null())),

@@ -24,7 +24,6 @@ impl ButtonInput {
     pub const MOVE_DOWN: &'static str = "move_down"; 
     pub const MOVE_LEFT: &'static str = "move_left"; 
     pub const MOVE_RIGHT: &'static str = "move_right";
-    pub const SWITCH_CONTROL_MODE: &'static str = "switch_control_mode";
     
     pub fn is_pressed(&self) -> bool {
         self.pressed

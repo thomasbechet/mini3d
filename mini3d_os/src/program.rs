@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::Vec3, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::ButtonInput, axis::AxisInput}, slotmap::Key};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::Vec3, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::ButtonInput, axis::AxisInput}, slotmap::Key, math::rect::IRect};
 
 pub struct OSProgram {
     id: ProgramId,
@@ -47,11 +47,9 @@ impl Program for OSProgram {
 
         // Register default inuts
         // let click = ctx.input.register_button("click", self.input_group)?;
-        // let switch_mode2 = ctx.input.register_button("switch2", self.input_group)?;
 
         // Add initial control profile
         self.control_profile = self.control_layout.add_profile(ControlBindings {
-            switch_mode: ctx.input.find_button(ButtonInput::SWITCH_CONTROL_MODE).unwrap().id,
             move_up: ctx.input.find_button(ButtonInput::MOVE_UP).unwrap().id,
             move_down: ctx.input.find_button(ButtonInput::MOVE_DOWN).unwrap().id,
             move_left: ctx.input.find_button(ButtonInput::MOVE_LEFT).unwrap().id,
@@ -61,6 +59,9 @@ impl Program for OSProgram {
             motion_x: ctx.input.find_axis(AxisInput::MOTION_X).unwrap().id,
             motion_y: ctx.input.find_axis(AxisInput::MOTION_Y).unwrap().id,
         });
+
+        self.control_layout.add_control(IRect::new(5, 5, 100, 50));
+        self.control_layout.add_control(IRect::new(5, 200, 100, 50));
 
         // Import initial assets
         ctx.asset.iter_import::<Texture>().map(|e| e.id).collect::<Vec<_>>()
