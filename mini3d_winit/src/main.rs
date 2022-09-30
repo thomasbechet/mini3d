@@ -1,39 +1,55 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, time::Instant};
 
 use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{button::{ButtonState, ButtonInputId, ButtonInput}, InputDatabase, axis::{AxisInputId, AxisInput}}, event::{input::{InputEvent, ButtonEvent, TextEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
 use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
-use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState}};
+use winit::{window, event_loop::{self, ControlFlow}, dpi::PhysicalSize, event::{Event, WindowEvent, VirtualKeyCode, ElementState, DeviceEvent}};
 use winit_input_helper::WinitInputHelper;
 
 struct WinitInput {
     pub input_helper: WinitInputHelper,
-    pub button_bindings: HashMap<VirtualKeyCode, (String, ButtonInputId)>,
-    pub axis_bindings: HashMap<VirtualKeyCode, (String, f32, AxisInputId)>,
+    pub keycode_to_bindings: HashMap<VirtualKeyCode, (String, ButtonInputId)>,
+    pub keycode_to_axis: HashMap<VirtualKeyCode, (String, f32, AxisInputId)>,
     pub cursor_x: AxisInputId,
     pub cursor_y: AxisInputId,
+    pub motion_x: AxisInputId,
+    pub motion_y: AxisInputId,
+    pub mouse_motion: Vec2,
 }
 
 impl WinitInput {
     pub fn new() -> Self {
         Self { 
             input_helper: WinitInputHelper::new(),
-            button_bindings: HashMap::from([
-                (VirtualKeyCode::Z, (ButtonInput::MOVE_UP.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::Q, (ButtonInput::MOVE_LEFT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::S, (ButtonInput::MOVE_DOWN.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::D, (ButtonInput::MOVE_RIGHT.to_string(), ButtonInputId::null())),
+            keycode_to_bindings: HashMap::from([
+                (VirtualKeyCode::Z, (ButtonInput::UP.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Q, (ButtonInput::LEFT.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::S, (ButtonInput::DOWN.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::D, (ButtonInput::RIGHT.to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::C, ("switch_mode".to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::A, ("roll_left".to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::E, ("roll_right".to_string(), ButtonInputId::null())),
             ]),
-            axis_bindings: HashMap::from([
+            keycode_to_axis: HashMap::from([
                 (VirtualKeyCode::O, (AxisInput::MOTION_Y.to_string(), -1.0, AxisInputId::null())),
                 (VirtualKeyCode::L, (AxisInput::MOTION_Y.to_string(), 1.0, AxisInputId::null())),
                 (VirtualKeyCode::K, (AxisInput::MOTION_X.to_string(), -1.0,AxisInputId::null())),
                 (VirtualKeyCode::M, (AxisInput::MOTION_X.to_string(), 1.0, AxisInputId::null())),
+
+                (VirtualKeyCode::Z, ("move_forward".to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::S, ("move_backward".to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::Q, ("move_left".to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::D, ("move_right".to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::X, ("move_up".to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::W, ("move_down".to_string(), 1.0, AxisInputId::null())),
             ]),
             cursor_x: AxisInputId::null(),
             cursor_y: AxisInputId::null(),
+            motion_x: AxisInputId::null(),
+            motion_y: AxisInputId::null(),
+            mouse_motion: Vec2::ZERO,
         }
     }
 
@@ -43,7 +59,7 @@ impl WinitInput {
 
         // Update buttons
         for button in InputDatabase::iter_buttons(app) {
-            let entry = self.button_bindings.values_mut()
+            let entry = self.keycode_to_bindings.values_mut()
                 .find(|e| e.0 == button.name);
             if let Some(entry) = entry {
                 entry.1 = button.id;
@@ -56,8 +72,12 @@ impl WinitInput {
                 self.cursor_x = axis.id;
             } else if axis.name == AxisInput::CURSOR_Y {
                 self.cursor_y = axis.id;
+            } else if axis.name == AxisInput::MOTION_X {
+                self.motion_x = axis.id;
+            } else if axis.name == AxisInput::MOTION_Y {
+                self.motion_y = axis.id;
             }
-            self.axis_bindings.values_mut()
+            self.keycode_to_axis.values_mut()
                 .filter(|e| e.0 == axis.name)
                 .for_each(|e| e.2 = axis.id);
         }
@@ -79,6 +99,7 @@ impl Default for WinitContext {
             .build(&event_loop)
             .unwrap();
         window.set_cursor_visible(false);
+        window.set_cursor_grab(true);
         if let Some(monitor) = window.current_monitor() {
             let screen_size = monitor.size();
             let window_size = window.outer_size();
@@ -103,6 +124,7 @@ impl WinitContext {
         mut renderer: WGPURenderer,
     ) {
         let event_loop = self.event_loop;
+        let mut last = Instant::now();
         event_loop.run(move |event, _, control_flow| {
 
             // Handle inputs
@@ -114,6 +136,15 @@ impl WinitContext {
 
             // Match window events
             match event {
+                Event::DeviceEvent { device_id: _, event } => {
+                    match event {
+                        DeviceEvent::MouseMotion { delta } => {
+                            self.input.mouse_motion.x = delta.0 as f32;
+                            self.input.mouse_motion.y = delta.1 as f32;
+                        }
+                        _ => {}
+                    }
+                }
                 Event::WindowEvent { window_id, event } => {
                     if window_id == self.window.id() {
                         match event {
@@ -129,17 +160,17 @@ impl WinitContext {
                                     ElementState::Pressed => ButtonState::Pressed,
                                     ElementState::Released => ButtonState::Released,
                                 };
-                                if let Some((_, id)) = self.input.button_bindings.get(&keycode) {
+                                if let Some((_, id)) = self.input.keycode_to_bindings.get(&keycode) {
                                     events.push_input(InputEvent::Button(ButtonEvent { id: *id, state: action_state }));
                                 }
 
-                                if let Some((_, dir, id)) = self.input.axis_bindings.get(&keycode) {
+                                if let Some((_name, dir, id)) = self.input.keycode_to_axis.get(&keycode) {
                                     let value = match action_state {
                                         ButtonState::Pressed => *dir,
                                         ButtonState::Released => 0.0,
                                     };
-                                    // println!("{:?} {:?} {:?}", keycode, value, *id);
-                                    events.push_input(InputEvent::Axis(AxisEvent { id: *id, value: value * 2.0}));
+                                    // println!("{} {:?} {:?} {:?}", name, keycode, value, *id);
+                                    events.push_input(InputEvent::Axis(AxisEvent { id: *id, value: value}));
                                 }
                             }
                             WindowEvent::CloseRequested => {
@@ -179,13 +210,24 @@ impl WinitContext {
                 }
                 Event::MainEventsCleared => {
 
+                    // Push mouse motion events
+                    events.push_input(InputEvent::Axis(AxisEvent { id: self.input.motion_x, value: self.input.mouse_motion.x * 0.01 as f32 }));
+                    events.push_input(InputEvent::Axis(AxisEvent { id: self.input.motion_y, value: self.input.mouse_motion.y * 0.01 as f32 }));
+
                     // Build backend descriptor
                     let desc = BackendDescriptor::new()
                         .with_renderer(&mut renderer);
                     
+                    // Compute delta time
+                    let now = Instant::now();
+                    let delta_time = (now - last).as_secs_f32();
+                    last = now;
+
                     // Progress application
-                    app.progress(desc, &mut events, &mut requests)
+                    app.progress(desc, &mut events, &mut requests, delta_time)
                         .expect("Failed to progress application");
+
+                    self.input.mouse_motion = Vec2::ZERO;
 
                     // Handle requests
                     if requests.shutdown() {

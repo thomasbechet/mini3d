@@ -26,6 +26,7 @@ pub struct ProgramContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
     pub renderer: &'a mut dyn RendererBackend,
+    pub delta_time: f32,
 }
 
 impl<'a> ProgramContext<'a> {
@@ -33,11 +34,13 @@ impl<'a> ProgramContext<'a> {
         asset: &'a mut AssetManager,
         input: &'a mut InputManager,
         renderer: &'a mut dyn RendererBackend,
+        delta_time: f32,
     ) -> Self {
         Self {
             asset,
             input,
             renderer,
+            delta_time,
         }
     }
 }
@@ -67,10 +70,10 @@ impl ProgramManager {
         Ok(id)
     }
 
-    pub(crate) fn update(&mut self, asset: &mut AssetManager, input: &mut InputManager, backend: &mut Backend) -> Result<()> {
+    pub(crate) fn update(&mut self, asset: &mut AssetManager, input: &mut InputManager, backend: &mut Backend, delta_time: f32) -> Result<()> {
         
         // Create service wrapper
-        let mut services = ProgramContext::wrap(asset, input, backend.renderer);       
+        let mut services = ProgramContext::wrap(asset, input, backend.renderer, delta_time);       
 
         // Start programs
         for id in self.starting_programs.drain(..) {

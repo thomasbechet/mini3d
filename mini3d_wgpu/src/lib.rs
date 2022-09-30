@@ -2,6 +2,7 @@ pub mod context;
 pub mod renderer;
 pub mod surface_buffer;
 pub mod global_buffer;
+pub mod camera;
 pub mod mesh_pass;
 pub mod model_buffer;
 pub mod global_bind_group;

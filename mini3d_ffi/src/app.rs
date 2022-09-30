@@ -39,6 +39,7 @@ pub unsafe extern "C" fn mini3d_app_progress(
     events: *mut mini3d_app_events,
     requests: *mut mini3d_app_requests,
     renderer: *mut mini3d_renderer,
+    delta_time: f32,
 ) -> bool {
     let app = (app as *mut App).as_mut().unwrap();
     let events = (events as *mut AppEvents).as_mut().unwrap();
@@ -55,5 +56,5 @@ pub unsafe extern "C" fn mini3d_app_progress(
         },
     }
     // Progress the application
-    app.progress(backend_descriptor, events, requests).is_ok()
+    app.progress(backend_descriptor, events, requests, delta_time).is_ok()
 }

@@ -1,9 +1,10 @@
-use glam::Mat4;
+use glam::{Mat4, Vec3};
 use slotmap::new_key_type;
 
 use crate::{graphics::CommandBuffer, asset::{mesh::MeshId, material::MaterialId}};
 
 new_key_type! { 
+    pub struct RendererCameraId;
     pub struct RendererModelId;
     pub struct RendererDynamicMaterialId;
     pub struct RendererDynamicMeshId;
@@ -17,6 +18,10 @@ pub struct RendererModelDescriptor<'a> {
 }
 
 pub trait RendererBackend {
+
+    fn add_camera(&mut self) -> RendererCameraId;
+    fn remove_camera(&mut self, id: RendererCameraId);
+    fn update_camera(&mut self, id: RendererCameraId, eye: Vec3, forward: Vec3, up: Vec3, fov: f32);
 
     fn add_model(&mut self, descriptor: &RendererModelDescriptor) -> RendererModelId; 
     fn remove_model(&mut self, id: RendererModelId);
@@ -33,6 +38,10 @@ pub trait RendererBackend {
 pub struct DefaultRendererBackend;
 
 impl RendererBackend for DefaultRendererBackend {
+
+    fn add_camera(&mut self) -> RendererCameraId { Default::default() }
+    fn remove_camera(&mut self, _: RendererCameraId) {}
+    fn update_camera(&mut self, _: RendererCameraId, _: Vec3, _: Vec3, _: Vec3, _: f32) {}
 
     fn add_model(&mut self, _: &RendererModelDescriptor) -> RendererModelId { Default::default() }
     fn remove_model(&mut self, _: RendererModelId) {}

@@ -1,19 +1,18 @@
-use std::f32::consts::FRAC_PI_4;
-
 use mini3d::app::App;
 use mini3d::asset::texture::TextureId;
 use mini3d::asset::{AssetDatabase, self};
 use mini3d::asset::material::MaterialId;
 use mini3d::asset::mesh::MeshId;
-use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererDynamicMaterialId, RendererModelDescriptor};
+use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererDynamicMaterialId, RendererModelDescriptor, RendererCameraId};
 use mini3d::glam::{UVec2, Vec4, Mat4, Vec3};
-use mini3d::graphics::{SCREEN_ASPECT_RATIO, CommandBuffer};
+use mini3d::graphics::CommandBuffer;
 use mini3d::graphics::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use mini3d::slotmap::{SlotMap, SecondaryMap, new_key_type};
 use wgpu::SurfaceError;
 
 use crate::blit_bind_group::{create_blit_bind_group_layout, create_blit_bind_group};
 use crate::blit_pipeline::{create_blit_pipeline_layout, create_blit_pipeline, create_blit_shader_module};
+use crate::camera::Camera;
 use crate::global_bind_group::{create_global_bind_group, create_global_bind_group_layout};
 use crate::global_buffer::GlobalBuffer;
 use crate::mesh_pass::{MeshPass, create_mesh_pass_bind_group_layout, GPUDrawIndirect};
@@ -111,6 +110,7 @@ pub struct WGPURenderer {
     removed_models: Vec<RendererModelId>,
     model_buffer: ModelBuffer,
     objects: SlotMap<ObjectId, Object>,
+    camera: Camera,
 
     // Mesh passes
     mesh_pass_bind_group_layout: wgpu::BindGroupLayout,
@@ -235,6 +235,7 @@ impl WGPURenderer {
             removed_models: Default::default(),
             model_buffer,
             objects: Default::default(),
+            camera: Camera::default(),
         
             mesh_pass_bind_group_layout,
             forward_mesh_pass,
@@ -284,12 +285,8 @@ impl WGPURenderer {
             });
 
         // Camera Matrix
-        let projection = Mat4::perspective_rh(FRAC_PI_4, SCREEN_ASPECT_RATIO, 0.5, 50.0);
-        let view = Mat4::look_at_rh(
-            Vec3::new(10.0, 10.0, 10.0),
-            Vec3::ZERO,
-            Vec3::Y,
-        );
+        let projection = self.camera.projection();
+        let view = self.camera.view();
         self.global_uniform_buffer.set_world_to_clip(&(projection * view));
         self.global_uniform_buffer.write_buffer(&self.context);
 
@@ -535,6 +532,14 @@ impl WGPURenderer {
 
 impl RendererBackend for WGPURenderer {
 
+    fn add_camera(&mut self) -> RendererCameraId {
+        Default::default()
+    }
+    fn remove_camera(&mut self, _id: RendererCameraId) {}
+    fn update_camera(&mut self, _id: RendererCameraId, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) {
+        self.camera.update(eye, forward, up, fov);
+    }
+
     fn add_model(&mut self, descriptor: &RendererModelDescriptor) -> RendererModelId {
         
         // Check mesh asset
@@ -564,7 +569,7 @@ impl RendererBackend for WGPURenderer {
         id
     }
 
-    fn remove_model(&mut self, id: RendererModelId) {
+    fn remove_model(&mut self, _id: RendererModelId) {
         todo!()
     }
 
@@ -578,7 +583,7 @@ impl RendererBackend for WGPURenderer {
         Default::default()
     }
 
-    fn remove_dynamic_material(&mut self, id: RendererDynamicMaterialId) {
+    fn remove_dynamic_material(&mut self, _id: RendererDynamicMaterialId) {
         todo!()
     }
 

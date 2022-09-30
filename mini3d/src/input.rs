@@ -45,10 +45,10 @@ impl Default for InputManager {
         manager.register_axis(AxisInput::CURSOR_Y, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 }).unwrap();
         manager.register_axis(AxisInput::MOTION_X, manager.default_group, AxisKind::Infinite).unwrap();
         manager.register_axis(AxisInput::MOTION_Y, manager.default_group, AxisKind::Infinite).unwrap();
-        manager.register_button(ButtonInput::MOVE_UP, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::MOVE_DOWN, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::MOVE_LEFT, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::MOVE_RIGHT, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::UP, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::DOWN, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::LEFT, manager.default_group).unwrap();
+        manager.register_button(ButtonInput::RIGHT, manager.default_group).unwrap();
         // Return the manager
         manager
     }

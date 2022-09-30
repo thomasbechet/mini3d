@@ -20,10 +20,10 @@ pub enum ButtonState {
 
 impl ButtonInput {
 
-    pub const MOVE_UP: &'static str = "move_up"; 
-    pub const MOVE_DOWN: &'static str = "move_down"; 
-    pub const MOVE_LEFT: &'static str = "move_left"; 
-    pub const MOVE_RIGHT: &'static str = "move_right";
+    pub const UP: &'static str = "up"; 
+    pub const DOWN: &'static str = "down"; 
+    pub const LEFT: &'static str = "left"; 
+    pub const RIGHT: &'static str = "right";
     
     pub fn is_pressed(&self) -> bool {
         self.pressed

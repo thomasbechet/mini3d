@@ -1,12 +1,13 @@
-use glam::Mat4;
+use glam::{Quat, Vec3};
 use hecs::World;
 
 use crate::ecs::component::{transform::TransformComponent, rotator::RotatorComponent};
 
 pub fn system_rotator(
     world: &mut World,
+    delta_time: f32,
 ) {
-    for (_, (t, _)) in world.query_mut::<(&mut TransformComponent, &RotatorComponent)>() {
-        t.matrix *= Mat4::from_rotation_y(0.005);
+    for (_, (transform, _)) in world.query_mut::<(&mut TransformComponent, &RotatorComponent)>() {
+        transform.rotation *= Quat::from_axis_angle(Vec3::Y, delta_time * f32::to_radians(30.0));
     }
 }

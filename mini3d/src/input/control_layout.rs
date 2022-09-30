@@ -25,10 +25,10 @@ impl Direction {
 pub struct ControlBindings {
 
     // Selection bindings
-    pub move_up: ButtonInputId,
-    pub move_down: ButtonInputId,
-    pub move_left: ButtonInputId,
-    pub move_right: ButtonInputId,
+    pub up: ButtonInputId,
+    pub down: ButtonInputId,
+    pub left: ButtonInputId,
+    pub right: ButtonInputId,
 
     // Cursor bindings
     pub cursor_x: AxisInputId,
@@ -182,10 +182,10 @@ impl ControlLayout {
         for (_, profile) in self.profiles.iter_mut() {
 
             // Selection inputs
-            let move_up = input.button(profile.bindings.move_up).map_or_else(|| false, |b| b.is_just_pressed());
-            let move_down = input.button(profile.bindings.move_down).map_or_else(|| false, |b| b.is_just_pressed());
-            let move_left = input.button(profile.bindings.move_left).map_or_else(|| false, |b| b.is_just_pressed());
-            let move_right = input.button(profile.bindings.move_right).map_or_else(|| false, |b| b.is_just_pressed());
+            let up = input.button(profile.bindings.up).map_or_else(|| false, |b| b.is_just_pressed());
+            let down = input.button(profile.bindings.down).map_or_else(|| false, |b| b.is_just_pressed());
+            let left = input.button(profile.bindings.left).map_or_else(|| false, |b| b.is_just_pressed());
+            let right = input.button(profile.bindings.right).map_or_else(|| false, |b| b.is_just_pressed());
             
             // Cursor inputs
             let cursor_x = input.axis(profile.bindings.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);
@@ -194,7 +194,7 @@ impl ControlLayout {
             let motion_y = input.axis(profile.bindings.motion_y).map_or(0.0, |a| a.value);
             
             // Update detection
-            let selection_update = move_up || move_down || move_left || move_right;
+            let selection_update = up || down || left || right;
             let motion_update = motion_x != 0.0 || motion_y != 0.0;
             let cursor_update = cursor_x != profile.last_cursor_position.x || cursor_y != profile.last_cursor_position.y;
 
@@ -214,13 +214,13 @@ impl ControlLayout {
                     } else {
                         // Find the next selection
                         let next_selection = {
-                            if move_up {
+                            if up {
                                 self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Up as usize]) 
-                            } else if move_down {
+                            } else if down {
                                 self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Down as usize]) 
-                            } else if move_left {
+                            } else if left {
                                 self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Left as usize]) 
-                            } else if move_right {
+                            } else if right {
                                 self.directions.get(current_selection).map_or(current_selection, |d| d[Direction::Right as usize]) 
                             } else {
                                 ControlId::null()

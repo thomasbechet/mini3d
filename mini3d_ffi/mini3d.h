@@ -38,7 +38,8 @@ void mini3d_app_delete(struct mini3d_app *app);
 bool mini3d_app_progress(struct mini3d_app *app,
                          struct mini3d_app_events *events,
                          struct mini3d_app_requests *requests,
-                         struct mini3d_renderer *renderer);
+                         struct mini3d_renderer *renderer,
+                         float delta_time);
 
 struct mini3d_app_events *mini3d_app_events_new(void);
 

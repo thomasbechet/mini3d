@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::Vec3, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::ButtonInput, axis::AxisInput}, slotmap::Key, math::rect::IRect};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::{ButtonInput}, axis::{AxisInput, AxisKind}}, slotmap::Key, math::rect::IRect};
 
 pub struct OSProgram {
     id: ProgramId,
@@ -47,13 +47,22 @@ impl Program for OSProgram {
 
         // Register default inuts
         // let click = ctx.input.register_button("click", self.input_group)?;
+        ctx.input.register_axis("move_forward", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
+        ctx.input.register_axis("move_backward", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
+        ctx.input.register_axis("move_left", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
+        ctx.input.register_axis("move_right", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
+        ctx.input.register_axis("move_up", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
+        ctx.input.register_axis("move_down", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
+        ctx.input.register_button("switch_mode", self.input_group).unwrap();
+        ctx.input.register_button("roll_left", self.input_group).unwrap();
+        ctx.input.register_button("roll_right", self.input_group).unwrap();
 
         // Add initial control profile
         self.control_profile = self.control_layout.add_profile(ControlBindings {
-            move_up: ctx.input.find_button(ButtonInput::MOVE_UP).unwrap().id,
-            move_down: ctx.input.find_button(ButtonInput::MOVE_DOWN).unwrap().id,
-            move_left: ctx.input.find_button(ButtonInput::MOVE_LEFT).unwrap().id,
-            move_right: ctx.input.find_button(ButtonInput::MOVE_RIGHT).unwrap().id,
+            up: ctx.input.find_button(ButtonInput::UP).unwrap().id,
+            down: ctx.input.find_button(ButtonInput::DOWN).unwrap().id,
+            left: ctx.input.find_button(ButtonInput::LEFT).unwrap().id,
+            right: ctx.input.find_button(ButtonInput::RIGHT).unwrap().id,
             cursor_x: ctx.input.find_axis(AxisInput::CURSOR_X).unwrap().id, 
             cursor_y: ctx.input.find_axis(AxisInput::CURSOR_Y).unwrap().id,
             motion_x: ctx.input.find_axis(AxisInput::MOTION_X).unwrap().id,
@@ -86,7 +95,11 @@ impl Program for OSProgram {
         let car_mesh = ctx.asset.find::<Mesh>("car")
             .context("Failed to find car mesh")?.id;
         self.world.spawn((
-            TransformComponent::from_translation(Vec3::new(0.0, -7.0, 0.0)),
+            TransformComponent {
+                translation: Vec3::new(0.0, -7.0, 0.0),    
+                rotation: Quat::IDENTITY,    
+                scale: Vec3::new(0.5, 0.5, 0.5),    
+            },
             RotatorComponent {},
             ModelComponent::new(ctx.renderer, &RendererModelDescriptor {
                 mesh: alfred_mesh,
@@ -119,6 +132,26 @@ impl Program for OSProgram {
             }),
             RotatorComponent {}
         ));
+        self.world.spawn((
+            TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
+            FreeFlyComponent {
+                switch_mode: ctx.input.find_button("switch_mode").unwrap().id,
+                roll_left: ctx.input.find_button("roll_left").unwrap().id,
+                roll_right: ctx.input.find_button("roll_right").unwrap().id,
+                look_x: ctx.input.find_axis(AxisInput::MOTION_X).unwrap().id,
+                look_y: ctx.input.find_axis(AxisInput::MOTION_Y).unwrap().id,
+                move_forward: ctx.input.find_axis("move_forward").unwrap().id,
+                move_backward: ctx.input.find_axis("move_backward").unwrap().id,
+                move_up: ctx.input.find_axis("move_up").unwrap().id,
+                move_down: ctx.input.find_axis("move_down").unwrap().id,
+                move_left: ctx.input.find_axis("move_left").unwrap().id,
+                move_right: ctx.input.find_axis("move_right").unwrap().id,
+                free_mode: false,
+                yaw: 0.0,
+                pitch: 0.0,
+            },
+            CameraComponent::new(ctx.renderer),
+        ));
 
         Ok(())
     }
@@ -126,9 +159,11 @@ impl Program for OSProgram {
     fn update(&mut self, ctx: &mut ProgramContext) -> Result<()> {
 
         // Call ECS systems
-        let mut query = PreparedQuery::<(&TransformComponent, &ModelComponent)>::new();
+        let mut query = PreparedQuery::<(&mut TransformComponent, &ModelComponent)>::new();
+        system_rotator(&mut self.world, ctx.delta_time);
+        system_free_fly(&mut self.world, ctx.input, ctx.delta_time);
         system_transfer_model_transforms(&mut self.world, &mut query, ctx.renderer);
-        system_rotator(&mut self.world);
+        system_update_camera(&mut self.world, ctx.renderer);
 
         // Custom code
         {

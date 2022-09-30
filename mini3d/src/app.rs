@@ -38,6 +38,7 @@ impl App {
         backend_descriptor: BackendDescriptor<'a>, 
         events: &mut AppEvents,
         requests: &mut AppRequests,
+        delta_time: f32,
     ) -> Result<()> {
     
         // Build the backend
@@ -76,7 +77,8 @@ impl App {
         self.program_manager.update(
             &mut self.asset_manager, 
             &mut self.input_manager, 
-            &mut backend
+            &mut backend,
+            delta_time,
         ).context("Failed to update program manager")?;
 
         // Check input requests
