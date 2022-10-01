@@ -27,6 +27,29 @@ typedef struct mini3d_renderer {
   void *_0;
 } mini3d_renderer;
 
+typedef struct mini3d_input_database {
+  uint64_t *buttons;
+  uintptr_t button_count;
+  uint64_t *axis;
+  uintptr_t axis_count;
+  uint64_t *groups;
+  uintptr_t group_count;
+} mini3d_input_database;
+
+typedef struct mini3d_input_button {
+  const char *name;
+  uint64_t group;
+} mini3d_input_button;
+
+typedef struct mini3d_input_axis {
+  const char *name;
+  uint64_t group;
+} mini3d_input_axis;
+
+typedef struct mini3d_input_group {
+  const char *name;
+} mini3d_input_group;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -53,6 +76,16 @@ void mini3d_app_events_push_input_axis(struct mini3d_app_events *event,
                                        unsigned long id,
                                        float value);
 
+struct mini3d_input_database mini3d_input_database_read(const struct mini3d_app *app);
+
+void mini3d_input_database_free(struct mini3d_input_database *inputs);
+
+struct mini3d_input_button mini3d_input_button(const struct mini3d_app *app, uint64_t id);
+
+struct mini3d_input_axis mini3d_input_axis(const struct mini3d_app *app, uint64_t id);
+
+struct mini3d_input_group mini3d_input_group(const struct mini3d_app *app, uint64_t id);
+
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_xlib(unsigned long window, void *display);
@@ -70,6 +103,8 @@ struct mini3d_app_requests *mini3d_app_requests_new(void);
 void mini3d_app_requests_delete(struct mini3d_app_requests *requests);
 
 bool mini3d_app_requests_shutdown(struct mini3d_app_requests *requests);
+
+bool mini3d_app_requests_reload_bindings(struct mini3d_app_requests *requests);
 
 #ifdef __cplusplus
 } // extern "C"

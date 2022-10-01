@@ -19,3 +19,9 @@ pub unsafe extern "C" fn mini3d_app_requests_shutdown(requests: *mut mini3d_app_
     let requests = (requests as *mut AppRequests).as_mut().unwrap();
     requests.shutdown()
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn mini3d_app_requests_reload_bindings(requests: *mut mini3d_app_requests) -> bool {
+    let requests = (requests as *mut AppRequests).as_mut().unwrap();
+    requests.reload_bindings()
+}

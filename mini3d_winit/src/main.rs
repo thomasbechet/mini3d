@@ -59,16 +59,16 @@ impl WinitInput {
         println!("reload bindings");
 
         // Update buttons
-        for button in InputDatabase::iter_buttons(app) {
-            let entry = self.keycode_to_bindings.values_mut()
-                .find(|e| e.0 == button.name);
-            if let Some(entry) = entry {
-                entry.1 = button.id;
+        for id in InputDatabase::iter_buttons(app) {
+            let button = InputDatabase::button(app, id).unwrap();
+            if let Some(entry) = self.keycode_to_bindings.values_mut().find(|e| e.0 == button.name) {
+                entry.1 = id;
             }
         }
         
         // Update axis
-        for axis in InputDatabase::iter_axis(app) {
+        for id in InputDatabase::iter_axis(app) {
+            let axis = InputDatabase::axis(app, id).unwrap();
             if axis.name == AxisInput::CURSOR_X {
                 self.cursor_x = axis.id;
             } else if axis.name == AxisInput::CURSOR_Y {
@@ -80,7 +80,7 @@ impl WinitInput {
             }
             self.keycode_to_axis.values_mut()
                 .filter(|e| e.0 == axis.name)
-                .for_each(|e| e.2 = axis.id);
+                .for_each(|e| e.2 = id);
         }
     }
 }

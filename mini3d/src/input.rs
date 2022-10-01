@@ -198,11 +198,21 @@ impl InputManager {
 pub struct InputDatabase;
 
 impl InputDatabase {
-    pub fn iter_buttons(app: &App) -> impl Iterator<Item = &ButtonInput> {
-        app.input_manager.iter_buttons()
+
+    pub fn iter_buttons(app: &App) -> impl Iterator<Item = ButtonInputId> + '_ {
+        app.input_manager.buttons.keys()
     }
-    pub fn iter_axis(app: &App) -> impl Iterator<Item = &AxisInput> {
-        app.input_manager.iter_axis()
+    pub fn iter_axis(app: &App) -> impl Iterator<Item = AxisInputId> + '_ {
+        app.input_manager.axis.keys()
+    }
+    pub fn iter_groups(app: &App) -> impl Iterator<Item = InputGroupId> + '_ {
+        app.input_manager.groups.keys()
+    }
+    pub fn button(app: &App, id: ButtonInputId) -> Option<&ButtonInput> {
+        app.input_manager.button(id)
+    }
+    pub fn axis(app: &App, id: AxisInputId) -> Option<&AxisInput> {
+        app.input_manager.axis(id)
     }
     pub fn group(app: &App, id: InputGroupId) -> Option<&InputGroup> {
         app.input_manager.group(id)
