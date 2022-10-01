@@ -57,7 +57,7 @@ pub struct mini3d_input_button {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn mini3d_input_button(app: *const mini3d_app, id: u64) -> mini3d_input_button {
+pub unsafe extern "C" fn mini3d_input_button_get(app: *const mini3d_app, id: u64) -> mini3d_input_button {
     let app = (app as *const App).as_ref().unwrap();
     let b = InputDatabase::button(app, ButtonInputId::from(KeyData::from_ffi(id))).unwrap();
     mini3d_input_button {
@@ -73,7 +73,7 @@ pub struct mini3d_input_axis {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn mini3d_input_axis(app: *const mini3d_app, id: u64) -> mini3d_input_axis {
+pub unsafe extern "C" fn mini3d_input_axis_get(app: *const mini3d_app, id: u64) -> mini3d_input_axis {
     let app = (app as *const App).as_ref().unwrap();
     let a = InputDatabase::axis(app, AxisInputId::from(KeyData::from_ffi(id))).unwrap();
     mini3d_input_axis {
@@ -88,7 +88,7 @@ pub struct mini3d_input_group {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn mini3d_input_group(app: *const mini3d_app, id: u64) -> mini3d_input_group {
+pub unsafe extern "C" fn mini3d_input_group_get(app: *const mini3d_app, id: u64) -> mini3d_input_group {
     let app = (app as *const App).as_ref().unwrap();
     let g = InputDatabase::group(app, InputGroupId::from(KeyData::from_ffi(id))).unwrap();
     mini3d_input_group {

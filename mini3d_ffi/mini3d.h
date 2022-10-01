@@ -80,11 +80,11 @@ struct mini3d_input_database mini3d_input_database_read(const struct mini3d_app 
 
 void mini3d_input_database_free(struct mini3d_input_database *inputs);
 
-struct mini3d_input_button mini3d_input_button(const struct mini3d_app *app, uint64_t id);
+struct mini3d_input_button mini3d_input_button_get(const struct mini3d_app *app, uint64_t id);
 
-struct mini3d_input_axis mini3d_input_axis(const struct mini3d_app *app, uint64_t id);
+struct mini3d_input_axis mini3d_input_axis_get(const struct mini3d_app *app, uint64_t id);
 
-struct mini3d_input_group mini3d_input_group(const struct mini3d_app *app, uint64_t id);
+struct mini3d_input_group mini3d_input_group_get(const struct mini3d_app *app, uint64_t id);
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 
