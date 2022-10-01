@@ -9,15 +9,16 @@ impl AppRequests {
         Self { shutdown: false, reload_bindings: false }
     }
 
-    pub fn shutdown(&mut self) -> bool {
-        let yes = self.shutdown;
-        self.shutdown = false;
-        yes
+    pub fn shutdown(&self) -> bool {
+        self.shutdown
     }
 
-    pub fn reload_bindings(&mut self) -> bool {
-        let yes = self.reload_bindings;
+    pub fn reload_bindings(&self) -> bool {
+        self.reload_bindings
+    }
+
+    pub fn reset(&mut self) {
+        self.shutdown = false;
         self.reload_bindings = false;
-        yes
     }
 }

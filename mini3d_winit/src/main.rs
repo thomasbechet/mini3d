@@ -240,6 +240,7 @@ impl WinitContext {
                     if requests.reload_bindings() {
                         self.input.reload(&app);
                     }
+                    requests.reset();
                 }
                 _ => {}
             }

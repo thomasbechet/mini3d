@@ -102,9 +102,11 @@ struct mini3d_app_requests *mini3d_app_requests_new(void);
 
 void mini3d_app_requests_delete(struct mini3d_app_requests *requests);
 
-bool mini3d_app_requests_shutdown(struct mini3d_app_requests *requests);
+bool mini3d_app_requests_shutdown(const struct mini3d_app_requests *requests);
 
-bool mini3d_app_requests_reload_bindings(struct mini3d_app_requests *requests);
+bool mini3d_app_requests_reload_bindings(const struct mini3d_app_requests *requests);
+
+void mini3d_app_requests_reset(struct mini3d_app_requests *requests);
 
 #ifdef __cplusplus
 } // extern "C"
