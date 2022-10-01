@@ -7,7 +7,7 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
     for (_, (transform, free_view)) in world.query_mut::<(&mut TransformComponent, &mut FreeFlyComponent)>() {
 
         // Update view mod
-        if input.button(free_view.switch_mode).map_or(false, |b| b.is_just_pressed()) {
+        if input.action(free_view.switch_mode).map_or(false, |b| b.is_just_pressed()) {
             free_view.free_mode = !free_view.free_mode;
         }
 
@@ -45,10 +45,10 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
             if motion_y != 0.0 {
                 transform.rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(motion_y) * FreeFlyComponent::ROTATION_SENSIBILITY);
             }
-            if input.button(free_view.roll_left).map_or(false, |b| b.is_pressed()) {
+            if input.action(free_view.roll_left).map_or(false, |b| b.is_pressed()) {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Z, -f32::to_radians(FreeFlyComponent::ROLL_SPEED) * delta_time);
             }
-            if input.button(free_view.roll_right).map_or(false, |b| b.is_pressed()) {
+            if input.action(free_view.roll_right).map_or(false, |b| b.is_pressed()) {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Z, f32::to_radians(FreeFlyComponent::ROLL_SPEED) * delta_time);
             }
             

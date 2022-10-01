@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, button::{ButtonInput}, axis::{AxisInput, AxisKind}}, slotmap::Key, math::rect::IRect, button_just_pressed};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::CommandBuffer, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlBindings}, action::ActionInput, axis::{AxisInput, AxisKind}}, slotmap::Key, math::rect::IRect, action_just_pressed};
 
 pub struct OSProgram {
     id: ProgramId,
@@ -49,24 +49,24 @@ impl Program for OSProgram {
             .context("Failed to set default font asset")?;
 
         // Register default inuts
-        // let click = ctx.input.register_button("click", self.input_group)?;
+        // let click = ctx.input.register_action("click", self.input_group)?;
         ctx.input.register_axis("move_forward", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
         ctx.input.register_axis("move_backward", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
         ctx.input.register_axis("move_left", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
         ctx.input.register_axis("move_right", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
         ctx.input.register_axis("move_up", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
         ctx.input.register_axis("move_down", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_button("switch_mode", self.input_group).unwrap();
-        ctx.input.register_button("roll_left", self.input_group).unwrap();
-        ctx.input.register_button("roll_right", self.input_group).unwrap();
-        ctx.input.register_button("toggle_layout", self.input_group).unwrap();
+        ctx.input.register_action("switch_mode", self.input_group).unwrap();
+        ctx.input.register_action("roll_left", self.input_group).unwrap();
+        ctx.input.register_action("roll_right", self.input_group).unwrap();
+        ctx.input.register_action("toggle_layout", self.input_group).unwrap();
 
         // Add initial control profile
         self.control_profile = self.control_layout.add_profile(ControlBindings {
-            up: ctx.input.find_button(ButtonInput::UP).unwrap().id,
-            down: ctx.input.find_button(ButtonInput::DOWN).unwrap().id,
-            left: ctx.input.find_button(ButtonInput::LEFT).unwrap().id,
-            right: ctx.input.find_button(ButtonInput::RIGHT).unwrap().id,
+            up: ctx.input.find_action(ActionInput::UP).unwrap().id,
+            down: ctx.input.find_action(ActionInput::DOWN).unwrap().id,
+            left: ctx.input.find_action(ActionInput::LEFT).unwrap().id,
+            right: ctx.input.find_action(ActionInput::RIGHT).unwrap().id,
             cursor_x: ctx.input.find_axis(AxisInput::CURSOR_X).unwrap().id, 
             cursor_y: ctx.input.find_axis(AxisInput::CURSOR_Y).unwrap().id,
             motion_x: ctx.input.find_axis(AxisInput::MOTION_X).unwrap().id,
@@ -143,9 +143,9 @@ impl Program for OSProgram {
         self.world.spawn((
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
-                switch_mode: ctx.input.find_button("switch_mode").unwrap().id,
-                roll_left: ctx.input.find_button("roll_left").unwrap().id,
-                roll_right: ctx.input.find_button("roll_right").unwrap().id,
+                switch_mode: ctx.input.find_action("switch_mode").unwrap().id,
+                roll_left: ctx.input.find_action("roll_left").unwrap().id,
+                roll_right: ctx.input.find_action("roll_right").unwrap().id,
                 look_x: ctx.input.find_axis(AxisInput::MOTION_X).unwrap().id,
                 look_y: ctx.input.find_axis(AxisInput::MOTION_Y).unwrap().id,
                 move_forward: ctx.input.find_axis("move_forward").unwrap().id,
@@ -180,8 +180,8 @@ impl Program for OSProgram {
             }
             self.frame_count = (self.frame_count + 1) % 30;
 
-            // if ctx.input.find_button("toggle_layout").unwrap().is_just_pressed() {
-            if button_just_pressed!(ctx.input, "toggle_layout") {
+            // if ctx.input.find_action("toggle_layout").unwrap().is_just_pressed() {
+            if action_just_pressed!(ctx.input, "toggle_layout") {
                 self.layout_active = !self.layout_active;
             }
 

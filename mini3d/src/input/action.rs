@@ -2,23 +2,23 @@ use slotmap::new_key_type;
 
 use super::InputGroupId;
 
-new_key_type! { pub struct ButtonInputId; }
+new_key_type! { pub struct ActionInputId; }
 
-pub struct ButtonInput {
+pub struct ActionInput {
     pub(crate) pressed: bool,
     pub(crate) was_pressed: bool,
     pub name: String,
     pub group: InputGroupId,
-    pub id: ButtonInputId,
+    pub id: ActionInputId,
 }
 
 #[derive(Copy, Clone)]
-pub enum ButtonState {
+pub enum ActionState {
     Pressed,
     Released,
 }
 
-impl ButtonInput {
+impl ActionInput {
 
     pub const UP: &'static str = "up"; 
     pub const DOWN: &'static str = "down"; 

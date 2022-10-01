@@ -1,10 +1,10 @@
 use glam::Vec2;
 
-use crate::input::{button::{ButtonState, ButtonInputId}, axis::AxisInputId};
+use crate::input::{action::{ActionState, ActionInputId}, axis::AxisInputId};
 
-pub struct ButtonEvent {
-    pub id: ButtonInputId,
-    pub state: ButtonState,
+pub struct ActionEvent {
+    pub id: ActionInputId,
+    pub state: ActionState,
 }
 
 pub struct AxisEvent {
@@ -23,7 +23,7 @@ pub enum MouseEvent {
 }
 
 pub enum InputEvent {
-    Button(ButtonEvent),
+    Action(ActionEvent),
     Axis(AxisEvent),
     Text(TextEvent),
 }

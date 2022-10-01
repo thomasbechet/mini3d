@@ -6,10 +6,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef enum mini3d_button_state {
-  MINI3D_BUTTON_STATE_PRESSED,
-  MINI3D_BUTTON_STATE_RELEASED,
-} mini3d_button_state;
+typedef enum mini3d_action_state {
+  MINI3D_ACTION_STATE_PRESSED,
+  MINI3D_ACTION_STATE_RELEASED,
+} mini3d_action_state;
 
 typedef struct mini3d_app {
   void *_0;
@@ -28,26 +28,26 @@ typedef struct mini3d_renderer {
 } mini3d_renderer;
 
 typedef struct mini3d_input_database {
-  uint64_t *buttons;
-  uintptr_t button_count;
+  uint64_t *actions;
+  uint32_t action_count;
   uint64_t *axis;
-  uintptr_t axis_count;
+  uint32_t axis_count;
   uint64_t *groups;
-  uintptr_t group_count;
+  uint32_t group_count;
 } mini3d_input_database;
 
-typedef struct mini3d_input_button {
-  const char *name;
+typedef struct mini3d_input_action {
+  char name[128];
   uint64_t group;
-} mini3d_input_button;
+} mini3d_input_action;
 
 typedef struct mini3d_input_axis {
-  const char *name;
+  char name[128];
   uint64_t group;
 } mini3d_input_axis;
 
 typedef struct mini3d_input_group {
-  const char *name;
+  char name[128];
 } mini3d_input_group;
 
 typedef struct mini3d_utils_import_image_info {
@@ -79,9 +79,9 @@ struct mini3d_app_events *mini3d_app_events_new(void);
 
 void mini3d_app_events_delete(struct mini3d_app_events *event);
 
-void mini3d_app_events_push_input_button(struct mini3d_app_events *event,
+void mini3d_app_events_push_input_action(struct mini3d_app_events *event,
                                          unsigned long id,
-                                         enum mini3d_button_state state);
+                                         enum mini3d_action_state state);
 
 void mini3d_app_events_push_input_axis(struct mini3d_app_events *event,
                                        unsigned long id,
@@ -91,17 +91,23 @@ struct mini3d_input_database mini3d_input_database_read(const struct mini3d_app 
 
 void mini3d_input_database_free(struct mini3d_input_database *inputs);
 
-struct mini3d_input_button mini3d_input_button_get(const struct mini3d_app *app, uint64_t id);
+int mini3d_input_database_get_action(const struct mini3d_app *app,
+                                     uint64_t id,
+                                     struct mini3d_input_action *action);
 
-struct mini3d_input_axis mini3d_input_axis_get(const struct mini3d_app *app, uint64_t id);
+int mini3d_input_database_get_axis(const struct mini3d_app *app,
+                                   uint64_t id,
+                                   struct mini3d_input_axis *axis);
 
-struct mini3d_input_group mini3d_input_group_get(const struct mini3d_app *app, uint64_t id);
+int mini3d_input_database_get_group(const struct mini3d_app *app,
+                                    uint64_t id,
+                                    struct mini3d_input_group *group);
 
-void mini3d_utils_import_image(const struct mini3d_utils_import_image_info *info,
-                               struct mini3d_app_events *events);
+int mini3d_utils_import_image(const struct mini3d_utils_import_image_info *info,
+                              struct mini3d_app_events *events);
 
-void mini3d_utils_import_model(const struct mini3d_utils_import_model_info *info,
-                               struct mini3d_app_events *events);
+int mini3d_utils_import_model(const struct mini3d_utils_import_model_info *info,
+                              struct mini3d_app_events *events);
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 

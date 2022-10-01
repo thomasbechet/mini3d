@@ -1,13 +1,13 @@
 use slotmap::Key;
 
-use crate::input::{axis::AxisInputId, button::ButtonInputId};
+use crate::input::{axis::AxisInputId, action::ActionInputId};
 
 pub struct FreeFlyComponent {
 
     // Inputs
-    pub switch_mode: ButtonInputId,
-    pub roll_left: ButtonInputId,
-    pub roll_right: ButtonInputId,
+    pub switch_mode: ActionInputId,
+    pub roll_left: ActionInputId,
+    pub roll_right: ActionInputId,
     pub look_x: AxisInputId,
     pub look_y: AxisInputId,
     pub move_forward: AxisInputId,
@@ -34,9 +34,9 @@ impl FreeFlyComponent {
 
     pub fn new() -> Self {
         Self {
-            switch_mode: ButtonInputId::null(),
-            roll_left: ButtonInputId::null(),
-            roll_right: ButtonInputId::null(),
+            switch_mode: ActionInputId::null(),
+            roll_left: ActionInputId::null(),
+            roll_right: ActionInputId::null(),
             look_x: AxisInputId::null(),
             look_y: AxisInputId::null(),
             move_forward: AxisInputId::null(),

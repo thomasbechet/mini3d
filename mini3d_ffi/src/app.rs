@@ -1,20 +1,20 @@
 use libc::c_void;
-use mini3d::{app::{self, App}, input::button::ButtonState, event::AppEvents, backend::BackendDescriptor, request::AppRequests};
+use mini3d::{app::{self, App}, input::action::ActionState, event::AppEvents, backend::BackendDescriptor, request::AppRequests};
 use mini3d_os::program::OSProgram;
 
 use crate::{renderer::{mini3d_renderer, RendererContext}, event::mini3d_app_events, request::mini3d_app_requests};
 
 #[repr(C)]
-pub enum mini3d_button_state {
+pub enum mini3d_action_state {
     Pressed,
     Released
 }
 
-impl From<mini3d_button_state> for ButtonState {
-    fn from(state: mini3d_button_state) -> Self {
+impl From<mini3d_action_state> for ActionState {
+    fn from(state: mini3d_action_state) -> Self {
         match state {
-            mini3d_button_state::Pressed => ButtonState::Pressed,
-            mini3d_button_state::Released => ButtonState::Released,
+            mini3d_action_state::Pressed => ActionState::Pressed,
+            mini3d_action_state::Released => ActionState::Released,
         }
     }
 }

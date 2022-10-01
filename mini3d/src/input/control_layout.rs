@@ -3,7 +3,7 @@ use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
 use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}};
 
-use super::{InputManager, button::ButtonInputId, axis::AxisInputId};
+use super::{InputManager, action::ActionInputId, axis::AxisInputId};
 
 new_key_type! { 
     pub struct ControlId;
@@ -25,10 +25,10 @@ impl Direction {
 pub struct ControlBindings {
 
     // Selection bindings
-    pub up: ButtonInputId,
-    pub down: ButtonInputId,
-    pub left: ButtonInputId,
-    pub right: ButtonInputId,
+    pub up: ActionInputId,
+    pub down: ActionInputId,
+    pub left: ActionInputId,
+    pub right: ActionInputId,
 
     // Cursor bindings
     pub cursor_x: AxisInputId,
@@ -182,10 +182,10 @@ impl ControlLayout {
         for (_, profile) in self.profiles.iter_mut() {
 
             // Selection inputs
-            let up = input.button(profile.bindings.up).map_or_else(|| false, |b| b.is_just_pressed());
-            let down = input.button(profile.bindings.down).map_or_else(|| false, |b| b.is_just_pressed());
-            let left = input.button(profile.bindings.left).map_or_else(|| false, |b| b.is_just_pressed());
-            let right = input.button(profile.bindings.right).map_or_else(|| false, |b| b.is_just_pressed());
+            let up = input.action(profile.bindings.up).map_or_else(|| false, |b| b.is_just_pressed());
+            let down = input.action(profile.bindings.down).map_or_else(|| false, |b| b.is_just_pressed());
+            let left = input.action(profile.bindings.left).map_or_else(|| false, |b| b.is_just_pressed());
+            let right = input.action(profile.bindings.right).map_or_else(|| false, |b| b.is_just_pressed());
             
             // Cursor inputs
             let cursor_x = input.axis(profile.bindings.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);

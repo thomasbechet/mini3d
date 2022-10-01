@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path, time::Instant};
 
-use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{button::{ButtonState, ButtonInputId, ButtonInput}, InputDatabase, axis::{AxisInputId, AxisInput}}, event::{input::{InputEvent, ButtonEvent, TextEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
+use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{action::{ActionState, ActionInputId, ActionInput}, InputDatabase, axis::{AxisInputId, AxisInput}}, event::{input::{InputEvent, ActionEvent, TextEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
 use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
@@ -10,7 +10,7 @@ use winit_input_helper::WinitInputHelper;
 
 struct WinitInput {
     pub input_helper: WinitInputHelper,
-    pub keycode_to_bindings: HashMap<VirtualKeyCode, (String, ButtonInputId)>,
+    pub keycode_to_bindings: HashMap<VirtualKeyCode, (String, ActionInputId)>,
     pub keycode_to_axis: HashMap<VirtualKeyCode, (String, f32, AxisInputId)>,
     pub cursor_x: AxisInputId,
     pub cursor_y: AxisInputId,
@@ -24,14 +24,14 @@ impl WinitInput {
         Self { 
             input_helper: WinitInputHelper::new(),
             keycode_to_bindings: HashMap::from([
-                (VirtualKeyCode::Z, (ButtonInput::UP.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::Q, (ButtonInput::LEFT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::S, (ButtonInput::DOWN.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::D, (ButtonInput::RIGHT.to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::C, ("switch_mode".to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::A, ("roll_left".to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::E, ("roll_right".to_string(), ButtonInputId::null())),
-                (VirtualKeyCode::F, ("toggle_layout".to_string(), ButtonInputId::null())),
+                (VirtualKeyCode::Z, (ActionInput::UP.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::Q, (ActionInput::LEFT.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::S, (ActionInput::DOWN.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::D, (ActionInput::RIGHT.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::C, ("switch_mode".to_string(), ActionInputId::null())),
+                (VirtualKeyCode::A, ("roll_left".to_string(), ActionInputId::null())),
+                (VirtualKeyCode::E, ("roll_right".to_string(), ActionInputId::null())),
+                (VirtualKeyCode::F, ("toggle_layout".to_string(), ActionInputId::null())),
             ]),
             keycode_to_axis: HashMap::from([
                 (VirtualKeyCode::O, (AxisInput::MOTION_Y.to_string(), -1.0, AxisInputId::null())),
@@ -58,10 +58,10 @@ impl WinitInput {
 
         println!("reload bindings");
 
-        // Update buttons
-        for id in InputDatabase::iter_buttons(app) {
-            let button = InputDatabase::button(app, id).unwrap();
-            if let Some(entry) = self.keycode_to_bindings.values_mut().find(|e| e.0 == button.name) {
+        // Update actions
+        for id in InputDatabase::iter_actions(app) {
+            let action = InputDatabase::action(app, id).unwrap();
+            if let Some(entry) = self.keycode_to_bindings.values_mut().find(|e| e.0 == action.name) {
                 entry.1 = id;
             }
         }
@@ -158,17 +158,17 @@ impl WinitContext {
                                 ..
                             } => {
                                 let action_state = match state {
-                                    ElementState::Pressed => ButtonState::Pressed,
-                                    ElementState::Released => ButtonState::Released,
+                                    ElementState::Pressed => ActionState::Pressed,
+                                    ElementState::Released => ActionState::Released,
                                 };
                                 if let Some((_, id)) = self.input.keycode_to_bindings.get(&keycode) {
-                                    events.push_input(InputEvent::Button(ButtonEvent { id: *id, state: action_state }));
+                                    events.push_input(InputEvent::Action(ActionEvent { id: *id, state: action_state }));
                                 }
 
                                 if let Some((_name, dir, id)) = self.input.keycode_to_axis.get(&keycode) {
                                     let value = match action_state {
-                                        ButtonState::Pressed => *dir,
-                                        ButtonState::Released => 0.0,
+                                        ActionState::Pressed => *dir,
+                                        ActionState::Released => 0.0,
                                     };
                                     // println!("{} {:?} {:?} {:?}", name, keycode, value, *id);
                                     events.push_input(InputEvent::Axis(AxisEvent { id: *id, value: value}));

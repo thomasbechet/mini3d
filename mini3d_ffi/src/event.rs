@@ -1,17 +1,17 @@
 use libc::c_void;
-use mini3d::{input::{button::{ButtonState, ButtonInputId}, axis::AxisInputId}, event::{input::{InputEvent, ButtonEvent, AxisEvent}, AppEvents}, slotmap::KeyData};
+use mini3d::{input::{action::{ActionState, ActionInputId}, axis::AxisInputId}, event::{input::{InputEvent, ActionEvent, AxisEvent}, AppEvents}, slotmap::KeyData};
 
 #[repr(C)]
-pub enum mini3d_button_state {
+pub enum mini3d_action_state {
     Pressed,
     Released
 }
 
-impl From<mini3d_button_state> for ButtonState {
-    fn from(state: mini3d_button_state) -> Self {
+impl From<mini3d_action_state> for ActionState {
+    fn from(state: mini3d_action_state) -> Self {
         match state {
-            mini3d_button_state::Pressed => ButtonState::Pressed,
-            mini3d_button_state::Released => ButtonState::Released,
+            mini3d_action_state::Pressed => ActionState::Pressed,
+            mini3d_action_state::Released => ActionState::Released,
         }
     }
 }
@@ -31,14 +31,14 @@ pub extern "C" fn mini3d_app_events_delete(event: *mut mini3d_app_events) {
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_app_events_push_input_button(
+pub unsafe extern "C" fn mini3d_app_events_push_input_action(
     event: *mut mini3d_app_events, 
     id: libc::c_ulong,
-    state: mini3d_button_state,
+    state: mini3d_action_state,
 ) {
     let event = (event as *mut AppEvents).as_mut().unwrap();
-    event.push_input(InputEvent::Button(ButtonEvent { 
-        id: ButtonInputId::from(KeyData::from_ffi(id)), 
+    event.push_input(InputEvent::Action(ActionEvent { 
+        id: ActionInputId::from(KeyData::from_ffi(id)), 
         state: state.into() 
     }));
 }

@@ -3,11 +3,11 @@ use slotmap::{new_key_type, SlotMap, Key};
 
 use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT}};
 
-use self::{axis::{AxisInput, AxisKind, AxisInputId}, button::{ButtonInput, ButtonState, ButtonInputId}};
+use self::{axis::{AxisInput, AxisKind, AxisInputId}, action::{ActionInput, ActionState, ActionInputId}};
 
 pub mod control_layout;
 pub mod axis;
-pub mod button;
+pub mod action;
 pub mod macros;
 
 new_key_type! { pub struct InputGroupId; }
@@ -20,7 +20,7 @@ pub struct InputGroup {
 
 pub struct InputManager {
     text: String,
-    buttons: SlotMap<ButtonInputId, ButtonInput>,
+    actions: SlotMap<ActionInputId, ActionInput>,
     axis: SlotMap<AxisInputId, AxisInput>,
     groups: SlotMap<InputGroupId, InputGroup>,
     default_group: InputGroupId,
@@ -32,7 +32,7 @@ impl Default for InputManager {
         // Default manager
         let mut manager = Self {
             text: Default::default(),
-            buttons: Default::default(),
+            actions: Default::default(),
             axis: Default::default(),
             groups: Default::default(),
             default_group: InputGroupId::null(),
@@ -41,29 +41,28 @@ impl Default for InputManager {
         // Register default input group
         manager.default_group = manager.register_group("default", ProgramId::null())
             .expect("Failed to register default group");
-        // Register default buttons and axis
+        // Register default actions and axis
         manager.register_axis(AxisInput::CURSOR_X, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 }).unwrap();
         manager.register_axis(AxisInput::CURSOR_Y, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 }).unwrap();
         manager.register_axis(AxisInput::MOTION_X, manager.default_group, AxisKind::Infinite).unwrap();
         manager.register_axis(AxisInput::MOTION_Y, manager.default_group, AxisKind::Infinite).unwrap();
-        manager.register_button(ButtonInput::UP, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::DOWN, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::LEFT, manager.default_group).unwrap();
-        manager.register_button(ButtonInput::RIGHT, manager.default_group).unwrap();
+        manager.register_action(ActionInput::UP, manager.default_group).unwrap();
+        manager.register_action(ActionInput::DOWN, manager.default_group).unwrap();
+        manager.register_action(ActionInput::LEFT, manager.default_group).unwrap();
+        manager.register_action(ActionInput::RIGHT, manager.default_group).unwrap();
         // Return the manager
-        println!("{}", manager.buttons.len());
         manager
     }
 }
 
 impl InputManager {
 
-    /// Reset button states and mouse motion
+    /// Reset action states and mouse motion
     pub(crate) fn prepare_dispatch(&mut self) {
 
-        // Save the previous button state
-        for (_, button) in self.buttons.iter_mut() {
-            button.was_pressed = button.pressed;
+        // Save the previous action state
+        for (_, action) in self.actions.iter_mut() {
+            action.was_pressed = action.pressed;
         }
 
         // Reset text for current frame
@@ -74,13 +73,13 @@ impl InputManager {
     pub(crate) fn dispatch_event(&mut self, event: &InputEvent) {
 
         match event {
-            InputEvent::Button(button) => {
-                if let Some(action) = self.buttons.get_mut(button.id) {
-                    match button.state {
-                        ButtonState::Pressed => {
+            InputEvent::Action(event) => {
+                if let Some(action) = self.actions.get_mut(event.id) {
+                    match event.state {
+                        ActionState::Pressed => {
                             action.pressed = true;
                         },
-                        ButtonState::Released => {
+                        ActionState::Released => {
                             action.pressed = false;
                         },
                     }
@@ -129,8 +128,8 @@ impl InputManager {
         }
     }
 
-    pub fn find_button(&self, name: &str) -> Option<&ButtonInput> {
-        self.buttons.iter()
+    pub fn find_action(&self, name: &str) -> Option<&ActionInput> {
+        self.actions.iter()
             .find(|(_, e)| e.name.as_str() == name)
             .map(|(_, e)| e)
     }
@@ -141,18 +140,18 @@ impl InputManager {
             .map(|(_, e)| e)
     }
 
-    pub fn register_button(&mut self, name: &str, group: InputGroupId) -> Result<ButtonInputId> {
+    pub fn register_action(&mut self, name: &str, group: InputGroupId) -> Result<ActionInputId> {
         if self.find_axis(name).is_some() {
-            Err(anyhow!("Button input name '{}' already exists", name))
+            Err(anyhow!("Action input name '{}' already exists", name))
         } else {
-            let id = self.buttons.insert(ButtonInput { 
+            let id = self.actions.insert(ActionInput { 
                 pressed: false, 
                 was_pressed: false, 
                 name: name.to_string(),
                 group,
-                id: ButtonInputId::null(),
+                id: ActionInputId::null(),
             });
-            self.buttons.get_mut(id).unwrap().id = id;
+            self.actions.get_mut(id).unwrap().id = id;
             self.reload_bindings = true;
             Ok(id)
         }
@@ -179,16 +178,16 @@ impl InputManager {
         self.groups.get(id)
     }
 
-    pub fn button(&self, id: ButtonInputId) -> Option<&ButtonInput> {
-        self.buttons.get(id)
+    pub fn action(&self, id: ActionInputId) -> Option<&ActionInput> {
+        self.actions.get(id)
     }
 
     pub fn axis(&self, id: AxisInputId) -> Option<&AxisInput> {
         self.axis.get(id)
     }
 
-    pub fn iter_buttons(&self) -> impl Iterator<Item = &ButtonInput> {
-        self.buttons.values()
+    pub fn iter_actions(&self) -> impl Iterator<Item = &ActionInput> {
+        self.actions.values()
     } 
 
     pub fn iter_axis(&self) -> impl Iterator<Item = &AxisInput> {
@@ -200,8 +199,8 @@ pub struct InputDatabase;
 
 impl InputDatabase {
 
-    pub fn iter_buttons(app: &App) -> impl Iterator<Item = ButtonInputId> + '_ {
-        app.input_manager.buttons.keys()
+    pub fn iter_actions(app: &App) -> impl Iterator<Item = ActionInputId> + '_ {
+        app.input_manager.actions.keys()
     }
     pub fn iter_axis(app: &App) -> impl Iterator<Item = AxisInputId> + '_ {
         app.input_manager.axis.keys()
@@ -209,8 +208,8 @@ impl InputDatabase {
     pub fn iter_groups(app: &App) -> impl Iterator<Item = InputGroupId> + '_ {
         app.input_manager.groups.keys()
     }
-    pub fn button(app: &App, id: ButtonInputId) -> Option<&ButtonInput> {
-        app.input_manager.button(id)
+    pub fn action(app: &App, id: ActionInputId) -> Option<&ActionInput> {
+        app.input_manager.action(id)
     }
     pub fn axis(app: &App, id: AxisInputId) -> Option<&AxisInput> {
         app.input_manager.axis(id)
