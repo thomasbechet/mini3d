@@ -51,6 +51,7 @@ impl Default for InputManager {
         manager.register_button(ButtonInput::LEFT, manager.default_group).unwrap();
         manager.register_button(ButtonInput::RIGHT, manager.default_group).unwrap();
         // Return the manager
+        println!("{}", manager.buttons.len());
         manager
     }
 }

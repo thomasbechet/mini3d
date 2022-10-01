@@ -50,6 +50,17 @@ typedef struct mini3d_input_group {
   const char *name;
 } mini3d_input_group;
 
+typedef struct mini3d_utils_import_image_info {
+  const char *source;
+  const char *name;
+} mini3d_utils_import_image_info;
+
+typedef struct mini3d_utils_import_model_info {
+  const char *obj_source;
+  const char *name;
+  bool flat_normals;
+} mini3d_utils_import_model_info;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -85,6 +96,12 @@ struct mini3d_input_button mini3d_input_button_get(const struct mini3d_app *app,
 struct mini3d_input_axis mini3d_input_axis_get(const struct mini3d_app *app, uint64_t id);
 
 struct mini3d_input_group mini3d_input_group_get(const struct mini3d_app *app, uint64_t id);
+
+void mini3d_utils_import_image(const struct mini3d_utils_import_image_info *info,
+                               struct mini3d_app_events *events);
+
+void mini3d_utils_import_model(const struct mini3d_utils_import_model_info *info,
+                               struct mini3d_app_events *events);
 
 struct mini3d_renderer *mini3d_renderer_new_wgpu_win32(void *hinstance, void *hwnd);
 

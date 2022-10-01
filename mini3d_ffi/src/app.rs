@@ -24,7 +24,8 @@ pub struct mini3d_app(*mut c_void);
 
 #[no_mangle]
 pub extern "C" fn mini3d_app_new() -> *mut mini3d_app {
-    Box::into_raw(Box::new(app::App::new::<OSProgram>(()))) as *mut mini3d_app
+    let app = app::App::new::<OSProgram>(()).unwrap(); 
+    Box::into_raw(Box::new(app)) as *mut mini3d_app
 }
 
 #[no_mangle]
