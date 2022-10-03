@@ -21,9 +21,9 @@ pub unsafe extern "C" fn mini3d_app_requests_shutdown(requests: *const mini3d_ap
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn mini3d_app_requests_reload_bindings(requests: *const mini3d_app_requests) -> bool {
+pub unsafe extern "C" fn mini3d_app_requests_reload_input_mapping(requests: *const mini3d_app_requests) -> bool {
     let requests = (requests as *const AppRequests).as_ref().unwrap();
-    requests.reload_bindings()
+    requests.reload_input_mapping()
 }
 
 #[no_mangle]

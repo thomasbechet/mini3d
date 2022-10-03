@@ -8,6 +8,6 @@ pub fn system_rotator(
     delta_time: f32,
 ) {
     for (_, (transform, _)) in world.query_mut::<(&mut TransformComponent, &RotatorComponent)>() {
-        transform.rotation *= Quat::from_axis_angle(Vec3::Y, delta_time * f32::to_radians(30.0));
+        transform.rotation *= Quat::from_axis_angle(Vec3::Y, (delta_time / 1000.0) * f32::to_radians(30.0));
     }
 }

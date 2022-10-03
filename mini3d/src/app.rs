@@ -82,9 +82,9 @@ impl App {
         ).context("Failed to update program manager")?;
 
         // Check input requests
-        if self.input_manager.reload_bindings {
-            requests.reload_bindings = true;
-            self.input_manager.reload_bindings = false;
+        if self.input_manager.reload_input_mapping {
+            requests.reload_input_mapping = true;
+            self.input_manager.reload_input_mapping = false;
         }
 
         Ok(())

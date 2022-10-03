@@ -20,11 +20,6 @@ pub struct AxisInput {
 }
 
 impl AxisInput {
-
-    pub const CURSOR_X: &'static str = "cursor_x";
-    pub const CURSOR_Y: &'static str = "cursor_y";
-    pub const MOTION_X: &'static str = "motion_x";
-    pub const MOTION_Y: &'static str = "motion_y";
     
     pub fn set_value(&mut self, value: f32) {
         self.value = match self.kind {

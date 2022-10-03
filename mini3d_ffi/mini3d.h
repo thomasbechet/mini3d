@@ -121,13 +121,20 @@ void mini3d_renderer_resize(struct mini3d_renderer *renderer, uint32_t width, ui
 
 void mini3d_renderer_recreate(struct mini3d_renderer *renderer);
 
+void mini3d_utils_inner_to_viewport_position(float x,
+                                             float y,
+                                             uint32_t width,
+                                             uint32_t height,
+                                             float *vx,
+                                             float *vy);
+
 struct mini3d_app_requests *mini3d_app_requests_new(void);
 
 void mini3d_app_requests_delete(struct mini3d_app_requests *requests);
 
 bool mini3d_app_requests_shutdown(const struct mini3d_app_requests *requests);
 
-bool mini3d_app_requests_reload_bindings(const struct mini3d_app_requests *requests);
+bool mini3d_app_requests_reload_input_mapping(const struct mini3d_app_requests *requests);
 
 void mini3d_app_requests_reset(struct mini3d_app_requests *requests);
 

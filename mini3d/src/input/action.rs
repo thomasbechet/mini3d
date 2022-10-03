@@ -19,12 +19,7 @@ pub enum ActionState {
 }
 
 impl ActionInput {
-
-    pub const UP: &'static str = "up"; 
-    pub const DOWN: &'static str = "down"; 
-    pub const LEFT: &'static str = "left"; 
-    pub const RIGHT: &'static str = "right";
-    
+        
     pub fn is_pressed(&self) -> bool {
         self.pressed
     }

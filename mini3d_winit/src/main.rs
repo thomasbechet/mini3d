@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path, time::Instant};
 
 use mini3d::{app::{App}, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION, input::{action::{ActionState, ActionInputId, ActionInput}, InputDatabase, axis::{AxisInputId, AxisInput}}, event::{input::{InputEvent, ActionEvent, TextEvent, AxisEvent}, system::SystemEvent, AppEvents}, backend::BackendDescriptor, request::AppRequests, slotmap::Key};
-use mini3d_os::program::OSProgram;
+use mini3d_os::{program::OSProgram, input::{OSAction, OSAxis}};
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::{compute_fixed_viewport, WGPURenderer};
 use wgpu::SurfaceError;
@@ -24,20 +24,20 @@ impl WinitInput {
         Self { 
             input_helper: WinitInputHelper::new(),
             keycode_to_bindings: HashMap::from([
-                (VirtualKeyCode::Z, (ActionInput::UP.to_string(), ActionInputId::null())),
-                (VirtualKeyCode::Q, (ActionInput::LEFT.to_string(), ActionInputId::null())),
-                (VirtualKeyCode::S, (ActionInput::DOWN.to_string(), ActionInputId::null())),
-                (VirtualKeyCode::D, (ActionInput::RIGHT.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::Z, (OSAction::UP.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::Q, (OSAction::LEFT.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::S, (OSAction::DOWN.to_string(), ActionInputId::null())),
+                (VirtualKeyCode::D, (OSAction::RIGHT.to_string(), ActionInputId::null())),
                 (VirtualKeyCode::C, ("switch_mode".to_string(), ActionInputId::null())),
                 (VirtualKeyCode::A, ("roll_left".to_string(), ActionInputId::null())),
                 (VirtualKeyCode::E, ("roll_right".to_string(), ActionInputId::null())),
                 (VirtualKeyCode::F, ("toggle_layout".to_string(), ActionInputId::null())),
             ]),
             keycode_to_axis: HashMap::from([
-                (VirtualKeyCode::O, (AxisInput::MOTION_Y.to_string(), -1.0, AxisInputId::null())),
-                (VirtualKeyCode::L, (AxisInput::MOTION_Y.to_string(), 1.0, AxisInputId::null())),
-                (VirtualKeyCode::K, (AxisInput::MOTION_X.to_string(), -1.0,AxisInputId::null())),
-                (VirtualKeyCode::M, (AxisInput::MOTION_X.to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::O, (OSAxis::MOTION_Y.to_string(), -1.0, AxisInputId::null())),
+                (VirtualKeyCode::L, (OSAxis::MOTION_Y.to_string(), 1.0, AxisInputId::null())),
+                (VirtualKeyCode::K, (OSAxis::MOTION_X.to_string(), -1.0,AxisInputId::null())),
+                (VirtualKeyCode::M, (OSAxis::MOTION_X.to_string(), 1.0, AxisInputId::null())),
 
                 (VirtualKeyCode::Z, ("move_forward".to_string(), 1.0, AxisInputId::null())),
                 (VirtualKeyCode::S, ("move_backward".to_string(), 1.0, AxisInputId::null())),
@@ -56,7 +56,7 @@ impl WinitInput {
 
     pub fn reload(&mut self, app: &App) {
 
-        println!("reload bindings");
+        println!("reload mapping");
 
         // Update actions
         for id in InputDatabase::iter_actions(app) {
@@ -69,13 +69,13 @@ impl WinitInput {
         // Update axis
         for id in InputDatabase::iter_axis(app) {
             let axis = InputDatabase::axis(app, id).unwrap();
-            if axis.name == AxisInput::CURSOR_X {
+            if axis.name == OSAxis::CURSOR_X {
                 self.cursor_x = axis.id;
-            } else if axis.name == AxisInput::CURSOR_Y {
+            } else if axis.name == OSAxis::CURSOR_Y {
                 self.cursor_y = axis.id;
-            } else if axis.name == AxisInput::MOTION_X {
+            } else if axis.name == OSAxis::MOTION_X {
                 self.motion_x = axis.id;
-            } else if axis.name == AxisInput::MOTION_Y {
+            } else if axis.name == OSAxis::MOTION_Y {
                 self.motion_y = axis.id;
             }
             self.keycode_to_axis.values_mut()
@@ -237,7 +237,7 @@ impl WinitContext {
                     } else {
                         self.window.request_redraw();
                     }
-                    if requests.reload_bindings() {
+                    if requests.reload_input_mapping() {
                         self.input.reload(&app);
                     }
                     requests.reset();

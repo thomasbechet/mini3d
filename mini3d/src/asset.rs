@@ -69,9 +69,9 @@ impl<'a, A: Asset> AssetRegistry<A> {
         }
     }
     
-    pub fn find(&self, name: &str) -> Option<&AssetEntry<A>> {
+    pub fn find(&self, name: &str, group: AssetGroupId) -> Option<&AssetEntry<A>> {
         self.entries.iter()
-            .find(|(_, e)| e.name == name)
+            .find(|(_, e)| e.name == name && e.group == group)
             .map(|(_, e)| e)
     }
 
@@ -123,7 +123,7 @@ impl Default for AssetManager {
             groups: Default::default(), 
             import_group: Default::default() 
         };
-        // Register default import group
+        // Register import group
         manager.import_group = manager.register_group("import", ProgramId::null())
             .expect("Failed to register import group");
         // Return manager
@@ -222,9 +222,9 @@ impl AssetManager {
         self.as_mut().set_default(id)
     }
     
-    pub fn find<'a, A: Asset>(&self, name: &str) -> Option<&AssetEntry<A>>
+    pub fn find<'a, A: Asset>(&self, name: &str, group: AssetGroupId) -> Option<&AssetEntry<A>>
         where Self: AsRef<AssetRegistry<A>> {
-        self.as_ref().find(name)
+        self.as_ref().find(name, group)
     }
 
     pub fn iter<'a, A: Asset + 'a>(&'a self) -> impl Iterator<Item = &AssetEntry<A>>

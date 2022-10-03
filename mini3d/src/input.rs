@@ -1,18 +1,17 @@
 use anyhow::{Result, anyhow};
 use slotmap::{new_key_type, SlotMap, Key};
 
-use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT}};
+use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App};
 
 use self::{axis::{AxisInput, AxisKind, AxisInputId}, action::{ActionInput, ActionState, ActionInputId}};
 
 pub mod control_layout;
 pub mod axis;
 pub mod action;
-pub mod macros;
 
 new_key_type! { pub struct InputGroupId; }
 
-pub struct InputGroup {
+pub struct GroupInput {
     pub name: String,
     pub id: InputGroupId,
     pub owner: ProgramId,
@@ -22,36 +21,19 @@ pub struct InputManager {
     text: String,
     actions: SlotMap<ActionInputId, ActionInput>,
     axis: SlotMap<AxisInputId, AxisInput>,
-    groups: SlotMap<InputGroupId, InputGroup>,
-    default_group: InputGroupId,
-    pub(crate) reload_bindings: bool,
+    groups: SlotMap<InputGroupId, GroupInput>,
+    pub(crate) reload_input_mapping: bool,
 }
 
 impl Default for InputManager {
     fn default() -> Self {
-        // Default manager
-        let mut manager = Self {
+        Self {
             text: Default::default(),
             actions: Default::default(),
             axis: Default::default(),
             groups: Default::default(),
-            default_group: InputGroupId::null(),
-            reload_bindings: false,
-        };
-        // Register default input group
-        manager.default_group = manager.register_group("default", ProgramId::null())
-            .expect("Failed to register default group");
-        // Register default actions and axis
-        manager.register_axis(AxisInput::CURSOR_X, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 }).unwrap();
-        manager.register_axis(AxisInput::CURSOR_Y, manager.default_group, AxisKind::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 }).unwrap();
-        manager.register_axis(AxisInput::MOTION_X, manager.default_group, AxisKind::Infinite).unwrap();
-        manager.register_axis(AxisInput::MOTION_Y, manager.default_group, AxisKind::Infinite).unwrap();
-        manager.register_action(ActionInput::UP, manager.default_group).unwrap();
-        manager.register_action(ActionInput::DOWN, manager.default_group).unwrap();
-        manager.register_action(ActionInput::LEFT, manager.default_group).unwrap();
-        manager.register_action(ActionInput::RIGHT, manager.default_group).unwrap();
-        // Return the manager
-        manager
+            reload_input_mapping: false,
+        }
     }
 }
 
@@ -107,7 +89,7 @@ impl InputManager {
         &self.text
     }
 
-    pub fn find_group(&self, name: &str) -> Option<&InputGroup> {
+    pub fn find_group(&self, name: &str) -> Option<&GroupInput> {
         self.groups.iter()
             .find(|(_, e)| e.name.as_str() == name)
             .and_then(|(_, group)| Some(group))
@@ -117,31 +99,31 @@ impl InputManager {
         if self.find_group(&name).is_some() {
             Err(anyhow!("Input group '{}' already exists", name))
         } else {
-            let new_group = self.groups.insert(InputGroup { 
+            let new_group = self.groups.insert(GroupInput { 
                 name: name.to_string(), 
                 id: InputGroupId::null(), 
                 owner,
             });
             self.groups.get_mut(new_group).unwrap().id = new_group;
-            self.reload_bindings = true;
+            self.reload_input_mapping = true;
             Ok(new_group)
         }
     }
 
-    pub fn find_action(&self, name: &str) -> Option<&ActionInput> {
+    pub fn find_action(&self, name: &str, group: InputGroupId) -> Option<&ActionInput> {
         self.actions.iter()
-            .find(|(_, e)| e.name.as_str() == name)
+            .find(|(_, e)| e.name.as_str() == name && e.group == group)
             .map(|(_, e)| e)
     }
 
-    pub fn find_axis(&self, name: &str) -> Option<&AxisInput> {
+    pub fn find_axis(&self, name: &str, group: InputGroupId) -> Option<&AxisInput> {
         self.axis.iter()
-            .find(|(_, e)| e.name.as_str() == name)
+            .find(|(_, e)| e.name.as_str() == name && e.group == group)
             .map(|(_, e)| e)
     }
 
     pub fn register_action(&mut self, name: &str, group: InputGroupId) -> Result<ActionInputId> {
-        if self.find_axis(name).is_some() {
+        if self.find_axis(name, group).is_some() {
             Err(anyhow!("Action input name '{}' already exists", name))
         } else {
             let id = self.actions.insert(ActionInput { 
@@ -152,13 +134,13 @@ impl InputManager {
                 id: ActionInputId::null(),
             });
             self.actions.get_mut(id).unwrap().id = id;
-            self.reload_bindings = true;
+            self.reload_input_mapping = true;
             Ok(id)
         }
     }
 
     pub fn register_axis(&mut self, name: &str, group: InputGroupId, axis: AxisKind) -> Result<AxisInputId> {
-        if self.find_axis(name).is_some() {
+        if self.find_axis(name, group).is_some() {
             Err(anyhow!("Axis input name '{}' already exists", name))
         } else {
             let id = self.axis.insert(AxisInput { 
@@ -169,12 +151,12 @@ impl InputManager {
                 kind: axis,
             });
             self.axis.get_mut(id).unwrap().id = id;
-            self.reload_bindings = true;
+            self.reload_input_mapping = true;
             Ok(id)
         }
     }
 
-    pub fn group(&self, id: InputGroupId) -> Option<&InputGroup> {
+    pub fn group(&self, id: InputGroupId) -> Option<&GroupInput> {
         self.groups.get(id)
     }
 
@@ -214,7 +196,7 @@ impl InputDatabase {
     pub fn axis(app: &App, id: AxisInputId) -> Option<&AxisInput> {
         app.input_manager.axis(id)
     }
-    pub fn group(app: &App, id: InputGroupId) -> Option<&InputGroup> {
+    pub fn group(app: &App, id: InputGroupId) -> Option<&GroupInput> {
         app.input_manager.group(id)
     }
 }

@@ -22,15 +22,15 @@ impl Direction {
     pub(crate) const COUNT: usize = 4;
 }
 
-pub struct ControlBindings {
+pub struct ControlInputs {
 
-    // Selection bindings
+    // Selection inputs
     pub up: ActionInputId,
     pub down: ActionInputId,
     pub left: ActionInputId,
     pub right: ActionInputId,
 
-    // Cursor bindings
+    // Cursor inputs
     pub cursor_x: AxisInputId,
     pub cursor_y: AxisInputId,
     pub motion_x: AxisInputId,
@@ -44,7 +44,7 @@ enum ControlMode {
 
 struct ControlProfile {
     mode: ControlMode,
-    bindings: ControlBindings,
+    inputs: ControlInputs,
     last_cursor_position: Vec2,
 }
 
@@ -157,10 +157,10 @@ impl ControlLayout {
         id
     }
 
-    pub fn add_profile(&mut self, bindings: ControlBindings) -> ControlProfileId {
+    pub fn add_profile(&mut self, inputs: ControlInputs) -> ControlProfileId {
         self.profiles.insert(ControlProfile {
             mode: ControlMode::Selection { selected: ControlId::null() },
-            bindings,
+            inputs,
             last_cursor_position: Default::default(),
         })
     }
@@ -182,16 +182,16 @@ impl ControlLayout {
         for (_, profile) in self.profiles.iter_mut() {
 
             // Selection inputs
-            let up = input.action(profile.bindings.up).map_or_else(|| false, |b| b.is_just_pressed());
-            let down = input.action(profile.bindings.down).map_or_else(|| false, |b| b.is_just_pressed());
-            let left = input.action(profile.bindings.left).map_or_else(|| false, |b| b.is_just_pressed());
-            let right = input.action(profile.bindings.right).map_or_else(|| false, |b| b.is_just_pressed());
+            let up = input.action(profile.inputs.up).map_or_else(|| false, |b| b.is_just_pressed());
+            let down = input.action(profile.inputs.down).map_or_else(|| false, |b| b.is_just_pressed());
+            let left = input.action(profile.inputs.left).map_or_else(|| false, |b| b.is_just_pressed());
+            let right = input.action(profile.inputs.right).map_or_else(|| false, |b| b.is_just_pressed());
             
             // Cursor inputs
-            let cursor_x = input.axis(profile.bindings.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);
-            let cursor_y = input.axis(profile.bindings.cursor_y).map_or(profile.last_cursor_position.y, |a| a.value);
-            let motion_x = input.axis(profile.bindings.motion_x).map_or(0.0, |a| a.value);
-            let motion_y = input.axis(profile.bindings.motion_y).map_or(0.0, |a| a.value);
+            let cursor_x = input.axis(profile.inputs.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);
+            let cursor_y = input.axis(profile.inputs.cursor_y).map_or(profile.last_cursor_position.y, |a| a.value);
+            let motion_x = input.axis(profile.inputs.motion_x).map_or(0.0, |a| a.value);
+            let motion_y = input.axis(profile.inputs.motion_y).map_or(0.0, |a| a.value);
             
             // Update detection
             let selection_update = up || down || left || right;
