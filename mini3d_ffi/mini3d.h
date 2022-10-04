@@ -80,12 +80,10 @@ struct mini3d_app_events *mini3d_app_events_new(void);
 void mini3d_app_events_delete(struct mini3d_app_events *event);
 
 void mini3d_app_events_push_input_action(struct mini3d_app_events *event,
-                                         unsigned long id,
+                                         uint64_t id,
                                          enum mini3d_action_state state);
 
-void mini3d_app_events_push_input_axis(struct mini3d_app_events *event,
-                                       unsigned long id,
-                                       float value);
+void mini3d_app_events_push_input_axis(struct mini3d_app_events *event, uint64_t id, float value);
 
 struct mini3d_input_database mini3d_input_database_read(const struct mini3d_app *app);
 

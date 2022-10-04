@@ -63,7 +63,6 @@ impl WindowGUI {
                     menu_height = ui.available_height();
                     egui::menu::bar(ui, |ui| {
                         ui.menu_button("File", |ui| {
-                            if ui.button("Open").clicked() {}
                             if ui.button("Exit").clicked() {
                                 *control_flow = ControlFlow::Exit;
                             }

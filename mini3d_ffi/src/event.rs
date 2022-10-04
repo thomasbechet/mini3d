@@ -33,7 +33,7 @@ pub extern "C" fn mini3d_app_events_delete(event: *mut mini3d_app_events) {
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn mini3d_app_events_push_input_action(
     event: *mut mini3d_app_events, 
-    id: libc::c_ulong,
+    id: u64,
     state: mini3d_action_state,
 ) {
     let event = (event as *mut AppEvents).as_mut().unwrap();
@@ -47,7 +47,7 @@ pub unsafe extern "C" fn mini3d_app_events_push_input_action(
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn mini3d_app_events_push_input_axis(
     event: *mut mini3d_app_events, 
-    id: libc::c_ulong,
+    id: u64,
     value: f32,
 ) {
     let event = (event as *mut AppEvents).as_mut().unwrap();
