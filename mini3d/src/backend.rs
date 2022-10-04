@@ -1,4 +1,4 @@
-use self::renderer::{RendererBackend, DefaultRendererBackend};
+use self::renderer::{RendererBackend, DummyRendererBackend};
 
 pub mod renderer;
 
@@ -23,7 +23,7 @@ impl<'a> BackendDescriptor<'a> {
 
 #[derive(Default)]
 pub(crate) struct DefaultBackend {
-    renderer: DefaultRendererBackend,
+    renderer: DummyRendererBackend,
 }
 
 pub(crate) struct Backend<'a> {

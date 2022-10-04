@@ -1,7 +1,7 @@
 use crate::context::WGPUContext;
 
 pub(crate) fn create_blit_bind_group_layout(
-    context: &WGPUContext
+    context: &WGPUContext,
 ) -> wgpu::BindGroupLayout {
     context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("blit_bind_group_layout"),

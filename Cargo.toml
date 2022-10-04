@@ -4,7 +4,7 @@ members = [
     "mini3d_os",
     "mini3d_utils",
     "mini3d_wgpu",
-    "mini3d_winit",
     "mini3d_ffi",
+    "mini3d_winit",
 ]
 resolver = "2"

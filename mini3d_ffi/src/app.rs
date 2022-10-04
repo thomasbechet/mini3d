@@ -40,7 +40,7 @@ pub unsafe extern "C" fn mini3d_app_progress(
     events: *mut mini3d_app_events,
     requests: *mut mini3d_app_requests,
     renderer: *mut mini3d_renderer,
-    delta_time: f32,
+    delta_time: f64,
 ) -> bool {
     let app = (app as *mut App).as_mut().unwrap();
     let events = (events as *mut AppEvents).as_mut().unwrap();

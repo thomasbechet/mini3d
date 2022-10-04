@@ -1,4 +1,4 @@
-use mini3d::graphics::{SCREEN_WIDTH, SCREEN_HEIGHT};
+use mini3d::graphics::{SCREEN_INV_ASPECT_RATIO};
 
 use crate::context::WGPUContext;
 
@@ -10,8 +10,8 @@ pub(crate) struct RenderTarget {
 impl RenderTarget {
     pub(crate) fn extent() -> wgpu::Extent3d {
         wgpu::Extent3d {
-            width: SCREEN_WIDTH * 2,
-            height: SCREEN_HEIGHT * 2,
+            width: 1920,
+            height: (1920.0 * SCREEN_INV_ASPECT_RATIO) as u32,
             depth_or_array_layers: 1
         }
     }

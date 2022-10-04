@@ -1,6 +1,6 @@
 use libc::{c_void, c_ulong};
-use mini3d::{app::App, glam::{Vec2, UVec2}, graphics::SCREEN_RESOLUTION};
-use mini3d_wgpu::{WGPURenderer, compute_fixed_viewport};
+use mini3d::{app::App, glam::{Vec2, UVec2, Vec4}, graphics::SCREEN_RESOLUTION, math::rect::IRect};
+use mini3d_wgpu::WGPURenderer;
 
 use crate::app::mini3d_app;
 
@@ -58,7 +58,8 @@ pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, 
     match renderer {
         RendererContext::None => { true },
         RendererContext::Wgpu { context } => {
-            match context.render(app) {
+            todo!();
+            match context.render(app, Vec4::ZERO, |_, _, _, _| {}) {
                 Ok(_) => {
                     true
                 },
@@ -93,20 +94,4 @@ pub unsafe extern "C" fn mini3d_renderer_recreate(renderer: *mut mini3d_renderer
             context.recreate();
         },
     }
-}
-
-#[no_mangle]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn mini3d_utils_inner_to_viewport_position(
-    x: f32, y: f32,
-    width: u32, height: u32,
-    vx: *mut f32, vy: *mut f32,
-) {
-    let position = Vec2::new(x, y);
-    let wsize = UVec2::new(width, height);
-    let viewport = compute_fixed_viewport(wsize);
-    let rel_position = position - Vec2::new(viewport.x, viewport.y);
-    let final_position = (rel_position / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2();
-    *vx = final_position.x;
-    *vy = final_position.y;
 }

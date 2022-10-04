@@ -10,7 +10,7 @@ pub struct OSProgram {
     control_layout: ControlLayout,
     control_profile: ControlProfileId,
     layout_active: bool,
-    frame_count: u32,
+    fps_record: Vec<f32>,
     last_fps: f32,
 }
 
@@ -26,8 +26,8 @@ impl ProgramBuilder for OSProgram {
             world: Default::default(),
             control_layout: ControlLayout::new(),
             control_profile: ControlProfileId::null(),
-            layout_active: true,
-            frame_count: 0,
+            layout_active: false,
+            fps_record: Vec::new(),
             last_fps: 0.0,
         }
     }
@@ -180,17 +180,19 @@ impl Program for OSProgram {
 
         // Call ECS systems
         let mut query = PreparedQuery::<(&mut TransformComponent, &ModelComponent)>::new();
-        system_rotator(&mut self.world, ctx.delta_time);
+        system_rotator(&mut self.world, ctx.delta_time as f32);
         system_transfer_model_transforms(&mut self.world, &mut query, ctx.renderer);
         system_update_camera(&mut self.world, ctx.renderer);
 
         // Custom code
         {
             // Compute fps
-            if self.frame_count == 0 {
-                self.last_fps = 1.0 / (ctx.delta_time / 1000.0);
+            self.fps_record.push(1.0 / ctx.delta_time as f32);
+            if self.fps_record.len() > 30 {
+                self.fps_record.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                self.last_fps = self.fps_record[14];
+                self.fps_record.clear();
             }
-            self.frame_count = (self.frame_count + 1) % 30;
 
             // if ctx.input.find_action("toggle_layout").unwrap().is_just_pressed() {
             let toggle_layout_id = ctx.input.find_action("toggle_layout", self.input_group).unwrap().id;
@@ -203,17 +205,17 @@ impl Program for OSProgram {
                 let cb0 = self.control_layout.render();
                 ctx.renderer.push_command_buffer(cb0);
             } else {
-                system_free_fly(&mut self.world, ctx.input, ctx.delta_time);
+                system_free_fly(&mut self.world, ctx.input, ctx.delta_time as f32);
             }
 
             let id = ctx.asset.default::<Font>()
                 .expect("Failed to find default font.").id;
             let cb1 = CommandBuffer::build_with(|builder| {
                 builder
-                .print((8, 8).into(), format!("fps           : {:.1}", self.last_fps).as_str(), id)
-                .print((8, 17).into(), format!("draw count    : {}", ctx.renderer.statistics().draw_count).as_str(), id)
-                .print((8, 26).into(), format!("triangle count: {}", ctx.renderer.statistics().triangle_count).as_str(), id)
-                .print((8, 35).into(), format!("viewport      : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), id)
+                .print((8, 8).into(), format!("fps : {:.1}", self.last_fps).as_str(), id)
+                .print((8, 17).into(), format!("dc  : {}", ctx.renderer.statistics().draw_count).as_str(), id)
+                .print((8, 26).into(), format!("tc  : {}", ctx.renderer.statistics().triangle_count).as_str(), id)
+                .print((8, 35).into(), format!("vp  : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), id)
             });
             ctx.renderer.push_command_buffer(cb1);
         }

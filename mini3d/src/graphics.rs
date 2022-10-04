@@ -1,5 +1,4 @@
 use glam::{UVec2, uvec2, IVec2};
-use slotmap::new_key_type;
 
 use crate::{math::rect::IRect, asset::font::FontId};
 
@@ -17,8 +16,10 @@ pub mod command_buffer;
 // // 16:10 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 320;
 // pub const SCREEN_HEIGHT: u32 = 200;
-pub const SCREEN_WIDTH: u32 = 640;
-pub const SCREEN_HEIGHT: u32 = 400;
+pub const SCREEN_WIDTH: u32 = 512;
+pub const SCREEN_HEIGHT: u32 = 320;
+// pub const SCREEN_WIDTH: u32 = 640;
+// pub const SCREEN_HEIGHT: u32 = 400;
 // // 16:9 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 384;
 // pub const SCREEN_HEIGHT: u32 = 216;
@@ -28,6 +29,7 @@ pub const SCREEN_RESOLUTION: UVec2 = uvec2(SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_CENTER: UVec2 = uvec2(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
 pub const SCREEN_VIEWPORT: IRect = IRect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_ASPECT_RATIO: f32 = SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32;
+pub const SCREEN_INV_ASPECT_RATIO: f32 = 1.0 / SCREEN_ASPECT_RATIO;
 
 pub struct CommandBufferBuilder {
     commands: Vec<Command>,

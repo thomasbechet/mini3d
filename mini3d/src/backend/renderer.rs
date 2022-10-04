@@ -44,9 +44,9 @@ pub trait RendererBackend {
 }
 
 #[derive(Default)]
-pub struct DefaultRendererBackend;
+pub struct DummyRendererBackend;
 
-impl RendererBackend for DefaultRendererBackend {
+impl RendererBackend for DummyRendererBackend {
 
     fn add_camera(&mut self) -> RendererCameraId { Default::default() }
     fn remove_camera(&mut self, _: RendererCameraId) {}

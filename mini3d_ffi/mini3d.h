@@ -73,7 +73,7 @@ bool mini3d_app_progress(struct mini3d_app *app,
                          struct mini3d_app_events *events,
                          struct mini3d_app_requests *requests,
                          struct mini3d_renderer *renderer,
-                         float delta_time);
+                         double delta_time);
 
 struct mini3d_app_events *mini3d_app_events_new(void);
 
@@ -120,13 +120,6 @@ bool mini3d_renderer_render(struct mini3d_renderer *renderer, const struct mini3
 void mini3d_renderer_resize(struct mini3d_renderer *renderer, uint32_t width, uint32_t height);
 
 void mini3d_renderer_recreate(struct mini3d_renderer *renderer);
-
-void mini3d_utils_inner_to_viewport_position(float x,
-                                             float y,
-                                             uint32_t width,
-                                             uint32_t height,
-                                             float *vx,
-                                             float *vy);
 
 struct mini3d_app_requests *mini3d_app_requests_new(void);
 

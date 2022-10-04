@@ -1,10 +1,10 @@
 use futures::executor;
 
-pub(crate) struct WGPUContext {
-    pub(crate) device: wgpu::Device,
-    pub(crate) queue: wgpu::Queue,
-    pub(crate) config: wgpu::SurfaceConfiguration,
-    pub(crate) surface: wgpu::Surface,
+pub struct WGPUContext {
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub config: wgpu::SurfaceConfiguration,
+    pub surface: wgpu::Surface,
 }
 
 impl WGPUContext {

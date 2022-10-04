@@ -38,7 +38,7 @@ impl App {
         backend_descriptor: BackendDescriptor<'a>, 
         events: &mut AppEvents,
         requests: &mut AppRequests,
-        delta_time: f32,
+        delta_time: f64,
     ) -> Result<()> {
     
         // Build the backend

@@ -4,9 +4,8 @@ use mini3d::asset::{AssetDatabase, self};
 use mini3d::asset::material::MaterialId;
 use mini3d::asset::mesh::MeshId;
 use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererDynamicMaterialId, RendererModelDescriptor, RendererCameraId, RendererStatistics};
-use mini3d::glam::{UVec2, Vec4, Mat4, Vec3};
+use mini3d::glam::{Vec4, Mat4, Vec3};
 use mini3d::graphics::CommandBuffer;
-use mini3d::graphics::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use mini3d::slotmap::{SlotMap, SecondaryMap, new_key_type};
 use wgpu::SurfaceError;
 
@@ -24,22 +23,6 @@ use crate::flat_pipeline::create_flat_pipeline;
 use crate::surface_buffer::{SurfaceBuffer, Color};
 use crate::texture::Texture;
 use crate::vertex_buffer::{VertexBuffer, VertexBufferDescriptor};
-
-pub fn compute_fixed_viewport(size: UVec2) -> Vec4 {
-    if size.x as f32 / size.y as f32 >= (SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32) {
-        let w = SCREEN_WIDTH as f32 * size.y as f32 / SCREEN_HEIGHT as f32;
-        let h = size.y as f32;
-        let x = (size.x / 2) as f32 - (w / 2.0);
-        let y = 0.0;
-        (x, y, w, h).into()
-    } else {
-        let w = size.x as f32;
-        let h = SCREEN_HEIGHT as f32 * size.x as f32 / SCREEN_WIDTH as f32;
-        let x = 0.0;
-        let y = (size.y / 2) as f32 - (h / 2.0);
-        (x, y, w, h).into()
-    }
-}
 
 new_key_type! { 
     pub(crate) struct SubMeshId;
@@ -165,21 +148,21 @@ impl WGPURenderer {
         //////// Surface Render Pass ////////
          
         let surface_buffer = SurfaceBuffer::new(&context);
-        let blit_bind_group_layout = create_blit_bind_group_layout(&context);
-        let blit_pipeline_layout = create_blit_pipeline_layout(&context, &blit_bind_group_layout);
+        let surface_bind_group_layout = create_blit_bind_group_layout(&context);
+        let surface_pipeline_layout = create_blit_pipeline_layout(&context, &surface_bind_group_layout);
         let blit_shader_module = create_blit_shader_module(&context);
         let surface_bind_group = create_blit_bind_group(
             &context, 
-            &blit_bind_group_layout, 
+            &surface_bind_group_layout, 
             &surface_buffer.texture_view, 
             &nearest_sampler, 
             "surface_blit_bind_group"
         );
         let surface_pipeline = create_blit_pipeline(
             &context, 
-            &blit_pipeline_layout, 
+            &surface_pipeline_layout, 
             &blit_shader_module, 
-            RenderTarget::format(), 
+            context.config.format, 
             wgpu::BlendState::ALPHA_BLENDING,
             "surface_blit_pipeline"
         );
@@ -187,16 +170,18 @@ impl WGPURenderer {
         //////// Post Process Render Pass ////////
         
         let render_target = RenderTarget::new(&context);
+        let pp_bind_group_layout = create_blit_bind_group_layout(&context);
+        let pp_pipeline_layout = create_blit_pipeline_layout(&context, &pp_bind_group_layout);
         let post_process_bind_group = create_blit_bind_group(
             &context, 
-            &blit_bind_group_layout, 
+            &pp_bind_group_layout, 
             &render_target.render_view, 
             &nearest_sampler, 
             "post_process_bind_group"
         );
         let post_process_pipeline = create_blit_pipeline(
             &context, 
-            &blit_pipeline_layout, 
+            &pp_pipeline_layout, 
             &blit_shader_module, 
             context.config.format, 
             wgpu::BlendState::REPLACE, 
@@ -246,6 +231,10 @@ impl WGPURenderer {
             statistics: RendererStatistics::default(),
         }
     }
+
+    pub fn context(&self) -> &WGPUContext {
+        &self.context
+    }
     
     pub fn recreate(&mut self) {
         self.context.recreate();
@@ -268,7 +257,12 @@ impl WGPURenderer {
         ));
     }
 
-    pub fn render(&mut self, app: &App) -> Result<(), SurfaceError> {
+    pub fn render<F: FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView)>(
+        &mut self, 
+        app: &App,
+        app_viewport: Vec4,
+        egui_pass: F,
+    ) -> Result<(), SurfaceError> {
         
         // Process immediate commands
         self.surface_buffer.clear(Color::from_color_alpha(Color::BLACK, 0));
@@ -481,25 +475,6 @@ impl WGPURenderer {
             // }
         }
 
-        {
-            let mut surface_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("surface_render_pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.render_target.render_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            surface_render_pass.set_pipeline(&self.surface_pipeline);
-            surface_render_pass.set_bind_group(0, &self.surface_bind_group, &[]);
-            surface_render_pass.draw(0..3, 0..1);        
-        }
-
         // Post Process Render Pass
         {
             let mut post_process_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -521,15 +496,49 @@ impl WGPURenderer {
             });
 
             // Compute viewport        
-            let viewport = {
-                let surface_size: UVec2 = (self.context.config.width, self.context.config.height).into();
-                compute_fixed_viewport(surface_size)
-            };
-            post_process_render_pass.set_viewport(viewport.x, viewport.y, viewport.z, viewport.w, 0.0, 1.0);
+            post_process_render_pass.set_viewport(
+                app_viewport.x, 
+                app_viewport.y, 
+                app_viewport.z, 
+                app_viewport.w, 
+                0.0, 1.0
+            );
         
             post_process_render_pass.set_pipeline(&self.post_process_pipeline);
             post_process_render_pass.set_bind_group(0, &self.post_process_bind_group, &[]);
             post_process_render_pass.draw(0..3, 0..1);
+        }
+
+        {
+            let mut surface_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("surface_render_pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+            surface_render_pass.set_viewport(
+                app_viewport.x, 
+                app_viewport.y, 
+                app_viewport.z, 
+                app_viewport.w, 
+                0.0, 1.0
+            );
+
+            surface_render_pass.set_pipeline(&self.surface_pipeline);
+            surface_render_pass.set_bind_group(0, &self.surface_bind_group, &[]);
+            surface_render_pass.draw(0..3, 0..1);        
+        }
+
+        // egui pass
+        {
+            egui_pass(&self.context.device, &self.context.queue, &mut encoder, &output_view);
         }
 
         // Submit queue and present

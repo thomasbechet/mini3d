@@ -2,7 +2,7 @@ use glam::IVec2;
 
 /// Basic rectangle structure with useful functions
 /// Vec4: xy -> top-left, zw -> bottom-right
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct IRect {
     tl: IVec2,
     br: IVec2,
