@@ -72,7 +72,8 @@ fn main() {
             Event::DeviceEvent { device_id: _, event } => {
                 match event {
                     DeviceEvent::MouseMotion { delta } => {
-                        mouse_motion = delta;
+                        mouse_motion.0 += delta.0;
+                        mouse_motion.1 += delta.1;
                     }
                     _ => {}
                 }
@@ -150,21 +151,8 @@ fn main() {
                     }
                 }
             }
-            Event::RedrawRequested(window_id) => {
-                if window_id == window.handle.id() {
-
-                    // Compute app viewport
-                    let viewport = compute_fixed_viewport(gui.central_viewport());
-
-                    // Invoke WGPU Renderer
-                    renderer.render(&mut app, viewport, |device, queue, encoder, output| {
-                        gui.render(&window.handle, device, queue, encoder, output);
-                    })
-                    .map_err(|e| match e {
-                        SurfaceError::OutOfMemory => *control_flow = ControlFlow::Exit,
-                        _ => {}
-                    }).expect("Error");                        
-                }
+            Event::RedrawRequested(_) => {
+                
             }
             Event::MainEventsCleared => {
 
@@ -196,6 +184,16 @@ fn main() {
                 // Progress application
                 app.progress(desc, &mut events, &mut requests, delta_time)
                     .expect("Failed to progress application");
+
+                // Invoke WGPU Renderer
+                let viewport = compute_fixed_viewport(gui.central_viewport());
+                renderer.render(&mut app, viewport, |device, queue, encoder, output| {
+                    gui.render(&window.handle, device, queue, encoder, output);
+                })
+                .map_err(|e| match e {
+                    SurfaceError::OutOfMemory => *control_flow = ControlFlow::Exit,
+                    _ => {}
+                }).expect("Error");
 
                 // Check shutdown
                 if requests.shutdown() {

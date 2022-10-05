@@ -59,15 +59,15 @@ pub unsafe extern "C" fn mini3d_renderer_render(renderer: *mut mini3d_renderer, 
         RendererContext::None => { true },
         RendererContext::Wgpu { context } => {
             todo!();
-            match context.render(app, Vec4::ZERO, |_, _, _, _| {}) {
-                Ok(_) => {
-                    true
-                },
-                Err(e) => {
-                    eprintln!("{:?}", e);
-                    false
-                } 
-            }
+            // match context.render(app, Vec4::ZERO, |_, _, _, _| {}) {
+            //     Ok(_) => {
+            //         true
+            //     },
+            //     Err(e) => {
+            //         eprintln!("{:?}", e);
+            //         false
+            //     } 
+            // }
         },
     }
 }

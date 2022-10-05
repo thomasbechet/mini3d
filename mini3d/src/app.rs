@@ -9,12 +9,17 @@ use crate::input::InputManager;
 use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId};
 use crate::request::AppRequests;
 
+const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
+const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
+
 pub struct App {
     pub(crate) asset_manager: AssetManager,
     pub(crate) input_manager: InputManager,
     pub(crate) program_manager: ProgramManager,
 
     default_backend: DefaultBackend,
+
+    accumulator: f64,
 }
 
 impl App {
@@ -26,6 +31,7 @@ impl App {
             input_manager: Default::default(), 
             program_manager: Default::default(), 
             default_backend: Default::default(), 
+            accumulator: 0.0,
         };
         // Start initial program
         app.program_manager.run::<P>("root", data, ProgramId::null())?;
@@ -38,11 +44,13 @@ impl App {
         backend_descriptor: BackendDescriptor<'a>, 
         events: &mut AppEvents,
         requests: &mut AppRequests,
-        delta_time: f64,
+        mut delta_time: f64,
     ) -> Result<()> {
-    
+
         // Build the backend
         let mut backend = Backend::build(backend_descriptor, &mut self.default_backend);
+
+        // ================= DISPATCH STEP ================= //
 
         // Dispatch import asset events
         for event in events.assets.drain(..) {
@@ -70,6 +78,14 @@ impl App {
         // Ensure all events have been dispatched
         events.clear();
 
+        // ================= UPDATE STEP ================= //
+
+        // Compute accumulated time since last progress
+        if delta_time > MAXIMUM_TIMESTEP {
+            delta_time = MAXIMUM_TIMESTEP; // Slowing down
+        }
+        self.accumulator += delta_time;
+
         // Prepare resources for drawing
         backend.renderer.reset_command_buffers();
 
@@ -80,6 +96,17 @@ impl App {
             &mut backend,
             delta_time,
         ).context("Failed to update program manager")?;
+
+        // ================= FIXED UPDATE STEP ================= //
+
+        delta_time = FIXED_TIMESTEP;
+        while self.accumulator >= FIXED_TIMESTEP {
+            self.accumulator -= FIXED_TIMESTEP;
+
+            // Process fixed update
+        }
+
+        // ================= REQUESTS STEP ================= //
 
         // Check input requests
         if self.input_manager.reload_input_mapping {

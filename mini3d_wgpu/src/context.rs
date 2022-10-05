@@ -1,4 +1,5 @@
 use futures::executor;
+use wgpu::{RequestAdapterOptions, PowerPreference};
 
 pub struct WGPUContext {
     pub device: wgpu::Device,
@@ -20,7 +21,12 @@ impl WGPUContext {
 
         // Build the adaptor based on backend environment
         let adapter = executor::block_on(
-            wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
+            instance.request_adapter(&RequestAdapterOptions {
+                power_preference: PowerPreference::HighPerformance,
+                force_fallback_adapter: false,
+                compatible_surface: Some(&surface),
+            })
+            // wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
         )
         .expect("Failed to create adapter");
 

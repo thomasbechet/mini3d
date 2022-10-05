@@ -258,7 +258,7 @@ impl WGPURenderer {
     }
 
     pub fn render<F: FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView)>(
-        &mut self, 
+        &mut self,
         app: &App,
         app_viewport: Vec4,
         egui_pass: F,

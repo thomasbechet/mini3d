@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::AxisKind}, slotmap::Key, math::rect::IRect};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::AxisKind}, slotmap::Key, math::rect::IRect};
 
 use crate::input::{OSAxis, OSAction, OSGroup};
 
@@ -10,8 +10,8 @@ pub struct OSProgram {
     control_layout: ControlLayout,
     control_profile: ControlProfileId,
     layout_active: bool,
-    fps_record: Vec<f32>,
-    last_fps: f32,
+    dt_record: Vec<f64>,
+    last_dt: f64,
 }
 
 impl ProgramBuilder for OSProgram {
@@ -27,8 +27,8 @@ impl ProgramBuilder for OSProgram {
             control_layout: ControlLayout::new(),
             control_profile: ControlProfileId::null(),
             layout_active: false,
-            fps_record: Vec::new(),
-            last_fps: 0.0,
+            dt_record: Vec::new(),
+            last_dt: 0.0,
         }
     }
 }
@@ -187,11 +187,11 @@ impl Program for OSProgram {
         // Custom code
         {
             // Compute fps
-            self.fps_record.push(1.0 / ctx.delta_time as f32);
-            if self.fps_record.len() > 30 {
-                self.fps_record.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                self.last_fps = self.fps_record[14];
-                self.fps_record.clear();
+            self.dt_record.push(ctx.delta_time);
+            if self.dt_record.len() > 30 {
+                self.dt_record.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                self.last_dt = self.dt_record[14];
+                self.dt_record.clear();
             }
 
             // if ctx.input.find_action("toggle_layout").unwrap().is_just_pressed() {
@@ -212,10 +212,11 @@ impl Program for OSProgram {
                 .expect("Failed to find default font.").id;
             let cb1 = CommandBuffer::build_with(|builder| {
                 builder
-                .print((8, 8).into(), format!("fps : {:.1}", self.last_fps).as_str(), id)
-                .print((8, 17).into(), format!("dc  : {}", ctx.renderer.statistics().draw_count).as_str(), id)
-                .print((8, 26).into(), format!("tc  : {}", ctx.renderer.statistics().triangle_count).as_str(), id)
-                .print((8, 35).into(), format!("vp  : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), id)
+                .print((8, 8).into(), format!("dt : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), id)
+                .print((8, 17).into(), format!("dc : {}", ctx.renderer.statistics().draw_count).as_str(), id)
+                .print((8, 26).into(), format!("tc : {}", ctx.renderer.statistics().triangle_count).as_str(), id)
+                .print((8, 35).into(), format!("vp : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), id)
+                .fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2))
             });
             ctx.renderer.push_command_buffer(cb1);
         }

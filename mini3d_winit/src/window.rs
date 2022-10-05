@@ -10,7 +10,7 @@ impl Window {
 
     pub(crate) fn new(event_loop: &EventLoop<()>) -> Self {
         let window = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(1024, 640))
+            .with_inner_size(PhysicalSize::new(1024 - 30, 640))
             .with_resizable(true)
             .build(&event_loop)
             .unwrap();
