@@ -16,6 +16,34 @@ pub mod mapper;
 pub mod utils;
 pub mod window;
 
+#[derive(PartialEq, Eq)]
+enum DisplayMode {
+    FullscreenFocus,
+    WindowedFocus,
+    WindowedUnfocus,
+}
+
+fn set_display_mode(window: &mut Window, gui: &mut WindowGUI, mode: DisplayMode) -> DisplayMode {
+    match mode {
+        DisplayMode::FullscreenFocus => {
+            window.set_fullscreen(true);
+            window.set_focus(true);
+            gui.set_visible(false);
+        },
+        DisplayMode::WindowedFocus => {
+            window.set_fullscreen(false);
+            window.set_focus(true);
+            gui.set_visible(true);
+        },
+        DisplayMode::WindowedUnfocus => {
+            window.set_fullscreen(false);
+            window.set_focus(false);
+            gui.set_visible(true);
+        },
+    }
+    mode
+}
+
 fn main() {
     // Window
     let event_loop = EventLoop::new();
@@ -24,7 +52,7 @@ fn main() {
 
     // Renderer
     let mut renderer = WGPURenderer::new(&window.handle);
-    let mut gui = WindowGUI::new(renderer.context(), &window.handle);
+    let mut gui = WindowGUI::new(renderer.context(), &window.handle, &mapper);
 
     // Application
     let mut app = App::new::<OSProgram>(())
@@ -35,6 +63,9 @@ fn main() {
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
     let mut mouse_motion = (0.0, 0.0);
+
+    // Set initial display
+    let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
 
     ImageImporter::new()
         .from_source(Path::new("assets/car.png"))
@@ -63,8 +94,8 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
 
         // Update gui
-        if !window.is_focus() {
-            gui.handle_event(&event);
+        if display_mode == DisplayMode::WindowedUnfocus {
+            gui.handle_event(&event, &mut mapper, &mut window);
         }
 
         // Match window events
@@ -91,14 +122,20 @@ fn main() {
                         } => {
 
                             // Unfocus mouse
-                            if state == ElementState::Pressed && keycode == VirtualKeyCode::Escape && window.is_focus() {
-                                window.set_focus(false);
+                            if state == ElementState::Pressed && keycode == VirtualKeyCode::Escape {
+                                display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
                             }
 
                             // Toggle fullscreen
-                            if state == ElementState::Pressed && keycode == VirtualKeyCode::P {
-                                window.set_fullscreen(!window.is_fullscreen()); // Switch
-                                gui.set_visible(!window.is_fullscreen());
+                            if state == ElementState::Pressed && keycode == VirtualKeyCode::F11 && !gui.is_fullscreen() {
+                                match display_mode {
+                                    DisplayMode::FullscreenFocus => {
+                                        display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedFocus);
+                                    },
+                                    _ => {
+                                        display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::FullscreenFocus);
+                                    }
+                                }
                             }
 
                             // Dispatch keyboard
@@ -109,7 +146,7 @@ fn main() {
                         WindowEvent::MouseInput { device_id: _, state, button, .. } => {
                             
                             // Focus mouse
-                            if state == ElementState::Pressed && button == MouseButton::Left && !window.is_focus() {
+                            if state == ElementState::Pressed && button == MouseButton::Left && !window.is_focus() && !gui.is_fullscreen() {
                                 if last_click.is_none() {
                                     last_click = Some(SystemTime::now());
                                 } else {
@@ -179,7 +216,14 @@ fn main() {
                 last_time = now;
 
                 // Update GUI
-                gui.ui(&mut window, control_flow, delta_time);
+                gui.ui(
+                    &mut window,
+                    &mut app,
+                    &mut mapper,
+                    control_flow,
+                    &mut display_mode,
+                    delta_time
+                );
 
                 // Progress application
                 app.progress(desc, &mut events, &mut requests, delta_time)

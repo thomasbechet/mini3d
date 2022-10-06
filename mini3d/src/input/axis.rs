@@ -4,17 +4,26 @@ use super::InputGroupId;
 
 new_key_type! { pub struct AxisInputId; }
 
+#[derive(Default, Clone)]
 pub enum AxisKind {
     Clamped { min: f32, max: f32 },
     Normalized { norm: f32 },
     ClampedNormalized { min: f32, max: f32, norm: f32 },
+    #[default]
     Infinite,
 }
 
-pub struct AxisInput {
-    pub value: f32,
-    pub kind: AxisKind,
+#[derive(Default, Clone)]
+pub struct AxisDescriptor {
     pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub kind: AxisKind,
+}
+
+pub struct AxisInput {
+    pub descriptor: AxisDescriptor,
+    pub value: f32,
     pub group: InputGroupId,
     pub id: AxisInputId,
 }
@@ -22,7 +31,7 @@ pub struct AxisInput {
 impl AxisInput {
     
     pub fn set_value(&mut self, value: f32) {
-        self.value = match self.kind {
+        self.value = match self.descriptor.kind {
             AxisKind::Clamped { min, max } => {
                 value.max(min).min(max)
             },

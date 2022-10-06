@@ -1,16 +1,16 @@
 pub struct OSGroup;
 
 impl OSGroup {
-    pub const INPUT: &'static str = "os";
-    pub const ASSET: &'static str = "os";
+    pub const INPUT: &'static str = "default";
+    pub const ASSET: &'static str = "default";
 }
 
 pub struct OSAction;
 
 impl OSAction {
     pub const UP: &'static str = "up"; 
-    pub const DOWN: &'static str = "down"; 
     pub const LEFT: &'static str = "left"; 
+    pub const DOWN: &'static str = "down"; 
     pub const RIGHT: &'static str = "right";
 }
 

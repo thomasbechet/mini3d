@@ -68,7 +68,7 @@ pub unsafe extern "C" fn mini3d_input_database_get_action(
     let app = (app as *const App).as_ref().unwrap();
     let b = InputDatabase::action(app, ActionInputId::from(KeyData::from_ffi(id))).unwrap();
     // Convert name string
-    let bytes = match CString::new(b.name.clone()) {
+    let bytes = match CString::new(b.descriptor.name.clone()) {
         Ok(s) => s,
         Err(_) => return -1,
     };
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn mini3d_input_database_get_axis(
     let app = (app as *const App).as_ref().unwrap();
     let a = InputDatabase::axis(app, AxisInputId::from(KeyData::from_ffi(id))).unwrap();
     // Convert name string
-    let bytes = match CString::new(a.name.clone()) {
+    let bytes = match CString::new(a.descriptor.name.clone()) {
         Ok(s) => s,
         Err(_) => return -1,
     };

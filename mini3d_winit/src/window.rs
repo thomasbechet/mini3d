@@ -47,8 +47,4 @@ impl Window {
         });
         self.fullscreen = toggle;
     }
-
-    pub(crate) fn is_fullscreen(&self) -> bool {
-        self.fullscreen
-    }
 }

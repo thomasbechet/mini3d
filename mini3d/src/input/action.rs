@@ -4,10 +4,17 @@ use super::InputGroupId;
 
 new_key_type! { pub struct ActionInputId; }
 
+#[derive(Default, Clone)]
+pub struct ActionDescriptor {
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+}
+
 pub struct ActionInput {
+    pub descriptor: ActionDescriptor,
     pub(crate) pressed: bool,
     pub(crate) was_pressed: bool,
-    pub name: String,
     pub group: InputGroupId,
     pub id: ActionInputId,
 }

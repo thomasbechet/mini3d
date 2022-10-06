@@ -3,7 +3,7 @@ use slotmap::{new_key_type, SlotMap, Key};
 
 use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App};
 
-use self::{axis::{AxisInput, AxisKind, AxisInputId}, action::{ActionInput, ActionState, ActionInputId}};
+use self::{axis::{AxisInput, AxisInputId, AxisDescriptor}, action::{ActionInput, ActionState, ActionInputId, ActionDescriptor}};
 
 pub mod control_layout;
 pub mod axis;
@@ -110,26 +110,26 @@ impl InputManager {
         }
     }
 
-    pub fn find_action(&self, name: &str, group: InputGroupId) -> Option<&ActionInput> {
+    pub fn find_action(&self, group: InputGroupId, name: &str) -> Option<&ActionInput> {
         self.actions.iter()
-            .find(|(_, e)| e.name.as_str() == name && e.group == group)
+            .find(|(_, e)| e.descriptor.name.as_str() == name && e.group == group)
             .map(|(_, e)| e)
     }
 
-    pub fn find_axis(&self, name: &str, group: InputGroupId) -> Option<&AxisInput> {
+    pub fn find_axis(&self, group: InputGroupId, name: &str) -> Option<&AxisInput> {
         self.axis.iter()
-            .find(|(_, e)| e.name.as_str() == name && e.group == group)
+            .find(|(_, e)| e.descriptor.name.as_str() == name && e.group == group)
             .map(|(_, e)| e)
     }
 
-    pub fn register_action(&mut self, name: &str, group: InputGroupId) -> Result<ActionInputId> {
-        if self.find_axis(name, group).is_some() {
-            Err(anyhow!("Action input name '{}' already exists", name))
+    pub fn register_action(&mut self, group: InputGroupId, descriptor: ActionDescriptor) -> Result<ActionInputId> {
+        if self.find_axis(group, &descriptor.name).is_some() {
+            Err(anyhow!("Action input name '{}' already exists", descriptor.name))
         } else {
             let id = self.actions.insert(ActionInput { 
+                descriptor,
                 pressed: false, 
                 was_pressed: false, 
-                name: name.to_string(),
                 group,
                 id: ActionInputId::null(),
             });
@@ -139,16 +139,15 @@ impl InputManager {
         }
     }
 
-    pub fn register_axis(&mut self, name: &str, group: InputGroupId, axis: AxisKind) -> Result<AxisInputId> {
-        if self.find_axis(name, group).is_some() {
-            Err(anyhow!("Axis input name '{}' already exists", name))
+    pub fn register_axis(&mut self, group: InputGroupId, descriptor: AxisDescriptor) -> Result<AxisInputId> {
+        if self.find_axis(group, &descriptor.name).is_some() {
+            Err(anyhow!("Axis input name '{}' already exists", descriptor.name))
         } else {
-            let id = self.axis.insert(AxisInput { 
-                name: name.to_string(),
+            let id = self.axis.insert(AxisInput {
+                descriptor,
                 id: AxisInputId::null(),
                 value: 0.0,
                 group,
-                kind: axis,
             });
             self.axis.get_mut(id).unwrap().id = id;
             self.reload_input_mapping = true;

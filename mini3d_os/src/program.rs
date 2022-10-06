@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::AxisKind}, slotmap::Key, math::rect::IRect};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect};
 
 use crate::input::{OSAxis, OSAction, OSGroup};
 
@@ -45,15 +45,51 @@ impl Program for OSProgram {
             .context("Failed to register os input group")?;
 
         // Register os inputs
-        ctx.input.register_axis(OSAxis::CURSOR_X, self.input_group, AxisKind::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 }).unwrap();
-        ctx.input.register_axis(OSAxis::CURSOR_Y, self.input_group, AxisKind::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 }).unwrap();
-        ctx.input.register_axis(OSAxis::MOTION_X, self.input_group, AxisKind::Infinite).unwrap();
-        ctx.input.register_axis(OSAxis::MOTION_Y, self.input_group, AxisKind::Infinite).unwrap();
-        ctx.input.register_action(OSAction::UP, self.input_group).unwrap();
-        ctx.input.register_action(OSAction::DOWN, self.input_group).unwrap();
-        ctx.input.register_action(OSAction::LEFT, self.input_group).unwrap();
-        ctx.input.register_action(OSAction::RIGHT, self.input_group).unwrap();
-        
+        ctx.input.register_axis(self.input_group, AxisDescriptor {
+            name: OSAxis::CURSOR_X.to_string(),
+            display_name: "Cursor X".to_string(),
+            description: "Horizontal position of the mouse cursor relative to the screen.".to_string(),
+            kind: AxisKind::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 },
+        })?;
+        ctx.input.register_axis(self.input_group, AxisDescriptor {
+            name: OSAxis::CURSOR_Y.to_string(),
+            display_name: "Cursor Y".to_string(),
+            description: "Vertical position of the mouse cursor relative to the screen.".to_string(),
+            kind: AxisKind::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 },
+        })?;
+        ctx.input.register_axis(self.input_group, AxisDescriptor {
+            name: OSAxis::MOTION_X.to_string(),
+            display_name: "Motion X".to_string(),
+            description: "Delta mouvement of the mouse on the horizontal axis.".to_string(),
+            kind: AxisKind::Infinite,
+        })?;
+        ctx.input.register_axis(self.input_group, AxisDescriptor {
+            name: OSAxis::MOTION_Y.to_string(),
+            display_name: "Motion Y".to_string(),
+            description: "Delta mouvement of the mouse on the vertical axis.".to_string(),
+            kind: AxisKind::Infinite,
+        })?;
+        ctx.input.register_action(self.input_group, ActionDescriptor {
+            name: OSAction::UP.to_string(),
+            display_name: "Up".to_string(),
+            description: "Layout navigation control (go up).".to_string(),
+        })?;
+        ctx.input.register_action(self.input_group, ActionDescriptor {
+            name: OSAction::LEFT.to_string(),
+            display_name: "Left".to_string(),
+            description: "Layout navigation control (go left).".to_string(),
+        })?;
+        ctx.input.register_action(self.input_group, ActionDescriptor {
+            name: OSAction::DOWN.to_string(),
+            display_name: "Down".to_string(),
+            description: "Layout navigation control (go down).".to_string(),
+        })?;
+        ctx.input.register_action(self.input_group, ActionDescriptor {
+            name: OSAction::RIGHT.to_string(),
+            display_name: "Right".to_string(),
+            description: "Layout navigation control (go right).".to_string(),
+        })?;
+                
         // Register default font
         let id = ctx.asset.register("default", self.asset_group, Font::default())
             .context("Failed to register default core font")?;
@@ -61,28 +97,75 @@ impl Program for OSProgram {
             .context("Failed to set default font asset")?;
 
         // Register default inuts
+        let test_group = ctx.input.register_group("test", self.id).context("Failed to register test group")?;
         // let click = ctx.input.register_action("click", self.input_group)?;
-        ctx.input.register_axis("move_forward", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_axis("move_backward", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_axis("move_left", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_axis("move_right", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_axis("move_up", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_axis("move_down", self.input_group, AxisKind::Clamped { min: 0.0, max: 1.0 }).unwrap();
-        ctx.input.register_action("switch_mode", self.input_group).unwrap();
-        ctx.input.register_action("roll_left", self.input_group).unwrap();
-        ctx.input.register_action("roll_right", self.input_group).unwrap();
-        ctx.input.register_action("toggle_layout", self.input_group).unwrap();
+        ctx.input.register_axis(test_group, AxisDescriptor { 
+            name: "move_forward".to_string(), 
+            display_name: "Move Forward".to_string(), 
+            description: "".to_string(), 
+            kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
+        }).unwrap();
+        ctx.input.register_axis(test_group, AxisDescriptor { 
+            name: "move_backward".to_string(), 
+            display_name: "Move Backward".to_string(), 
+            description: "".to_string(), 
+            kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
+        }).unwrap();
+        ctx.input.register_axis(test_group, AxisDescriptor { 
+            name: "move_left".to_string(), 
+            display_name: "Move Left".to_string(), 
+            description: "".to_string(), 
+            kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
+        }).unwrap();
+        ctx.input.register_axis(test_group, AxisDescriptor { 
+            name: "move_right".to_string(), 
+            display_name: "Move Right".to_string(), 
+            description: "".to_string(), 
+            kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
+        }).unwrap();
+        ctx.input.register_axis(test_group, AxisDescriptor { 
+            name: "move_up".to_string(), 
+            display_name: "Move Up".to_string(), 
+            description: "".to_string(), 
+            kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
+        }).unwrap();
+        ctx.input.register_axis(test_group, AxisDescriptor { 
+            name: "move_down".to_string(), 
+            display_name: "Move Down".to_string(), 
+            description: "".to_string(), 
+            kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
+        }).unwrap();
+        ctx.input.register_action(test_group, ActionDescriptor { 
+            name: "switch_mode".to_string(), 
+            display_name: "Switch Mode".to_string(), 
+            description: "".to_string(), 
+        }).unwrap();
+        ctx.input.register_action(test_group, ActionDescriptor { 
+            name: "roll_left".to_string(), 
+            display_name: "Roll Left".to_string(), 
+            description: "".to_string(), 
+        }).unwrap();
+        ctx.input.register_action(test_group, ActionDescriptor { 
+            name: "roll_right".to_string(), 
+            display_name: "Roll Right".to_string(), 
+            description: "".to_string(), 
+        }).unwrap();
+        ctx.input.register_action(test_group, ActionDescriptor { 
+            name: "toggle_layout".to_string(), 
+            display_name: "Toggle Layout".to_string(), 
+            description: "".to_string(), 
+        }).unwrap();
 
         // Add initial control profile
         self.control_profile = self.control_layout.add_profile(ControlInputs {
-            up: ctx.input.find_action(OSAction::UP, self.input_group).unwrap().id,
-            down: ctx.input.find_action(OSAction::DOWN, self.input_group).unwrap().id,
-            left: ctx.input.find_action(OSAction::LEFT, self.input_group).unwrap().id,
-            right: ctx.input.find_action(OSAction::RIGHT, self.input_group).unwrap().id,
-            cursor_x: ctx.input.find_axis(OSAxis::CURSOR_X, self.input_group).unwrap().id, 
-            cursor_y: ctx.input.find_axis(OSAxis::CURSOR_Y, self.input_group).unwrap().id,
-            motion_x: ctx.input.find_axis(OSAxis::MOTION_X, self.input_group).unwrap().id,
-            motion_y: ctx.input.find_axis(OSAxis::MOTION_Y, self.input_group).unwrap().id,
+            up: ctx.input.find_action(self.input_group, OSAction::UP).unwrap().id,
+            down: ctx.input.find_action(self.input_group, OSAction::DOWN).unwrap().id,
+            left: ctx.input.find_action(self.input_group, OSAction::LEFT).unwrap().id,
+            right: ctx.input.find_action(self.input_group, OSAction::RIGHT).unwrap().id,
+            cursor_x: ctx.input.find_axis(self.input_group, OSAxis::CURSOR_X).unwrap().id, 
+            cursor_y: ctx.input.find_axis(self.input_group, OSAxis::CURSOR_Y).unwrap().id,
+            motion_x: ctx.input.find_axis(self.input_group, OSAxis::MOTION_X).unwrap().id,
+            motion_y: ctx.input.find_axis(self.input_group, OSAxis::MOTION_Y).unwrap().id,
         });
 
         self.control_layout.add_control(IRect::new(5, 5, 100, 50));
@@ -155,17 +238,17 @@ impl Program for OSProgram {
         self.world.spawn((
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
-                switch_mode: ctx.input.find_action("switch_mode", self.input_group).unwrap().id,
-                roll_left: ctx.input.find_action("roll_left", self.input_group).unwrap().id,
-                roll_right: ctx.input.find_action("roll_right", self.input_group).unwrap().id,
-                look_x: ctx.input.find_axis(OSAxis::MOTION_X, self.input_group).unwrap().id,
-                look_y: ctx.input.find_axis(OSAxis::MOTION_Y, self.input_group).unwrap().id,
-                move_forward: ctx.input.find_axis("move_forward", self.input_group).unwrap().id,
-                move_backward: ctx.input.find_axis("move_backward", self.input_group).unwrap().id,
-                move_up: ctx.input.find_axis("move_up", self.input_group).unwrap().id,
-                move_down: ctx.input.find_axis("move_down", self.input_group).unwrap().id,
-                move_left: ctx.input.find_axis("move_left", self.input_group).unwrap().id,
-                move_right: ctx.input.find_axis("move_right", self.input_group).unwrap().id,
+                switch_mode: ctx.input.find_action(test_group, "switch_mode").unwrap().id,
+                roll_left: ctx.input.find_action(test_group, "roll_left").unwrap().id,
+                roll_right: ctx.input.find_action(test_group, "roll_right").unwrap().id,
+                look_x: ctx.input.find_axis(self.input_group, OSAxis::MOTION_X).unwrap().id,
+                look_y: ctx.input.find_axis(self.input_group, OSAxis::MOTION_Y).unwrap().id,
+                move_forward: ctx.input.find_axis(test_group, "move_forward").unwrap().id,
+                move_backward: ctx.input.find_axis(test_group, "move_backward").unwrap().id,
+                move_up: ctx.input.find_axis(test_group, "move_up").unwrap().id,
+                move_down: ctx.input.find_axis(test_group, "move_down").unwrap().id,
+                move_left: ctx.input.find_axis(test_group, "move_left").unwrap().id,
+                move_right: ctx.input.find_axis(test_group, "move_right").unwrap().id,
                 free_mode: false,
                 yaw: 0.0,
                 pitch: 0.0,
@@ -195,7 +278,8 @@ impl Program for OSProgram {
             }
 
             // if ctx.input.find_action("toggle_layout").unwrap().is_just_pressed() {
-            let toggle_layout_id = ctx.input.find_action("toggle_layout", self.input_group).unwrap().id;
+            let test_group = ctx.input.find_group("test").unwrap().id;
+            let toggle_layout_id = ctx.input.find_action(test_group, "toggle_layout").unwrap().id;
             if ctx.input.action(toggle_layout_id).unwrap().is_just_pressed() {
                 self.layout_active = !self.layout_active;
             }
