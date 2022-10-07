@@ -75,11 +75,14 @@ impl WindowGUI {
 
     pub(crate) fn set_visible(&mut self, toggle: bool) {
         self.visible = toggle;
-        self.page = Page::None;
     }
 
     pub(crate) fn is_fullscreen(&self) -> bool {
         self.page != Page::None
+    }
+
+    pub(crate) fn is_recording(&self) -> bool {
+        self.record_request.is_some()
     }
 
     pub(crate) fn handle_event<T>(
@@ -156,8 +159,36 @@ impl WindowGUI {
                         _ => {}
                     }
                 },
-                RecordKind::Axis { .. } => {
-
+                RecordKind::Axis { previous } => {
+                    match event {
+                        Event::WindowEvent { event, .. } => {
+                            match event {
+                                WindowEvent::KeyboardInput {
+                                    input: KeyboardInput {
+                                        virtual_keycode: Some(keycode),
+                                        state,
+                                        ..
+                                    },
+                                    ..
+                                } => {
+                                    if *state == ElementState::Pressed && *keycode == VirtualKeyCode::Escape {
+                                        // Cancel recording
+                                        match request.source {
+                                            RecordSource::Axis { index } => {
+                                                mapper.configs.get_mut(request.config_id).unwrap()
+                                                    .groups[request.group_index].axis[index].axis = previous;
+                                            },
+                                            _ => {}
+                                        }
+                                        window.set_focus(false);
+                                        self.record_request = None;
+                                    }
+                                },
+                                _ => {}
+                            }
+                        },
+                        _ => {}
+                    }
                 },
             }
         } else {
@@ -195,7 +226,25 @@ impl WindowGUI {
                         _ => {}
                     }
                 },
-                RecordKind::Axis { .. } => {},
+                RecordKind::Axis { .. } => {
+                    match event {
+                        gilrs::EventType::AxisChanged(ax, value, _) => {
+                            if f32::abs(*value) > 0.6 {
+                                match request.source {
+                                    RecordSource::Axis { index } => {
+                                        let axis = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].axis[index];
+                                        axis.axis = Some(Axis::Controller { id, axis: *ax });
+                                        axis.axis_scale = if *value > 0.0 { 1.0 } else { -1.0 };
+                                    },
+                                    _ => {}
+                                }
+                                window.set_focus(false);
+                                self.record_request = None;
+                            }
+                        },
+                        _ => {}
+                    }
+                },
             }
         }
     }
@@ -405,7 +454,7 @@ impl WindowGUI {
                                             table = table.column(Size::exact(100.0)); // Button
                                             table = table.column(Size::exact(60.0)); // Button Value
                                             table = table.column(Size::exact(110.0)); // Axis
-                                            table = table.column(Size::exact(60.0)); // Axis Sensibility
+                                            table = table.column(Size::exact(60.0)); // Axis Scale
                                             if self.show_min_max {
                                                 table = table.column(Size::exact(40.0)); // Min
                                                 table = table.column(Size::exact(40.0)); // Max
@@ -426,7 +475,7 @@ impl WindowGUI {
                                                     header.col(|ui| { ui.label(egui::RichText::new("Button").strong()); });
                                                     header.col(|ui| { ui.label(egui::RichText::new("Value").strong()); });
                                                     header.col(|ui| { ui.label(egui::RichText::new("Axis").strong()); });
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Sensibility").strong()); });
+                                                    header.col(|ui| { ui.label(egui::RichText::new("Scale").strong()); });
                                                     if self.show_min_max {
                                                         header.col(|ui| { ui.label(egui::RichText::new("Min").strong()); });
                                                         header.col(|ui| { ui.label(egui::RichText::new("Max").strong()); });
@@ -477,33 +526,53 @@ impl WindowGUI {
                                                                     ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.button_value).fixed_decimals(3));
                                                                 }
                                                             });
-                                                            row.col(|ui| { 
-                                                                egui::ComboBox::from_id_source(format!("{}_combobox", axis.descriptor.name))
-                                                                    .selected_text(
-                                                                        if let Some(axis) = &axis.axis {
-                                                                            match axis {
-                                                                                Axis::CursorX => "Cursor X",
-                                                                                Axis::CursorY => "Cursor Y",
-                                                                                Axis::MotionX => "Motion X",
-                                                                                Axis::MotionY => "Motion Y",
-                                                                            }
-                                                                        } else {
-                                                                            ""
+                                                            row.col(|ui| {
+
+                                                                if ui.add_sized(ui.available_size(), egui::Button::new(
+                                                                    if let Some(axis) = &axis.axis {
+                                                                        match axis {
+                                                                            Axis::CursorX => { "Cursor X".to_owned() },
+                                                                            Axis::CursorY => { "Cursor Y".to_owned() },
+                                                                            Axis::MotionX => { "Motion X".to_owned() },
+                                                                            Axis::MotionY => { "Motion Y".to_owned() },
+                                                                            Axis::Controller { id, axis } => { format!("{:?} ({})", axis, id) },
                                                                         }
-                                                                    )
-                                                                    .width(100.0)
-                                                                    .show_ui(ui, |ui| {
-                                                                        ui.selectable_value(&mut axis.axis, None, "");
-                                                                        ui.selectable_value(&mut axis.axis, Some(Axis::CursorX), "Cursor X");
-                                                                        ui.selectable_value(&mut axis.axis, Some(Axis::CursorY), "Cursor Y");
-                                                                        ui.selectable_value(&mut axis.axis, Some(Axis::MotionX), "Motion X");
-                                                                        ui.selectable_value(&mut axis.axis, Some(Axis::MotionY), "Motion Y");
+                                                                    } else {
+                                                                        "".to_owned()
                                                                     }
-                                                                );
+                                                                ).stroke(egui::Stroke::none()))
+                                                                .context_menu(|ui| {
+                                                                    if ui.button("Reset").clicked() {
+                                                                        axis.button = None;
+                                                                        ui.close_menu();
+                                                                    } else if ui.button("Cursor X").clicked() {
+                                                                        axis.axis = Some(Axis::CursorX);
+                                                                        ui.close_menu();
+                                                                    } else if ui.button("Cursor Y").clicked() {
+                                                                        axis.axis = Some(Axis::CursorY);
+                                                                        ui.close_menu();
+                                                                    } else if ui.button("Motion X").clicked() {
+                                                                        axis.axis = Some(Axis::MotionX);
+                                                                        ui.close_menu();
+                                                                    } else if ui.button("Motion Y").clicked() {
+                                                                        axis.axis = Some(Axis::MotionY);
+                                                                        ui.close_menu();
+                                                                    }
+                                                                })
+                                                                .clicked() {
+                                                                    self.record_request = Some(RecordRequest { 
+                                                                        config_id: self.active_config,
+                                                                        group_index, 
+                                                                        kind: RecordKind::Axis { previous: axis.axis }, 
+                                                                        source: RecordSource::Axis { index: axis_index },
+                                                                    });
+                                                                    axis.axis = None;
+                                                                    window.set_focus(true);
+                                                                }
                                                             });
                                                             row.col(|ui| {
                                                                 if axis.axis.is_some() {
-                                                                    ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.axis_sensibility).fixed_decimals(3));
+                                                                    ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.axis_scale).fixed_decimals(3));
                                                                 }
                                                             });
                                                             if self.show_min_max {

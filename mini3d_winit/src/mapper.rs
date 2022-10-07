@@ -35,7 +35,7 @@ struct ControllerButtonToAxis {
 }
 struct ControllerAxisToAxis {
     id: AxisInputId,
-    sensibility: f32,
+    scale: f32,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -44,6 +44,7 @@ pub(crate) enum Axis {
     CursorY, 
     MotionX, 
     MotionY,
+    Controller { id: GamepadId, axis: gilrs::Axis }
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -51,7 +52,6 @@ pub(crate) enum Button {
     Keyboard { code: VirtualKeyCode },
     Mouse { button: MouseButton },
     Controller { id: GamepadId, button: gilrs::Button }
-    // Add controller button
 }
 
 #[derive(Default)]
@@ -67,7 +67,7 @@ pub(crate) struct MapAxisInput {
     pub(crate) button: Option<Button>,
     pub(crate) button_value: f32,
     pub(crate) axis: Option<Axis>,
-    pub(crate) axis_sensibility: f32,
+    pub(crate) axis_scale: f32,
 }
 
 #[derive(Default)]
@@ -125,8 +125,8 @@ impl InputMapper {
                     axis: vec![
                         MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_X.to_string(), ..Default::default() }, axis: Some(Axis::CursorX), ..Default::default() },
                         MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_Y.to_string(), ..Default::default() }, axis: Some(Axis::CursorY), ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_X.to_string(), ..Default::default() }, axis: Some(Axis::MotionX), axis_sensibility: 0.01, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_Y.to_string(), ..Default::default() }, axis: Some(Axis::MotionY), axis_sensibility: 0.01, ..Default::default() },
+                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_X.to_string(), ..Default::default() }, axis: Some(Axis::MotionX), axis_scale: 0.01, ..Default::default() },
+                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_Y.to_string(), ..Default::default() }, axis: Some(Axis::MotionY), axis_scale: 0.01, ..Default::default() },
                     ],
                     ..Default::default()
                 },
@@ -209,7 +209,7 @@ impl InputMapper {
                         button: Default::default(),
                         button_value: 1.0,
                         axis: Default::default(),
-                        axis_sensibility: 1.0,
+                        axis_scale: 1.0,
                     });
                 }
             }
@@ -277,11 +277,15 @@ impl InputMapper {
                                 self.mouse_cursor_y_to_axis.push(MouseCursorToAxis { id: axis.id });
                             },
                             Axis::MotionX => {
-                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, sensibility: axis.axis_sensibility });
+                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, sensibility: axis.axis_scale });
                             },
                             Axis::MotionY => {
-                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, sensibility: axis.axis_sensibility });
+                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, sensibility: axis.axis_scale });
                             },
+                            Axis::Controller { id, axis: ax } => {
+                                self.controllers_axis_to_axis.entry(*id).or_insert(Default::default()).entry(*ax).or_insert(Default::default())
+                                    .push(ControllerAxisToAxis { id: axis.id, scale: axis.axis_scale })
+                            }
                         }
                     }
                 }
@@ -367,10 +371,14 @@ impl InputMapper {
     }
 
     pub(crate) fn dispatch_controller_axis(&self, id: GamepadId, controller_axis: gilrs::Axis, value: f32, events: &mut AppEvents) {
+
+        // Compute value with deadzone
+        let value = if f32::abs(value) <= 0.15 { 0.0 } else { value };
+
         if let Some(axis) = &self.controllers_axis_to_axis.get(&id) {
             if let Some(ax) = axis.get(&controller_axis) {
                 for a in ax {
-                    events.push_input(InputEvent::Axis(AxisEvent { id: a.id, value: value * a.sensibility }));
+                    events.push_input(InputEvent::Axis(AxisEvent { id: a.id, value: value * a.scale }));
                 }
             }
         }

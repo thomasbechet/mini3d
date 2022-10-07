@@ -125,7 +125,7 @@ fn main() {
                         } => {
 
                             // Unfocus mouse
-                            if state == ElementState::Pressed && keycode == VirtualKeyCode::Escape {
+                            if state == ElementState::Pressed && keycode == VirtualKeyCode::Escape && !gui.is_recording() {
                                 display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
                             }
 
