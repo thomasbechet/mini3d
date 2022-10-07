@@ -166,6 +166,40 @@ impl WindowGUI {
         }
     }
 
+    pub(crate) fn handle_controller_event(
+        &mut self,
+        event: &gilrs::EventType,
+        id: gilrs::GamepadId,
+        mapper: &mut InputMapper,
+        window: &mut Window,
+    ) {
+        if let Some(request) = &self.record_request {
+            match request.kind {
+                RecordKind::Button { .. } => {
+                    match event {
+                        gilrs::EventType::ButtonPressed(button, _) => {
+                            match request.source {
+                                RecordSource::Action { index } => {
+                                    let action = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].actions[index];
+                                    action.button = Some(Button::Controller { id, button: *button });
+                                },
+                                RecordSource::Axis { index } => {
+                                    let axis = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].axis[index];
+                                    axis.button = Some(Button::Controller { id, button: *button });
+                                    axis.button_value = 1.0;
+                                },
+                            }
+                            window.set_focus(false);
+                            self.record_request = None;
+                        },
+                        _ => {}
+                    }
+                },
+                RecordKind::Axis { .. } => {},
+            }
+        }
+    }
+
     pub(crate) fn central_viewport(&self) -> Vec4 {
         self.central_viewport
     }
@@ -290,7 +324,7 @@ impl WindowGUI {
                                             if self.show_internal_name {
                                                 table = table.column(Size::initial(100.0)); // Internal Name
                                             }
-                                            table = table.column(Size::exact(80.0)); // Button
+                                            table = table.column(Size::exact(100.0)); // Button
                                             table = table.column(Size::remainder()); // Description
                                             table.scroll(false)
                                                 .striped(true)
@@ -323,6 +357,7 @@ impl WindowGUI {
                                                                             match button {
                                                                                 Button::Keyboard { code } => format!("{:?}", code),
                                                                                 Button::Mouse { button } => format!("{:?}", button),
+                                                                                Button::Controller { id, button } => format!("{:?} ({})", button, id),
                                                                             }
                                                                         } else {
                                                                             "".to_owned()
@@ -367,7 +402,7 @@ impl WindowGUI {
                                             if self.show_internal_name {
                                                 table = table.column(Size::initial(100.0)); // Name
                                             }
-                                            table = table.column(Size::exact(80.0)); // Button
+                                            table = table.column(Size::exact(100.0)); // Button
                                             table = table.column(Size::exact(60.0)); // Button Value
                                             table = table.column(Size::exact(110.0)); // Axis
                                             table = table.column(Size::exact(60.0)); // Axis Sensibility
@@ -414,6 +449,7 @@ impl WindowGUI {
                                                                         match button {
                                                                             Button::Keyboard { code } => format!("{:?}", code),
                                                                             Button::Mouse { button } => format!("{:?}", button),
+                                                                            Button::Controller { id, button } => format!("{:?} ({})", button, id),
                                                                         }
                                                                     } else {
                                                                         "".to_owned()

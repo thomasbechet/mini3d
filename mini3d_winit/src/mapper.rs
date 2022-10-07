@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use gilrs::GamepadId;
 use mini3d::{input::{InputGroupId, axis::{AxisInputId, AxisDescriptor}, action::{ActionInputId, ActionState, ActionDescriptor}, InputDatabase}, app::App, event::{AppEvents, input::{InputEvent, ActionEvent, AxisEvent}}, slotmap::{new_key_type, SlotMap}};
 use mini3d_os::input::{OSGroup, OSAction, OSAxis};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
@@ -25,6 +26,17 @@ struct MouseMotionToAxis {
 struct MouseCursorToAxis {
     id: AxisInputId,
 }
+struct ControllerButtonToAction {
+    id: ActionInputId,
+}
+struct ControllerButtonToAxis {
+    id: AxisInputId,
+    value: f32,
+}
+struct ControllerAxisToAxis {
+    id: AxisInputId,
+    sensibility: f32,
+}
 
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum Axis {
@@ -38,6 +50,7 @@ pub(crate) enum Axis {
 pub(crate) enum Button {
     Keyboard { code: VirtualKeyCode },
     Mouse { button: MouseButton },
+    Controller { id: GamepadId, button: gilrs::Button }
     // Add controller button
 }
 
@@ -87,6 +100,9 @@ pub(crate) struct InputMapper {
     mouse_motion_y_to_axis: Vec<MouseMotionToAxis>,
     mouse_cursor_x_to_axis: Vec<MouseCursorToAxis>,
     mouse_cursor_y_to_axis: Vec<MouseCursorToAxis>,
+    controllers_button_to_action: HashMap<gilrs::GamepadId, HashMap<gilrs::Button, Vec<ControllerButtonToAction>>>,
+    controllers_button_to_axis: HashMap<gilrs::GamepadId, HashMap<gilrs::Button, Vec<ControllerButtonToAxis>>>,
+    controllers_axis_to_axis: HashMap<gilrs::GamepadId, HashMap<gilrs::Axis, Vec<ControllerAxisToAxis>>>,
 }
 
 impl InputMapper {
@@ -214,6 +230,9 @@ impl InputMapper {
         self.mouse_cursor_y_to_axis.clear();
         self.mouse_motion_x_to_axis.clear();
         self.mouse_motion_y_to_axis.clear();
+        self.controllers_button_to_action.clear();
+        self.controllers_button_to_axis.clear();
+        self.controllers_axis_to_axis.clear();
 
         // Update caches
         for (_, config) in &self.configs {
@@ -227,6 +246,10 @@ impl InputMapper {
                             Button::Mouse { button } => {
                                 self.mouse_button_to_action.entry(*button).or_insert(Default::default()).push(MouseButtonToAction { id: action.id });
                             },
+                            Button::Controller { id, button } => {
+                                self.controllers_button_to_action.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
+                                    .push(ControllerButtonToAction { id: action.id });
+                            },
                         }
                     }
                 }
@@ -238,6 +261,10 @@ impl InputMapper {
                             },
                             Button::Mouse { button } => {
                                 self.mouse_button_to_axis.entry(*button).or_insert(Default::default()).push(MouseButtonToAxis { id: axis.id, value: axis.button_value });
+                            },
+                            Button::Controller { id, button } => {
+                                self.controllers_button_to_axis.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
+                                    .push(ControllerButtonToAxis { id: axis.id, value: axis.button_value });
                             },
                         }
                     }
@@ -315,6 +342,37 @@ impl InputMapper {
         }
         for axis in &self.mouse_cursor_y_to_axis {
             events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: cursor.1 }));
+        }
+    }
+
+    pub(crate) fn dispatch_controller_button(&self, id: GamepadId, button: gilrs::Button, state: ActionState, events: &mut AppEvents) {
+        if let Some(buttons) = &self.controllers_button_to_action.get(&id) {
+            if let Some(actions) = buttons.get(&button) {
+                for action in actions {
+                    events.push_input(InputEvent::Action(ActionEvent { id: action.id, state }));
+                }
+            }
+        }
+        if let Some(axis) = &self.controllers_button_to_axis.get(&id) {
+            if let Some(a) = axis.get(&button) {
+                for ax in a {
+                    let value = match state {
+                        ActionState::Pressed => ax.value,
+                        ActionState::Released => 0.0,
+                    };
+                    events.push_input(InputEvent::Axis(AxisEvent { id: ax.id, value }));
+                }
+            }
+        }
+    }
+
+    pub(crate) fn dispatch_controller_axis(&self, id: GamepadId, controller_axis: gilrs::Axis, value: f32, events: &mut AppEvents) {
+        if let Some(axis) = &self.controllers_axis_to_axis.get(&id) {
+            if let Some(ax) = axis.get(&controller_axis) {
+                for a in ax {
+                    events.push_input(InputEvent::Axis(AxisEvent { id: a.id, value: value * a.sensibility }));
+                }
+            }
         }
     }
 }

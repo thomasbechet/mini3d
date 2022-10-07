@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path};
 
 use gui::WindowGUI;
 use mapper::InputMapper;
-use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, TextEvent}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor};
+use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, TextEvent}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, input::action::ActionState};
 use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -64,6 +64,9 @@ fn main() {
     let mut last_time = Instant::now();
     let mut mouse_motion = (0.0, 0.0);
 
+    // Controllers
+    let mut gilrs = gilrs::Gilrs::new().unwrap();
+    
     // Set initial display
     let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
 
@@ -192,6 +195,25 @@ fn main() {
                 
             }
             Event::MainEventsCleared => {
+
+                // Dispatch controller events
+                while let Some(gilrs::Event { id, event, .. }) = &gilrs.next_event() {
+                    if display_mode == DisplayMode::WindowedUnfocus {
+                        gui.handle_controller_event(&event, *id, &mut mapper, &mut window);
+                    }
+                    match event {
+                        gilrs::EventType::ButtonPressed(button, _) => {
+                            mapper.dispatch_controller_button(*id, *button, ActionState::Pressed, &mut events);
+                        },
+                        gilrs::EventType::ButtonReleased(button, _) => {
+                            mapper.dispatch_controller_button(*id, *button, ActionState::Released, &mut events);
+                        },
+                        gilrs::EventType::AxisChanged(axis, value, _) => {
+                            mapper.dispatch_controller_axis(*id, *axis, *value, &mut events);
+                        },
+                        _ => {}
+                    }
+                }
 
                 // Dispatch mouse motion and reset
                 if window.is_focus() {
