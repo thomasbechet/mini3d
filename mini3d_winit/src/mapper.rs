@@ -21,9 +21,9 @@ struct MouseButtonToAxis {
 }
 struct MouseMotionToAxis {
     id: AxisInputId,
-    sensibility: f32,
+    scale: f32,
 }
-struct MouseCursorToAxis {
+struct MousePositionToAxis {
     id: AxisInputId,
 }
 struct ControllerButtonToAction {
@@ -40,10 +40,10 @@ struct ControllerAxisToAxis {
 
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum Axis {
-    CursorX, 
-    CursorY, 
-    MotionX, 
-    MotionY,
+    MousePositionX, 
+    MousePositionY, 
+    MouseMotionX, 
+    MouseMotionY,
     Controller { id: GamepadId, axis: gilrs::Axis }
 }
 
@@ -98,8 +98,8 @@ pub(crate) struct InputMapper {
     mouse_button_to_axis: HashMap<MouseButton, Vec<MouseButtonToAxis>>,
     mouse_motion_x_to_axis: Vec<MouseMotionToAxis>,
     mouse_motion_y_to_axis: Vec<MouseMotionToAxis>,
-    mouse_cursor_x_to_axis: Vec<MouseCursorToAxis>,
-    mouse_cursor_y_to_axis: Vec<MouseCursorToAxis>,
+    mouse_position_x_to_axis: Vec<MousePositionToAxis>,
+    mouse_position_y_to_axis: Vec<MousePositionToAxis>,
     controllers_button_to_action: HashMap<gilrs::GamepadId, HashMap<gilrs::Button, Vec<ControllerButtonToAction>>>,
     controllers_button_to_axis: HashMap<gilrs::GamepadId, HashMap<gilrs::Button, Vec<ControllerButtonToAxis>>>,
     controllers_axis_to_axis: HashMap<gilrs::GamepadId, HashMap<gilrs::Axis, Vec<ControllerAxisToAxis>>>,
@@ -123,10 +123,10 @@ impl InputMapper {
                         MapActionInput { descriptor: ActionDescriptor { name: OSAction::RIGHT.to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::D }), ..Default::default() },
                     ],
                     axis: vec![
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_X.to_string(), ..Default::default() }, axis: Some(Axis::CursorX), ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_Y.to_string(), ..Default::default() }, axis: Some(Axis::CursorY), ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_X.to_string(), ..Default::default() }, axis: Some(Axis::MotionX), axis_scale: 0.01, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_Y.to_string(), ..Default::default() }, axis: Some(Axis::MotionY), axis_scale: 0.01, ..Default::default() },
+                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_X.to_string(), ..Default::default() }, axis: Some(Axis::MousePositionX), ..Default::default() },
+                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_Y.to_string(), ..Default::default() }, axis: Some(Axis::MousePositionY), ..Default::default() },
+                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_X.to_string(), ..Default::default() }, axis: Some(Axis::MouseMotionX), axis_scale: 0.01, ..Default::default() },
+                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_Y.to_string(), ..Default::default() }, axis: Some(Axis::MouseMotionY), axis_scale: 0.01, ..Default::default() },
                     ],
                     ..Default::default()
                 },
@@ -226,8 +226,8 @@ impl InputMapper {
         self.key_to_axis.clear();
         self.mouse_button_to_action.clear();
         self.mouse_button_to_axis.clear();
-        self.mouse_cursor_x_to_axis.clear();
-        self.mouse_cursor_y_to_axis.clear();
+        self.mouse_position_x_to_axis.clear();
+        self.mouse_position_y_to_axis.clear();
         self.mouse_motion_x_to_axis.clear();
         self.mouse_motion_y_to_axis.clear();
         self.controllers_button_to_action.clear();
@@ -270,17 +270,17 @@ impl InputMapper {
                     }
                     if let Some(a) = &axis.axis {
                         match a {
-                            Axis::CursorX => {
-                                self.mouse_cursor_x_to_axis.push(MouseCursorToAxis { id: axis.id });
+                            Axis::MousePositionX => {
+                                self.mouse_position_x_to_axis.push(MousePositionToAxis { id: axis.id });
                             },
-                            Axis::CursorY => {
-                                self.mouse_cursor_y_to_axis.push(MouseCursorToAxis { id: axis.id });
+                            Axis::MousePositionY => {
+                                self.mouse_position_y_to_axis.push(MousePositionToAxis { id: axis.id });
                             },
-                            Axis::MotionX => {
-                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, sensibility: axis.axis_scale });
+                            Axis::MouseMotionX => {
+                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, scale: axis.axis_scale });
                             },
-                            Axis::MotionY => {
-                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, sensibility: axis.axis_scale });
+                            Axis::MouseMotionY => {
+                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, scale: axis.axis_scale });
                             },
                             Axis::Controller { id, axis: ax } => {
                                 self.controllers_axis_to_axis.entry(*id).or_insert(Default::default()).entry(*ax).or_insert(Default::default())
@@ -333,18 +333,18 @@ impl InputMapper {
 
     pub(crate) fn dispatch_mouse_motion(&self, delta: (f64, f64), events: &mut AppEvents) {
         for axis in &self.mouse_motion_x_to_axis {
-            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: delta.0 as f32 * axis.sensibility }));
+            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: delta.0 as f32 * axis.scale }));
         }
         for axis in &self.mouse_motion_y_to_axis {
-            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: delta.1 as f32 * axis.sensibility }));
+            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: delta.1 as f32 * axis.scale }));
         }
     }
 
     pub(crate) fn dispatch_mouse_cursor(&self, cursor: (f32, f32), events: &mut AppEvents) {
-        for axis in &self.mouse_cursor_x_to_axis {
+        for axis in &self.mouse_position_x_to_axis {
             events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: cursor.0 }));
         }
-        for axis in &self.mouse_cursor_y_to_axis {
+        for axis in &self.mouse_position_y_to_axis {
             events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: cursor.1 }));
         }
     }

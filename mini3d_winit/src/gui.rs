@@ -4,7 +4,7 @@ use mini3d::{glam::Vec4, app::App, slotmap::{KeyData, Key}, input::axis::AxisKin
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::ControlFlow};
 
-use crate::{window::Window, mapper::{InputMapper, InputConfigId, Button, Axis, InputConfig}, DisplayMode, set_display_mode};
+use crate::{window::Window, mapper::{InputMapper, InputConfigId, Button, Axis, InputConfig, MapGroupInput}, DisplayMode, set_display_mode};
 
 #[derive(PartialEq, Eq)]
 enum Page {
@@ -40,6 +40,7 @@ pub(crate) struct WindowGUI {
     show_min_max: bool,
     active_config: InputConfigId,
     config_rename_placeholder: String,
+    total_height: f32,
     elspased_time: f64,
     record_request: Option<RecordRequest>,
 }
@@ -68,6 +69,7 @@ impl WindowGUI {
             show_min_max: false,
             active_config: mapper.default_config,
             config_rename_placeholder: Default::default(),
+            total_height: 0.0,
             elspased_time: 0.0,
             record_request: None,
         }
@@ -120,7 +122,7 @@ impl WindowGUI {
                                         }
                                         window.set_focus(false);
                                         self.record_request = None;
-                                    } else if *state == ElementState::Released {
+                                    } else if *state == ElementState::Pressed {
                                         match request.source {
                                             RecordSource::Action { index } => {
                                                 let action = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].actions[index];
@@ -137,7 +139,7 @@ impl WindowGUI {
                                     }
                                 }
                                 WindowEvent::MouseInput { device_id: _, state, button, .. } => {
-                                    if *state == ElementState::Released {
+                                    if *state == ElementState::Pressed {
                                         match request.source {
                                             RecordSource::Action { index } => {
                                                 let action = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].actions[index];
@@ -253,6 +255,265 @@ impl WindowGUI {
         self.central_viewport
     }
 
+    fn ui_group(
+        &mut self, 
+        group: &mut MapGroupInput, 
+        group_index: usize, 
+        ui: &mut egui::Ui,
+        window: &mut Window,
+    ) {
+        ui.collapsing(group.name.clone(), |ui| {
+            
+            // Show actions
+            ui.separator();
+            ui.vertical_centered_justified(|ui| { ui.label(egui::RichText::new("Action").strong()); });
+            ui.separator();
+            ui.push_id("actions", |ui| {
+                let mut table = egui_extras::TableBuilder::new(ui);
+                if self.show_id {
+                    table = table.column(egui_extras::Size::initial(100.0)); // Id
+                }
+                table = table.column(egui_extras::Size::initial(100.0)); // Name
+                if self.show_internal_name {
+                    table = table.column(egui_extras::Size::initial(100.0)); // Internal Name
+                }
+                table = table.column(egui_extras::Size::exact(100.0)); // Button
+                table = table.column(egui_extras::Size::remainder()); // Description
+                table.scroll(false)
+                    .clip(false)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .header(20.0, |mut header| {
+                        if self.show_id {
+                            header.col(|ui| { ui.label(egui::RichText::new("Debug ID").strong()); });
+                        }
+                        header.col(|ui| { ui.label(egui::RichText::new("Name").strong()); });
+                        if self.show_internal_name {
+                            header.col(|ui| { ui.label(egui::RichText::new("Internal Name").strong()); });
+                        }
+                        header.col(|ui| { ui.label(egui::RichText::new("Button").strong()); });
+                        header.col(|ui| { ui.label(egui::RichText::new("Description").strong()); });
+                    })
+                    .body(|mut body| {
+                        for (action_index, action) in group.actions.iter_mut().enumerate() {
+                            body.row(20.0, |mut row| {
+                                if self.show_id {
+                                    row.col(|ui| { ui.label(KeyData::as_ffi(action.id.data()).to_string()); });
+                                }
+                                row.col(|ui| { ui.label(action.descriptor.display_name.clone()); });
+                                if self.show_internal_name {
+                                    row.col(|ui| { ui.label(action.descriptor.name.clone()); });
+                                }
+                                row.col(|ui| { 
+                                    if ui.add_sized(ui.available_size(), egui::Button::new(
+                                            if let Some(button) = &action.button {
+                                                match button {
+                                                    Button::Keyboard { code } => format!("{:?}", code),
+                                                    Button::Mouse { button } => format!("{:?}", button),
+                                                    Button::Controller { id, button } => format!("{:?} ({})", button, id),
+                                                }
+                                            } else {
+                                                "".to_owned()
+                                            }
+                                        )
+                                        .stroke(egui::Stroke::none()))
+                                        .context_menu(|ui| {
+                                            if ui.button("Reset").clicked() {
+                                                action.button = None;
+                                                ui.close_menu();
+                                            }
+                                        })
+                                    .clicked() {
+                                        // Record button
+                                        self.record_request = Some(RecordRequest { 
+                                            config_id: self.active_config,
+                                            group_index, 
+                                            kind: RecordKind::Button { previous: action.button }, 
+                                            source: RecordSource::Action { index: action_index }, 
+                                        });
+                                        action.button = None;
+                                        window.set_focus(true);
+                                    }
+                                });
+                                row.col(|ui| { ui.label(action.descriptor.description.clone()); });
+                            });
+                        }
+                    });
+            });
+        
+            // Show axis
+            ui.separator();
+            ui.vertical_centered_justified(|ui| { ui.label(egui::RichText::new("Axis").strong()); });
+            ui.separator();
+            ui.push_id("axis", |ui| {
+                let mut table = egui_extras::TableBuilder::new(ui);
+                if self.show_id {
+                    table = table.column(egui_extras::Size::initial(100.0)); // Id
+                }
+                table = table.column(egui_extras::Size::initial(100.0)); // Display name
+                if self.show_internal_name {
+                    table = table.column(egui_extras::Size::initial(100.0)); // Name
+                }
+                table = table.column(egui_extras::Size::exact(100.0)); // Button
+                table = table.column(egui_extras::Size::exact(60.0)); // Button Value
+                table = table.column(egui_extras::Size::exact(110.0)); // Axis
+                table = table.column(egui_extras::Size::exact(60.0)); // Axis Scale
+                if self.show_min_max {
+                    table = table.column(egui_extras::Size::exact(40.0)); // Min
+                    table = table.column(egui_extras::Size::exact(40.0)); // Max
+                }
+                table = table.column(egui_extras::Size::remainder()); // Description
+                table.scroll(false)
+                    .clip(false)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .header(20.0, |mut header| {
+                        if self.show_id {
+                            header.col(|ui| { ui.label(egui::RichText::new("Debug ID").strong()); });
+                        }
+                        header.col(|ui| { ui.label(egui::RichText::new("Name").strong()); });
+                        if self.show_internal_name {
+                            header.col(|ui| { ui.label(egui::RichText::new("Internal Name").strong()); });
+                        }
+                        header.col(|ui| { ui.label(egui::RichText::new("Button").strong()); });
+                        header.col(|ui| { ui.label(egui::RichText::new("Value").strong()); });
+                        header.col(|ui| { ui.label(egui::RichText::new("Axis").strong()); });
+                        header.col(|ui| { ui.label(egui::RichText::new("Scale").strong()); });
+                        if self.show_min_max {
+                            header.col(|ui| { ui.label(egui::RichText::new("Min").strong()); });
+                            header.col(|ui| { ui.label(egui::RichText::new("Max").strong()); });
+                        }
+                        header.col(|ui| { ui.label(egui::RichText::new("Description").strong()); });
+                    })
+                    .body(|mut body| {
+                        for (axis_index, axis) in group.axis.iter_mut().enumerate() {
+                            body.row(20.0, |mut row| {
+                                if self.show_id {
+                                    row.col(|ui| { ui.label(KeyData::as_ffi(axis.id.data()).to_string()); });
+                                }
+                                row.col(|ui| { ui.label(axis.descriptor.display_name.clone()); });
+                                if self.show_internal_name {
+                                    row.col(|ui| { ui.label(axis.descriptor.name.clone()); });
+                                }
+                                row.col(|ui| { 
+                                    if ui.add_sized(ui.available_size(), egui::Button::new(
+                                        if let Some(button) = &axis.button {
+                                            match button {
+                                                Button::Keyboard { code } => format!("{:?}", code),
+                                                Button::Mouse { button } => format!("{:?}", button),
+                                                Button::Controller { id, button } => format!("{:?} ({})", button, id),
+                                            }
+                                        } else {
+                                            "".to_owned()
+                                        }
+                                    ).stroke(egui::Stroke::none()))
+                                    .context_menu(|ui| {
+                                        if ui.button("Reset").clicked() {
+                                            axis.button = None;
+                                            ui.close_menu();
+                                        }
+                                    })
+                                    .clicked() {
+                                        self.record_request = Some(RecordRequest { 
+                                            config_id: self.active_config,
+                                            group_index, 
+                                            kind: RecordKind::Button { previous: axis.button }, 
+                                            source: RecordSource::Axis { index: axis_index },
+                                        });
+                                        axis.button = None;
+                                        window.set_focus(true);
+                                    }
+                                });
+                                row.col(|ui| {
+                                    if axis.button.is_some() {
+                                        ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.button_value).speed(0.01).fixed_decimals(3));
+                                    }
+                                });
+                                row.col(|ui| {
+
+                                    if ui.add_sized(ui.available_size(), egui::Button::new(
+                                        if let Some(axis) = &axis.axis {
+                                            match axis {
+                                                Axis::MousePositionX => { "Mouse Position X".to_owned() },
+                                                Axis::MousePositionY => { "Mouse Position Y".to_owned() },
+                                                Axis::MouseMotionX => { "Mouse Motion X".to_owned() },
+                                                Axis::MouseMotionY => { "Mouse Motion Y".to_owned() },
+                                                Axis::Controller { id, axis } => { format!("{:?} ({})", axis, id) },
+                                            }
+                                        } else {
+                                            "".to_owned()
+                                        }
+                                    ).stroke(egui::Stroke::none()))
+                                    .context_menu(|ui| {
+                                        if ui.button("Reset").clicked() {
+                                            axis.axis = None;
+                                            ui.close_menu();
+                                        } else if ui.button("Mouse Position X").clicked() {
+                                            axis.axis = Some(Axis::MousePositionX);
+                                            axis.axis_scale = 1.0;
+                                            ui.close_menu();
+                                        } else if ui.button("Mouse Position Y").clicked() {
+                                            axis.axis = Some(Axis::MousePositionY);
+                                            axis.axis_scale = 1.0;
+                                            ui.close_menu();
+                                        } else if ui.button("Mouse Motion X").clicked() {
+                                            axis.axis = Some(Axis::MouseMotionX);
+                                            axis.axis_scale = 1.0;
+                                            ui.close_menu();
+                                        } else if ui.button("Mouse Motion Y").clicked() {
+                                            axis.axis = Some(Axis::MouseMotionY);
+                                            axis.axis_scale = 1.0;
+                                            ui.close_menu();
+                                        }
+                                    })
+                                    .clicked() {
+                                        self.record_request = Some(RecordRequest { 
+                                            config_id: self.active_config,
+                                            group_index, 
+                                            kind: RecordKind::Axis { previous: axis.axis }, 
+                                            source: RecordSource::Axis { index: axis_index },
+                                        });
+                                        axis.axis = None;
+                                        window.set_focus(true);
+                                    }
+                                });
+                                row.col(|ui| {
+                                    if axis.axis.is_some() {
+                                        ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.axis_scale).speed(0.01).fixed_decimals(3));
+                                    }
+                                });
+                                if self.show_min_max {
+                                    row.col(|ui| {
+                                        ui.centered_and_justified(|ui| {
+                                            ui.label(match axis.descriptor.kind {
+                                                AxisKind::Clamped { min, .. } => { min.to_string() },
+                                                AxisKind::Normalized { .. } => { f32::NEG_INFINITY.to_string() },
+                                                AxisKind::ClampedNormalized { min, .. } => { min.to_string() },
+                                                AxisKind::Infinite => { f32::NEG_INFINITY.to_string() },
+                                            });
+                                        });
+                                    });
+                                    row.col(|ui| {
+                                        ui.centered_and_justified(|ui| {
+                                            ui.label(match axis.descriptor.kind {
+                                                AxisKind::Clamped { max, .. } => { max.to_string() },
+                                                AxisKind::Normalized { .. } => { f32::INFINITY.to_string() },
+                                                AxisKind::ClampedNormalized { max, .. } => { max.to_string() },
+                                                AxisKind::Infinite => { f32::INFINITY.to_string() },
+                                            });
+                                        });
+                                    });
+                                }
+                                row.col(|ui| { ui.add(egui::Label::new(axis.descriptor.description.clone()).wrap(false)); });
+                            });
+                        }
+                    });
+            });
+        });
+    }
+
     pub(crate) fn ui(
         &mut self, 
         window: &mut Window,
@@ -298,7 +559,6 @@ impl WindowGUI {
                 });
 
                 if self.page == Page::InputConfig {
-                    use egui_extras::{TableBuilder, Size};
                     egui::CentralPanel::default().show(&self.platform.context(), |ui| {
                         
                         ui.horizontal(|ui| {
@@ -356,255 +616,20 @@ impl WindowGUI {
 
                         // Get the active input configuration
                         if let Some(config) = mapper.configs.get_mut(self.active_config) {
-                            egui::ScrollArea::vertical().show(ui, |ui| {
-                                for (group_index, group) in config.groups.iter_mut().enumerate() {
-                                    ui.collapsing(group.name.clone(), |ui| {
-        
-                                        // Show actions
-                                        ui.separator();
-                                        ui.vertical_centered_justified(|ui| { ui.label(egui::RichText::new("Action").strong()); });
-                                        ui.separator();
-                                        ui.push_id("actions", |ui| {
-                                            let mut table = TableBuilder::new(ui);
-                                            if self.show_id {
-                                                table = table.column(Size::initial(100.0)); // Id
-                                            }
-                                            table = table.column(Size::initial(100.0)); // Name
-                                            if self.show_internal_name {
-                                                table = table.column(Size::initial(100.0)); // Internal Name
-                                            }
-                                            table = table.column(Size::exact(100.0)); // Button
-                                            table = table.column(Size::remainder()); // Description
-                                            table.scroll(false)
-                                                .striped(true)
-                                                .resizable(true)
-                                                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                                                .header(20.0, |mut header| {
-                                                    if self.show_id {
-                                                        header.col(|ui| { ui.label(egui::RichText::new("Debug ID").strong()); });
-                                                    }
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Name").strong()); });
-                                                    if self.show_internal_name {
-                                                        header.col(|ui| { ui.label(egui::RichText::new("Internal Name").strong()); });
-                                                    }
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Button").strong()); });
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Description").strong()); });
-                                                })
-                                                .body(|mut body| {
-                                                    for (action_index, action) in group.actions.iter_mut().enumerate() {
-                                                        body.row(20.0, |mut row| {
-                                                            if self.show_id {
-                                                                row.col(|ui| { ui.label(KeyData::as_ffi(action.id.data()).to_string()); });
-                                                            }
-                                                            row.col(|ui| { ui.label(action.descriptor.display_name.clone()); });
-                                                            if self.show_internal_name {
-                                                                row.col(|ui| { ui.label(action.descriptor.name.clone()); });
-                                                            }
-                                                            row.col(|ui| { 
-                                                                if ui.add_sized(ui.available_size(), egui::Button::new(
-                                                                        if let Some(button) = &action.button {
-                                                                            match button {
-                                                                                Button::Keyboard { code } => format!("{:?}", code),
-                                                                                Button::Mouse { button } => format!("{:?}", button),
-                                                                                Button::Controller { id, button } => format!("{:?} ({})", button, id),
-                                                                            }
-                                                                        } else {
-                                                                            "".to_owned()
-                                                                        }
-                                                                    )
-                                                                    .stroke(egui::Stroke::none()))
-                                                                    .context_menu(|ui| {
-                                                                        if ui.button("Reset").clicked() {
-                                                                            action.button = None;
-                                                                            ui.close_menu();
-                                                                        }
-                                                                    })
-                                                                .clicked() {
-                                                                    // Record button
-                                                                    self.record_request = Some(RecordRequest { 
-                                                                        config_id: self.active_config,
-                                                                        group_index, 
-                                                                        kind: RecordKind::Button { previous: action.button }, 
-                                                                        source: RecordSource::Action { index: action_index }, 
-                                                                    });
-                                                                    action.button = None;
-                                                                    window.set_focus(true);
-                                                                }
-                                                            });
-                                                            row.col(|ui| { ui.label(action.descriptor.description.clone()); });
-                                                        });
-                                                    }
-                                                });
-                                        });
-        
-                                        
-                                        // Show axis
-                                        ui.separator();
-                                        ui.vertical_centered_justified(|ui| { ui.label(egui::RichText::new("Axis").strong()); });
-                                        ui.separator();
-                                        ui.push_id("axis", |ui| {
-                                            let mut table = TableBuilder::new(ui);
-                                            if self.show_id {
-                                                table = table.column(Size::initial(100.0)); // Id
-                                            }
-                                            table = table.column(Size::initial(100.0)); // Display name
-                                            if self.show_internal_name {
-                                                table = table.column(Size::initial(100.0)); // Name
-                                            }
-                                            table = table.column(Size::exact(100.0)); // Button
-                                            table = table.column(Size::exact(60.0)); // Button Value
-                                            table = table.column(Size::exact(110.0)); // Axis
-                                            table = table.column(Size::exact(60.0)); // Axis Scale
-                                            if self.show_min_max {
-                                                table = table.column(Size::exact(40.0)); // Min
-                                                table = table.column(Size::exact(40.0)); // Max
-                                            }
-                                            table = table.column(Size::remainder()); // Description
-                                            table.scroll(false)
-                                                .striped(true)
-                                                .resizable(true)
-                                                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                                                .header(20.0, |mut header| {
-                                                    if self.show_id {
-                                                        header.col(|ui| { ui.label(egui::RichText::new("Debug ID").strong()); });
-                                                    }
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Name").strong()); });
-                                                    if self.show_internal_name {
-                                                        header.col(|ui| { ui.label(egui::RichText::new("Internal Name").strong()); });
-                                                    }
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Button").strong()); });
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Value").strong()); });
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Axis").strong()); });
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Scale").strong()); });
-                                                    if self.show_min_max {
-                                                        header.col(|ui| { ui.label(egui::RichText::new("Min").strong()); });
-                                                        header.col(|ui| { ui.label(egui::RichText::new("Max").strong()); });
-                                                    }
-                                                    header.col(|ui| { ui.label(egui::RichText::new("Description").strong()); });
-                                                })
-                                                .body(|mut body| {
-                                                    for (axis_index, axis) in group.axis.iter_mut().enumerate() {
-                                                        body.row(20.0, |mut row| {
-                                                            if self.show_id {
-                                                                row.col(|ui| { ui.label(KeyData::as_ffi(axis.id.data()).to_string()); });
-                                                            }
-                                                            row.col(|ui| { ui.label(axis.descriptor.display_name.clone()); });
-                                                            if self.show_internal_name {
-                                                                row.col(|ui| { ui.label(axis.descriptor.name.clone()); });
-                                                            }
-                                                            row.col(|ui| { 
-                                                                if ui.add_sized(ui.available_size(), egui::Button::new(
-                                                                    if let Some(button) = &axis.button {
-                                                                        match button {
-                                                                            Button::Keyboard { code } => format!("{:?}", code),
-                                                                            Button::Mouse { button } => format!("{:?}", button),
-                                                                            Button::Controller { id, button } => format!("{:?} ({})", button, id),
-                                                                        }
-                                                                    } else {
-                                                                        "".to_owned()
-                                                                    }
-                                                                ).stroke(egui::Stroke::none()))
-                                                                .context_menu(|ui| {
-                                                                    if ui.button("Reset").clicked() {
-                                                                        axis.button = None;
-                                                                        ui.close_menu();
-                                                                    }
-                                                                })
-                                                                .clicked() {
-                                                                    self.record_request = Some(RecordRequest { 
-                                                                        config_id: self.active_config,
-                                                                        group_index, 
-                                                                        kind: RecordKind::Button { previous: axis.button }, 
-                                                                        source: RecordSource::Axis { index: axis_index },
-                                                                    });
-                                                                    axis.button = None;
-                                                                    window.set_focus(true);
-                                                                }
-                                                            });
-                                                            row.col(|ui| {
-                                                                if axis.button.is_some() {
-                                                                    ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.button_value).fixed_decimals(3));
-                                                                }
-                                                            });
-                                                            row.col(|ui| {
-
-                                                                if ui.add_sized(ui.available_size(), egui::Button::new(
-                                                                    if let Some(axis) = &axis.axis {
-                                                                        match axis {
-                                                                            Axis::CursorX => { "Cursor X".to_owned() },
-                                                                            Axis::CursorY => { "Cursor Y".to_owned() },
-                                                                            Axis::MotionX => { "Motion X".to_owned() },
-                                                                            Axis::MotionY => { "Motion Y".to_owned() },
-                                                                            Axis::Controller { id, axis } => { format!("{:?} ({})", axis, id) },
-                                                                        }
-                                                                    } else {
-                                                                        "".to_owned()
-                                                                    }
-                                                                ).stroke(egui::Stroke::none()))
-                                                                .context_menu(|ui| {
-                                                                    if ui.button("Reset").clicked() {
-                                                                        axis.button = None;
-                                                                        ui.close_menu();
-                                                                    } else if ui.button("Cursor X").clicked() {
-                                                                        axis.axis = Some(Axis::CursorX);
-                                                                        ui.close_menu();
-                                                                    } else if ui.button("Cursor Y").clicked() {
-                                                                        axis.axis = Some(Axis::CursorY);
-                                                                        ui.close_menu();
-                                                                    } else if ui.button("Motion X").clicked() {
-                                                                        axis.axis = Some(Axis::MotionX);
-                                                                        ui.close_menu();
-                                                                    } else if ui.button("Motion Y").clicked() {
-                                                                        axis.axis = Some(Axis::MotionY);
-                                                                        ui.close_menu();
-                                                                    }
-                                                                })
-                                                                .clicked() {
-                                                                    self.record_request = Some(RecordRequest { 
-                                                                        config_id: self.active_config,
-                                                                        group_index, 
-                                                                        kind: RecordKind::Axis { previous: axis.axis }, 
-                                                                        source: RecordSource::Axis { index: axis_index },
-                                                                    });
-                                                                    axis.axis = None;
-                                                                    window.set_focus(true);
-                                                                }
-                                                            });
-                                                            row.col(|ui| {
-                                                                if axis.axis.is_some() {
-                                                                    ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.axis_scale).fixed_decimals(3));
-                                                                }
-                                                            });
-                                                            if self.show_min_max {
-                                                                row.col(|ui| {
-                                                                    ui.centered_and_justified(|ui| {
-                                                                        ui.label(match axis.descriptor.kind {
-                                                                            AxisKind::Clamped { min, .. } => { min.to_string() },
-                                                                            AxisKind::Normalized { .. } => { f32::NEG_INFINITY.to_string() },
-                                                                            AxisKind::ClampedNormalized { min, .. } => { min.to_string() },
-                                                                            AxisKind::Infinite => { f32::NEG_INFINITY.to_string() },
-                                                                        });
-                                                                    });
-                                                                });
-                                                                row.col(|ui| {
-                                                                    ui.centered_and_justified(|ui| {
-                                                                        ui.label(match axis.descriptor.kind {
-                                                                            AxisKind::Clamped { max, .. } => { max.to_string() },
-                                                                            AxisKind::Normalized { .. } => { f32::INFINITY.to_string() },
-                                                                            AxisKind::ClampedNormalized { max, .. } => { max.to_string() },
-                                                                            AxisKind::Infinite => { f32::INFINITY.to_string() },
-                                                                        });
-                                                                    });
-                                                                });
-                                                            }
-                                                            row.col(|ui| { ui.add(egui::Label::new(axis.descriptor.description.clone()).wrap(false)); });
-                                                        });
-                                                    }
-                                                });
-                                        });
-                                    });
-                                }
-                            }); 
+                            let mut total_height = 0.0;
+                            for group in &config.groups {
+                                total_height += 25.0 * 5.0;
+                                total_height += group.actions.len() as f32 * 25.0; 
+                                total_height += group.axis.len() as f32 * 25.0; 
+                            }
+                            egui::ScrollArea::both()
+                                .auto_shrink([false, false])
+                                .max_height(total_height)
+                                .show_rows(ui, total_height, 1, |ui, _| {
+                                    for (group_index, group) in config.groups.iter_mut().enumerate() {
+                                        self.ui_group(group, group_index, ui, window);
+                                    }
+                                });
                         }
                     });
                 }
