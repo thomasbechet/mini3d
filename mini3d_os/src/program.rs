@@ -2,6 +2,45 @@ use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asse
 
 use crate::{input::{CommonAxis, CommonAction, CommonInput}, asset::DefaultAsset};
 
+struct TimeGraph {
+    records: Vec<f64>,
+    head: usize,
+}
+
+impl TimeGraph {
+    pub fn new(count: usize) -> Self {
+        Self {
+            records: vec![0.0; count],
+            head: 0,
+        }
+    }
+    pub fn add(&mut self, value: f64) {
+        self.records[self.head] = value;
+        self.head = (self.head + 1) % self.records.len();
+    }
+    pub fn render(&self) -> CommandBuffer {
+        let mut builder = CommandBuffer::builder();
+        let mut current = self.head;
+        let base_x = 5;
+        let base_y = 5;
+        let height = 60;
+        builder.draw_hline(SCREEN_HEIGHT as i32 - base_y, base_x, self.records.len() as i32);
+        builder.draw_vline(base_x, SCREEN_HEIGHT as i32 - base_y - height, SCREEN_HEIGHT as i32 - base_y);
+        loop {
+            let vy = ((self.records[current] / (2.0 / 60.0)) * height as f64) as u32;
+            let x = base_x + current as i32;
+            let y = SCREEN_HEIGHT as i32 - base_y - vy as i32;
+            builder.fill_rect(IRect::new(x, y, 1, 1));
+            // builder.draw_vline(x, y, SCREEN_HEIGHT as i32 - base_y);
+            current = (current + 1) % self.records.len();
+            if current == self.head {
+                break
+            }
+        }
+        builder.build()
+    }
+}
+
 pub struct OSProgram {
     id: ProgramId,
     asset_group: AssetGroupId,
@@ -12,6 +51,7 @@ pub struct OSProgram {
     layout_active: bool,
     dt_record: Vec<f64>,
     last_dt: f64,
+    time_graph: TimeGraph,
 }
 
 impl ProgramBuilder for OSProgram {
@@ -29,6 +69,7 @@ impl ProgramBuilder for OSProgram {
             layout_active: false,
             dt_record: Vec::new(),
             last_dt: 0.0,
+            time_graph: TimeGraph::new(240),
         }
     }
 }
@@ -284,6 +325,7 @@ impl Program for OSProgram {
         {
             // Compute fps
             self.dt_record.push(ctx.delta_time);
+            self.time_graph.add(ctx.delta_time);
             if self.dt_record.len() > 30 {
                 self.dt_record.sort_by(|a, b| a.partial_cmp(b).unwrap());
                 self.last_dt = self.dt_record[14];
@@ -316,6 +358,7 @@ impl Program for OSProgram {
                 .fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2))
             });
             ctx.renderer.push_command_buffer(cb1);
+            ctx.renderer.push_command_buffer(self.time_graph.render());
         }
 
         Ok(())

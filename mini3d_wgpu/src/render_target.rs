@@ -10,10 +10,10 @@ pub(crate) struct RenderTarget {
 impl RenderTarget {
     pub(crate) fn extent() -> wgpu::Extent3d {
         wgpu::Extent3d {
-            width: 1920,
-            height: (1920.0 * SCREEN_INV_ASPECT_RATIO) as u32,
-            // width: SCREEN_WIDTH,
-            // height: SCREEN_HEIGHT,
+            // width: 1920,
+            // height: (1920.0 * SCREEN_INV_ASPECT_RATIO) as u32,
+            width: SCREEN_WIDTH,
+            height: SCREEN_HEIGHT,
             depth_or_array_layers: 1
         }
     }

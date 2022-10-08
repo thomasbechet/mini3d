@@ -39,10 +39,10 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
         let motion_y = input.axis(free_view.view_y).map_or(0.0, |a| a.value);
         if free_view.free_mode {
             if motion_x != 0.0 {
-                transform.rotation *= Quat::from_axis_angle(Vec3::Y, -f32::to_radians(motion_x) * FreeFlyComponent::ROTATION_SENSIBILITY);
+                transform.rotation *= Quat::from_axis_angle(Vec3::Y, -f32::to_radians(motion_x) * FreeFlyComponent::ROTATION_SENSIBILITY * delta_time);
             }
             if motion_y != 0.0 {
-                transform.rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(motion_y) * FreeFlyComponent::ROTATION_SENSIBILITY);
+                transform.rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(motion_y) * FreeFlyComponent::ROTATION_SENSIBILITY * delta_time);
             }
             if input.action(free_view.roll_left).map_or(false, |b| b.is_pressed()) {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Z, -f32::to_radians(FreeFlyComponent::ROLL_SPEED) * delta_time);
@@ -53,10 +53,10 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
             
         } else {
             if motion_x != 0.0 {
-                free_view.yaw += motion_x * FreeFlyComponent::ROTATION_SENSIBILITY;
+                free_view.yaw += motion_x * FreeFlyComponent::ROTATION_SENSIBILITY * delta_time;
             }
             if motion_y != 0.0 {
-                free_view.pitch += motion_y * FreeFlyComponent::ROTATION_SENSIBILITY;
+                free_view.pitch += motion_y * FreeFlyComponent::ROTATION_SENSIBILITY * delta_time;
             }
         
             if free_view.pitch < -90.0 { free_view.pitch = -90.0 };
