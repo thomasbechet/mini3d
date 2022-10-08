@@ -33,8 +33,8 @@ pub struct ControlInputs {
     // Cursor inputs
     pub cursor_x: AxisInputId,
     pub cursor_y: AxisInputId,
-    pub motion_x: AxisInputId,
-    pub motion_y: AxisInputId,
+    pub cursor_motion_x: AxisInputId,
+    pub cursor_motion_y: AxisInputId,
 }
 
 enum ControlMode {
@@ -190,8 +190,8 @@ impl ControlLayout {
             // Cursor inputs
             let cursor_x = input.axis(profile.inputs.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);
             let cursor_y = input.axis(profile.inputs.cursor_y).map_or(profile.last_cursor_position.y, |a| a.value);
-            let motion_x = input.axis(profile.inputs.motion_x).map_or(0.0, |a| a.value);
-            let motion_y = input.axis(profile.inputs.motion_y).map_or(0.0, |a| a.value);
+            let motion_x = input.axis(profile.inputs.cursor_motion_x).map_or(0.0, |a| a.value);
+            let motion_y = input.axis(profile.inputs.cursor_motion_y).map_or(0.0, |a| a.value);
             
             // Update detection
             let selection_update = up || down || left || right;

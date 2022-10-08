@@ -16,7 +16,7 @@ pub mod mapper;
 pub mod utils;
 pub mod window;
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 enum DisplayMode {
     FullscreenFocus,
     WindowedFocus,
@@ -63,6 +63,7 @@ fn main() {
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
     let mut mouse_motion = (0.0, 0.0);
+    let mut last_mouse_motion = mouse_motion;
 
     // Controllers
     let mut gilrs = gilrs::Gilrs::new().unwrap();
@@ -153,7 +154,7 @@ fn main() {
                                 if last_click.is_none() {
                                     last_click = Some(SystemTime::now());
                                 } else {
-                                    window.set_focus(true);
+                                    display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedFocus);
                                 }
                             }
 
@@ -196,30 +197,32 @@ fn main() {
             }
             Event::MainEventsCleared => {
 
+                // Dispatch mouse motion and reset
+                if window.is_focus() && (mouse_motion.0 != last_mouse_motion.0 || mouse_motion.1 != last_mouse_motion.1) {
+                    mapper.dispatch_mouse_motion(mouse_motion, &mut events);
+                    last_mouse_motion = mouse_motion;
+                }
+                mouse_motion = (0.0, 0.0);
+
                 // Dispatch controller events
                 while let Some(gilrs::Event { id, event, .. }) = &gilrs.next_event() {
                     if display_mode == DisplayMode::WindowedUnfocus {
                         gui.handle_controller_event(&event, *id, &mut mapper, &mut window);
-                    }
-                    match event {
-                        gilrs::EventType::ButtonPressed(button, _) => {
-                            mapper.dispatch_controller_button(*id, *button, ActionState::Pressed, &mut events);
-                        },
-                        gilrs::EventType::ButtonReleased(button, _) => {
-                            mapper.dispatch_controller_button(*id, *button, ActionState::Released, &mut events);
-                        },
-                        gilrs::EventType::AxisChanged(axis, value, _) => {
-                            mapper.dispatch_controller_axis(*id, *axis, *value, &mut events);
-                        },
-                        _ => {}
+                    } else {
+                        match event {
+                            gilrs::EventType::ButtonPressed(button, _) => {
+                                mapper.dispatch_controller_button(*id, *button, ActionState::Pressed, &mut events);
+                            },
+                            gilrs::EventType::ButtonReleased(button, _) => {
+                                mapper.dispatch_controller_button(*id, *button, ActionState::Released, &mut events);
+                            },
+                            gilrs::EventType::AxisChanged(axis, value, _) => {
+                                mapper.dispatch_controller_axis(*id, *axis, *value, &mut events);
+                            },
+                            _ => {}
+                        }
                     }
                 }
-
-                // Dispatch mouse motion and reset
-                if window.is_focus() {
-                    mapper.dispatch_mouse_motion(mouse_motion, &mut events);
-                }
-                mouse_motion = (0.0, 0.0);
 
                 // Build backend descriptor
                 let desc = BackendDescriptor::new()
@@ -269,7 +272,7 @@ fn main() {
 
                 // Check input reloading
                 if requests.reload_input_mapping() {
-                    mapper.reload(&app);
+                    mapper.refresh(&app);
                 }
 
                 // Reset requests

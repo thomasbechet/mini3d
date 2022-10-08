@@ -1,10 +1,10 @@
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use mini3d::{glam::Vec4, app::App, slotmap::{KeyData, Key}, input::axis::AxisKind};
+use mini3d::{glam::Vec4, app::App, slotmap::{KeyData, Key}, input::{axis::AxisKind, InputDatabase}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::ControlFlow};
 
-use crate::{window::Window, mapper::{InputMapper, InputConfigId, Button, Axis, InputConfig, MapGroupInput}, DisplayMode, set_display_mode};
+use crate::{window::Window, mapper::{InputMapper, InputProfileId, Button, Axis, MapGroupInput}, DisplayMode, set_display_mode};
 
 #[derive(PartialEq, Eq)]
 enum Page {
@@ -12,20 +12,15 @@ enum Page {
     InputConfig,
 }
 
-enum RecordKind {
-    Button { previous: Option<Button> },
-    Axis { previous: Option<Axis> },
-}
-
 enum RecordSource {
-    Action { index: usize },
-    Axis { index: usize },
+    ActionButton { index: usize, previous: Option<Button> },
+    AxisButton { index: usize, previous: Option<(Button, f32)> },
+    AxisAxis { index: usize, previous: Option<(Axis, f32)> },
 }
 
 struct RecordRequest {
-    config_id: InputConfigId,
+    profile_id: InputProfileId,
     group_index: usize,
-    kind: RecordKind,
     source: RecordSource,
 }
 
@@ -38,9 +33,8 @@ pub(crate) struct WindowGUI {
     show_internal_name: bool,
     show_id: bool,
     show_min_max: bool,
-    active_config: InputConfigId,
-    config_rename_placeholder: String,
-    total_height: f32,
+    active_profile: InputProfileId,
+    profile_rename_placeholder: String,
     elspased_time: f64,
     record_request: Option<RecordRequest>,
 }
@@ -67,9 +61,8 @@ impl WindowGUI {
             show_internal_name: false,
             show_id: false,
             show_min_max: false,
-            active_config: mapper.default_config,
-            config_rename_placeholder: Default::default(),
-            total_height: 0.0,
+            active_profile: mapper.default_profile,
+            profile_rename_placeholder: Default::default(),
             elspased_time: 0.0,
             record_request: None,
         }
@@ -95,103 +88,72 @@ impl WindowGUI {
     ) {
         // Handle record request
         if let Some(request) = &self.record_request {
-            match request.kind {
-                RecordKind::Button { previous } => {
+            match event {
+                Event::WindowEvent { event, .. } => {
                     match event {
-                        Event::WindowEvent { event, .. } => {
-                            match event {
-                                WindowEvent::KeyboardInput {
-                                    input: KeyboardInput {
-                                        virtual_keycode: Some(keycode),
-                                        state,
-                                        ..
+                        WindowEvent::KeyboardInput {
+                            input: KeyboardInput {
+                                virtual_keycode: Some(keycode),
+                                state,
+                                ..
+                            },
+                            ..
+                        } => {
+                            if *state == ElementState::Pressed && *keycode == VirtualKeyCode::Escape {
+                                // Cancel recording
+                                match request.source {
+                                    RecordSource::ActionButton { index, previous } => {
+                                        mapper.profiles.get_mut(request.profile_id).unwrap()
+                                            .groups[request.group_index].actions[index].button = previous;
                                     },
-                                    ..
-                                } => {
-                                    if *state == ElementState::Pressed && *keycode == VirtualKeyCode::Escape {
-                                        // Cancel recording
-                                        match request.source {
-                                            RecordSource::Action { index } => {
-                                                mapper.configs.get_mut(request.config_id).unwrap()
-                                                    .groups[request.group_index].actions[index].button = previous;
-                                            },
-                                            RecordSource::Axis { index } => {
-                                                mapper.configs.get_mut(request.config_id).unwrap()
-                                                    .groups[request.group_index].axis[index].button = previous;
-                                            },
-                                        }
-                                        window.set_focus(false);
-                                        self.record_request = None;
-                                    } else if *state == ElementState::Pressed {
-                                        match request.source {
-                                            RecordSource::Action { index } => {
-                                                let action = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].actions[index];
-                                                action.button = Some(Button::Keyboard { code: *keycode });
-                                            },
-                                            RecordSource::Axis { index } => {
-                                                let axis = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].axis[index];
-                                                axis.button = Some(Button::Keyboard { code: *keycode });
-                                                axis.button_value = 1.0;
-                                            },
-                                        }
-                                        window.set_focus(false);
-                                        self.record_request = None;
-                                    }
+                                    RecordSource::AxisButton { index, previous } => {
+                                        mapper.profiles.get_mut(request.profile_id).unwrap()
+                                            .groups[request.group_index].axis[index].button = previous;
+                                    },
+                                    RecordSource::AxisAxis { index, previous } => {
+                                        mapper.profiles.get_mut(request.profile_id).unwrap()
+                                            .groups[request.group_index].axis[index].axis = previous;
+                                    },
                                 }
-                                WindowEvent::MouseInput { device_id: _, state, button, .. } => {
-                                    if *state == ElementState::Pressed {
-                                        match request.source {
-                                            RecordSource::Action { index } => {
-                                                let action = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].actions[index];
-                                                action.button = Some(Button::Mouse { button: *button });
-                                            },
-                                            RecordSource::Axis { index } => {
-                                                let axis = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].axis[index];
-                                                axis.button = Some(Button::Mouse { button: *button });
-                                                axis.button_value = 1.0;
-                                            },
-                                        }
-                                        window.set_focus(false);
-                                        self.record_request = None;
-                                    }
+                                window.set_focus(false);
+                                self.record_request = None;
+                            } else if *state == ElementState::Pressed {
+                                match request.source {
+                                    RecordSource::ActionButton { index, .. } => {
+                                        let action = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].actions[index];
+                                        action.button = Some(Button::Keyboard { code: *keycode });
+                                    },
+                                    RecordSource::AxisButton { index, .. } => {
+                                        let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].axis[index];
+                                        axis.button = Some((Button::Keyboard { code: *keycode }, 1.0));
+                                    },
+                                    _ => {}
                                 }
-                                _ => {}
+                                window.set_focus(false);
+                                self.record_request = None;
+                            }
+                        }
+                        WindowEvent::MouseInput { device_id: _, state, button, .. } => {
+                            if *state == ElementState::Pressed {
+                                match request.source {
+                                    RecordSource::ActionButton { index, .. } => {
+                                        let action = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].actions[index];
+                                        action.button = Some(Button::Mouse { button: *button });
+                                    },
+                                    RecordSource::AxisButton { index, .. } => {
+                                        let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].axis[index];
+                                        axis.button = Some((Button::Mouse { button: *button }, 1.0));
+                                    },
+                                    _ => {}
+                                }
+                                window.set_focus(false);
+                                self.record_request = None;
                             }
                         }
                         _ => {}
                     }
                 },
-                RecordKind::Axis { previous } => {
-                    match event {
-                        Event::WindowEvent { event, .. } => {
-                            match event {
-                                WindowEvent::KeyboardInput {
-                                    input: KeyboardInput {
-                                        virtual_keycode: Some(keycode),
-                                        state,
-                                        ..
-                                    },
-                                    ..
-                                } => {
-                                    if *state == ElementState::Pressed && *keycode == VirtualKeyCode::Escape {
-                                        // Cancel recording
-                                        match request.source {
-                                            RecordSource::Axis { index } => {
-                                                mapper.configs.get_mut(request.config_id).unwrap()
-                                                    .groups[request.group_index].axis[index].axis = previous;
-                                            },
-                                            _ => {}
-                                        }
-                                        window.set_focus(false);
-                                        self.record_request = None;
-                                    }
-                                },
-                                _ => {}
-                            }
-                        },
-                        _ => {}
-                    }
-                },
+                _ => {}
             }
         } else {
             // No record, continue
@@ -207,46 +169,37 @@ impl WindowGUI {
         window: &mut Window,
     ) {
         if let Some(request) = &self.record_request {
-            match request.kind {
-                RecordKind::Button { .. } => {
-                    match event {
-                        gilrs::EventType::ButtonPressed(button, _) => {
-                            match request.source {
-                                RecordSource::Action { index } => {
-                                    let action = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].actions[index];
-                                    action.button = Some(Button::Controller { id, button: *button });
-                                },
-                                RecordSource::Axis { index } => {
-                                    let axis = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].axis[index];
-                                    axis.button = Some(Button::Controller { id, button: *button });
-                                    axis.button_value = 1.0;
-                                },
-                            }
-                            window.set_focus(false);
-                            self.record_request = None;
+            match event {
+                gilrs::EventType::ButtonPressed(button, _) => {
+                    match request.source {
+                        RecordSource::ActionButton { index, .. } => {
+                            let action = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].actions[index];
+                            action.button = Some(Button::Controller { id, button: *button });
+                        },
+                        RecordSource::AxisButton { index, .. } => {
+                            let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].axis[index];
+                            axis.button = Some((Button::Controller { id, button: *button }, 1.0));
                         },
                         _ => {}
                     }
+                    window.set_focus(false);
+                    self.record_request = None;
                 },
-                RecordKind::Axis { .. } => {
-                    match event {
-                        gilrs::EventType::AxisChanged(ax, value, _) => {
-                            if f32::abs(*value) > 0.6 {
-                                match request.source {
-                                    RecordSource::Axis { index } => {
-                                        let axis = &mut mapper.configs.get_mut(request.config_id).unwrap().groups[request.group_index].axis[index];
-                                        axis.axis = Some(Axis::Controller { id, axis: *ax });
-                                        axis.axis_scale = if *value > 0.0 { 1.0 } else { -1.0 };
-                                    },
-                                    _ => {}
-                                }
-                                window.set_focus(false);
-                                self.record_request = None;
-                            }
-                        },
-                        _ => {}
+                gilrs::EventType::AxisChanged(ax, value, _) => {
+                    if f32::abs(*value) > 0.6 {
+                        match request.source {
+                            RecordSource::AxisAxis { index, .. } => {
+                                let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().groups[request.group_index].axis[index];
+                                let scale: f32 = if *value > 0.0 { 1.0 } else { -1.0 };
+                                axis.axis = Some((Axis::Controller { id, axis: *ax }, scale));
+                            },
+                            _ => {}
+                        }
+                        window.set_focus(false);
+                        self.record_request = None;
                     }
                 },
+                _ => {}
             }
         }
     }
@@ -256,10 +209,11 @@ impl WindowGUI {
     }
 
     fn ui_group(
-        &mut self, 
+        &mut self,
         group: &mut MapGroupInput, 
         group_index: usize, 
         ui: &mut egui::Ui,
+        app: &App,
         window: &mut Window,
     ) {
         ui.collapsing(group.name.clone(), |ui| {
@@ -297,13 +251,14 @@ impl WindowGUI {
                     })
                     .body(|mut body| {
                         for (action_index, action) in group.actions.iter_mut().enumerate() {
+                            let descriptor = &InputDatabase::action(&app, action.id).unwrap().descriptor;
                             body.row(20.0, |mut row| {
                                 if self.show_id {
                                     row.col(|ui| { ui.label(KeyData::as_ffi(action.id.data()).to_string()); });
                                 }
-                                row.col(|ui| { ui.label(action.descriptor.display_name.clone()); });
+                                row.col(|ui| { ui.label(descriptor.display_name.clone()); });
                                 if self.show_internal_name {
-                                    row.col(|ui| { ui.label(action.descriptor.name.clone()); });
+                                    row.col(|ui| { ui.label(descriptor.name.clone()); });
                                 }
                                 row.col(|ui| { 
                                     if ui.add_sized(ui.available_size(), egui::Button::new(
@@ -327,16 +282,15 @@ impl WindowGUI {
                                     .clicked() {
                                         // Record button
                                         self.record_request = Some(RecordRequest { 
-                                            config_id: self.active_config,
+                                            profile_id: self.active_profile,
                                             group_index, 
-                                            kind: RecordKind::Button { previous: action.button }, 
-                                            source: RecordSource::Action { index: action_index }, 
+                                            source: RecordSource::ActionButton { index: action_index, previous: action.button }, 
                                         });
                                         action.button = None;
                                         window.set_focus(true);
                                     }
                                 });
-                                row.col(|ui| { ui.label(action.descriptor.description.clone()); });
+                                row.col(|ui| { ui.label(descriptor.description.clone()); });
                             });
                         }
                     });
@@ -389,17 +343,18 @@ impl WindowGUI {
                     })
                     .body(|mut body| {
                         for (axis_index, axis) in group.axis.iter_mut().enumerate() {
+                            let descriptor = &InputDatabase::axis(app, axis.id).unwrap().descriptor;
                             body.row(20.0, |mut row| {
                                 if self.show_id {
                                     row.col(|ui| { ui.label(KeyData::as_ffi(axis.id.data()).to_string()); });
                                 }
-                                row.col(|ui| { ui.label(axis.descriptor.display_name.clone()); });
+                                row.col(|ui| { ui.label(descriptor.display_name.clone()); });
                                 if self.show_internal_name {
-                                    row.col(|ui| { ui.label(axis.descriptor.name.clone()); });
+                                    row.col(|ui| { ui.label(descriptor.name.clone()); });
                                 }
                                 row.col(|ui| { 
                                     if ui.add_sized(ui.available_size(), egui::Button::new(
-                                        if let Some(button) = &axis.button {
+                                        if let Some((button, _)) = &axis.button {
                                             match button {
                                                 Button::Keyboard { code } => format!("{:?}", code),
                                                 Button::Mouse { button } => format!("{:?}", button),
@@ -417,24 +372,23 @@ impl WindowGUI {
                                     })
                                     .clicked() {
                                         self.record_request = Some(RecordRequest { 
-                                            config_id: self.active_config,
+                                            profile_id: self.active_profile,
                                             group_index, 
-                                            kind: RecordKind::Button { previous: axis.button }, 
-                                            source: RecordSource::Axis { index: axis_index },
+                                            source: RecordSource::AxisButton { index: axis_index, previous: axis.button },
                                         });
                                         axis.button = None;
                                         window.set_focus(true);
                                     }
                                 });
                                 row.col(|ui| {
-                                    if axis.button.is_some() {
-                                        ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.button_value).speed(0.01).fixed_decimals(3));
+                                    if let Some((_, value)) = &mut axis.button {
+                                        ui.add_sized(ui.available_size(), egui::DragValue::new(value).speed(0.01).fixed_decimals(3));
                                     }
                                 });
                                 row.col(|ui| {
 
                                     if ui.add_sized(ui.available_size(), egui::Button::new(
-                                        if let Some(axis) = &axis.axis {
+                                        if let Some((axis, _)) = &axis.axis {
                                             match axis {
                                                 Axis::MousePositionX => { "Mouse Position X".to_owned() },
                                                 Axis::MousePositionY => { "Mouse Position Y".to_owned() },
@@ -451,43 +405,38 @@ impl WindowGUI {
                                             axis.axis = None;
                                             ui.close_menu();
                                         } else if ui.button("Mouse Position X").clicked() {
-                                            axis.axis = Some(Axis::MousePositionX);
-                                            axis.axis_scale = 1.0;
+                                            axis.axis = Some((Axis::MousePositionX, 1.0));
                                             ui.close_menu();
                                         } else if ui.button("Mouse Position Y").clicked() {
-                                            axis.axis = Some(Axis::MousePositionY);
-                                            axis.axis_scale = 1.0;
+                                            axis.axis = Some((Axis::MousePositionY, 1.0));
                                             ui.close_menu();
                                         } else if ui.button("Mouse Motion X").clicked() {
-                                            axis.axis = Some(Axis::MouseMotionX);
-                                            axis.axis_scale = 1.0;
+                                            axis.axis = Some((Axis::MouseMotionX, 1.0));
                                             ui.close_menu();
                                         } else if ui.button("Mouse Motion Y").clicked() {
-                                            axis.axis = Some(Axis::MouseMotionY);
-                                            axis.axis_scale = 1.0;
+                                            axis.axis = Some((Axis::MouseMotionY, 1.0));
                                             ui.close_menu();
                                         }
                                     })
                                     .clicked() {
                                         self.record_request = Some(RecordRequest { 
-                                            config_id: self.active_config,
+                                            profile_id: self.active_profile,
                                             group_index, 
-                                            kind: RecordKind::Axis { previous: axis.axis }, 
-                                            source: RecordSource::Axis { index: axis_index },
+                                            source: RecordSource::AxisAxis { index: axis_index, previous: axis.axis },
                                         });
                                         axis.axis = None;
                                         window.set_focus(true);
                                     }
                                 });
                                 row.col(|ui| {
-                                    if axis.axis.is_some() {
-                                        ui.add_sized(ui.available_size(), egui::DragValue::new(&mut axis.axis_scale).speed(0.01).fixed_decimals(3));
+                                    if let Some((_, scale)) = &mut axis.axis {
+                                        ui.add_sized(ui.available_size(), egui::DragValue::new(scale).speed(0.01).fixed_decimals(3));
                                     }
                                 });
                                 if self.show_min_max {
                                     row.col(|ui| {
                                         ui.centered_and_justified(|ui| {
-                                            ui.label(match axis.descriptor.kind {
+                                            ui.label(match descriptor.kind {
                                                 AxisKind::Clamped { min, .. } => { min.to_string() },
                                                 AxisKind::Normalized { .. } => { f32::NEG_INFINITY.to_string() },
                                                 AxisKind::ClampedNormalized { min, .. } => { min.to_string() },
@@ -497,7 +446,7 @@ impl WindowGUI {
                                     });
                                     row.col(|ui| {
                                         ui.centered_and_justified(|ui| {
-                                            ui.label(match axis.descriptor.kind {
+                                            ui.label(match descriptor.kind {
                                                 AxisKind::Clamped { max, .. } => { max.to_string() },
                                                 AxisKind::Normalized { .. } => { f32::INFINITY.to_string() },
                                                 AxisKind::ClampedNormalized { max, .. } => { max.to_string() },
@@ -506,7 +455,7 @@ impl WindowGUI {
                                         });
                                     });
                                 }
-                                row.col(|ui| { ui.add(egui::Label::new(axis.descriptor.description.clone()).wrap(false)); });
+                                row.col(|ui| { ui.add(egui::Label::new(descriptor.description.clone()).wrap(false)); });
                             });
                         }
                     });
@@ -562,12 +511,23 @@ impl WindowGUI {
                     egui::CentralPanel::default().show(&self.platform.context(), |ui| {
                         
                         ui.horizontal(|ui| {
-                            if ui.button("   Close   ").clicked() {
-                                self.page = Page::None;
+                            if ui.button("   Save & Exit   ").clicked() {
                                 mapper.rebuild_cache();
+                                mapper.save().ok();
+                                self.page = Page::None;
                             }
-                            if ui.button("   Reload   ").clicked() {
-                                mapper.reload(app);
+                            if ui.button("   Save   ").clicked() {
+                                mapper.rebuild_cache();
+                                mapper.save().ok();
+                            }
+                            if ui.button("   Cancel   ").clicked() {
+                                mapper.load().ok();
+                                mapper.refresh(app); // Update IDs
+                                mapper.rebuild_cache();
+                                self.page = Page::None;
+                            }
+                            if ui.button("   Refresh   ").clicked() {
+                                mapper.refresh(app);
                             }
                             ui.separator();
                             ui.checkbox(&mut self.show_internal_name, "Show Internal Name");
@@ -576,48 +536,56 @@ impl WindowGUI {
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            for (config_id, config) in &mut mapper.configs {
-                                if self.active_config == config_id {
-                                    ui.add(egui::SelectableLabel::new(true, format!("   {}   ", config.name)));
+                            for (profile_id, profile) in &mut mapper.profiles {
+                                if self.active_profile == profile_id {
+                                    ui.add(egui::SelectableLabel::new(true, format!("   {}   ", profile.name)));
                                 } else {
-                                    if ui.button(format!("   {}   ", config.name)).clicked() {
-                                        self.active_config = if self.active_config == config_id {
-                                            InputConfigId::null()
+                                    if ui.button(format!("   {}   ", profile.name)).clicked() {
+                                        self.active_profile = if self.active_profile == profile_id {
+                                            InputProfileId::null()
                                         } else {
-                                            config_id  
+                                            profile_id  
                                         };
                                     }
                                 }
                             }
                             ui.separator();
                             if ui.button("Add").clicked() {
-                                let name = format!("New Config {}", mapper.configs.len() + 1);
-                                let key = mapper.configs.insert(InputConfig { name, ..Default::default() });
-                                self.active_config = key;
-                                mapper.reload(app);
+                                self.active_profile = mapper.new_profile(app);
                             }
                             if ui.button("Remove").clicked() {
-                                if self.active_config != InputConfigId::null() {
-                                    mapper.configs.remove(self.active_config);
-                                    self.active_config = InputConfigId::null();
+                                if self.active_profile != InputProfileId::null() {
+                                    mapper.profiles.remove(self.active_profile);
+                                    self.active_profile = InputProfileId::null();
                                 }
                             }
-                            ui.add(egui::TextEdit::singleline(&mut self.config_rename_placeholder).desired_width(100.0));
+                            if ui.button("Duplicate").clicked() {
+                                self.active_profile = mapper.duplicate(self.active_profile, app);
+                            }
+                            ui.add(egui::TextEdit::singleline(&mut self.profile_rename_placeholder).desired_width(100.0));
                             if ui.button("Rename").clicked() {
-                                if !self.config_rename_placeholder.is_empty() {
-                                    if let Some(config) = mapper.configs.get_mut(self.active_config) {
-                                        config.name = self.config_rename_placeholder.clone();
-                                        self.config_rename_placeholder.clear();
+                                if !mapper.profiles.iter().any(|(_, p)| p.name == self.profile_rename_placeholder) {
+                                    if let Some(profile) = mapper.profiles.get_mut(self.active_profile) {
+                                        if !self.profile_rename_placeholder.is_empty() {
+                                            profile.name = self.profile_rename_placeholder.clone();
+                                            self.profile_rename_placeholder.clear();
+                                        }
                                     }
                                 }
                             }
                         });
                         ui.separator();
 
-                        // Get the active input configuration
-                        if let Some(config) = mapper.configs.get_mut(self.active_config) {
+                        // Get the active input profile
+                        if let Some(profile) = mapper.profiles.get_mut(self.active_profile) {
+
+                            // Profile section
+                            ui.checkbox(&mut profile.active, "Active");
+                            ui.separator();
+
+                            // Pre-compute total scroll height
                             let mut total_height = 0.0;
-                            for group in &config.groups {
+                            for group in &profile.groups {
                                 total_height += 25.0 * 5.0;
                                 total_height += group.actions.len() as f32 * 25.0; 
                                 total_height += group.axis.len() as f32 * 25.0; 
@@ -626,8 +594,8 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for (group_index, group) in config.groups.iter_mut().enumerate() {
-                                        self.ui_group(group, group_index, ui, window);
+                                    for (group_index, group) in profile.groups.iter_mut().enumerate() {
+                                        self.ui_group(group, group_index, ui, app, window);
                                     }
                                 });
                         }

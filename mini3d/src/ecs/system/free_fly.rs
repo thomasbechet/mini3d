@@ -35,8 +35,8 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
         transform.translation += direction * direction_length * delta_time * speed;
     
         // Apply rotation
-        let motion_x = input.axis(free_view.look_x).map_or(0.0, |a| a.value);
-        let motion_y = input.axis(free_view.look_y).map_or(0.0, |a| a.value);
+        let motion_x = input.axis(free_view.view_x).map_or(0.0, |a| a.value);
+        let motion_y = input.axis(free_view.view_y).map_or(0.0, |a| a.value);
         if free_view.free_mode {
             if motion_x != 0.0 {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Y, -f32::to_radians(motion_x) * FreeFlyComponent::ROTATION_SENSIBILITY);

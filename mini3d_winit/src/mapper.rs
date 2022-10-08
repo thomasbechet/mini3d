@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{input::{InputGroupId, axis::{AxisInputId, AxisDescriptor}, action::{ActionInputId, ActionState, ActionDescriptor}, InputDatabase}, app::App, event::{AppEvents, input::{InputEvent, ActionEvent, AxisEvent}}, slotmap::{new_key_type, SlotMap}};
-use mini3d_os::input::{OSGroup, OSAction, OSAxis};
+use mini3d::{input::{InputGroupId, axis::AxisInputId, action::{ActionInputId, ActionState}, InputDatabase}, app::App, event::{AppEvents, input::{InputEvent, ActionEvent, AxisEvent}}, slotmap::{new_key_type, SlotMap, Key}, anyhow::{Result, Context, anyhow}};
+use mini3d_os::input::{CommonAction, CommonAxis, CommonInput};
+use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
 
 struct KeyToAction {
@@ -38,59 +39,64 @@ struct ControllerAxisToAxis {
     scale: f32,
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Axis {
     MousePositionX, 
     MousePositionY, 
-    MouseMotionX, 
+    MouseMotionX,
     MouseMotionY,
     Controller { id: GamepadId, axis: gilrs::Axis }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Button {
     Keyboard { code: VirtualKeyCode },
     Mouse { button: MouseButton },
     Controller { id: GamepadId, button: gilrs::Button }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub(crate) struct MapActionInput {
+    #[serde(skip)]
     pub(crate) id: ActionInputId,
-    pub(crate) descriptor: ActionDescriptor,
+    pub(crate) name: String,
     pub(crate) button: Option<Button>,
-}
-#[derive(Default)]
-pub(crate) struct MapAxisInput {
-    pub(crate) id: AxisInputId,
-    pub(crate) descriptor: AxisDescriptor,
-    pub(crate) button: Option<Button>,
-    pub(crate) button_value: f32,
-    pub(crate) axis: Option<Axis>,
-    pub(crate) axis_scale: f32,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub(crate) struct MapAxisInput {
+    #[serde(skip)]
+    pub(crate) id: AxisInputId,
+    pub(crate) name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) button: Option<(Button, f32)>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) axis: Option<(Axis, f32)>,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub(crate) struct MapGroupInput {
+    #[serde(skip)]
     pub(crate) id: InputGroupId,
     pub(crate) name: String,
     pub(crate) actions: Vec<MapActionInput>,
     pub(crate) axis: Vec<MapAxisInput>,
 }
 
-new_key_type! { pub(crate) struct InputConfigId; }
+new_key_type! { pub(crate) struct InputProfileId; }
 
-#[derive(Default)]
-pub(crate) struct InputConfig {
+#[derive(Default, Serialize, Deserialize)]
+pub(crate) struct InputProfile {
     pub(crate) name: String,
+    pub(crate) active: bool,
     pub(crate) groups: Vec<MapGroupInput>,
 }
 
 #[derive(Default)]
 pub(crate) struct InputMapper {
     
-    pub(crate) configs: SlotMap<InputConfigId, InputConfig>,
-    pub(crate) default_config: InputConfigId,
+    pub(crate) profiles: SlotMap<InputProfileId, InputProfile>,
+    pub(crate) default_profile: InputProfileId,
 
     key_to_action: HashMap<VirtualKeyCode, Vec<KeyToAction>>,
     key_to_axis: HashMap<VirtualKeyCode, Vec<KeyToAxis>>,
@@ -109,64 +115,120 @@ impl InputMapper {
 
     pub(crate) fn new() -> Self {
         let mut mapper: InputMapper = Default::default();
-
         // Default inputs
-        mapper.default_config = mapper.configs.insert(InputConfig { 
+        mapper.default_profile = mapper.profiles.insert(InputProfile { 
             name: "Default".to_string(), 
+            active: true,
             groups: vec![
                 MapGroupInput {
-                    name: OSGroup::INPUT.to_owned(),
+                    name: CommonInput::GROUP.to_owned(),
                     actions: vec![
-                        MapActionInput { descriptor: ActionDescriptor { name: OSAction::UP.to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::Z }), ..Default::default() },
-                        MapActionInput { descriptor: ActionDescriptor { name: OSAction::LEFT.to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::Q }), ..Default::default() },
-                        MapActionInput { descriptor: ActionDescriptor { name: OSAction::DOWN.to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::S }), ..Default::default() },
-                        MapActionInput { descriptor: ActionDescriptor { name: OSAction::RIGHT.to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::D }), ..Default::default() },
+                        MapActionInput { name: CommonAction::UP.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::Z }), ..Default::default() },
+                        MapActionInput { name: CommonAction::LEFT.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::Q }), ..Default::default() },
+                        MapActionInput { name: CommonAction::DOWN.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::S }), ..Default::default() },
+                        MapActionInput { name: CommonAction::RIGHT.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::D }), ..Default::default() },
+                        MapActionInput { name: CommonAction::CHANGE_CONTROL_MODE.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::F }), ..Default::default() },
                     ],
                     axis: vec![
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_X.to_string(), ..Default::default() }, axis: Some(Axis::MousePositionX), ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::CURSOR_Y.to_string(), ..Default::default() }, axis: Some(Axis::MousePositionY), ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_X.to_string(), ..Default::default() }, axis: Some(Axis::MouseMotionX), axis_scale: 0.01, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: OSAxis::MOTION_Y.to_string(), ..Default::default() }, axis: Some(Axis::MouseMotionY), axis_scale: 0.01, ..Default::default() },
+                        MapAxisInput { name: CommonAxis::CURSOR_X.to_string(), axis: Some((Axis::MousePositionX, 0.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::CURSOR_Y.to_string(), axis: Some((Axis::MousePositionY, 0.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::VIEW_X.to_string(), axis: Some((Axis::MouseMotionX, 0.01)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::VIEW_Y.to_string(), axis: Some((Axis::MouseMotionY, 0.01)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::MOVE_FORWARD.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::Z }, 1.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::MOVE_BACKWARD.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::S }, 1.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::MOVE_LEFT.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::Q }, 1.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::MOVE_RIGHT.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::D }, 1.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::MOVE_UP.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::X }, 1.0)), ..Default::default() },
+                        MapAxisInput { name: CommonAxis::MOVE_DOWN.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::W }, 1.0)), ..Default::default() },
                     ],
                     ..Default::default()
                 },
                 MapGroupInput {
                     name: "test".to_owned(),
                     actions: vec![
-                        MapActionInput { descriptor: ActionDescriptor { name: "switch_mode".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::C }), ..Default::default() },
-                        MapActionInput { descriptor: ActionDescriptor { name: "roll_left".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::A }), ..Default::default() },
-                        MapActionInput { descriptor: ActionDescriptor { name: "roll_right".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::E }), ..Default::default() },
-                        MapActionInput { descriptor: ActionDescriptor { name: "toggle_layout".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::F }), ..Default::default() },
+                        MapActionInput { name: "switch_mode".to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::C }), ..Default::default() },
+                        MapActionInput { name: "roll_left".to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::A }), ..Default::default() },
+                        MapActionInput { name: "roll_right".to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::E }), ..Default::default() },
                     ],
-                    axis: vec![
-                        MapAxisInput { descriptor: AxisDescriptor { name: "move_forward".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::Z }), button_value: 1.0, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: "move_backward".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::S }), button_value: 1.0, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: "move_left".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::Q }), button_value: 1.0, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: "move_right".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::D }), button_value: 1.0, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: "move_up".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::X }), button_value: 1.0, ..Default::default() },
-                        MapAxisInput { descriptor: AxisDescriptor { name: "move_down".to_string(), ..Default::default() }, button: Some(Button::Keyboard { code: VirtualKeyCode::W }), button_value: 1.0, ..Default::default() },
-                    ],
+                    axis: vec![],
                     ..Default::default()
                 }
             ],
         });
 
+        mapper.load().ok();
+
         mapper
     }
 
-    pub(crate) fn reload(&mut self, app: &App) {
+    pub(crate) fn new_profile(&mut self, app: &App) -> InputProfileId {
+        let mut next_index = self.profiles.len() + 1;
+        let mut name = format!("Profile {}", next_index);
+        while self.profiles.iter().any(|(_, p)| p.name == name) {
+            next_index += 1;
+            name = format!("Profile {}", next_index); 
+        }
+        let id = self.profiles.insert(InputProfile { name, active: true, groups: Default::default() });
+        self.refresh(app);
+        id
+    }
 
-        // Update configs
-        for (_, config) in &mut self.configs {
+    pub(crate) fn duplicate(&mut self, from: InputProfileId, app: &App) -> InputProfileId {
+        if let Some(from) = self.profiles.get(from) {
+            let mut name = format!("{} Copy", from.name);
+            let mut next_index = 1;
+            while self.profiles.iter().any(|(_, p)| p.name == name) {
+                next_index += 1;
+                name = format!("{} Copy {}", from.name, next_index);
+            }
+            let profile = InputProfile { name, active: true, groups: from.groups.clone() };
+            let id = self.profiles.insert(profile);
+            self.refresh(app);
+            id
+        } else {
+            InputProfileId::null()
+        }
+    }
+
+    pub(crate) fn save(&self) -> Result<()> {
+        std::fs::create_dir_all("config").unwrap();
+        let file = File::create(format!("config/profiles.json"))
+            .context("Failed to open file.")?;
+        let profiles = self.profiles.values().collect::<Vec<&_>>();
+        serde_json::to_writer(&file, &profiles)
+            .context("Failed to write file.")?;
+        Ok(())
+    }
+
+    pub(crate) fn load(&mut self) -> Result<()> {
+        if let Ok(file) = File::open("config/profiles.json") {
+            let mut profiles: Vec<InputProfile> = serde_json::from_reader(&file).unwrap();
+            for profile in profiles.drain(..) {
+                if let Some((_, current)) = self.profiles.iter_mut().find(|(_, p)| p.name == profile.name) {
+                    *current = profile;
+                } else {
+                    self.profiles.insert(profile);
+                }
+            }
+            Ok(())
+        } else {
+            Err(anyhow!("Failed to open file."))
+        }
+    }
+
+    pub(crate) fn refresh(&mut self, app: &App) {
+
+        // Update profiles
+        for (_, profile) in &mut self.profiles {
 
             // Update groups
             for id in InputDatabase::iter_groups(app) {
                 let group = InputDatabase::group(app, id).unwrap();
                 // Find existing group
-                if let Some(g) = config.groups.iter_mut().find(|g| g.name == group.name) {
+                if let Some(g) = profile.groups.iter_mut().find(|g| g.name == group.name) {
                     g.id = group.id;
                 } else {
-                    config.groups.push(MapGroupInput { 
+                    profile.groups.push(MapGroupInput { 
                         id: group.id, 
                         name: group.name.clone(), 
                         actions: Default::default(), 
@@ -178,16 +240,15 @@ impl InputMapper {
             // Update actions
             for id in InputDatabase::iter_actions(app) {
                 let action = InputDatabase::action(app, id).unwrap();
-                let group = config.groups.iter_mut().find(|g| g.id == action.group).unwrap();
-                if let Some(a) = group.actions.iter_mut().find(|a| a.descriptor.name == action.descriptor.name) {
+                let group = profile.groups.iter_mut().find(|g| g.id == action.group).unwrap();
+                if let Some(a) = group.actions.iter_mut().find(|a| a.name == action.descriptor.name) {
                     // Update action info
                     a.id = action.id;
-                    a.descriptor = action.descriptor.clone();
                 } else {
                     // Insert new action
                     group.actions.push(MapActionInput { 
-                        id: action.id, 
-                        descriptor: action.descriptor.clone(), 
+                        id: action.id,
+                        name: action.descriptor.name.clone(),
                         button: Default::default(),
                     });
                 }
@@ -196,20 +257,17 @@ impl InputMapper {
             // Update axis
             for id in InputDatabase::iter_axis(app) {
                 let axis = InputDatabase::axis(app, id).unwrap();
-                let group = config.groups.iter_mut().find(|g| g.id == axis.group).unwrap();
-                if let Some(a) = group.axis.iter_mut().find(|a| a.descriptor.name == axis.descriptor.name) {
+                let group = profile.groups.iter_mut().find(|g| g.id == axis.group).unwrap();
+                if let Some(a) = group.axis.iter_mut().find(|a| a.name == axis.descriptor.name) {
                     // Update axis info
                     a.id = axis.id;
-                    a.descriptor = axis.descriptor.clone();
                 } else {
                     // Insert new axis
                     group.axis.push(MapAxisInput { 
                         id: axis.id, 
-                        descriptor: axis.descriptor.clone(), 
+                        name: axis.descriptor.name.clone(), 
                         button: Default::default(),
-                        button_value: 1.0,
                         axis: Default::default(),
-                        axis_scale: 1.0,
                     });
                 }
             }
@@ -235,56 +293,58 @@ impl InputMapper {
         self.controllers_axis_to_axis.clear();
 
         // Update caches
-        for (_, config) in &self.configs {
-            for group in &config.groups {
-                for action in &group.actions {
-                    if let Some(button) = &action.button {
-                        match button {
-                            Button::Keyboard { code } => {
-                                self.key_to_action.entry(*code).or_insert(Default::default()).push(KeyToAction { id: action.id });
-                            },
-                            Button::Mouse { button } => {
-                                self.mouse_button_to_action.entry(*button).or_insert(Default::default()).push(MouseButtonToAction { id: action.id });
-                            },
-                            Button::Controller { id, button } => {
-                                self.controllers_button_to_action.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
-                                    .push(ControllerButtonToAction { id: action.id });
-                            },
+        for (_, profile) in &self.profiles {
+            if profile.active {
+                for group in &profile.groups {
+                    for action in &group.actions {
+                        if let Some(button) = &action.button {
+                            match button {
+                                Button::Keyboard { code } => {
+                                    self.key_to_action.entry(*code).or_insert(Default::default()).push(KeyToAction { id: action.id });
+                                },
+                                Button::Mouse { button } => {
+                                    self.mouse_button_to_action.entry(*button).or_insert(Default::default()).push(MouseButtonToAction { id: action.id });
+                                },
+                                Button::Controller { id, button } => {
+                                    self.controllers_button_to_action.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
+                                        .push(ControllerButtonToAction { id: action.id });
+                                },
+                            }
                         }
                     }
-                }
-                for axis in &group.axis {
-                    if let Some(b) = &axis.button {
-                        match b {
-                            Button::Keyboard { code } => {
-                                self.key_to_axis.entry(*code).or_insert(Default::default()).push(KeyToAxis { id: axis.id, value: axis.button_value });
-                            },
-                            Button::Mouse { button } => {
-                                self.mouse_button_to_axis.entry(*button).or_insert(Default::default()).push(MouseButtonToAxis { id: axis.id, value: axis.button_value });
-                            },
-                            Button::Controller { id, button } => {
-                                self.controllers_button_to_axis.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
-                                    .push(ControllerButtonToAxis { id: axis.id, value: axis.button_value });
-                            },
+                    for axis in &group.axis {
+                        if let Some((b, value)) = &axis.button {
+                            match b {
+                                Button::Keyboard { code } => {
+                                    self.key_to_axis.entry(*code).or_insert(Default::default()).push(KeyToAxis { id: axis.id, value: *value });
+                                },
+                                Button::Mouse { button } => {
+                                    self.mouse_button_to_axis.entry(*button).or_insert(Default::default()).push(MouseButtonToAxis { id: axis.id, value: *value });
+                                },
+                                Button::Controller { id, button } => {
+                                    self.controllers_button_to_axis.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
+                                        .push(ControllerButtonToAxis { id: axis.id, value: *value });
+                                },
+                            }
                         }
-                    }
-                    if let Some(a) = &axis.axis {
-                        match a {
-                            Axis::MousePositionX => {
-                                self.mouse_position_x_to_axis.push(MousePositionToAxis { id: axis.id });
-                            },
-                            Axis::MousePositionY => {
-                                self.mouse_position_y_to_axis.push(MousePositionToAxis { id: axis.id });
-                            },
-                            Axis::MouseMotionX => {
-                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, scale: axis.axis_scale });
-                            },
-                            Axis::MouseMotionY => {
-                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, scale: axis.axis_scale });
-                            },
-                            Axis::Controller { id, axis: ax } => {
-                                self.controllers_axis_to_axis.entry(*id).or_insert(Default::default()).entry(*ax).or_insert(Default::default())
-                                    .push(ControllerAxisToAxis { id: axis.id, scale: axis.axis_scale })
+                        if let Some((a, scale)) = &axis.axis {
+                            match a {
+                                Axis::MousePositionX => {
+                                    self.mouse_position_x_to_axis.push(MousePositionToAxis { id: axis.id });
+                                },
+                                Axis::MousePositionY => {
+                                    self.mouse_position_y_to_axis.push(MousePositionToAxis { id: axis.id });
+                                },
+                                Axis::MouseMotionX => {
+                                    self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, scale: *scale });
+                                },
+                                Axis::MouseMotionY => {
+                                    self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, scale: *scale });
+                                },
+                                Axis::Controller { id, axis: ax } => {
+                                    self.controllers_axis_to_axis.entry(*id).or_insert(Default::default()).entry(*ax).or_insert(Default::default())
+                                        .push(ControllerAxisToAxis { id: axis.id, scale: *scale })
+                                }
                             }
                         }
                     }
