@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material, script::RhaiScript}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera, rhai::system_rhai_update_scripts}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect, rhai::RhaiContext};
 
 use crate::{input::{CommonAxis, CommonAction, CommonInput}, asset::DefaultAsset};
 
@@ -52,6 +52,7 @@ pub struct OSProgram {
     dt_record: Vec<f64>,
     last_dt: f64,
     time_graph: TimeGraph,
+    rhai: RhaiContext,
 }
 
 impl ProgramBuilder for OSProgram {
@@ -70,6 +71,7 @@ impl ProgramBuilder for OSProgram {
             dt_record: Vec::new(),
             last_dt: 0.0,
             time_graph: TimeGraph::new(240),
+            rhai: RhaiContext::new(),
         }
     }
 }
@@ -289,7 +291,7 @@ impl Program for OSProgram {
             }),
             RotatorComponent {}
         ));
-        self.world.spawn((
+        let mut e = self.world.spawn((
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
                 switch_mode: ctx.input.find_action(test_group, "switch_mode").unwrap().id,
@@ -308,7 +310,13 @@ impl Program for OSProgram {
                 pitch: 0.0,
             },
             CameraComponent::new(ctx.renderer),
+            ScriptStorageComponent::new(),
+            RhaiScriptsComponent::new(),
         ));
+        let group = ctx.asset.find_group("import").unwrap();
+        let script = ctx.asset.find::<RhaiScript>("inventory", group.id).unwrap();
+        self.rhai.compile(script.id, &script.data.source).unwrap();
+        self.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add(script.id).unwrap();
 
         Ok(())
     }
@@ -320,6 +328,7 @@ impl Program for OSProgram {
         system_rotator(&mut self.world, ctx.delta_time as f32);
         system_transfer_model_transforms(&mut self.world, &mut query, ctx.renderer);
         system_update_camera(&mut self.world, ctx.renderer);
+        system_rhai_update_scripts(&mut self.world, &mut self.rhai, ctx);
 
         // Custom code
         {

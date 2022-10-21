@@ -11,3 +11,5 @@ slotmap = "1.0.6"
 hecs = "0.9.0"
 serde = "1.0.144"
 anyhow = "1.0.65"
+rand = "0.8.5"
+rhai = { version = "1.10.1", features = ["only_i32", "f32_float"] }

@@ -8,16 +8,18 @@ use crate::program::ProgramId;
 use self::font::Font;
 use self::material::Material;
 use self::mesh::Mesh;
+use self::script::RhaiScript;
 use self::texture::Texture;
 
 pub mod font;
 pub mod material;
 pub mod mesh;
+pub mod script;
 pub mod texture;
 
 new_key_type! { pub struct AssetGroupId; }
 
-pub trait Asset: Default {
+pub trait Asset {
     type Id: Key;
     fn typename() -> &'static str;
 }
@@ -29,10 +31,18 @@ pub struct AssetEntry<A: Asset> {
     pub group: AssetGroupId,
 }
 
-#[derive(Default)]
 pub struct AssetRegistry<A: Asset> {
     entries: SlotMap<A::Id, AssetEntry<A>>,
     default_id: Option<A::Id>,
+}
+
+impl<A: Asset> Default for AssetRegistry<A> {
+    fn default() -> Self {
+        Self {
+            entries: SlotMap::with_key(),
+            default_id: None,
+        }
+    }
 }
 
 impl<'a, A: Asset> AssetRegistry<A> {
@@ -105,6 +115,7 @@ pub struct AssetManager {
     fonts: AssetRegistry<Font>,
     materials: AssetRegistry<Material>,
     meshes: AssetRegistry<Mesh>,
+    rhai_scripts: AssetRegistry<RhaiScript>,
     textures: AssetRegistry<Texture>,    
 
     // Groups
@@ -119,6 +130,7 @@ impl Default for AssetManager {
             fonts: Default::default(), 
             materials: Default::default(), 
             meshes: Default::default(), 
+            rhai_scripts: Default::default(),
             textures: Default::default(), 
             groups: Default::default(), 
             import_group: Default::default() 
@@ -149,6 +161,7 @@ macro_rules! into_registry {
 into_registry!(Font, fonts);
 into_registry!(Material, materials);
 into_registry!(Mesh, meshes);
+into_registry!(RhaiScript, rhai_scripts);
 into_registry!(Texture, textures);
 
 impl AssetManager {
@@ -166,6 +179,10 @@ impl AssetManager {
             ImportAssetEvent::Mesh(mesh) => {
                 self.register(&mesh.name, self.import_group, mesh.data)
                     .context(format!("Failed to register imported mesh '{}'", mesh.name))?;
+            },
+            ImportAssetEvent::RhaiScript(script) => {
+                self.register(&script.name, self.import_group, script.data)
+                    .context(format!("Failed to register imported lua script '{}'", script.name))?;
             },
             ImportAssetEvent::Texture(texture) => {
                 self.register(&texture.name, self.import_group, texture.data)
