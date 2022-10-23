@@ -14,3 +14,4 @@ pub use glam;
 pub use slotmap;
 pub use hecs;
 pub use anyhow;
+pub use rand;

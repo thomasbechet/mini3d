@@ -8,12 +8,14 @@ use crate::program::ProgramId;
 use self::font::Font;
 use self::material::Material;
 use self::mesh::Mesh;
+use self::model::Model;
 use self::script::RhaiScript;
 use self::texture::Texture;
 
 pub mod font;
 pub mod material;
 pub mod mesh;
+pub mod model;
 pub mod script;
 pub mod texture;
 
@@ -115,6 +117,7 @@ pub struct AssetManager {
     fonts: AssetRegistry<Font>,
     materials: AssetRegistry<Material>,
     meshes: AssetRegistry<Mesh>,
+    models: AssetRegistry<Model>,
     rhai_scripts: AssetRegistry<RhaiScript>,
     textures: AssetRegistry<Texture>,    
 
@@ -130,6 +133,7 @@ impl Default for AssetManager {
             fonts: Default::default(), 
             materials: Default::default(), 
             meshes: Default::default(), 
+            models: Default::default(), 
             rhai_scripts: Default::default(),
             textures: Default::default(), 
             groups: Default::default(), 
@@ -161,6 +165,7 @@ macro_rules! into_registry {
 into_registry!(Font, fonts);
 into_registry!(Material, materials);
 into_registry!(Mesh, meshes);
+into_registry!(Model, models);
 into_registry!(RhaiScript, rhai_scripts);
 into_registry!(Texture, textures);
 
@@ -179,6 +184,10 @@ impl AssetManager {
             ImportAssetEvent::Mesh(mesh) => {
                 self.register(&mesh.name, self.import_group, mesh.data)
                     .context(format!("Failed to register imported mesh '{}'", mesh.name))?;
+            },
+            ImportAssetEvent::Model(model) => {
+                self.register(&model.name, self.import_group, model.data)
+                    .context(format!("Failed to register imported model '{}'", model.name))?;
             },
             ImportAssetEvent::RhaiScript(script) => {
                 self.register(&script.name, self.import_group, script.data)

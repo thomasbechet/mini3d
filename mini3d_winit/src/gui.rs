@@ -554,7 +554,7 @@ impl WindowGUI {
                                 self.active_profile = mapper.new_profile(app);
                             }
                             if ui.button("Remove").clicked() {
-                                if self.active_profile != InputProfileId::null() {
+                                if !self.active_profile.is_null() {
                                     mapper.profiles.remove(self.active_profile);
                                     self.active_profile = InputProfileId::null();
                                 }

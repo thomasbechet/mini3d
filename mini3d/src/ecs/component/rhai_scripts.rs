@@ -20,11 +20,13 @@ pub struct RhaiScriptsComponent {
     pub instances: [Option<RhaiScriptInstance>; MAX_RHAI_SCRIPT_COUNT],
 }
 
-impl RhaiScriptsComponent {
-
-    pub fn new() -> Self {
+impl Default for RhaiScriptsComponent {
+    fn default() -> Self {
         Self { instances: [None; MAX_RHAI_SCRIPT_COUNT] }
     }
+}
+
+impl RhaiScriptsComponent {
 
     pub fn add(&mut self, id: RhaiScriptId) -> Result<()> {
         if self.instances.iter().any(|instance| match instance {

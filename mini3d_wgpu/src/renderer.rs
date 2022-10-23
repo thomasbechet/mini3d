@@ -1,9 +1,10 @@
 use mini3d::app::App;
+use mini3d::asset::model::{ModelId, self};
 use mini3d::asset::texture::TextureId;
-use mini3d::asset::{AssetDatabase, self};
+use mini3d::asset::{AssetDatabase, self, AssetManager};
 use mini3d::asset::material::MaterialId;
 use mini3d::asset::mesh::MeshId;
-use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererDynamicMaterialId, RendererModelDescriptor, RendererCameraId, RendererStatistics};
+use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererCameraId, RendererStatistics};
 use mini3d::glam::{Vec4, Mat4, Vec3};
 use mini3d::graphics::CommandBuffer;
 use mini3d::slotmap::{SlotMap, SecondaryMap, new_key_type};
@@ -559,17 +560,20 @@ impl RendererBackend for WGPURenderer {
         self.camera.update(eye, forward, up, fov);
     }
 
-    fn add_model(&mut self, descriptor: &RendererModelDescriptor) -> RendererModelId {
+    fn add_model(&mut self, id: ModelId, asset: &AssetManager) -> RendererModelId {
         
+        // Get model info
+        let model = &asset.get::<model::Model>(id).unwrap().data;
+
         // Check mesh asset
-        if !self.meshes.contains_key(descriptor.mesh) {
-            if !self.added_meshes.contains(&descriptor.mesh) {
-                self.added_meshes.push(descriptor.mesh);
+        if !self.meshes.contains_key(model.mesh) {
+            if !self.added_meshes.contains(&model.mesh) {
+                self.added_meshes.push(model.mesh);
             }
         }
 
         // Check material asset
-        for id in descriptor.materials {
+        for id in &model.materials {
             if !self.materials.contains_key(*id) {
                 if !self.added_materials.contains(id) {
                     self.added_materials.push(*id);
@@ -579,8 +583,8 @@ impl RendererBackend for WGPURenderer {
 
         // Insert the uninitialized model
         let id = self.models.insert(Model {
-            mesh: descriptor.mesh,
-            materials: Vec::from(descriptor.materials),
+            mesh: model.mesh,
+            materials: model.materials.clone(),
             model_index: self.model_buffer.add(),
             objects: Default::default(),
         });
@@ -594,13 +598,6 @@ impl RendererBackend for WGPURenderer {
         if let Some(model) = self.models.get(id) {
             self.model_buffer.set_transform(model.model_index, &mat);
         }
-    }
-
-    fn add_dynamic_material(&mut self) -> RendererDynamicMaterialId {
-        Default::default()
-    }
-    fn remove_dynamic_material(&mut self, _id: RendererDynamicMaterialId) {
-        todo!()
     }
 
     fn push_command_buffer(&mut self, command: CommandBuffer) {

@@ -22,7 +22,7 @@ impl Default for Font {
     fn default() -> Self {
         let glyph_width = 8;
         let glyph_height = 8;
-        let data = BitVec::from_slice(include_bytes!("../../../scripts/font.bin"));
+        let data = BitVec::from_slice(include_bytes!("../../../assets/font.bin"));
         let glyph_locations: HashMap<_, _> = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê"
             .chars().enumerate().map(|(i, x)| (x, i * (glyph_height * glyph_width))).collect();
         Font {

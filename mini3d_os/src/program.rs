@@ -1,4 +1,4 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material, script::RhaiScript}, hecs::{World, PreparedQuery}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent}, system::{transform::system_transfer_model_transforms, rotator::system_rotator, free_fly::system_free_fly, camera::system_update_camera, rhai::system_rhai_update_scripts}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, backend::renderer::RendererModelDescriptor, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect, rhai::RhaiContext};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material, script::RhaiScript, model::Model}, hecs::World, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, system::{rotator::system_rotator, free_fly::system_free_fly, rhai::system_rhai_update_scripts, despawn::system_despawn_entities, renderer::{system_renderer_update_camera, system_renderer_transfer_transforms, system_renderer_check_lifecycle}}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect, rhai::RhaiContext, rand::{random, self}};
 
 use crate::{input::{CommonAxis, CommonAction, CommonInput}, asset::DefaultAsset};
 
@@ -249,49 +249,44 @@ impl Program for OSProgram {
             .context("Failed to find alfred mesh")?.id;
         let car_mesh = ctx.asset.find::<Mesh>("car", self.asset_group)
             .context("Failed to find car mesh")?.id;
+        let car_model = ctx.asset.register::<Model>("car", self.asset_group, Model { mesh: car_mesh, materials: Vec::from([car_material]) })
+            .context("Failed to create car model")?;
+        let alfred_model = ctx.asset.register::<Model>("alfred", self.asset_group, Model { mesh: alfred_mesh, materials: Vec::from([alfred_material, alfred_material, alfred_material]) })
+            .context("Failed to create alfred model")?;
+        
         self.world.spawn((
+            LifecycleComponent::default(),
             TransformComponent {
                 translation: Vec3::new(0.0, -7.0, 0.0),    
                 rotation: Quat::IDENTITY,    
                 scale: Vec3::new(0.5, 0.5, 0.5),    
             },
-            RotatorComponent {},
-            ModelComponent::new(ctx.renderer, &RendererModelDescriptor {
-                mesh: alfred_mesh,
-                materials: &[alfred_material, alfred_material, alfred_material],
-                dynamic_materials: &[],
-            })
+            RotatorComponent { speed: 90.0 },
+            ModelComponent::from(alfred_model),
         ));
         self.world.spawn((
+            LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
-            ModelComponent::new(ctx.renderer, &RendererModelDescriptor {
-                mesh: alfred_mesh,
-                materials: &[alfred_material, alfred_material, alfred_material],
-                dynamic_materials: &[],
-            })
+            ModelComponent::from(alfred_model),
         ));
         for i in 0..100 {
             self.world.spawn((
+                LifecycleComponent::default(),
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
                 )),
-                ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
-                    mesh: car_mesh, 
-                    materials: &[car_material], 
-                    dynamic_materials: &[] 
-                })
+                ModelComponent::from(car_model),
+                RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
         }
         self.world.spawn((
+            LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
-            ModelComponent::new(ctx.renderer, &RendererModelDescriptor { 
-                mesh: car_mesh, 
-                materials: &[car_material], 
-                dynamic_materials: &[] 
-            }),
-            RotatorComponent {}
+            ModelComponent::from(car_model),
+            RotatorComponent { speed: 30.0 }
         ));
-        let mut e = self.world.spawn((
+        let e = self.world.spawn((
+            LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
                 switch_mode: ctx.input.find_action(test_group, "switch_mode").unwrap().id,
@@ -309,9 +304,9 @@ impl Program for OSProgram {
                 yaw: 0.0,
                 pitch: 0.0,
             },
-            CameraComponent::new(ctx.renderer),
-            ScriptStorageComponent::new(),
-            RhaiScriptsComponent::new(),
+            CameraComponent::default(),
+            ScriptStorageComponent::default(),
+            RhaiScriptsComponent::default(),
         ));
         let group = ctx.asset.find_group("import").unwrap();
         let script = ctx.asset.find::<RhaiScript>("inventory", group.id).unwrap();
@@ -324,11 +319,12 @@ impl Program for OSProgram {
     fn update(&mut self, ctx: &mut ProgramContext) -> Result<()> {
 
         // Call ECS systems
-        let mut query = PreparedQuery::<(&mut TransformComponent, &ModelComponent)>::new();
         system_rotator(&mut self.world, ctx.delta_time as f32);
-        system_transfer_model_transforms(&mut self.world, &mut query, ctx.renderer);
-        system_update_camera(&mut self.world, ctx.renderer);
         system_rhai_update_scripts(&mut self.world, &mut self.rhai, ctx);
+        system_renderer_transfer_transforms(&mut self.world, ctx.renderer);
+        system_renderer_update_camera(&mut self.world, ctx.renderer);
+        system_renderer_check_lifecycle(&mut self.world, ctx.renderer, &ctx.asset);
+        system_despawn_entities(&mut self.world);
 
         // Custom code
         {

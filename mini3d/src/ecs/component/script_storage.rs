@@ -14,11 +14,13 @@ pub struct ScriptStorageComponent {
     root: NodeValue,
 }
 
-impl ScriptStorageComponent {
-
-    pub fn new() -> Self {
+impl Default for ScriptStorageComponent {
+    fn default() -> Self {
         Self { root: NodeValue::Node(Default::default()) }
     }
+}
+
+impl ScriptStorageComponent {
 
     fn find_node(&self, key: &str) -> Option<&NodeValue> {
         let mut current = &self.root;

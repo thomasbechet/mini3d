@@ -24,15 +24,16 @@ pub struct FreeFlyComponent {
 }
 
 impl FreeFlyComponent {
-
     pub const NORMAL_SPEED: f32 = 10.0;
     pub const SLOW_SPEED: f32 = 10.0;
     pub const FAST_SPEED: f32 = 10.0;
     pub const ROLL_SPEED: f32 = 60.0;
     pub const ROTATION_SENSIBILITY: f32 = 180.0;
     pub const ZOOM_SPEED: f32 = 10.0;
+}
 
-    pub fn new() -> Self {
+impl Default for FreeFlyComponent {
+    fn default() -> Self {
         Self {
             switch_mode: ActionInputId::null(),
             roll_left: ActionInputId::null(),
