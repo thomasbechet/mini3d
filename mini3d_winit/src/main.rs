@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path};
 
 use gui::WindowGUI;
 use mapper::InputMapper;
-use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, TextEvent}, asset::{ImportAssetEvent, AssetImport}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, input::action::ActionState, asset::script::RhaiScript};
+use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, TextEvent}, asset::{ImportAssetEvent, AssetImport}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, input::action::ActionState, asset::rhai_script::RhaiScript};
 use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;

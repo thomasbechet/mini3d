@@ -1,8 +1,8 @@
 use glam::{Vec3, Vec2, Vec4};
-use slotmap::new_key_type;
-
+use serde::{Serialize, Deserialize};
 use super::Asset;
 
+#[derive(Serialize, Deserialize)]
 pub struct Vertex {
     pub position: Vec3,
     pub uv: Vec2,
@@ -10,18 +10,16 @@ pub struct Vertex {
     pub tangent: Vec4, // w: handedness of the tangent space
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SubMesh {
     pub vertices: Vec<Vertex>,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Mesh {
     pub submeshes: Vec<SubMesh>,
 }
 
-new_key_type! { pub struct MeshId; }
-
 impl Asset for Mesh {
-    type Id = MeshId;
     fn typename() -> &'static str { "mesh" }
 }

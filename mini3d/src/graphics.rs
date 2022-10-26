@@ -1,6 +1,6 @@
 use glam::{UVec2, uvec2, IVec2};
 
-use crate::{math::rect::IRect, asset::font::FontId};
+use crate::{math::rect::IRect, asset::{AssetRef, font::Font}};
 
 use self::command_buffer::Command;
 
@@ -45,8 +45,8 @@ impl CommandBufferBuilder {
         CommandBuffer { commands: self.commands }
     }
     
-    pub fn print(&mut self, p: IVec2, text: &str, font_id: FontId) -> &mut Self {
-        self.commands.push(Command::Print { p, text: String::from(text), font_id });
+    pub fn print(&mut self, p: IVec2, text: &str, font: &AssetRef<Font>) -> &mut Self {
+        self.commands.push(Command::Print { p, text: String::from(text), font: font.clone() });
         self
     }
     pub fn draw_line(&mut self, p0: IVec2, p1: IVec2) -> &mut Self {

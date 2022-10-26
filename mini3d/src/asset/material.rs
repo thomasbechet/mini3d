@@ -1,15 +1,12 @@
-use slotmap::new_key_type;
-use crate::asset::texture::TextureId;
-use super::Asset;
+use serde::{Serialize, Deserialize};
 
-#[derive(Default)]
+use super::{texture::Texture, AssetRef, Asset};
+
+#[derive(Default, Serialize, Deserialize)]
 pub struct Material {
-    pub diffuse: TextureId,
+    pub diffuse: AssetRef<Texture>,
 }
 
-new_key_type! { pub struct MaterialId; }
-
 impl Asset for Material {
-    type Id = MaterialId;
     fn typename() -> &'static str { "material" }
 }

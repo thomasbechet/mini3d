@@ -1,14 +1,14 @@
 use slotmap::Key;
 
-use crate::{backend::renderer::RendererModelId, asset::model::ModelId};
+use crate::{backend::renderer::ModelHandle, asset::{AssetRef, model::Model}};
 
 pub struct ModelComponent {
-    pub id: RendererModelId,
-    pub model: ModelId,
+    pub handle: ModelHandle,
+    pub model: AssetRef<Model>,
 }
 
-impl From<ModelId> for ModelComponent {
-    fn from(model: ModelId) -> Self {
-        Self { id: RendererModelId::null(), model }
+impl From<AssetRef<Model>> for ModelComponent {
+    fn from(model: AssetRef<Model>) -> Self {
+        Self { handle: ModelHandle::null(), model }
     }
 }

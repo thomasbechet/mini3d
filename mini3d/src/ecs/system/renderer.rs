@@ -1,7 +1,7 @@
 use hecs::World;
 use slotmap::Key;
 
-use crate::{backend::renderer::{RendererBackend, RendererModelId, RendererCameraId}, ecs::component::{transform::TransformComponent, camera::CameraComponent, lifecycle::LifecycleComponent, model::ModelComponent}, asset::AssetManager};
+use crate::{backend::renderer::{RendererBackend, ModelHandle, CameraHandle}, ecs::component::{transform::TransformComponent, camera::CameraComponent, lifecycle::LifecycleComponent, model::ModelComponent}, asset::AssetManager};
 
 pub fn system_renderer_check_lifecycle(
     world: &mut World,
@@ -14,17 +14,17 @@ pub fn system_renderer_check_lifecycle(
             c.id = renderer.add_camera();
         } else if !l.alive && !c.id.is_null() {
             renderer.remove_camera(c.id);
-            c.id = RendererCameraId::null();
+            c.id = CameraHandle::null();
         }
     }
 
     // Model
     for (_, (l, m)) in world.query_mut::<(&LifecycleComponent, &mut ModelComponent)>() {
-        if l.alive && m.id.is_null() {
-            m.id = renderer.add_model(m.model, asset);
-        } else if !l.alive && !m.id.is_null() {
-            renderer.remove_model(m.id);
-            m.id = RendererModelId::null();
+        if l.alive && m.handle.is_null() {
+            m.handle = renderer.add_model(&m.model, asset);
+        } else if !l.alive && !m.handle.is_null() {
+            renderer.remove_model(m.handle);
+            m.handle = ModelHandle::null();
         }
     }
 }
@@ -34,7 +34,7 @@ pub fn system_renderer_transfer_transforms(
     renderer: &mut dyn RendererBackend,
 ) {
     for (_, (t, m)) in world.query_mut::<(&TransformComponent, &ModelComponent)>() {
-        renderer.transfer_model_transform(m.id, t.matrix());
+        renderer.transfer_model_transform(m.handle, t.matrix());
     }
 }
 

@@ -16,7 +16,7 @@ pub fn system_rhai_update_scripts(
         for instance in &mut scripts.instances {
             match instance {
                 Some(instance) => {
-                    let ast = rhai.scripts.get(instance.script).unwrap();
+                    let ast = rhai.scripts.get(&instance.script.uid()).unwrap();
                     if instance.state == RhaiScriptState::Init {
                         rhai.engine.call_fn::<()>(&mut scope, ast, "init", ()).unwrap();
                         instance.state = RhaiScriptState::Update;

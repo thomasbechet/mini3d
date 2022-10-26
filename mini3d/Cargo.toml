@@ -5,8 +5,9 @@ authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-bitvec = "1.0.1"
-glam = "0.21.3"
+bitvec = { version = "1.0.1", features = ["serde"] }
+const-fnv1a-hash = "1.1.0"
+glam = { version = "0.21.3", features = ["serde"] }
 slotmap = "1.0.6"
 hecs = { version = "0.9.0", features = ["serde"] }
 serde = "1.0.144"

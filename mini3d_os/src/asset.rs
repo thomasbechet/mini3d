@@ -1,5 +1,5 @@
 pub struct DefaultAsset;
 
 impl DefaultAsset {
-    pub const GROUP: &'static str = "default";
+    pub const BUNDLE: &'static str = "default";
 }

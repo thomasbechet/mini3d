@@ -1,4 +1,4 @@
-use crate::asset::{font::Font, material::Material, mesh::Mesh, texture::Texture, Asset, script::RhaiScript, model::Model};
+use crate::asset::{font::Font, material::Material, mesh::Mesh, texture::Texture, Asset, rhai_script::RhaiScript, model::Model};
 
 pub struct AssetImport<T: Asset> {
     pub data: T,

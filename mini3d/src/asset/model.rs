@@ -1,16 +1,12 @@
-use slotmap::new_key_type;
-use super::Asset;
-use crate::asset::{mesh::MeshId, material::MaterialId};
+use serde::{Serialize, Deserialize};
+use super::{Asset, mesh::Mesh, material::Material, AssetRef};
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Model {
-    pub mesh: MeshId,
-    pub materials: Vec<MaterialId>,
+    pub mesh: AssetRef<Mesh>,
+    pub materials: Vec<AssetRef<Material>>,
 }
 
-new_key_type! { pub struct ModelId; }
-
 impl Asset for Model {
-    type Id = ModelId;
     fn typename() -> &'static str { "model" }
 }

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use bitvec::prelude::*;
-use slotmap::new_key_type;
+use serde::{Serialize, Deserialize};
 
 use super::Asset;
 
+#[derive(Serialize, Deserialize)]
 pub struct Font {
     pub glyph_width: u8,
     pub glyph_height: u8,
@@ -11,10 +12,7 @@ pub struct Font {
     pub glyph_locations: HashMap<char, usize>,
 }
 
-new_key_type! { pub struct FontId; }
-
 impl Asset for Font {
-    type Id = FontId;
     fn typename() -> &'static str { "font" }
 }
 

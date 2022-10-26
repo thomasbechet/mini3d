@@ -1,4 +1,6 @@
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{AssetGroupId, font::Font, texture::Texture, mesh::Mesh, material::Material, script::RhaiScript, model::Model}, hecs::World, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, system::{rotator::system_rotator, free_fly::system_free_fly, rhai::system_rhai_update_scripts, despawn::system_despawn_entities, renderer::{system_renderer_update_camera, system_renderer_transfer_transforms, system_renderer_check_lifecycle}}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect, rhai::RhaiContext, rand::{random, self}};
+use std::{fs::File, io::Write};
+
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{font::Font, texture::Texture, mesh::Mesh, material::Material, rhai_script::RhaiScript, model::Model, AssetBundleId, AssetRef}, hecs::World, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, system::{rotator::system_rotator, free_fly::system_free_fly, rhai::system_rhai_update_scripts, despawn::system_despawn_entities, renderer::{system_renderer_update_camera, system_renderer_transfer_transforms, system_renderer_check_lifecycle}}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{InputGroupId, control_layout::{ControlLayout, ControlProfileId, ControlInputs}, axis::{AxisKind, AxisDescriptor}, action::ActionDescriptor}, slotmap::Key, math::rect::IRect, rhai::RhaiContext, rand};
 
 use crate::{input::{CommonAxis, CommonAction, CommonInput}, asset::DefaultAsset};
 
@@ -43,7 +45,7 @@ impl TimeGraph {
 
 pub struct OSProgram {
     id: ProgramId,
-    asset_group: AssetGroupId,
+    asset_bundle: AssetBundleId,
     input_group: InputGroupId,
     world: World,
     control_layout: ControlLayout,
@@ -62,7 +64,7 @@ impl ProgramBuilder for OSProgram {
     fn build(id: ProgramId, _data: Self::BuildData) -> Self {
         Self { 
             id, 
-            asset_group: AssetGroupId::null(), 
+            asset_bundle: AssetBundleId::null(), 
             input_group: InputGroupId::null(), 
             world: Default::default(),
             control_layout: ControlLayout::new(),
@@ -81,8 +83,8 @@ impl Program for OSProgram {
     fn start(&mut self, ctx: &mut ProgramContext) -> Result<()> {
 
         // Register default asset group
-        self.asset_group = ctx.asset.register_group(DefaultAsset::GROUP, self.id)
-            .context("Failed to register default asset group")?;
+        self.asset_bundle = ctx.asset.add_bundle(DefaultAsset::BUNDLE, self.id)
+            .context("Failed to register default asset bundle")?;
         // Register common input group
         self.input_group = ctx.input.register_group(CommonInput::GROUP, self.id)
             .context("Failed to register common input group")?;
@@ -186,12 +188,6 @@ impl Program for OSProgram {
             kind: AxisKind::Clamped { min: 0.0, max: 1.0 }, 
         })?;
                 
-        // Register default font
-        let id = ctx.asset.register("default", self.asset_group, Font::default())
-            .context("Failed to register default core font")?;
-        ctx.asset.set_default::<Font>(id)
-            .context("Failed to set default font asset")?;
-
         // Register default inuts
         let test_group = ctx.input.register_group("test", self.id).context("Failed to register test group")?;
         // let click = ctx.input.register_action("click", self.input_group)?;
@@ -228,31 +224,40 @@ impl Program for OSProgram {
         self.control_layout.add_control(IRect::new(5, 200, 100, 50));
 
         // Import initial assets
-        ctx.asset.iter_import::<Texture>().map(|e| e.id).collect::<Vec<_>>()
-            .iter().for_each(|id| { ctx.asset.transfer::<Texture>(*id, self.asset_group)
-                .expect("Failed to transfer asset"); });
-        ctx.asset.iter_import::<Mesh>().map(|e| e.id).collect::<Vec<_>>()
-            .iter().for_each(|id| { ctx.asset.transfer::<Mesh>(*id, self.asset_group)
-                .expect("Failed to transfer asset"); });
+        let import_bundle = ctx.asset.import_bundle();
+        ctx.asset.bundle(import_bundle).unwrap().iter_ids::<Texture>().collect::<Vec<_>>().iter().for_each(|id| {
+            ctx.asset.transfer(import_bundle, *id, self.asset_bundle)
+                .expect("Failed to transfer asset");
+        });
+        ctx.asset.bundle(import_bundle).unwrap().iter_ids::<Mesh>().collect::<Vec<_>>().iter().for_each(|id| {
+            ctx.asset.transfer(import_bundle, *id, self.asset_bundle)
+                .expect("Failed to transfer asset");
+        });
+        ctx.asset.bundle(import_bundle).unwrap().iter_ids::<RhaiScript>().collect::<Vec<_>>().iter().for_each(|id| {
+            ctx.asset.transfer(import_bundle, *id, self.asset_bundle)
+                .expect("Failed to transfer asset");
+        });
 
         // Initialize world
-        let texture = ctx.asset.find::<Texture>("alfred", self.asset_group)
-            .context("Failed to get alfred texture")?.id;
-        let alfred_material = ctx.asset.register("alfred", self.asset_group, Material {
-            diffuse: texture,
-        }).context("Failed to create alfred material")?;
-        let texture = ctx.asset.find::<Texture>("car", self.asset_group).unwrap().id;
-        let car_material = ctx.asset.register("car", self.asset_group, Material {
-            diffuse: texture,
-        }).context("Failed to create car material")?;
-        let alfred_mesh = ctx.asset.find::<Mesh>("alfred", self.asset_group)
-            .context("Failed to find alfred mesh")?.id;
-        let car_mesh = ctx.asset.find::<Mesh>("car", self.asset_group)
-            .context("Failed to find car mesh")?.id;
-        let car_model = ctx.asset.register::<Model>("car", self.asset_group, Model { mesh: car_mesh, materials: Vec::from([car_material]) })
-            .context("Failed to create car model")?;
-        let alfred_model = ctx.asset.register::<Model>("alfred", self.asset_group, Model { mesh: alfred_mesh, materials: Vec::from([alfred_material, alfred_material, alfred_material]) })
-            .context("Failed to create alfred model")?;
+        let asset_bundle = ctx.asset.bundle_mut(self.asset_bundle).unwrap();
+        asset_bundle.register::<Material>("alfred", Material { 
+            diffuse: AssetRef::new(DefaultAsset::BUNDLE, "alfred"), 
+        })?;
+        asset_bundle.register::<Material>("car", Material {
+            diffuse: AssetRef::new(DefaultAsset::BUNDLE, "car")
+        })?;
+        asset_bundle.register::<Model>("car", Model { 
+            mesh: AssetRef::new(DefaultAsset::BUNDLE, "car"), 
+            materials: Vec::from([AssetRef::new(DefaultAsset::BUNDLE, "car")])
+        })?;
+        asset_bundle.register::<Model>("alfred", Model { 
+            mesh: AssetRef::new(DefaultAsset::BUNDLE, "alfred"), 
+            materials: Vec::from([
+                AssetRef::new(DefaultAsset::BUNDLE, "car"),
+                AssetRef::new(DefaultAsset::BUNDLE, "car"),
+                AssetRef::new(DefaultAsset::BUNDLE, "car"),
+            ])
+        })?;
         
         self.world.spawn((
             LifecycleComponent::default(),
@@ -262,12 +267,12 @@ impl Program for OSProgram {
                 scale: Vec3::new(0.5, 0.5, 0.5),    
             },
             RotatorComponent { speed: 90.0 },
-            ModelComponent::from(alfred_model),
+            ModelComponent::from(AssetRef::new(DefaultAsset::BUNDLE, "alfred")),
         ));
         self.world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
-            ModelComponent::from(alfred_model),
+            ModelComponent::from(AssetRef::new(DefaultAsset::BUNDLE, "alfred")),
         ));
         for i in 0..100 {
             self.world.spawn((
@@ -275,14 +280,14 @@ impl Program for OSProgram {
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
                 )),
-                ModelComponent::from(car_model),
+                ModelComponent::from(AssetRef::new(DefaultAsset::BUNDLE, "car")),
                 RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
         }
         self.world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
-            ModelComponent::from(car_model),
+            ModelComponent::from(AssetRef::new(DefaultAsset::BUNDLE, "car")),
             RotatorComponent { speed: 30.0 }
         ));
         let e = self.world.spawn((
@@ -308,10 +313,14 @@ impl Program for OSProgram {
             ScriptStorageComponent::default(),
             RhaiScriptsComponent::default(),
         ));
-        let group = ctx.asset.find_group("import").unwrap();
-        let script = ctx.asset.find::<RhaiScript>("inventory", group.id).unwrap();
-        self.rhai.compile(script.id, &script.data.source).unwrap();
-        self.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add(script.id).unwrap();
+        let script = ctx.asset.bundle(self.asset_bundle).unwrap().get::<RhaiScript>("inventory").unwrap();
+        self.rhai.compile(script., &script.data.source).unwrap();
+        self.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add(AssetRef::new(DefaultAsset::BUNDLE, "inventory")).unwrap();
+
+        let mut file = File::create("assets.bin").unwrap();
+        let bytes = bincode::serialize(&ctx.asset.bundle(self.asset_bundle))?;
+        let bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+        file.write(bytes.as_slice()).unwrap();
 
         Ok(())
     }
@@ -352,14 +361,13 @@ impl Program for OSProgram {
                 system_free_fly(&mut self.world, ctx.input, ctx.delta_time as f32);
             }
 
-            let id = ctx.asset.default::<Font>()
-                .expect("Failed to find default font.").id;
+            let font = AssetRef::new("default", "default");
             let cb1 = CommandBuffer::build_with(|builder| {
                 builder
-                .print((8, 8).into(), format!("dt : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), id)
-                .print((8, 17).into(), format!("dc : {}", ctx.renderer.statistics().draw_count).as_str(), id)
-                .print((8, 26).into(), format!("tc : {}", ctx.renderer.statistics().triangle_count).as_str(), id)
-                .print((8, 35).into(), format!("vp : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), id)
+                .print((8, 8).into(), format!("dt : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), &font)
+                .print((8, 17).into(), format!("dc : {}", ctx.renderer.statistics().draw_count).as_str(), &font)
+                .print((8, 26).into(), format!("tc : {}", ctx.renderer.statistics().triangle_count).as_str(), &font)
+                .print((8, 35).into(), format!("vp : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), &font)
                 .fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2))
             });
             ctx.renderer.push_command_buffer(cb1);

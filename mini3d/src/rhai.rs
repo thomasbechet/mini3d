@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+
 use rhai::exported_module;
-use slotmap::SecondaryMap;
 use anyhow::Result;
 
-use crate::asset::script::RhaiScriptId;
+use crate::asset::AssetUID;
 
 use self::{script_storage::rhai_script_storage_api, input::rhai_input_api, world::rhai_world_api};
 
@@ -12,7 +13,7 @@ pub mod world;
 
 pub struct RhaiContext {
     pub engine: rhai::Engine,
-    pub scripts: SecondaryMap<RhaiScriptId, rhai::AST>,
+    pub scripts: HashMap<AssetUID, rhai::AST>,
 }
 
 impl RhaiContext {
@@ -28,8 +29,8 @@ impl RhaiContext {
         context
     }
 
-    pub fn compile(&mut self, id: RhaiScriptId, script: &str) -> Result<()> {
-        self.scripts.insert(id, self.engine.compile(script)?);
+    pub fn compile(&mut self, uid: AssetUID, script: &str) -> Result<()> {
+        self.scripts.insert(uid, self.engine.compile(script)?);
         Ok(())
     }
 }

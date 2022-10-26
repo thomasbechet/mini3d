@@ -1,14 +1,11 @@
-use slotmap::new_key_type;
-
+use serde::{Serialize, Deserialize};
 use super::Asset;
 
+#[derive(Serialize, Deserialize)]
 pub struct RhaiScript {
     pub source: String,
 }
 
-new_key_type! { pub struct RhaiScriptId; }
-
 impl Asset for RhaiScript {
-    type Id = RhaiScriptId;
     fn typename() -> &'static str { "rhai_script" }
 }

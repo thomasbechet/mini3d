@@ -11,7 +11,7 @@ pub mod action;
 
 new_key_type! { pub struct InputGroupId; }
 
-pub struct GroupInput {
+pub struct InputGroup {
     pub name: String,
     pub id: InputGroupId,
     pub owner: ProgramId,
@@ -21,7 +21,7 @@ pub struct InputManager {
     text: String,
     actions: SlotMap<ActionInputId, ActionInput>,
     axis: SlotMap<AxisInputId, AxisInput>,
-    groups: SlotMap<InputGroupId, GroupInput>,
+    groups: SlotMap<InputGroupId, InputGroup>,
     pub(crate) reload_input_mapping: bool,
 }
 
@@ -89,7 +89,7 @@ impl InputManager {
         &self.text
     }
 
-    pub fn find_group(&self, name: &str) -> Option<&GroupInput> {
+    pub fn find_group(&self, name: &str) -> Option<&InputGroup> {
         self.groups.iter()
             .find(|(_, e)| e.name.as_str() == name)
             .and_then(|(_, group)| Some(group))
@@ -99,7 +99,7 @@ impl InputManager {
         if self.find_group(&name).is_some() {
             Err(anyhow!("Input group '{}' already exists", name))
         } else {
-            let new_group = self.groups.insert(GroupInput { 
+            let new_group = self.groups.insert(InputGroup { 
                 name: name.to_string(), 
                 id: InputGroupId::null(), 
                 owner,
@@ -155,7 +155,7 @@ impl InputManager {
         }
     }
 
-    pub fn group(&self, id: InputGroupId) -> Option<&GroupInput> {
+    pub fn group(&self, id: InputGroupId) -> Option<&InputGroup> {
         self.groups.get(id)
     }
 
@@ -195,7 +195,7 @@ impl InputDatabase {
     pub fn axis(app: &App, id: AxisInputId) -> Option<&AxisInput> {
         app.input_manager.axis(id)
     }
-    pub fn group(app: &App, id: InputGroupId) -> Option<&GroupInput> {
+    pub fn group(app: &App, id: InputGroupId) -> Option<&InputGroup> {
         app.input_manager.group(id)
     }
 }
