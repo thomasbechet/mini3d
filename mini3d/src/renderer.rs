@@ -1,6 +1,7 @@
 use glam::{UVec2, uvec2, IVec2};
+use slotmap::SecondaryMap;
 
-use crate::{math::rect::IRect, asset::{AssetRef, font::Font}};
+use crate::{math::rect::IRect, asset::{font::FontId, texture::TextureId, material::MaterialId, mesh::MeshId}, backend::renderer::{RendererTextureId, RendererMaterialId, RendererMeshId}};
 
 use self::command_buffer::Command;
 
@@ -31,6 +32,17 @@ pub const SCREEN_VIEWPORT: IRect = IRect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 pub const SCREEN_ASPECT_RATIO: f32 = SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32;
 pub const SCREEN_INV_ASPECT_RATIO: f32 = 1.0 / SCREEN_ASPECT_RATIO;
 
+#[derive(Default)]
+pub struct RendererManager {
+    textures: SecondaryMap<TextureId, RendererTextureId>,
+    materials: SecondaryMap<MaterialId, RendererMaterialId>,
+    meshes: SecondaryMap<MeshId, RendererMeshId>,
+}
+
+impl RendererManager {
+    
+}
+
 pub struct CommandBufferBuilder {
     commands: Vec<Command>,
 }
@@ -45,7 +57,7 @@ impl CommandBufferBuilder {
         CommandBuffer { commands: self.commands }
     }
     
-    pub fn print(&mut self, p: IVec2, text: &str, font: &AssetRef<Font>) -> &mut Self {
+    pub fn print(&mut self, p: IVec2, text: &str, font: FontId) -> &mut Self {
         self.commands.push(Command::Print { p, text: String::from(text), font: font.clone() });
         self
     }

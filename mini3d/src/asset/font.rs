@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use bitvec::prelude::*;
 use serde::{Serialize, Deserialize};
+use slotmap::new_key_type;
 
 use super::Asset;
+
+new_key_type! { pub struct FontId; }
 
 #[derive(Serialize, Deserialize)]
 pub struct Font {
@@ -13,6 +16,7 @@ pub struct Font {
 }
 
 impl Asset for Font {
+    type Id = FontId;
     fn typename() -> &'static str { "font" }
 }
 

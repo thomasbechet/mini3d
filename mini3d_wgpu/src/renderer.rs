@@ -1,12 +1,13 @@
+use mini3d::anyhow::Result;
 use mini3d::app::App;
 use mini3d::asset::model::{ModelId, self};
 use mini3d::asset::texture::TextureId;
-use mini3d::asset::{AssetDatabase, self, AssetManager};
+use mini3d::asset::{AssetDatabase, self, AssetManager, AssetEntry};
 use mini3d::asset::material::MaterialId;
 use mini3d::asset::mesh::MeshId;
-use mini3d::backend::renderer::{RendererBackend, ModelHandle, CameraHandle, RendererStatistics};
+use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererCameraId, RendererStatistics};
 use mini3d::glam::{Vec4, Mat4, Vec3};
-use mini3d::graphics::CommandBuffer;
+use mini3d::renderer::CommandBuffer;
 use mini3d::slotmap::{SlotMap, SecondaryMap, new_key_type};
 use wgpu::SurfaceError;
 
@@ -81,17 +82,14 @@ pub struct WGPURenderer {
     // Assets
     vertex_buffer: VertexBuffer,
     meshes: SecondaryMap<MeshId, Mesh>,
-    added_meshes: Vec<MeshId>,
     submeshes: SlotMap<SubMeshId, VertexBufferDescriptor>,
     textures: SecondaryMap<TextureId, Texture>,
-    added_textures: Vec<TextureId>,
     materials: SecondaryMap<MaterialId, Material>,
-    added_materials: Vec<MaterialId>,
     
     // Scene resources
-    models: SlotMap<ModelHandle, Model>,
-    added_models: Vec<ModelHandle>,
-    removed_models: Vec<ModelHandle>,
+    models: SlotMap<RendererModelId, Model>,
+    added_models: Vec<RendererModelId>,
+    removed_models: Vec<RendererModelId>,
     model_buffer: ModelBuffer,
     objects: SlotMap<ObjectId, Object>,
     camera: Camera,
@@ -212,12 +210,9 @@ impl WGPURenderer {
             
             vertex_buffer,
             meshes: Default::default(),
-            added_meshes: Default::default(),
             submeshes: Default::default(),
             textures: Default::default(),
-            added_textures: Default::default(),
             materials: Default::default(),
-            added_materials: Default::default(),          
             
             models: Default::default(),
             added_models: Default::default(),
@@ -248,11 +243,11 @@ impl WGPURenderer {
     }
 
     fn load_texture(textures: &mut SecondaryMap<TextureId, Texture>, context: &WGPUContext, id: TextureId, app: &App) {
-        let texture = AssetDatabase::read::<asset::texture::Texture>(app, id)
+        let texture = AssetDatabase::get::<asset::texture::Texture>(app, id)
             .expect("Failed to read texture");
         textures.insert(id, Texture::from_asset(
             context, 
-            &texture.data, 
+            &texture.asset,
             wgpu::TextureUsages::TEXTURE_BINDING,
             Some(&texture.name),
         ));
@@ -297,11 +292,11 @@ impl WGPURenderer {
         {
             // Meshes
             for id in self.added_meshes.drain(..) {
-                if let Some(mesh) = AssetDatabase::read::<asset::mesh::Mesh>(app, id) {
+                if let Some(mesh) = AssetDatabase::get::<asset::mesh::Mesh>(app, id) {
                     
                     // Create submeshes
                     let mut submeshes: Vec<SubMeshId> = Default::default();
-                    for submesh in &mesh.data.submeshes {
+                    for submesh in &mesh.asset.submeshes {
                         // Allocate vertex buffer
                         let descriptor = self.vertex_buffer.add(&self.context, &submesh.vertices)
                             .expect("Failed to insert vertices in vertex buffer");
@@ -328,26 +323,28 @@ impl WGPURenderer {
 
             // Materials
             for id in self.added_materials.drain(..) {
-                let material = AssetDatabase::read::<asset::material::Material>(app, id)
+                let material = AssetDatabase::get::<asset::material::Material>(app, id)
                     .expect("Failed to get material");
 
-                // Find the diffuse texture
-                let texture = if let Some(texture) = self.textures.get(material.data.diffuse) {
-                    texture
-                } else {
-                    Self::load_texture(&mut self.textures, &self.context, material.data.diffuse, app);
-                    self.textures.get(material.data.diffuse).unwrap()
-                }; 
+                // Load the diffuse texture
+                let diffuse_id = AssetDatabase::find::<asset::texture::Texture>(app, material.asset.diffuse)
+                    .expect("Failed to find diffuse texture").id;
+                let diffuse = self.textures.get(diffuse_id).or_else(|| {
+                    self.textures.get(diffuse_id).or_else(|| {
+                        Self::load_texture(&mut self.textures, &self.context, diffuse_id, app);
+                        self.textures.get(diffuse_id)
+                    })
+                }).expect("msg");
 
                 // Create new material
                 self.materials.insert(id, Material {
                     bind_group: create_flat_material_bind_group(
                         &self.context, 
                         &self.flat_material_bind_group_layout, 
-                        &texture.view, 
+                        &diffuse.view, 
                         &material.name,
                     ),
-                    texture: material.data.diffuse,
+                    texture: diffuse_id,
                 });
             }
         }
@@ -552,21 +549,29 @@ impl WGPURenderer {
 
 impl RendererBackend for WGPURenderer {
 
-    fn add_camera(&mut self) -> CameraHandle {
+    fn define_texture(&mut self, entry: &AssetEntry<asset::texture::Texture>) -> Result<()> {
+        
+        Ok(())
+    }
+    fn define_material(&mut self, entry: &AssetEntry<asset::material::Material>) -> Result<()> {
+        Ok(())
+    }
+    fn define_mesh(&mut self, entry: &AssetEntry<asset::mesh::Mesh>) -> Result<()> {
+        Ok(())
+    }
+
+    fn add_camera(&mut self) -> RendererCameraId {
         Default::default()
     }
-    fn remove_camera(&mut self, _id: CameraHandle) {}
-    fn update_camera(&mut self, _id: CameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) {
+    fn remove_camera(&mut self, _id: RendererCameraId) {}
+    fn update_camera(&mut self, _id: RendererCameraId, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) {
         self.camera.update(eye, forward, up, fov);
     }
 
-    fn add_model(&mut self, id: ModelId, asset: &AssetManager) -> ModelHandle {
+    fn add_model(&mut self, model: &AssetEntry<asset::model::Model>) -> RendererModelId {
         
-        // Get model info
-        let model = &asset.get::<model::Model>(id).unwrap().data;
-
         // Check mesh asset
-        if !self.meshes.contains_key(model.mesh) {
+        if !self.meshes.contains_key(model.asset.mesh) {
             if !self.added_meshes.contains(&model.mesh) {
                 self.added_meshes.push(model.mesh);
             }
@@ -591,10 +596,10 @@ impl RendererBackend for WGPURenderer {
         self.added_models.push(id);
         id
     }
-    fn remove_model(&mut self, _id: ModelHandle) {
+    fn remove_model(&mut self, _id: RendererModelId) {
         todo!()
     }
-    fn transfer_model_transform(&mut self, id: ModelHandle, mat: Mat4) {
+    fn update_model_transform(&mut self, id: RendererModelId, mat: Mat4) {
         if let Some(model) = self.models.get(id) {
             self.model_buffer.set_transform(model.model_index, &mat);
         }

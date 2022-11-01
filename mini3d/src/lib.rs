@@ -3,7 +3,7 @@ pub mod asset;
 pub mod backend;
 pub mod ecs;
 pub mod event;
-pub mod graphics;
+pub mod renderer;
 pub mod input;
 pub mod rhai;
 pub mod math;

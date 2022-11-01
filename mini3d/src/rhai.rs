@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use rhai::exported_module;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
+use slotmap::SecondaryMap;
 
-use crate::asset::AssetUID;
+use crate::asset::{rhai_script::{RhaiScriptId, RhaiScript}, AssetEntry};
 
 use self::{script_storage::rhai_script_storage_api, input::rhai_input_api, world::rhai_world_api};
 
@@ -13,7 +12,7 @@ pub mod world;
 
 pub struct RhaiContext {
     pub engine: rhai::Engine,
-    pub scripts: HashMap<AssetUID, rhai::AST>,
+    scripts: SecondaryMap<RhaiScriptId, rhai::AST>,
 }
 
 impl RhaiContext {
@@ -29,8 +28,23 @@ impl RhaiContext {
         context
     }
 
-    pub fn compile(&mut self, uid: AssetUID, script: &str) -> Result<()> {
-        self.scripts.insert(uid, self.engine.compile(script)?);
+    fn check_compiled(&mut self, entry: &AssetEntry<RhaiScript>) -> Result<()> {
+        if !self.scripts.contains_key(entry.id) {
+            let ast = self.engine.compile(entry.asset.source.clone())?;
+            self.scripts.insert(entry.id, ast);
+        }
+        Ok(())
+    }
+
+    pub fn call(&mut self, entry: &AssetEntry<RhaiScript>, scope: &mut rhai::Scope, function: &str) -> Result<()> {
+        // Check compilation
+        self.check_compiled(entry)?;
+        // Call script
+        if let Some(ast) = self.scripts.get(entry.id) {
+            self.engine.call_fn::<()>(scope, ast, function, ()).map_err(|err| {
+                anyhow!(err.to_string())
+            })?;
+        }
         Ok(())
     }
 }

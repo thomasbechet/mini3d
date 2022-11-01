@@ -1,28 +1,28 @@
 use glam::{Vec3, Quat};
 use hecs::World;
 
-use crate::{ecs::component::{transform::TransformComponent, free_fly::FreeFlyComponent}, input::InputManager};
+use crate::{ecs::component::{transform::TransformComponent, free_fly::FreeFlyComponent}, input::InputManager, asset::AssetManager};
 
-pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32) {
+pub fn system_free_fly(world: &mut World, input: &InputManager, asset: &AssetManager, delta_time: f32) {
     for (_, (transform, free_view)) in world.query_mut::<(&mut TransformComponent, &mut FreeFlyComponent)>() {
 
         // Update view mod
-        if input.action(free_view.switch_mode).map_or(false, |b| b.is_just_pressed()) {
+        if free_view.switch_mode.state(asset, input, false).is_just_pressed() {
             free_view.free_mode = !free_view.free_mode;
         }
 
         // Compute camera translation
         let mut direction = Vec3::ZERO;
-        direction += transform.forward() * input.axis(free_view.move_forward).map_or(0.0, |a| a.value);
-        direction += transform.backward() * input.axis(free_view.move_backward).map_or(0.0, |a| a.value);
-        direction += transform.left() * input.axis(free_view.move_left).map_or(0.0, |a| a.value);
-        direction += transform.right() * input.axis(free_view.move_right).map_or(0.0, |a| a.value);
+        direction += transform.forward() * free_view.move_forward.state(asset, input, 0.0).value;
+        direction += transform.backward() * free_view.move_backward.state(asset, input, 0.0).value;
+        direction += transform.left() * free_view.move_left.state(asset, input, 0.0).value;
+        direction += transform.right() * free_view.move_right.state(asset, input, 0.0).value;
         if free_view.free_mode {
-            direction += transform.up() * input.axis(free_view.move_up).map_or(0.0, |a| a.value);
-            direction += transform.down() * input.axis(free_view.move_down).map_or(0.0, |a| a.value);
+            direction += transform.up() * free_view.move_up.state(asset, input, 0.0).value;
+            direction += transform.down() * free_view.move_down.state(asset, input, 0.0).value;
         } else {
-            direction += Vec3::Y * input.axis(free_view.move_up).map_or(0.0, |a| a.value);
-            direction += Vec3::NEG_Y * input.axis(free_view.move_down).map_or(0.0, |a| a.value);
+            direction += Vec3::Y * free_view.move_up.state(asset, input, 0.0).value;
+            direction += Vec3::NEG_Y * free_view.move_down.state(asset, input, 0.0).value;
         }
         let direction_length = direction.length();
         direction = direction.normalize_or_zero();
@@ -35,8 +35,8 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
         transform.translation += direction * direction_length * delta_time * speed;
     
         // Apply rotation
-        let motion_x = input.axis(free_view.view_x).map_or(0.0, |a| a.value);
-        let motion_y = input.axis(free_view.view_y).map_or(0.0, |a| a.value);
+        let motion_x = free_view.view_x.state(asset, input, 0.0).value;
+        let motion_y = free_view.view_y.state(asset, input, 0.0).value;
         if free_view.free_mode {
             if motion_x != 0.0 {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Y, -f32::to_radians(motion_x) * FreeFlyComponent::ROTATION_SENSIBILITY * delta_time);
@@ -44,10 +44,10 @@ pub fn system_free_fly(world: &mut World, input: &InputManager, delta_time: f32)
             if motion_y != 0.0 {
                 transform.rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(motion_y) * FreeFlyComponent::ROTATION_SENSIBILITY * delta_time);
             }
-            if input.action(free_view.roll_left).map_or(false, |b| b.is_pressed()) {
+            if free_view.roll_left.state(asset, input, false).is_pressed() {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Z, -f32::to_radians(FreeFlyComponent::ROLL_SPEED) * delta_time);
             }
-            if input.action(free_view.roll_right).map_or(false, |b| b.is_pressed()) {
+            if free_view.roll_right.state(asset, input, false).is_pressed() {
                 transform.rotation *= Quat::from_axis_angle(Vec3::Z, f32::to_radians(FreeFlyComponent::ROLL_SPEED) * delta_time);
             }
             

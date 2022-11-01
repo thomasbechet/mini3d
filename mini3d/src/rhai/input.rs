@@ -29,38 +29,33 @@ impl InputManagerHandle {
 pub mod rhai_input_api {
 
     #[rhai_fn(pure)]
-    pub(crate) fn action_pressed(input: &mut InputManagerHandle, group: &str, name: &str) -> bool {
-        let context: &mut ProgramContext = input.as_mut();
-        let group = context.input.find_group(group).unwrap().id;
-        context.input.find_action(group, name).unwrap().is_pressed()
+    pub(crate) fn action_pressed(input: &mut InputManagerHandle, name: &str) -> bool {
+        let ctx: &mut ProgramContext = input.as_mut();
+        ctx.input.find_action(name.into(), &ctx.asset, false).is_pressed()
     }
 
     #[rhai_fn(pure)]
-    pub(crate) fn action_released(input: &mut InputManagerHandle, group: &str, name: &str) -> bool {
-        let context: &mut ProgramContext = input.as_mut();
-        let group = context.input.find_group(group).unwrap().id;
-        context.input.find_action(group, name).unwrap().is_released()
+    pub(crate) fn action_released(input: &mut InputManagerHandle, name: &str) -> bool {
+        let ctx: &mut ProgramContext = input.as_mut();
+        ctx.input.find_action(name.into(), &ctx.asset, false).is_released()
     }
 
     #[rhai_fn(pure)]
-    pub(crate) fn action_just_pressed(input: &mut InputManagerHandle, group: &str, name: &str) -> bool {
-        let context: &mut ProgramContext = input.as_mut();
-        let group = context.input.find_group(group).unwrap().id;
-        context.input.find_action(group, name).unwrap().is_just_pressed()
+    pub(crate) fn action_just_pressed(input: &mut InputManagerHandle, name: &str) -> bool {
+        let ctx: &mut ProgramContext = input.as_mut();
+        ctx.input.find_action(name.into(), &ctx.asset, false).is_just_pressed()
     }
 
     #[rhai_fn(pure)]
-    pub(crate) fn action_just_released(input: &mut InputManagerHandle, group: &str, name: &str) -> bool {
-        let context: &mut ProgramContext = input.as_mut();
-        let group = context.input.find_group(group).unwrap().id;
-        context.input.find_action(group, name).unwrap().is_just_released()
+    pub(crate) fn action_just_released(input: &mut InputManagerHandle, name: &str) -> bool {
+        let ctx: &mut ProgramContext = input.as_mut();
+        ctx.input.find_action(name.into(), &ctx.asset, false).is_just_released()
     }
 
     #[rhai_fn(pure)]
-    pub(crate) fn axis_value(input: &mut InputManagerHandle, group: &str, name: &str) -> f32 {
-        let context: &mut ProgramContext = input.as_mut();
-        let group = context.input.find_group(group).unwrap().id;
-        context.input.find_axis(group, name).unwrap().value
+    pub(crate) fn axis_value(input: &mut InputManagerHandle, name: &str) -> f32 {
+        let ctx: &mut ProgramContext = input.as_mut();
+        ctx.input.find_axis(name.into(), &ctx.asset, 0.0).value
     }
 }
 

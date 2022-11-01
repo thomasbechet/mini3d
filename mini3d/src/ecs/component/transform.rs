@@ -1,5 +1,7 @@
 use glam::{Mat4, Vec3, Quat};
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct TransformComponent {
     pub translation: Vec3,
     pub rotation: Quat,

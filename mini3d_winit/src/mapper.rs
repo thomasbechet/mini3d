@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{input::{InputGroupId, axis::AxisInputId, action::{ActionInputId, ActionState}, InputDatabase}, app::App, event::{AppEvents, input::{InputEvent, ActionEvent, AxisEvent}}, slotmap::{new_key_type, SlotMap, Key}, anyhow::{Result, Context, anyhow}};
+use mini3d::{input::{InputGroupId, axis::AxisInputId, action::{ActionInputId, ActionState}, InputDatabase}, app::App, event::{AppEvents, input::{InputEvent, InputActionEvent, InputAxisEvent}}, slotmap::{new_key_type, SlotMap, Key}, anyhow::{Result, Context, anyhow}};
 use mini3d_os::input::{CommonAction, CommonAxis, CommonInput};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
@@ -360,7 +360,7 @@ impl InputMapper {
                 ElementState::Released => ActionState::Released,
             };
             for action in actions {
-                events.push_input(InputEvent::Action(ActionEvent { id: action.id, state }));        
+                events.push_input(InputEvent::Action(InputActionEvent { id: action.id, state }));        
             }
         }
         if let Some(axis) = self.key_to_axis.get(&keycode) {
@@ -369,7 +369,7 @@ impl InputMapper {
                     ElementState::Pressed => ax.value,
                     ElementState::Released => 0.0,
                 };
-                events.push_input(InputEvent::Axis(AxisEvent { id: ax.id, value }));
+                events.push_input(InputEvent::Axis(InputAxisEvent { id: ax.id, value }));
             }
         }
     }
@@ -381,31 +381,31 @@ impl InputMapper {
         };
         if let Some(actions) = self.mouse_button_to_action.get(&button) {
             for action in actions {
-                events.push_input(InputEvent::Action(ActionEvent { id: action.id, state }));
+                events.push_input(InputEvent::Action(InputActionEvent { id: action.id, state }));
             }
         }
         if let Some(axis) = self.mouse_button_to_axis.get(&button) {
             for ax in axis {
-                events.push_input(InputEvent::Axis(AxisEvent { id: ax.id, value: ax.value }));
+                events.push_input(InputEvent::Axis(InputAxisEvent { id: ax.id, value: ax.value }));
             }
         }
     }
 
     pub(crate) fn dispatch_mouse_motion(&self, delta: (f64, f64), events: &mut AppEvents) {
         for axis in &self.mouse_motion_x_to_axis {
-            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: delta.0 as f32 * axis.scale }));
+            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: delta.0 as f32 * axis.scale }));
         }
         for axis in &self.mouse_motion_y_to_axis {
-            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: delta.1 as f32 * axis.scale }));
+            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: delta.1 as f32 * axis.scale }));
         }
     }
 
     pub(crate) fn dispatch_mouse_cursor(&self, cursor: (f32, f32), events: &mut AppEvents) {
         for axis in &self.mouse_position_x_to_axis {
-            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: cursor.0 }));
+            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: cursor.0 }));
         }
         for axis in &self.mouse_position_y_to_axis {
-            events.push_input(InputEvent::Axis(AxisEvent { id: axis.id, value: cursor.1 }));
+            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: cursor.1 }));
         }
     }
 
@@ -413,7 +413,7 @@ impl InputMapper {
         if let Some(buttons) = &self.controllers_button_to_action.get(&id) {
             if let Some(actions) = buttons.get(&button) {
                 for action in actions {
-                    events.push_input(InputEvent::Action(ActionEvent { id: action.id, state }));
+                    events.push_input(InputEvent::Action(InputActionEvent { id: action.id, state }));
                 }
             }
         }
@@ -424,7 +424,7 @@ impl InputMapper {
                         ActionState::Pressed => ax.value,
                         ActionState::Released => 0.0,
                     };
-                    events.push_input(InputEvent::Axis(AxisEvent { id: ax.id, value }));
+                    events.push_input(InputEvent::Axis(InputAxisEvent { id: ax.id, value }));
                 }
             }
         }
@@ -438,7 +438,7 @@ impl InputMapper {
         if let Some(axis) = &self.controllers_axis_to_axis.get(&id) {
             if let Some(ax) = axis.get(&controller_axis) {
                 for a in ax {
-                    events.push_input(InputEvent::Axis(AxisEvent { id: a.id, value: value * a.scale }));
+                    events.push_input(InputEvent::Axis(InputAxisEvent { id: a.id, value: value * a.scale }));
                 }
             }
         }

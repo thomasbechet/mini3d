@@ -1,27 +1,64 @@
-use anyhow::{Result, anyhow};
-use slotmap::{new_key_type, SlotMap, Key};
+use serde::{Serialize, Deserialize};
+use slotmap::SecondaryMap;
 
-use crate::{event::input::{InputEvent, TextEvent}, program::ProgramId, app::App};
-
-use self::{axis::{AxisInput, AxisInputId, AxisDescriptor}, action::{ActionInput, ActionState, ActionInputId, ActionDescriptor}};
+use crate::{event::input::{InputEvent, InputTextEvent}, asset::{input_action::{InputActionId, InputAction}, input_axis::{InputAxisId, InputAxisKind, InputAxis}, AssetManager, AssetRef, AssetUID}};
 
 pub mod control_layout;
-pub mod axis;
-pub mod action;
 
-new_key_type! { pub struct InputGroupId; }
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub struct InputActionState {
+    pressed: bool,
+    was_pressed: bool,
+}
 
-pub struct InputGroup {
-    pub name: String,
-    pub id: InputGroupId,
-    pub owner: ProgramId,
+impl InputActionState {
+        
+    pub fn is_pressed(&self) -> bool {
+        self.pressed
+    }
+
+    pub fn is_released(&self) -> bool {
+        !self.pressed
+    }
+
+    pub fn is_just_pressed(&self) -> bool {
+        self.pressed && !self.was_pressed
+    }
+
+    pub fn is_just_released(&self) -> bool {
+        !self.pressed && self.was_pressed
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub struct InputAxisState {
+    pub value: f32,
+}
+
+impl InputAxisState {
+    
+    pub fn set_value(&mut self, value: f32, kind: &InputAxisKind) {
+        self.value = match kind {
+            InputAxisKind::Clamped { min, max } => {
+                value.max(*min).min(*max)
+            },
+            InputAxisKind::Normalized { norm } => {
+                value / norm
+            },
+            InputAxisKind::ClampedNormalized { min, max, norm } => {
+                value.max(*min).min(*max) / norm
+            },
+            InputAxisKind::Infinite => {
+                value
+            },
+        }
+    }
 }
 
 pub struct InputManager {
     text: String,
-    actions: SlotMap<ActionInputId, ActionInput>,
-    axis: SlotMap<AxisInputId, AxisInput>,
-    groups: SlotMap<InputGroupId, InputGroup>,
+    action_states: SecondaryMap<InputActionId, InputActionState>,
+    axis_states: SecondaryMap<InputAxisId, InputAxisState>,
     pub(crate) reload_input_mapping: bool,
 }
 
@@ -29,9 +66,8 @@ impl Default for InputManager {
     fn default() -> Self {
         Self {
             text: Default::default(),
-            actions: Default::default(),
-            axis: Default::default(),
-            groups: Default::default(),
+            action_states: Default::default(),
+            axis_states: Default::default(),
             reload_input_mapping: false,
         }
     }
@@ -43,7 +79,7 @@ impl InputManager {
     pub(crate) fn prepare_dispatch(&mut self) {
 
         // Save the previous action state
-        for (_, action) in self.actions.iter_mut() {
+        for (_, action) in self.action_states.iter_mut() {
             action.was_pressed = action.pressed;
         }
 
@@ -51,33 +87,44 @@ impl InputManager {
         self.text.clear();
     }
 
-    /// Process input events
-    pub(crate) fn dispatch_event(&mut self, event: &InputEvent) {
+    pub(crate) fn reload_states(&mut self, asset: &AssetManager) {
+        self.action_states.clear();
+        for entry in asset.iter::<InputAction>() {
+            self.action_states.insert(entry.id, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
+        }
+        self.axis_states.clear();
+        for entry in asset.iter::<InputAxis>() {
+            let mut state =  InputAxisState { value: entry.asset.default_value };
+            state.set_value(entry.asset.default_value, &entry.asset.kind);
+            self.axis_states.insert(entry.id, state);
+        }
+        self.text.clear();
+        self.reload_input_mapping = true;
+    }
 
+    /// Process input events
+    pub(crate) fn dispatch_event(&mut self, event: &mut InputEvent, asset: &AssetManager) {
         match event {
             InputEvent::Action(event) => {
-                if let Some(action) = self.actions.get_mut(event.id) {
-                    match event.state {
-                        ActionState::Pressed => {
-                            action.pressed = true;
-                        },
-                        ActionState::Released => {
-                            action.pressed = false;
-                        },
+                if let Some(entry) = event.action.get_or_resolve(asset) {
+                    if let Some(state) = self.action_states.get_mut(entry.id) {
+                        state.pressed = event.pressed;
                     }
                 }
             },
             InputEvent::Axis(event) => {
-                if let Some(axis) = self.axis.get_mut(event.id) {
-                    axis.set_value(event.value);
+                if let Some(entry) = event.axis.get_or_resolve(asset) {
+                    if let Some(state) = self.axis_states.get_mut(entry.id) {
+                        state.set_value(event.value, &entry.asset.kind);
+                    }
                 }
             },
             InputEvent::Text(text_event) => {
                 match text_event {
-                    TextEvent::Character(char) => {
+                    InputTextEvent::Character(char) => {
                         self.text.push(*char);
                     },
-                    TextEvent::String(string) => {
+                    InputTextEvent::String(string) => {
                         self.text += string;
                     },
                 }
@@ -89,113 +136,40 @@ impl InputManager {
         &self.text
     }
 
-    pub fn find_group(&self, name: &str) -> Option<&InputGroup> {
-        self.groups.iter()
-            .find(|(_, e)| e.name.as_str() == name)
-            .and_then(|(_, group)| Some(group))
+    pub fn action(&self, id: InputActionId) -> Option<&InputActionState> {
+        self.action_states.get(id)
     }
 
-    pub fn register_group(&mut self, name: &str, owner: ProgramId) -> Result<InputGroupId> {
-        if self.find_group(&name).is_some() {
-            Err(anyhow!("Input group '{}' already exists", name))
-        } else {
-            let new_group = self.groups.insert(InputGroup { 
-                name: name.to_string(), 
-                id: InputGroupId::null(), 
-                owner,
-            });
-            self.groups.get_mut(new_group).unwrap().id = new_group;
-            self.reload_input_mapping = true;
-            Ok(new_group)
-        }
+    pub fn axis(&self, id: InputAxisId) -> Option<&InputAxisState> {
+        self.axis_states.get(id)
     }
 
-    pub fn find_action(&self, group: InputGroupId, name: &str) -> Option<&ActionInput> {
-        self.actions.iter()
-            .find(|(_, e)| e.descriptor.name.as_str() == name && e.group == group)
-            .map(|(_, e)| e)
+    pub fn find_action(&self, uid: AssetUID, asset: &AssetManager, default_pressed: bool) -> InputActionState {
+        asset.find::<InputAction>(uid).map_or(InputActionState { pressed: default_pressed, was_pressed: default_pressed }, |entry| {
+            *self.action_states.get(entry.id).unwrap_or(&InputActionState { pressed: default_pressed, was_pressed: default_pressed })
+        })
     }
 
-    pub fn find_axis(&self, group: InputGroupId, name: &str) -> Option<&AxisInput> {
-        self.axis.iter()
-            .find(|(_, e)| e.descriptor.name.as_str() == name && e.group == group)
-            .map(|(_, e)| e)
+    pub fn find_axis(&self, uid: AssetUID, asset: &AssetManager, default_value: f32) -> InputAxisState {
+        asset.find::<InputAxis>(uid).map_or(InputAxisState { value: default_value }, |entry| {
+            *self.axis_states.get(entry.id).unwrap_or(&InputAxisState { value: default_value })
+        })
     }
 
-    pub fn register_action(&mut self, group: InputGroupId, descriptor: ActionDescriptor) -> Result<ActionInputId> {
-        if self.find_axis(group, &descriptor.name).is_some() {
-            Err(anyhow!("Action input name '{}' already exists", descriptor.name))
-        } else {
-            let id = self.actions.insert(ActionInput { 
-                descriptor,
-                pressed: false, 
-                was_pressed: false, 
-                group,
-                id: ActionInputId::null(),
-            });
-            self.actions.get_mut(id).unwrap().id = id;
-            self.reload_input_mapping = true;
-            Ok(id)
-        }
-    }
+}
 
-    pub fn register_axis(&mut self, group: InputGroupId, descriptor: AxisDescriptor) -> Result<AxisInputId> {
-        if self.find_axis(group, &descriptor.name).is_some() {
-            Err(anyhow!("Axis input name '{}' already exists", descriptor.name))
-        } else {
-            let id = self.axis.insert(AxisInput {
-                descriptor,
-                id: AxisInputId::null(),
-                value: 0.0,
-                group,
-            });
-            self.axis.get_mut(id).unwrap().id = id;
-            self.reload_input_mapping = true;
-            Ok(id)
-        }
-    }
-
-    pub fn group(&self, id: InputGroupId) -> Option<&InputGroup> {
-        self.groups.get(id)
-    }
-
-    pub fn action(&self, id: ActionInputId) -> Option<&ActionInput> {
-        self.actions.get(id)
-    }
-
-    pub fn axis(&self, id: AxisInputId) -> Option<&AxisInput> {
-        self.axis.get(id)
-    }
-
-    pub fn iter_actions(&self) -> impl Iterator<Item = &ActionInput> {
-        self.actions.values()
-    } 
-
-    pub fn iter_axis(&self) -> impl Iterator<Item = &AxisInput> {
-        self.axis.values()
+impl AssetRef<InputAction> {
+    pub fn state(&mut self, asset: &AssetManager, input: &InputManager, default_pressed: bool) -> InputActionState {
+        self.get_or_resolve(asset).map_or(InputActionState { pressed: default_pressed, was_pressed: default_pressed }, |entry| {
+            *input.action_states.get(entry.id).unwrap_or(&InputActionState { pressed: default_pressed, was_pressed: default_pressed })
+        })
     }
 }
 
-pub struct InputDatabase;
-
-impl InputDatabase {
-
-    pub fn iter_actions(app: &App) -> impl Iterator<Item = ActionInputId> + '_ {
-        app.input_manager.actions.keys()
-    }
-    pub fn iter_axis(app: &App) -> impl Iterator<Item = AxisInputId> + '_ {
-        app.input_manager.axis.keys()
-    }
-    pub fn iter_groups(app: &App) -> impl Iterator<Item = InputGroupId> + '_ {
-        app.input_manager.groups.keys()
-    }
-    pub fn action(app: &App, id: ActionInputId) -> Option<&ActionInput> {
-        app.input_manager.action(id)
-    }
-    pub fn axis(app: &App, id: AxisInputId) -> Option<&AxisInput> {
-        app.input_manager.axis(id)
-    }
-    pub fn group(app: &App, id: InputGroupId) -> Option<&InputGroup> {
-        app.input_manager.group(id)
+impl AssetRef<InputAxis> {
+    pub fn state(&mut self, asset: &AssetManager, input: &InputManager, default: f32) -> InputAxisState {
+        self.get_or_resolve(asset).map_or(InputAxisState { value: default }, |entry| {
+            *input.axis_states.get(entry.id).unwrap_or(&InputAxisState { value: default })
+        })
     }
 }

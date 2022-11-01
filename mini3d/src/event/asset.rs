@@ -1,10 +1,14 @@
+use serde::{Serialize, Deserialize};
+
 use crate::asset::{font::Font, material::Material, mesh::Mesh, texture::Texture, Asset, rhai_script::RhaiScript, model::Model};
 
+#[derive(Serialize, Deserialize)]
 pub struct AssetImport<T: Asset> {
-    pub data: T,
     pub name: String,
+    pub data: T,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum ImportAssetEvent {
     Font(AssetImport<Font>),
     Material(AssetImport<Material>),

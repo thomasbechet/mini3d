@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum NodeValue {
     Null,
     Bool(bool),
@@ -10,6 +12,7 @@ enum NodeValue {
     Node(HashMap<String, NodeValue>),
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ScriptStorageComponent {
     root: NodeValue,
 }

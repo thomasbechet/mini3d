@@ -1,21 +1,23 @@
 use anyhow::{Result, anyhow};
+use serde::{Serialize, Deserialize};
 
 use crate::asset::{AssetRef, rhai_script::RhaiScript};
 
 pub const MAX_RHAI_SCRIPT_COUNT: usize = 16;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RhaiScriptState {
     Init,
     Update,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct RhaiScriptInstance {
     pub script: AssetRef<RhaiScript>,
     pub state: RhaiScriptState,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct RhaiScriptsComponent {
     pub instances: [Option<RhaiScriptInstance>; MAX_RHAI_SCRIPT_COUNT],
 }

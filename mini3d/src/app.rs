@@ -7,6 +7,7 @@ use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
 use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId};
+use crate::renderer::RendererManager;
 use crate::request::AppRequests;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
@@ -16,6 +17,7 @@ pub struct App {
     pub(crate) asset_manager: AssetManager,
     pub(crate) input_manager: InputManager,
     pub(crate) program_manager: ProgramManager,
+    pub(crate) renderer_manager: RendererManager,
 
     default_backend: DefaultBackend,
 
@@ -29,7 +31,8 @@ impl App {
         let mut app = Self {
             asset_manager: Default::default(), 
             input_manager: Default::default(), 
-            program_manager: Default::default(), 
+            program_manager: Default::default(),
+            renderer_manager: Default::default(),
             default_backend: Default::default(), 
             accumulator: 0.0,
         };
@@ -60,8 +63,8 @@ impl App {
         // Prepare input manager
         self.input_manager.prepare_dispatch();
         // Dispatch input events
-        for event in events.inputs.drain(..) {
-            self.input_manager.dispatch_event(&event);
+        for mut event in events.inputs.drain(..) {
+            self.input_manager.dispatch_event(&mut event, &self.asset_manager);
         }
 
         // Dispatch system events

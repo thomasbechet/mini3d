@@ -1,4 +1,4 @@
-use mini3d::graphics::{SCREEN_INV_ASPECT_RATIO, SCREEN_WIDTH, SCREEN_HEIGHT};
+use mini3d::renderer::{SCREEN_INV_ASPECT_RATIO, SCREEN_WIDTH, SCREEN_HEIGHT};
 
 use crate::context::WGPUContext;
 

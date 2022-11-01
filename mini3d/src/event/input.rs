@@ -1,29 +1,33 @@
 use glam::Vec2;
+use serde::{Serialize, Deserialize};
 
-use crate::input::{action::{ActionState, ActionInputId}, axis::AxisInputId};
+use crate::asset::{input_action::InputAction, input_axis::InputAxis, AssetRef};
 
-pub struct ActionEvent {
-    pub id: ActionInputId,
-    pub state: ActionState,
+#[derive(Serialize, Deserialize)]
+pub struct InputActionEvent {
+    pub action: AssetRef<InputAction>,
+    pub pressed: bool,
 }
 
-pub struct AxisEvent {
-    pub id: AxisInputId,
+#[derive(Serialize, Deserialize)]
+pub struct InputAxisEvent {
+    pub axis: AssetRef<InputAxis>,
     pub value: f32,
 }
 
-pub enum TextEvent {
+#[derive(Serialize, Deserialize)]
+pub enum InputTextEvent {
     Character(char),
     String(String),
 }
 
-pub enum MouseEvent {
+pub enum InputMouseEvent {
     Move { delta: Vec2 },
     Update { position: Vec2 },
 }
 
 pub enum InputEvent {
-    Action(ActionEvent),
-    Axis(AxisEvent),
-    Text(TextEvent),
+    Action(InputActionEvent),
+    Axis(InputAxisEvent),
+    Text(InputTextEvent),
 }

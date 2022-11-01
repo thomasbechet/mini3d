@@ -4,7 +4,7 @@ use crate::{ecs::component::{rhai_scripts::{RhaiScriptsComponent, RhaiScriptStat
 
 pub fn system_rhai_update_scripts(
     world: &mut World,
-    rhai: &RhaiContext,
+    rhai: &mut RhaiContext,
     ctx: &mut ProgramContext,
 ) {
     for (_, (scripts, storage)) in world.query_mut::<(&mut RhaiScriptsComponent, Option<&mut ScriptStorageComponent>)>() {
@@ -16,12 +16,13 @@ pub fn system_rhai_update_scripts(
         for instance in &mut scripts.instances {
             match instance {
                 Some(instance) => {
-                    let ast = rhai.scripts.get(&instance.script.uid()).unwrap();
-                    if instance.state == RhaiScriptState::Init {
-                        rhai.engine.call_fn::<()>(&mut scope, ast, "init", ()).unwrap();
-                        instance.state = RhaiScriptState::Update;
+                    if let Some(entry) = instance.script.get_or_resolve(&ctx.asset) {
+                        if instance.state == RhaiScriptState::Init {
+                            rhai.call(entry, &mut scope, "init").expect("Failed to call init");
+                            instance.state = RhaiScriptState::Update;
+                        }
+                        rhai.call(entry, &mut scope, "update").expect("Failed to call update");
                     }
-                    rhai.engine.call_fn::<()>(&mut scope, ast, "update", ()).unwrap();
                 },
                 None => {}
             }

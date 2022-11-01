@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, app::App, asset::{AssetDatabase, font::Font}};
+use mini3d::{renderer::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, app::App, asset::{AssetDatabase, font::Font}};
 use wgpu::TextureViewDescriptor;
 
 use crate::context::WGPUContext;
@@ -93,7 +93,7 @@ impl SurfaceBuffer {
     ) {
         for command in cb.iter() {
             match command {
-                mini3d::graphics::command_buffer::Command::Print {
+                mini3d::renderer::command_buffer::Command::Print {
                     p,
                     text,
                     font_id,
@@ -105,21 +105,21 @@ impl SurfaceBuffer {
                         &AssetDatabase::read::<Font>(app, *font_id).expect("Invalid font id").data,
                     );
                 }
-                mini3d::graphics::command_buffer::Command::DrawLine { p0, p1 } => {
+                mini3d::renderer::command_buffer::Command::DrawLine { p0, p1 } => {
                     rasterizer::draw_line(self, *p0, *p1);
                 }
-                mini3d::graphics::command_buffer::Command::DrawVLine { x, y0, y1 } => {
+                mini3d::renderer::command_buffer::Command::DrawVLine { x, y0, y1 } => {
                     rasterizer::draw_vline(self, *x, *y0, *y1);
                 }
-                mini3d::graphics::command_buffer::Command::DrawHLine { y, x0, x1 } => {
+                mini3d::renderer::command_buffer::Command::DrawHLine { y, x0, x1 } => {
                     rasterizer::draw_hline(self, *y, *x0, *x1);
                 }
-                mini3d::graphics::command_buffer::Command::DrawRect { rect } => {
+                mini3d::renderer::command_buffer::Command::DrawRect { rect } => {
                     let mut rect = *rect;
                     rect.clamp(&SCREEN_VIEWPORT);
                     rasterizer::draw_rect(self, rect);
                 }
-                mini3d::graphics::command_buffer::Command::FillRect { rect } => {
+                mini3d::renderer::command_buffer::Command::FillRect { rect } => {
                     let mut rect = *rect;
                     rect.clamp(&SCREEN_VIEWPORT);
                     rasterizer::fill_rect(self, rect);

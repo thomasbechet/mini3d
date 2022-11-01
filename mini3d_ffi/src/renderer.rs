@@ -1,5 +1,5 @@
 use libc::{c_void, c_ulong};
-use mini3d::{app::App, glam::{Vec2, UVec2, Vec4}, graphics::SCREEN_RESOLUTION, math::rect::IRect};
+use mini3d::{app::App, glam::{Vec2, UVec2, Vec4}, renderer::SCREEN_RESOLUTION, math::rect::IRect};
 use mini3d_wgpu::WGPURenderer;
 
 use crate::app::mini3d_app;

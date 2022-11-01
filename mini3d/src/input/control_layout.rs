@@ -1,9 +1,9 @@
 use glam::Vec2;
 use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
-use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}};
+use crate::{math::rect::IRect, renderer::{CommandBuffer, SCREEN_RESOLUTION}, asset::{input_action::InputAction, AssetRef, input_axis::InputAxis, AssetManager}};
 
-use super::{InputManager, action::ActionInputId, axis::AxisInputId};
+use super::InputManager;
 
 new_key_type! { 
     pub struct ControlId;
@@ -25,16 +25,16 @@ impl Direction {
 pub struct ControlInputs {
 
     // Selection inputs
-    pub up: ActionInputId,
-    pub down: ActionInputId,
-    pub left: ActionInputId,
-    pub right: ActionInputId,
+    pub up: AssetRef<InputAction>,
+    pub down: AssetRef<InputAction>,
+    pub left: AssetRef<InputAction>,
+    pub right: AssetRef<InputAction>,
 
     // Cursor inputs
-    pub cursor_x: AxisInputId,
-    pub cursor_y: AxisInputId,
-    pub cursor_motion_x: AxisInputId,
-    pub cursor_motion_y: AxisInputId,
+    pub cursor_x: AssetRef<InputAxis>,
+    pub cursor_y: AssetRef<InputAxis>,
+    pub cursor_motion_x: AssetRef<InputAxis>,
+    pub cursor_motion_y: AssetRef<InputAxis>,
 }
 
 enum ControlMode {
@@ -176,22 +176,22 @@ impl ControlLayout {
         }
     }
 
-    pub fn update(&mut self, input: &InputManager) {
+    pub fn update(&mut self, asset: &AssetManager, input: &InputManager) {
 
         // Update per profile
         for (_, profile) in self.profiles.iter_mut() {
 
             // Selection inputs
-            let up = input.action(profile.inputs.up).map_or_else(|| false, |b| b.is_just_pressed());
-            let down = input.action(profile.inputs.down).map_or_else(|| false, |b| b.is_just_pressed());
-            let left = input.action(profile.inputs.left).map_or_else(|| false, |b| b.is_just_pressed());
-            let right = input.action(profile.inputs.right).map_or_else(|| false, |b| b.is_just_pressed());
+            let up = profile.inputs.up.state(asset, input, false).is_just_pressed();
+            let down = profile.inputs.down.state(asset, input, false).is_just_pressed();
+            let left = profile.inputs.left.state(asset, input, false).is_just_pressed();
+            let right = profile.inputs.right.state(asset, input, false).is_just_pressed();
             
             // Cursor inputs
-            let cursor_x = input.axis(profile.inputs.cursor_x).map_or(profile.last_cursor_position.x, |a| a.value);
-            let cursor_y = input.axis(profile.inputs.cursor_y).map_or(profile.last_cursor_position.y, |a| a.value);
-            let motion_x = input.axis(profile.inputs.cursor_motion_x).map_or(0.0, |a| a.value);
-            let motion_y = input.axis(profile.inputs.cursor_motion_y).map_or(0.0, |a| a.value);
+            let cursor_x = profile.inputs.cursor_x.state(asset, input, profile.last_cursor_position.x).value;
+            let cursor_y = profile.inputs.cursor_y.state(asset, input, profile.last_cursor_position.y).value;
+            let motion_x = profile.inputs.cursor_motion_x.state(asset, input, 0.0).value;
+            let motion_y = profile.inputs.cursor_motion_y.state(asset, input, 0.0).value;
             
             // Update detection
             let selection_update = up || down || left || right;

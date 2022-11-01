@@ -1,21 +1,22 @@
-use slotmap::Key;
+use serde::{Serialize, Deserialize};
 
-use crate::input::{axis::AxisInputId, action::ActionInputId};
+use crate::{asset::{input_action::InputAction, AssetRef, input_axis::InputAxis}};
 
+#[derive(Serialize, Deserialize)]
 pub struct FreeFlyComponent {
 
     // Inputs
-    pub switch_mode: ActionInputId,
-    pub roll_left: ActionInputId,
-    pub roll_right: ActionInputId,
-    pub view_x: AxisInputId,
-    pub view_y: AxisInputId,
-    pub move_forward: AxisInputId,
-    pub move_backward: AxisInputId,
-    pub move_up: AxisInputId,
-    pub move_down: AxisInputId,
-    pub move_left: AxisInputId,
-    pub move_right: AxisInputId,
+    pub switch_mode: AssetRef<InputAction>,
+    pub roll_left: AssetRef<InputAction>,
+    pub roll_right: AssetRef<InputAction>,
+    pub view_x: AssetRef<InputAxis>,
+    pub view_y: AssetRef<InputAxis>,
+    pub move_forward: AssetRef<InputAxis>,
+    pub move_backward: AssetRef<InputAxis>,
+    pub move_up: AssetRef<InputAxis>,
+    pub move_down: AssetRef<InputAxis>,
+    pub move_left: AssetRef<InputAxis>,
+    pub move_right: AssetRef<InputAxis>,
     
     // View data
     pub free_mode: bool,
@@ -30,25 +31,4 @@ impl FreeFlyComponent {
     pub const ROLL_SPEED: f32 = 60.0;
     pub const ROTATION_SENSIBILITY: f32 = 180.0;
     pub const ZOOM_SPEED: f32 = 10.0;
-}
-
-impl Default for FreeFlyComponent {
-    fn default() -> Self {
-        Self {
-            switch_mode: ActionInputId::null(),
-            roll_left: ActionInputId::null(),
-            roll_right: ActionInputId::null(),
-            view_x: AxisInputId::null(),
-            view_y: AxisInputId::null(),
-            move_forward: AxisInputId::null(),
-            move_backward: AxisInputId::null(),
-            move_up: AxisInputId::null(),
-            move_down: AxisInputId::null(),
-            move_left: AxisInputId::null(),
-            move_right: AxisInputId::null(),
-            free_mode: false,
-            yaw: 0.0,
-            pitch: 0.0,
-        }   
-    }
 }
