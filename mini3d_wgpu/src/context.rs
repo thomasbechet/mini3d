@@ -36,8 +36,8 @@ impl WGPUContext {
 
         // Find features
         let mut features = adapter.features(); 
-        features = features | wgpu::Features::INDIRECT_FIRST_INSTANCE;
-        features = features | wgpu::Features::MULTI_DRAW_INDIRECT;
+        features |= wgpu::Features::INDIRECT_FIRST_INSTANCE;
+        features |= wgpu::Features::MULTI_DRAW_INDIRECT;
 
         // Find correct limit levels
         // let limits = wgpu::Limits::default();
@@ -60,6 +60,7 @@ impl WGPUContext {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&adapter).first().unwrap().to_owned(),
+            // format: wgpu::TextureFormat::Rgb10a2Unorm,
             width: 1600,
             height: 900,
             present_mode: wgpu::PresentMode::Fifo,

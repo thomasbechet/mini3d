@@ -1,22 +1,22 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{asset::{input_action::InputAction, AssetRef, input_axis::InputAxis}};
+use crate::{input::{InputActionId, InputAxisId}};
 
 #[derive(Serialize, Deserialize)]
 pub struct FreeFlyComponent {
 
     // Inputs
-    pub switch_mode: AssetRef<InputAction>,
-    pub roll_left: AssetRef<InputAction>,
-    pub roll_right: AssetRef<InputAction>,
-    pub view_x: AssetRef<InputAxis>,
-    pub view_y: AssetRef<InputAxis>,
-    pub move_forward: AssetRef<InputAxis>,
-    pub move_backward: AssetRef<InputAxis>,
-    pub move_up: AssetRef<InputAxis>,
-    pub move_down: AssetRef<InputAxis>,
-    pub move_left: AssetRef<InputAxis>,
-    pub move_right: AssetRef<InputAxis>,
+    pub switch_mode: InputActionId,
+    pub roll_left: InputActionId,
+    pub roll_right: InputActionId,
+    pub view_x: InputAxisId,
+    pub view_y: InputAxisId,
+    pub move_forward: InputAxisId,
+    pub move_backward: InputAxisId,
+    pub move_up: InputAxisId,
+    pub move_down: InputAxisId,
+    pub move_left: InputAxisId,
+    pub move_right: InputAxisId,
     
     // View data
     pub free_mode: bool,

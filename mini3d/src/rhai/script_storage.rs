@@ -78,7 +78,7 @@ pub mod rhai_script_storage_api {
     #[rhai_fn(pure)]
     pub(crate) fn list_keys(storage: &mut ScriptStorageHandle, key: &str) -> rhai::Dynamic {
         let storage: &mut ScriptStorageComponent = storage.as_mut();
-        storage.list_keys(key).unwrap().map(|s| s.clone()).collect::<Vec<String>>().into()
+        storage.list_keys(key).unwrap().cloned().collect::<Vec<String>>().into()
     }
 }
 

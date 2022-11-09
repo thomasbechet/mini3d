@@ -7,7 +7,6 @@ use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
 use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId};
-use crate::renderer::RendererManager;
 use crate::request::AppRequests;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
@@ -17,7 +16,6 @@ pub struct App {
     pub(crate) asset_manager: AssetManager,
     pub(crate) input_manager: InputManager,
     pub(crate) program_manager: ProgramManager,
-    pub(crate) renderer_manager: RendererManager,
 
     default_backend: DefaultBackend,
 
@@ -32,7 +30,6 @@ impl App {
             asset_manager: Default::default(), 
             input_manager: Default::default(), 
             program_manager: Default::default(),
-            renderer_manager: Default::default(),
             default_backend: Default::default(), 
             accumulator: 0.0,
         };
@@ -42,10 +39,14 @@ impl App {
         Ok(app)
     }
 
+    pub fn asset(&self) -> &'_ AssetManager {
+        &self.asset_manager
+    }
+
     pub fn progress<'a>(
         &'a mut self, 
         backend_descriptor: BackendDescriptor<'a>, 
-        events: &mut AppEvents,
+        events: &AppEvents,
         requests: &mut AppRequests,
         mut delta_time: f64,
     ) -> Result<()> {
@@ -55,20 +56,15 @@ impl App {
 
         // ================= DISPATCH STEP ================= //
 
-        // Dispatch import asset events
-        for event in events.assets.drain(..) {
-            self.asset_manager.dispatch_event(event)?;
-        }
-
         // Prepare input manager
         self.input_manager.prepare_dispatch();
         // Dispatch input events
-        for mut event in events.inputs.drain(..) {
-            self.input_manager.dispatch_event(&mut event, &self.asset_manager);
+        for event in &events.input {
+            self.input_manager.dispatch_event(event);
         }
 
         // Dispatch system events
-        for event in events.systems.drain(..) {
+        for event in &events.system {
             match event {
                 SystemEvent::Shutdown => {
                     requests.shutdown = true;
@@ -77,9 +73,6 @@ impl App {
         }
 
         // TODO: dispatch more events ...
-
-        // Ensure all events have been dispatched
-        events.clear();
 
         // ================= UPDATE STEP ================= //
 
@@ -97,6 +90,7 @@ impl App {
             &mut self.asset_manager, 
             &mut self.input_manager, 
             &mut backend,
+            events,
             delta_time,
         ).context("Failed to update program manager")?;
 

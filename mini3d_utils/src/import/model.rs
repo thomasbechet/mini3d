@@ -1,6 +1,6 @@
 use std::{path::{Path, PathBuf}, fs::File, io::Read};
 
-use mini3d::{event::{asset::{AssetImport, ImportAssetEvent}, AppEvents}, asset::{mesh::{Mesh, Vertex, SubMesh}, material::Material, model::Model}, glam::{Vec3, Vec2, Vec4}};
+use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, AppEvents}, asset::{mesh::{Mesh, Vertex, SubMesh}, material::Material, model::Model}, glam::{Vec3, Vec2, Vec4}};
 use wavefront_obj::obj::{Primitive, self};
 
 fn vec3_from_vertex(v: &obj::Vertex) -> Vec3 {
@@ -13,21 +13,21 @@ fn vec2_from_tvertex(v: &obj::TVertex) -> Vec2 {
 
 #[derive(Default)]
 pub struct ModelImport {
-    meshes: Vec<AssetImport<Mesh>>,
-    materials: Vec<AssetImport<Material>>,
-    models: Vec<AssetImport<Model>>,
+    meshes: Vec<AssetImportEntry<Mesh>>,
+    materials: Vec<AssetImportEntry<Material>>,
+    models: Vec<AssetImportEntry<Model>>,
 }
 
 impl ModelImport {
     pub fn push(self, events: &mut AppEvents) {
         self.meshes.into_iter().for_each(|asset| {
-            events.push_asset(ImportAssetEvent::Mesh(asset));
+            events.asset.push(ImportAssetEvent::Mesh(asset));
         });
         self.materials.into_iter().for_each(|material| {
-            events.push_asset(ImportAssetEvent::Material(material));
+            events.asset.push(ImportAssetEvent::Material(material));
         });
         self.models.into_iter().for_each(|model| {
-            events.push_asset(ImportAssetEvent::Model(model));
+            events.asset.push(ImportAssetEvent::Model(model));
         });
     }
 }
@@ -160,14 +160,14 @@ impl ModelImporter {
             // Find object name
             let name = self.name.clone().unwrap_or({
                 if !object.name.is_empty() {
-                    object.name.clone().into()
+                    object.name.clone()
                 } else {
-                    format!("{}_{}", path.file_stem().unwrap().to_str().unwrap(), object_index).to_string().into()
+                    format!("{}_{}", path.file_stem().unwrap().to_str().unwrap(), object_index).to_string()
                 }
             });
 
             // Append object mesh
-            model_import.meshes.push(AssetImport { data: mesh, name });
+            model_import.meshes.push(AssetImportEntry { data: mesh, name });
         }
 
         Ok(model_import)

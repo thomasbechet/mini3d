@@ -4,41 +4,27 @@ pub mod asset;
 pub mod input;
 pub mod system;
 
+#[derive(Default)]
 pub struct AppEvents {
-    pub(crate) assets: Vec<ImportAssetEvent>,
-    pub(crate) inputs: Vec<InputEvent>,
-    pub(crate) systems: Vec<SystemEvent>,
+    pub asset: Vec<ImportAssetEvent>,
+    pub input: Vec<InputEvent>,
+    pub system: Vec<SystemEvent>,
 }
 
 impl AppEvents {
 
     pub fn new() -> Self {
         Self {
-            assets: Default::default(),
-            inputs: Default::default(),
-            systems: Default::default(),
+            asset: Default::default(),
+            input: Default::default(),
+            system: Default::default(),
         }
     }
 
-    pub fn push_asset(&mut self, event: ImportAssetEvent) -> &mut Self {
-        self.assets.push(event);
-        self
-    }
-
-    pub fn push_input(&mut self, event: InputEvent) -> &mut Self {
-        self.inputs.push(event);
-        self
-    }
-
-    pub fn push_system(&mut self, event: SystemEvent) -> &mut Self {
-        self.systems.push(event);
-        self
-    }
-
     pub fn clear(&mut self) -> &mut Self {
-        self.assets.clear();
-        self.inputs.clear();
-        self.systems.clear();
+        self.asset.clear();
+        self.input.clear();
+        self.system.clear();
         self
     }
 }

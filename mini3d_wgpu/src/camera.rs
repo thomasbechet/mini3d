@@ -1,4 +1,4 @@
-use mini3d::{glam::{Mat4, Vec3}, renderer::{SCREEN_ASPECT_RATIO, SCREEN_WIDTH, SCREEN_HEIGHT}};
+use mini3d::{glam::{Mat4, Vec3}, graphics::{SCREEN_ASPECT_RATIO, SCREEN_WIDTH, SCREEN_HEIGHT}};
 
 pub(crate) struct Camera {
     eye: Vec3,

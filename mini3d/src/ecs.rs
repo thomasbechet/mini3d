@@ -1,4 +1,4 @@
-use slotmap::{new_key_type, SlotMap};
+use slotmap::new_key_type;
 
 pub mod component;
 pub mod system;

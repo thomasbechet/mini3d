@@ -1,9 +1,17 @@
-use serde::{Serialize, Deserialize};
-use slotmap::SecondaryMap;
+use std::collections::HashMap;
 
-use crate::{event::input::{InputEvent, InputTextEvent}, asset::{input_action::{InputActionId, InputAction}, input_axis::{InputAxisId, InputAxisKind, InputAxis}, AssetManager, AssetRef, AssetUID}};
+use anyhow::{Result, anyhow};
+use serde::{Serialize, Deserialize};
+use slotmap::{new_key_type, SlotMap};
+
+use crate::{event::input::{InputEvent, InputTextEvent}, asset::{input_action::InputAction, input_axis::{InputAxisRange, InputAxis}, AssetManager}, uid::UID};
 
 pub mod control_layout;
+
+new_key_type! {
+    pub struct InputActionId;
+    pub struct InputAxisId;
+}
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
@@ -33,44 +41,37 @@ impl InputActionState {
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputAxisState {
     pub value: f32,
+    pub range: InputAxisRange,
 }
 
 impl InputAxisState {
     
-    pub fn set_value(&mut self, value: f32, kind: &InputAxisKind) {
-        self.value = match kind {
-            InputAxisKind::Clamped { min, max } => {
+    pub fn set_value(&mut self, value: f32) {
+        self.value = match &self.range {
+            InputAxisRange::Clamped { min, max } => {
                 value.max(*min).min(*max)
             },
-            InputAxisKind::Normalized { norm } => {
+            InputAxisRange::Normalized { norm } => {
                 value / norm
             },
-            InputAxisKind::ClampedNormalized { min, max, norm } => {
+            InputAxisRange::ClampedNormalized { min, max, norm } => {
                 value.max(*min).min(*max) / norm
             },
-            InputAxisKind::Infinite => {
+            InputAxisRange::Infinite => {
                 value
             },
         }
     }
 }
 
+#[derive(Default)]
 pub struct InputManager {
     text: String,
-    action_states: SecondaryMap<InputActionId, InputActionState>,
-    axis_states: SecondaryMap<InputAxisId, InputAxisState>,
+    actions: SlotMap<InputActionId, InputActionState>,
+    uid_to_action: HashMap<UID, InputActionId>,
+    axis: SlotMap<InputAxisId, InputAxisState>,
+    uid_to_axis: HashMap<UID, InputAxisId>,
     pub(crate) reload_input_mapping: bool,
-}
-
-impl Default for InputManager {
-    fn default() -> Self {
-        Self {
-            text: Default::default(),
-            action_states: Default::default(),
-            axis_states: Default::default(),
-            reload_input_mapping: false,
-        }
-    }
 }
 
 impl InputManager {
@@ -79,7 +80,7 @@ impl InputManager {
     pub(crate) fn prepare_dispatch(&mut self) {
 
         // Save the previous action state
-        for (_, action) in self.action_states.iter_mut() {
+        for (_, action) in self.actions.iter_mut() {
             action.was_pressed = action.pressed;
         }
 
@@ -87,36 +88,17 @@ impl InputManager {
         self.text.clear();
     }
 
-    pub(crate) fn reload_states(&mut self, asset: &AssetManager) {
-        self.action_states.clear();
-        for entry in asset.iter::<InputAction>() {
-            self.action_states.insert(entry.id, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
-        }
-        self.axis_states.clear();
-        for entry in asset.iter::<InputAxis>() {
-            let mut state =  InputAxisState { value: entry.asset.default_value };
-            state.set_value(entry.asset.default_value, &entry.asset.kind);
-            self.axis_states.insert(entry.id, state);
-        }
-        self.text.clear();
-        self.reload_input_mapping = true;
-    }
-
     /// Process input events
-    pub(crate) fn dispatch_event(&mut self, event: &mut InputEvent, asset: &AssetManager) {
+    pub(crate) fn dispatch_event(&mut self, event: &InputEvent) {
         match event {
             InputEvent::Action(event) => {
-                if let Some(entry) = event.action.get_or_resolve(asset) {
-                    if let Some(state) = self.action_states.get_mut(entry.id) {
-                        state.pressed = event.pressed;
-                    }
+                if let Some(action) = self.uid_to_action.get(&event.action).and_then(|handle| self.actions.get_mut(*handle)) {
+                    action.pressed = event.pressed;
                 }
             },
             InputEvent::Axis(event) => {
-                if let Some(entry) = event.axis.get_or_resolve(asset) {
-                    if let Some(state) = self.axis_states.get_mut(entry.id) {
-                        state.set_value(event.value, &entry.asset.kind);
-                    }
+                if let Some(axis) = self.uid_to_axis.get(&event.axis).and_then(|handle| self.axis.get_mut(*handle)) {
+                    axis.set_value(event.value);
                 }
             },
             InputEvent::Text(text_event) => {
@@ -132,44 +114,40 @@ impl InputManager {
         }
     }
 
+    pub fn reload_input_tables(&mut self, asset: &AssetManager) {
+        self.actions.clear();
+        for entry in asset.iter::<InputAction>() {
+            let id = self.actions.insert(InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
+            self.uid_to_action.insert(entry.uid, id);
+        }
+        self.axis.clear();
+        for entry in asset.iter::<InputAxis>() {
+            let mut state =  InputAxisState { value: entry.asset.default_value, range: entry.asset.range };
+            state.set_value(entry.asset.default_value);
+            let id = self.axis.insert(state);
+            self.uid_to_axis.insert(entry.uid, id);
+        }
+        self.text.clear();
+        self.reload_input_mapping = true;
+    }
+
     pub fn text(&self) -> &str {
         &self.text
     }
 
-    pub fn action(&self, id: InputActionId) -> Option<&InputActionState> {
-        self.action_states.get(id)
+    pub fn action(&self, id: InputActionId) -> Result<&InputActionState> {
+        self.actions.get(id).ok_or_else(|| anyhow!("Input action not found"))
     }
 
-    pub fn axis(&self, id: InputAxisId) -> Option<&InputAxisState> {
-        self.axis_states.get(id)
+    pub fn axis(&self, id: InputAxisId) -> Result<&InputAxisState> {
+        self.axis.get(id).ok_or_else(|| anyhow!("Input axis not found"))
     }
 
-    pub fn find_action(&self, uid: AssetUID, asset: &AssetManager, default_pressed: bool) -> InputActionState {
-        asset.find::<InputAction>(uid).map_or(InputActionState { pressed: default_pressed, was_pressed: default_pressed }, |entry| {
-            *self.action_states.get(entry.id).unwrap_or(&InputActionState { pressed: default_pressed, was_pressed: default_pressed })
-        })
+    pub fn find_action(&self, uid: UID) -> Result<InputActionId> {
+        self.uid_to_action.get(&uid).copied().ok_or_else(|| anyhow!("Input action not found"))
     }
 
-    pub fn find_axis(&self, uid: AssetUID, asset: &AssetManager, default_value: f32) -> InputAxisState {
-        asset.find::<InputAxis>(uid).map_or(InputAxisState { value: default_value }, |entry| {
-            *self.axis_states.get(entry.id).unwrap_or(&InputAxisState { value: default_value })
-        })
-    }
-
-}
-
-impl AssetRef<InputAction> {
-    pub fn state(&mut self, asset: &AssetManager, input: &InputManager, default_pressed: bool) -> InputActionState {
-        self.get_or_resolve(asset).map_or(InputActionState { pressed: default_pressed, was_pressed: default_pressed }, |entry| {
-            *input.action_states.get(entry.id).unwrap_or(&InputActionState { pressed: default_pressed, was_pressed: default_pressed })
-        })
-    }
-}
-
-impl AssetRef<InputAxis> {
-    pub fn state(&mut self, asset: &AssetManager, input: &InputManager, default: f32) -> InputAxisState {
-        self.get_or_resolve(asset).map_or(InputAxisState { value: default }, |entry| {
-            *input.axis_states.get(entry.id).unwrap_or(&InputAxisState { value: default })
-        })
+    pub fn find_axis(&self, uid: UID) -> Result<InputAxisId> {
+        self.uid_to_axis.get(&uid).copied().ok_or_else(|| anyhow!("Input axis not found"))
     }
 }

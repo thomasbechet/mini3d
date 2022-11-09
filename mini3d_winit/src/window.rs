@@ -12,7 +12,7 @@ impl Window {
         let window = WindowBuilder::new()
             .with_inner_size(PhysicalSize::new(1024 - 30, 640))
             .with_resizable(true)
-            .build(&event_loop)
+            .build(event_loop)
             .unwrap();
         if let Some(monitor) = window.current_monitor() {
             let screen_size = monitor.size();

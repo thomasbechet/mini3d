@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path};
 
 use gui::WindowGUI;
 use mapper::InputMapper;
-use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImport}}, request::AppRequests, app::App, glam::Vec2, renderer::SCREEN_RESOLUTION, backend::BackendDescriptor, input::action::ActionState, asset::rhai_script::RhaiScript};
+use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, asset::rhai_script::RhaiScript};
 use mini3d_os::program::OSProgram;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -94,7 +94,7 @@ fn main() {
         .import().expect("Failed to import alfred model.")
         .push(&mut events);
     let script = std::fs::read_to_string("assets/inventory.rhai").expect("Failed to load.");
-    events.push_asset(ImportAssetEvent::RhaiScript(AssetImport {
+    events.asset.push(ImportAssetEvent::RhaiScript(AssetImportEntry {
         name: "inventory".to_string(), 
         data: RhaiScript { source: script },
     }));
@@ -109,14 +109,9 @@ fn main() {
 
         // Match window events
         match event {
-            Event::DeviceEvent { device_id: _, event } => {
-                match event {
-                    DeviceEvent::MouseMotion { delta } => {
-                        mouse_motion.0 += delta.0;
-                        mouse_motion.1 += delta.1;
-                    }
-                    _ => {}
-                }
+            Event::DeviceEvent { device_id: _, event: DeviceEvent::MouseMotion { delta } } => {
+                mouse_motion.0 += delta.0;
+                mouse_motion.1 += delta.1;
             }
             Event::WindowEvent { window_id, event } => {
                 if window_id == window.handle.id() {
@@ -169,7 +164,7 @@ fn main() {
                             }
                         }
                         WindowEvent::CloseRequested => {
-                            events.push_system(SystemEvent::Shutdown);
+                            events.system.push(SystemEvent::Shutdown);
                             *control_flow = ControlFlow::Exit;
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -181,7 +176,7 @@ fn main() {
                         }
                         WindowEvent::ReceivedCharacter(c) => {
                             if window.is_focus() {
-                                events.push_input(InputEvent::Text(InputTextEvent::Character(c)));
+                                events.input.push(InputEvent::Text(InputTextEvent::Character(c)));
                             }
                         }
                         WindowEvent::CursorMoved { device_id: _, position, .. } => {
@@ -212,14 +207,14 @@ fn main() {
                 // Dispatch controller events
                 while let Some(gilrs::Event { id, event, .. }) = &gilrs.next_event() {
                     if display_mode == DisplayMode::WindowedUnfocus {
-                        gui.handle_controller_event(&event, *id, &mut mapper, &mut window);
+                        gui.handle_controller_event(event, *id, &mut mapper, &mut window);
                     } else {
                         match event {
                             gilrs::EventType::ButtonPressed(button, _) => {
-                                mapper.dispatch_controller_button(*id, *button, ActionState::Pressed, &mut events);
+                                mapper.dispatch_controller_button(*id, *button, true, &mut events);
                             },
                             gilrs::EventType::ButtonReleased(button, _) => {
-                                mapper.dispatch_controller_button(*id, *button, ActionState::Released, &mut events);
+                                mapper.dispatch_controller_button(*id, *button, false, &mut events);
                             },
                             gilrs::EventType::AxisChanged(axis, value, _) => {
                                 mapper.dispatch_controller_axis(*id, *axis, *value, &mut events);
@@ -248,7 +243,7 @@ fn main() {
                 // Update GUI
                 gui.ui(
                     &mut window,
-                    &mut app,
+                    &app,
                     &mut mapper,
                     control_flow,
                     &mut display_mode,
@@ -256,18 +251,17 @@ fn main() {
                 );
 
                 // Progress application
-                app.progress(desc, &mut events, &mut requests, delta_time)
+                app.progress(desc, &events, &mut requests, delta_time)
                     .expect("Failed to progress application");
 
                 // Invoke WGPU Renderer
                 let viewport = compute_fixed_viewport(gui.central_viewport());
-                renderer.render(&mut app, viewport, |device, queue, encoder, output| {
+                renderer.render(&app, viewport, |device, queue, encoder, output| {
                     gui.render(&window.handle, device, queue, encoder, output);
                 })
-                .map_err(|e| match e {
-                    SurfaceError::OutOfMemory => *control_flow = ControlFlow::Exit,
-                    _ => {}
-                }).expect("Error");
+                .map_err(|e| 
+                    if e == SurfaceError::OutOfMemory { *control_flow = ControlFlow::Exit }
+                ).expect("Error");
 
                 // Check shutdown
                 if requests.shutdown() {
@@ -280,8 +274,9 @@ fn main() {
                     mapper.refresh(&app);
                 }
 
-                // Reset requests
+                // Reset requests and events
                 requests.reset();
+                events.clear();
 
                 // Check exit
                 if *control_flow != ControlFlow::Exit {

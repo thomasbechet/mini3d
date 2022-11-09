@@ -29,7 +29,7 @@ impl WorldHandle {
 pub mod rhai_world_api {
 
     #[rhai_fn(pure)]
-    pub(crate) fn action_pressed(input: &mut WorldHandle) -> bool {
+    pub(crate) fn action_pressed(_input: &mut WorldHandle) -> bool {
         // let context: &mut ProgramContext = input.as_mut();
         // let group = context.input.find_group(group).unwrap().id;
         // context.input.find_action(group, name).unwrap().is_pressed()

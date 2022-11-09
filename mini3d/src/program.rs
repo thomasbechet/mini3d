@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{backend::{renderer::RendererBackend, Backend}, asset::AssetManager, input::InputManager};
+use crate::{backend::{renderer::RendererBackend, Backend}, asset::AssetManager, input::InputManager, event::AppEvents};
 
 pub trait ProgramBuilder {
     type BuildData;
@@ -26,6 +26,7 @@ pub struct ProgramContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
     pub renderer: &'a mut dyn RendererBackend,
+    pub events: &'a AppEvents,
     pub delta_time: f64,
 }
 
@@ -34,12 +35,14 @@ impl<'a> ProgramContext<'a> {
         asset: &'a mut AssetManager,
         input: &'a mut InputManager,
         renderer: &'a mut dyn RendererBackend,
+        events: &'a AppEvents,
         delta_time: f64,
     ) -> Self {
         Self {
             asset,
             input,
             renderer,
+            events,
             delta_time,
         }
     }
@@ -70,10 +73,17 @@ impl ProgramManager {
         Ok(id)
     }
 
-    pub(crate) fn update(&mut self, asset: &mut AssetManager, input: &mut InputManager, backend: &mut Backend, delta_time: f64) -> Result<()> {
+    pub(crate) fn update(
+        &mut self, 
+        asset: &mut AssetManager, 
+        input: &mut InputManager, 
+        backend: &mut Backend,
+        events: &AppEvents,
+        delta_time: f64
+    ) -> Result<()> {
         
         // Create service wrapper
-        let mut services = ProgramContext::wrap(asset, input, backend.renderer, delta_time);       
+        let mut services = ProgramContext::wrap(asset, input, backend.renderer, events, delta_time);       
 
         // Start programs
         for id in self.starting_programs.drain(..) {

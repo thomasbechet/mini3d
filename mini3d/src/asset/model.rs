@@ -1,16 +1,12 @@
 use serde::{Serialize, Deserialize};
-use slotmap::new_key_type;
-use super::{Asset, AssetUID};
+use super::{Asset, UID};
 
-new_key_type! { pub struct ModelId; }
-
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Model {
-    pub mesh: AssetUID,
-    pub materials: Vec<AssetUID>,
+    pub mesh: UID,
+    pub materials: Vec<UID>,
 }
 
 impl Asset for Model {
-    type Id = ModelId;
     fn typename() -> &'static str { "model" }
 }

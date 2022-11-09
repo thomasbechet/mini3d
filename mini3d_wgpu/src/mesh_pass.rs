@@ -1,4 +1,4 @@
-use mini3d::{slotmap::{SecondaryMap, SlotMap}, asset::{material::MaterialId}};
+use mini3d::{slotmap::{SecondaryMap, SlotMap}, uid::UID};
 
 use crate::{SubMeshId, ObjectId, Object, model_buffer::ModelIndex, context::WGPUContext, vertex_buffer::VertexBufferDescriptor};
 
@@ -62,20 +62,20 @@ struct PassObject {
 
 pub(crate) struct RenderBatch {
     pub(crate) submesh: SubMeshId,
-    pub(crate) material: MaterialId,
+    pub(crate) material: UID,
     pub(crate) model_index: ModelIndex,
 }
 
 pub(crate) struct InstancedRenderBatch {
     pub(crate) submesh: SubMeshId,
-    pub(crate) material: MaterialId,
+    pub(crate) material: UID,
     pub(crate) first_instance: usize,
     pub(crate) instance_count: usize,
     pub(crate) triangle_count: usize,
 }
 
 pub(crate) struct MultiInstancedRenderBatch {
-    pub(crate) material: MaterialId,
+    pub(crate) material: UID,
     pub(crate) first: usize,
     pub(crate) count: usize,
     pub(crate) triangle_count: usize,

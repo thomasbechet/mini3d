@@ -1,17 +1,17 @@
 use glam::Vec2;
 use serde::{Serialize, Deserialize};
 
-use crate::asset::{input_action::InputAction, input_axis::InputAxis, AssetRef};
+use crate::uid::UID;
 
 #[derive(Serialize, Deserialize)]
 pub struct InputActionEvent {
-    pub action: AssetRef<InputAction>,
+    pub action: UID,
     pub pressed: bool,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct InputAxisEvent {
-    pub axis: AssetRef<InputAxis>,
+    pub axis: UID,
     pub value: f32,
 }
 

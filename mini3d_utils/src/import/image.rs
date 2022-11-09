@@ -1,14 +1,14 @@
 use std::path::{Path, PathBuf};
 
-use mini3d::{event::{asset::{AssetImport, ImportAssetEvent}, AppEvents}, asset::texture::Texture};
+use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, AppEvents}, asset::texture::Texture};
 
 pub struct ImageImport {
-    texture: AssetImport<Texture>
+    texture: AssetImportEntry<Texture>
 }
 
 impl ImageImport {
     pub fn push(self, events: &mut AppEvents) {
-        events.push_asset(ImportAssetEvent::Texture(self.texture));
+        events.asset.push(ImportAssetEvent::Texture(self.texture));
     }
 }
 
@@ -52,7 +52,7 @@ impl ImageImporter {
         };
         // Return the texture import
         Ok(ImageImport {
-            texture: AssetImport::<Texture> {
+            texture: AssetImportEntry::<Texture> {
                 data: texture,
                 name: filename
             }

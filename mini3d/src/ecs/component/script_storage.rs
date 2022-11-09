@@ -27,7 +27,7 @@ impl ScriptStorageComponent {
 
     fn find_node(&self, key: &str) -> Option<&NodeValue> {
         let mut current = &self.root;
-        for split in key.split(".") {
+        for split in key.split('.') {
             match current {
                 NodeValue::Node(childs) => {
                     match childs.get(split) {
@@ -45,7 +45,7 @@ impl ScriptStorageComponent {
         // Start with root
         let mut current = &mut self.root;
         // Iterate over each token
-        for token in key.split(".") {
+        for token in key.split('.') {
             // Lazy hashmap creation
             match *current {
                 NodeValue::Node(_) => {}

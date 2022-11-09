@@ -1,9 +1,10 @@
+use anyhow::Result;
 use glam::Vec2;
 use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
-use crate::{math::rect::IRect, renderer::{CommandBuffer, SCREEN_RESOLUTION}, asset::{input_action::InputAction, AssetRef, input_axis::InputAxis, AssetManager}};
+use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}};
 
-use super::InputManager;
+use super::{InputManager, InputActionId, InputAxisId};
 
 new_key_type! { 
     pub struct ControlId;
@@ -25,16 +26,16 @@ impl Direction {
 pub struct ControlInputs {
 
     // Selection inputs
-    pub up: AssetRef<InputAction>,
-    pub down: AssetRef<InputAction>,
-    pub left: AssetRef<InputAction>,
-    pub right: AssetRef<InputAction>,
+    pub up: InputActionId,
+    pub down: InputActionId,
+    pub left: InputActionId,
+    pub right: InputActionId,
 
     // Cursor inputs
-    pub cursor_x: AssetRef<InputAxis>,
-    pub cursor_y: AssetRef<InputAxis>,
-    pub cursor_motion_x: AssetRef<InputAxis>,
-    pub cursor_motion_y: AssetRef<InputAxis>,
+    pub cursor_x: InputAxisId,
+    pub cursor_y: InputAxisId,
+    pub cursor_motion_x: InputAxisId,
+    pub cursor_motion_y: InputAxisId,
 }
 
 enum ControlMode {
@@ -48,6 +49,7 @@ struct ControlProfile {
     last_cursor_position: Vec2,
 }
 
+#[derive(Default)]
 pub struct ControlLayout {
 
     // Layout data
@@ -139,15 +141,6 @@ impl ControlLayout {
         }
     }
 
-    pub fn new() -> Self {
-        Self { 
-            extents: Default::default(),
-            directions: Default::default(),
-            default_control: ControlId::null(),
-            profiles: Default::default(),
-        }
-    }
-
     pub fn add_control(&mut self, extent: IRect) -> ControlId {
         let id = self.extents.insert(extent);
         self.compute_directions();
@@ -176,22 +169,22 @@ impl ControlLayout {
         }
     }
 
-    pub fn update(&mut self, asset: &AssetManager, input: &InputManager) {
+    pub fn update(&mut self, input: &InputManager) -> Result<()> {
 
         // Update per profile
         for (_, profile) in self.profiles.iter_mut() {
 
             // Selection inputs
-            let up = profile.inputs.up.state(asset, input, false).is_just_pressed();
-            let down = profile.inputs.down.state(asset, input, false).is_just_pressed();
-            let left = profile.inputs.left.state(asset, input, false).is_just_pressed();
-            let right = profile.inputs.right.state(asset, input, false).is_just_pressed();
+            let up = input.action(profile.inputs.up)?.is_just_pressed();
+            let down = input.action(profile.inputs.down)?.is_just_pressed();
+            let left = input.action(profile.inputs.left)?.is_just_pressed();
+            let right = input.action(profile.inputs.right)?.is_just_pressed();
             
             // Cursor inputs
-            let cursor_x = profile.inputs.cursor_x.state(asset, input, profile.last_cursor_position.x).value;
-            let cursor_y = profile.inputs.cursor_y.state(asset, input, profile.last_cursor_position.y).value;
-            let motion_x = profile.inputs.cursor_motion_x.state(asset, input, 0.0).value;
-            let motion_y = profile.inputs.cursor_motion_y.state(asset, input, 0.0).value;
+            let cursor_x = input.axis(profile.inputs.cursor_x)?.value;
+            let cursor_y = input.axis(profile.inputs.cursor_y)?.value;
+            let motion_x = input.axis(profile.inputs.cursor_motion_x)?.value;
+            let motion_y = input.axis(profile.inputs.cursor_motion_y)?.value;
             
             // Update detection
             let selection_update = up || down || left || right;
@@ -268,6 +261,7 @@ impl ControlLayout {
                 };
             }
         }
+        Ok(())
     }
 
     pub fn render(&self) -> CommandBuffer {

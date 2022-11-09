@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
 
-use crate::asset::{AssetRef, rhai_script::RhaiScript};
+use crate::uid::UID;
 
 pub const MAX_RHAI_SCRIPT_COUNT: usize = 16;
 
@@ -13,32 +13,26 @@ pub enum RhaiScriptState {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RhaiScriptInstance {
-    pub script: AssetRef<RhaiScript>,
+    pub uid: UID,
     pub state: RhaiScriptState,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct RhaiScriptsComponent {
     pub instances: [Option<RhaiScriptInstance>; MAX_RHAI_SCRIPT_COUNT],
 }
 
-impl Default for RhaiScriptsComponent {
-    fn default() -> Self {
-        Self { instances: Default::default() }
-    }
-}
-
 impl RhaiScriptsComponent {
 
-    pub fn add(&mut self, script: AssetRef<RhaiScript>) -> Result<()> {
+    pub fn add(&mut self, uid: UID) -> Result<()> {
         if self.instances.iter().any(|instance| match instance {
-            Some(instance) => { instance.script == script },
+            Some(instance) => { instance.uid == uid },
             None => false
         }) {
             return Err(anyhow!("Trying to add existing rhai script"))
         }
         if let Some(instance) = self.instances.iter_mut().find(|instance| instance.is_none()) {
-            *instance = Some(RhaiScriptInstance { script, state: RhaiScriptState::Init });
+            *instance = Some(RhaiScriptInstance { uid, state: RhaiScriptState::Init });
             Ok(())
         } else {
             Err(anyhow!("No script slot available"))

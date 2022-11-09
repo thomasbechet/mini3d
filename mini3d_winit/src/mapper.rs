@@ -1,41 +1,41 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{input::{InputGroupId, axis::AxisInputId, action::{ActionInputId, ActionState}, InputDatabase}, app::App, event::{AppEvents, input::{InputEvent, InputActionEvent, InputAxisEvent}}, slotmap::{new_key_type, SlotMap, Key}, anyhow::{Result, Context, anyhow}};
-use mini3d_os::input::{CommonAction, CommonAxis, CommonInput};
+use mini3d::{app::App, event::{AppEvents, input::{InputEvent, InputActionEvent, InputAxisEvent}}, slotmap::{new_key_type, SlotMap, Key}, anyhow::{Result, Context, anyhow}, asset::{input_action::InputAction, input_axis::InputAxis}, uid::UID};
+use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
 
 struct KeyToAction {
-    id: ActionInputId,
+    uid: UID,
 }
 struct KeyToAxis {
-    id: AxisInputId,
+    uid: UID,
     value: f32,
 }
 struct MouseButtonToAction {
-    id: ActionInputId,
+    uid: UID,
 }
 struct MouseButtonToAxis {
-    id: AxisInputId,
+    uid: UID,
     value: f32,
 }
 struct MouseMotionToAxis {
-    id: AxisInputId,
+    uid: UID,
     scale: f32,
 }
 struct MousePositionToAxis {
-    id: AxisInputId,
+    uid: UID,
 }
 struct ControllerButtonToAction {
-    id: ActionInputId,
+    uid: UID,
 }
 struct ControllerButtonToAxis {
-    id: AxisInputId,
+    uid: UID,
     value: f32,
 }
 struct ControllerAxisToAxis {
-    id: AxisInputId,
+    uid: UID,
     scale: f32,
 }
 
@@ -57,30 +57,16 @@ pub(crate) enum Button {
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub(crate) struct MapActionInput {
-    #[serde(skip)]
-    pub(crate) id: ActionInputId,
-    pub(crate) name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) button: Option<Button>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub(crate) struct MapAxisInput {
-    #[serde(skip)]
-    pub(crate) id: AxisInputId,
-    pub(crate) name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) button: Option<(Button, f32)>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) axis: Option<(Axis, f32)>,
-}
-
-#[derive(Default, Clone, Serialize, Deserialize)]
-pub(crate) struct MapGroupInput {
-    #[serde(skip)]
-    pub(crate) id: InputGroupId,
-    pub(crate) name: String,
-    pub(crate) actions: Vec<MapActionInput>,
-    pub(crate) axis: Vec<MapAxisInput>,
 }
 
 new_key_type! { pub(crate) struct InputProfileId; }
@@ -89,7 +75,8 @@ new_key_type! { pub(crate) struct InputProfileId; }
 pub(crate) struct InputProfile {
     pub(crate) name: String,
     pub(crate) active: bool,
-    pub(crate) groups: Vec<MapGroupInput>,
+    pub(crate) actions: HashMap<UID, MapActionInput>,
+    pub(crate) axis: HashMap<UID, MapAxisInput>,
 }
 
 #[derive(Default)]
@@ -119,41 +106,28 @@ impl InputMapper {
         mapper.default_profile = mapper.profiles.insert(InputProfile { 
             name: "Default".to_string(), 
             active: true,
-            groups: vec![
-                MapGroupInput {
-                    name: CommonInput::GROUP.to_owned(),
-                    actions: vec![
-                        MapActionInput { name: CommonAction::UP.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::Z }), ..Default::default() },
-                        MapActionInput { name: CommonAction::LEFT.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::Q }), ..Default::default() },
-                        MapActionInput { name: CommonAction::DOWN.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::S }), ..Default::default() },
-                        MapActionInput { name: CommonAction::RIGHT.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::D }), ..Default::default() },
-                        MapActionInput { name: CommonAction::CHANGE_CONTROL_MODE.to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::F }), ..Default::default() },
-                    ],
-                    axis: vec![
-                        MapAxisInput { name: CommonAxis::CURSOR_X.to_string(), axis: Some((Axis::MousePositionX, 0.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::CURSOR_Y.to_string(), axis: Some((Axis::MousePositionY, 0.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::VIEW_X.to_string(), axis: Some((Axis::MouseMotionX, 0.01)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::VIEW_Y.to_string(), axis: Some((Axis::MouseMotionY, 0.01)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::MOVE_FORWARD.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::Z }, 1.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::MOVE_BACKWARD.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::S }, 1.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::MOVE_LEFT.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::Q }, 1.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::MOVE_RIGHT.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::D }, 1.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::MOVE_UP.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::X }, 1.0)), ..Default::default() },
-                        MapAxisInput { name: CommonAxis::MOVE_DOWN.to_string(), button: Some((Button::Keyboard { code: VirtualKeyCode::W }, 1.0)), ..Default::default() },
-                    ],
-                    ..Default::default()
-                },
-                MapGroupInput {
-                    name: "test".to_owned(),
-                    actions: vec![
-                        MapActionInput { name: "switch_mode".to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::C }), ..Default::default() },
-                        MapActionInput { name: "roll_left".to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::A }), ..Default::default() },
-                        MapActionInput { name: "roll_right".to_string(), button: Some(Button::Keyboard { code: VirtualKeyCode::E }), ..Default::default() },
-                    ],
-                    axis: vec![],
-                    ..Default::default()
-                }
-            ],
+            actions: HashMap::from([
+                (CommonAction::UP.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::Z }) }),
+                (CommonAction::LEFT.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::Q }) }),
+                (CommonAction::DOWN.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::S }) }),
+                (CommonAction::RIGHT.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::D }) }),
+                (CommonAction::CHANGE_CONTROL_MODE.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::F }) }),
+                ("switch_mode".into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::C }) }),
+                ("roll_left".into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::A }) }),
+                ("roll_right".into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::E }) }),
+            ]),
+            axis: HashMap::from([
+                (CommonAxis::CURSOR_X.into(), MapAxisInput { axis: Some((Axis::MousePositionX, 0.0)), ..Default::default() }),
+                (CommonAxis::CURSOR_Y.into(), MapAxisInput { axis: Some((Axis::MousePositionY, 0.0)), ..Default::default() }),
+                (CommonAxis::VIEW_X.into(), MapAxisInput { axis: Some((Axis::MouseMotionX, 0.01)), ..Default::default() }),
+                (CommonAxis::VIEW_Y.into(), MapAxisInput { axis: Some((Axis::MouseMotionY, 0.01)), ..Default::default() }),
+                (CommonAxis::MOVE_FORWARD.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::Z }, 1.0)), ..Default::default() }),
+                (CommonAxis::MOVE_BACKWARD.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::S }, 1.0)), ..Default::default() }),
+                (CommonAxis::MOVE_LEFT.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::Q }, 1.0)), ..Default::default() }),
+                (CommonAxis::MOVE_RIGHT.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::D }, 1.0)), ..Default::default() }),
+                (CommonAxis::MOVE_UP.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::X }, 1.0)), ..Default::default() }),
+                (CommonAxis::MOVE_DOWN.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::W }, 1.0)), ..Default::default() }),
+            ]),
         });
 
         mapper.load().ok();
@@ -168,7 +142,7 @@ impl InputMapper {
             next_index += 1;
             name = format!("Profile {}", next_index); 
         }
-        let id = self.profiles.insert(InputProfile { name, active: true, groups: Default::default() });
+        let id = self.profiles.insert(InputProfile { name, active: true, actions: Default::default(), axis: Default::default() });
         self.refresh(app);
         id
     }
@@ -181,7 +155,7 @@ impl InputMapper {
                 next_index += 1;
                 name = format!("{} Copy {}", from.name, next_index);
             }
-            let profile = InputProfile { name, active: true, groups: from.groups.clone() };
+            let profile = InputProfile { name, active: true, actions: from.actions.clone(), axis: from.axis.clone() };
             let id = self.profiles.insert(profile);
             self.refresh(app);
             id
@@ -192,10 +166,10 @@ impl InputMapper {
 
     pub(crate) fn save(&self) -> Result<()> {
         std::fs::create_dir_all("config").unwrap();
-        let file = File::create(format!("config/profiles.json"))
+        let file = File::create("config/profiles.json")
             .context("Failed to open file.")?;
         let profiles = self.profiles.values().collect::<Vec<&_>>();
-        serde_json::to_writer(&file, &profiles)
+        serde_json::to_writer_pretty(&file, &profiles)
             .context("Failed to write file.")?;
         Ok(())
     }
@@ -221,56 +195,15 @@ impl InputMapper {
         // Update profiles
         for (_, profile) in &mut self.profiles {
 
-            // Update groups
-            for id in InputDatabase::iter_groups(app) {
-                let group = InputDatabase::group(app, id).unwrap();
-                // Find existing group
-                if let Some(g) = profile.groups.iter_mut().find(|g| g.name == group.name) {
-                    g.id = group.id;
-                } else {
-                    profile.groups.push(MapGroupInput { 
-                        id: group.id, 
-                        name: group.name.clone(), 
-                        actions: Default::default(), 
-                        axis: Default::default() 
-                    });
-                }
-            }
-
             // Update actions
-            for id in InputDatabase::iter_actions(app) {
-                let action = InputDatabase::action(app, id).unwrap();
-                let group = profile.groups.iter_mut().find(|g| g.id == action.group).unwrap();
-                if let Some(a) = group.actions.iter_mut().find(|a| a.name == action.descriptor.name) {
-                    // Update action info
-                    a.id = action.id;
-                } else {
-                    // Insert new action
-                    group.actions.push(MapActionInput { 
-                        id: action.id,
-                        name: action.descriptor.name.clone(),
-                        button: Default::default(),
-                    });
-                }
-            }
-
+            app.asset().iter::<InputAction>().for_each(|entry| {
+                profile.actions.entry(entry.uid).or_insert_with(Default::default);
+            });
+            
             // Update axis
-            for id in InputDatabase::iter_axis(app) {
-                let axis = InputDatabase::axis(app, id).unwrap();
-                let group = profile.groups.iter_mut().find(|g| g.id == axis.group).unwrap();
-                if let Some(a) = group.axis.iter_mut().find(|a| a.name == axis.descriptor.name) {
-                    // Update axis info
-                    a.id = axis.id;
-                } else {
-                    // Insert new axis
-                    group.axis.push(MapAxisInput { 
-                        id: axis.id, 
-                        name: axis.descriptor.name.clone(), 
-                        button: Default::default(),
-                        axis: Default::default(),
-                    });
-                }
-            }
+            app.asset().iter::<InputAxis>().for_each(|entry| {
+                profile.axis.entry(entry.uid).or_insert_with(Default::default);
+            });
         }
 
         // Rebuild cache
@@ -295,56 +228,54 @@ impl InputMapper {
         // Update caches
         for (_, profile) in &self.profiles {
             if profile.active {
-                for group in &profile.groups {
-                    for action in &group.actions {
-                        if let Some(button) = &action.button {
-                            match button {
-                                Button::Keyboard { code } => {
-                                    self.key_to_action.entry(*code).or_insert(Default::default()).push(KeyToAction { id: action.id });
-                                },
-                                Button::Mouse { button } => {
-                                    self.mouse_button_to_action.entry(*button).or_insert(Default::default()).push(MouseButtonToAction { id: action.id });
-                                },
-                                Button::Controller { id, button } => {
-                                    self.controllers_button_to_action.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
-                                        .push(ControllerButtonToAction { id: action.id });
-                                },
-                            }
+                for (uid, action) in &profile.actions {
+                    if let Some(button) = &action.button {
+                        match button {
+                            Button::Keyboard { code } => {
+                                self.key_to_action.entry(*code).or_insert_with(Default::default).push(KeyToAction { uid: *uid });
+                            },
+                            Button::Mouse { button } => {
+                                self.mouse_button_to_action.entry(*button).or_insert_with(Default::default).push(MouseButtonToAction { uid: *uid });
+                            },
+                            Button::Controller { id, button } => {
+                                self.controllers_button_to_action.entry(*id).or_insert_with(Default::default).entry(*button).or_insert_with(Default::default)
+                                    .push(ControllerButtonToAction { uid: *uid });
+                            },
                         }
                     }
-                    for axis in &group.axis {
-                        if let Some((b, value)) = &axis.button {
-                            match b {
-                                Button::Keyboard { code } => {
-                                    self.key_to_axis.entry(*code).or_insert(Default::default()).push(KeyToAxis { id: axis.id, value: *value });
-                                },
-                                Button::Mouse { button } => {
-                                    self.mouse_button_to_axis.entry(*button).or_insert(Default::default()).push(MouseButtonToAxis { id: axis.id, value: *value });
-                                },
-                                Button::Controller { id, button } => {
-                                    self.controllers_button_to_axis.entry(*id).or_insert(Default::default()).entry(*button).or_insert(Default::default())
-                                        .push(ControllerButtonToAxis { id: axis.id, value: *value });
-                                },
-                            }
+                }
+                for (uid, axis) in &profile.axis {
+                    if let Some((b, value)) = &axis.button {
+                        match b {
+                            Button::Keyboard { code } => {
+                                self.key_to_axis.entry(*code).or_insert_with(Default::default).push(KeyToAxis { uid: *uid, value: *value });
+                            },
+                            Button::Mouse { button } => {
+                                self.mouse_button_to_axis.entry(*button).or_insert_with(Default::default).push(MouseButtonToAxis { uid: *uid, value: *value });
+                            },
+                            Button::Controller { id, button } => {
+                                self.controllers_button_to_axis.entry(*id).or_insert_with(Default::default).entry(*button).or_insert_with(Default::default)
+                                    .push(ControllerButtonToAxis { uid: *uid, value: *value });
+                            },
                         }
-                        if let Some((a, scale)) = &axis.axis {
-                            match a {
-                                Axis::MousePositionX => {
-                                    self.mouse_position_x_to_axis.push(MousePositionToAxis { id: axis.id });
-                                },
-                                Axis::MousePositionY => {
-                                    self.mouse_position_y_to_axis.push(MousePositionToAxis { id: axis.id });
-                                },
-                                Axis::MouseMotionX => {
-                                    self.mouse_motion_x_to_axis.push(MouseMotionToAxis { id: axis.id, scale: *scale });
-                                },
-                                Axis::MouseMotionY => {
-                                    self.mouse_motion_y_to_axis.push(MouseMotionToAxis { id: axis.id, scale: *scale });
-                                },
-                                Axis::Controller { id, axis: ax } => {
-                                    self.controllers_axis_to_axis.entry(*id).or_insert(Default::default()).entry(*ax).or_insert(Default::default())
-                                        .push(ControllerAxisToAxis { id: axis.id, scale: *scale })
-                                }
+                    }
+                    if let Some((a, scale)) = &axis.axis {
+                        match a {
+                            Axis::MousePositionX => {
+                                self.mouse_position_x_to_axis.push(MousePositionToAxis { uid: *uid });
+                            },
+                            Axis::MousePositionY => {
+                                self.mouse_position_y_to_axis.push(MousePositionToAxis { uid: *uid });
+                            },
+                            Axis::MouseMotionX => {
+                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { uid: *uid, scale: *scale });
+                            },
+                            Axis::MouseMotionY => {
+                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { uid: *uid, scale: *scale });
+                            },
+                            Axis::Controller { id, axis: ax } => {
+                                self.controllers_axis_to_axis.entry(*id).or_insert_with(Default::default).entry(*ax).or_insert_with(Default::default)
+                                    .push(ControllerAxisToAxis { uid: *uid, scale: *scale })
                             }
                         }
                     }
@@ -355,12 +286,9 @@ impl InputMapper {
 
     pub(crate) fn dispatch_keyboard(&self, keycode: VirtualKeyCode, state: ElementState, events: &mut AppEvents) {
         if let Some(actions) = self.key_to_action.get(&keycode) {
-            let state = match state {
-                ElementState::Pressed => ActionState::Pressed,
-                ElementState::Released => ActionState::Released,
-            };
+            let pressed = state == ElementState::Pressed;
             for action in actions {
-                events.push_input(InputEvent::Action(InputActionEvent { id: action.id, state }));        
+                events.input.push(InputEvent::Action(InputActionEvent { action: action.uid, pressed }));        
             }
         }
         if let Some(axis) = self.key_to_axis.get(&keycode) {
@@ -369,62 +297,56 @@ impl InputMapper {
                     ElementState::Pressed => ax.value,
                     ElementState::Released => 0.0,
                 };
-                events.push_input(InputEvent::Axis(InputAxisEvent { id: ax.id, value }));
+                events.input.push(InputEvent::Axis(InputAxisEvent { axis: ax.uid, value }));
             }
         }
     }
 
     pub(crate) fn dispatch_mouse_button(&self, button: MouseButton, state: ElementState, events: &mut AppEvents) {
-        let state = match state {
-            ElementState::Pressed => ActionState::Pressed,
-            ElementState::Released => ActionState::Released,
-        };
+        let pressed = state == ElementState::Pressed;
         if let Some(actions) = self.mouse_button_to_action.get(&button) {
             for action in actions {
-                events.push_input(InputEvent::Action(InputActionEvent { id: action.id, state }));
+                events.input.push(InputEvent::Action(InputActionEvent { action: action.uid, pressed }));
             }
         }
         if let Some(axis) = self.mouse_button_to_axis.get(&button) {
             for ax in axis {
-                events.push_input(InputEvent::Axis(InputAxisEvent { id: ax.id, value: ax.value }));
+                events.input.push(InputEvent::Axis(InputAxisEvent { axis: ax.uid, value: ax.value }));
             }
         }
     }
 
     pub(crate) fn dispatch_mouse_motion(&self, delta: (f64, f64), events: &mut AppEvents) {
         for axis in &self.mouse_motion_x_to_axis {
-            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: delta.0 as f32 * axis.scale }));
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.0 as f32 * axis.scale }));
         }
         for axis in &self.mouse_motion_y_to_axis {
-            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: delta.1 as f32 * axis.scale }));
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.1 as f32 * axis.scale }));
         }
     }
 
     pub(crate) fn dispatch_mouse_cursor(&self, cursor: (f32, f32), events: &mut AppEvents) {
         for axis in &self.mouse_position_x_to_axis {
-            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: cursor.0 }));
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: cursor.0 }));
         }
         for axis in &self.mouse_position_y_to_axis {
-            events.push_input(InputEvent::Axis(InputAxisEvent { id: axis.id, value: cursor.1 }));
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: cursor.1 }));
         }
     }
 
-    pub(crate) fn dispatch_controller_button(&self, id: GamepadId, button: gilrs::Button, state: ActionState, events: &mut AppEvents) {
+    pub(crate) fn dispatch_controller_button(&self, id: GamepadId, button: gilrs::Button, pressed: bool, events: &mut AppEvents) {
         if let Some(buttons) = &self.controllers_button_to_action.get(&id) {
             if let Some(actions) = buttons.get(&button) {
                 for action in actions {
-                    events.push_input(InputEvent::Action(InputActionEvent { id: action.id, state }));
+                    events.input.push(InputEvent::Action(InputActionEvent { action: action.uid, pressed }));
                 }
             }
         }
         if let Some(axis) = &self.controllers_button_to_axis.get(&id) {
             if let Some(a) = axis.get(&button) {
                 for ax in a {
-                    let value = match state {
-                        ActionState::Pressed => ax.value,
-                        ActionState::Released => 0.0,
-                    };
-                    events.push_input(InputEvent::Axis(InputAxisEvent { id: ax.id, value }));
+                    let value = if pressed { ax.value } else { 0.0 };
+                    events.input.push(InputEvent::Axis(InputAxisEvent { axis: ax.uid, value }));
                 }
             }
         }
@@ -438,7 +360,7 @@ impl InputMapper {
         if let Some(axis) = &self.controllers_axis_to_axis.get(&id) {
             if let Some(ax) = axis.get(&controller_axis) {
                 for a in ax {
-                    events.push_input(InputEvent::Axis(InputAxisEvent { id: a.id, value: value * a.scale }));
+                    events.input.push(InputEvent::Axis(InputAxisEvent { axis: a.uid, value: value * a.scale }));
                 }
             }
         }

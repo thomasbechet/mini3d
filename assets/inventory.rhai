@@ -16,7 +16,7 @@ fn update() {
     for level in levels {
         // print(level);
     }
-    if INPUT.action_just_pressed("common", "up") {
+    if INPUT.action_just_pressed("up") {
         // WORLD.create_entity
     }
 }

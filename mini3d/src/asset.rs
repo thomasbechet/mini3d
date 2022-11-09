@@ -1,13 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize};
-use slotmap::{SlotMap, Key};
 
-use crate::app::App;
-use crate::event::asset::ImportAssetEvent;
+use crate::program::ProgramId;
+use crate::uid::UID;
 
-use self::bundle::Bundle;
 use self::font::Font;
 use self::input_action::InputAction;
 use self::input_axis::InputAxis;
@@ -18,7 +16,6 @@ use self::model::Model;
 use self::rhai_script::RhaiScript;
 use self::texture::Texture;
 
-pub mod bundle;
 pub mod font;
 pub mod input_action;
 pub mod input_axis;
@@ -29,326 +26,255 @@ pub mod model;
 pub mod rhai_script;
 pub mod texture;
 
-#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct AssetUID(u64);
-
-impl AssetUID {
-    pub fn new(name: &str) -> Self {
-        Self(const_fnv1a_hash::fnv1a_hash_str_64(name))
-    }
-    pub fn uid(uid: u64) -> Self {
-        Self(uid)
-    }
-    pub fn null() -> Self {
-        Self(0)
-    }
-    pub fn is_null(&self) -> bool {
-        self.0 == 0
-    }
-}
-
-impl From<&str> for AssetUID {
-    fn from(s: &str) -> Self {
-        Self::new(s)
-    }
-}
-
-impl From<u64> for AssetUID {
-    fn from(uid: u64) -> Self {
-        Self::uid(uid)
-    }
-}
-
-pub trait Asset {
-    type Id: Key;
+pub trait Asset: Clone {
     fn typename() -> &'static str;
 }
 
-// impl<A: Asset + Serialize> Serialize for AssetTable<A> {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> 
-//         where S: Serializer,
-//     {
-//         let mut seq = serializer.serialize_seq(Some(self.entries.len()))?;
-//         for (_, entry) in &self.entries {
-//             seq.serialize_element(entry)?;
-//         }
-//         seq.end()
-//     }
-// }
-
-// struct AssetTableDeserializer<A: Asset> { maker: PhantomData<A> }
-
-// impl<'de, A: Asset + Deserialize<'de>> Visitor<'de> for AssetTableDeserializer<A> {
-//     type Value = AssetTable<A>;
-
-//     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//         formatter.write_str("Asset sequence")
-//     }
-
-//     fn visit_seq<E>(self, mut seq: E) -> Result<Self::Value, E::Error>
-//         where E: SeqAccess<'de> {
-//         let mut registry = AssetTable::<A>::default();        
-//         while let Some(mut value) = seq.next_element::<AssetEntry<A>>()? {
-//             value.hash = const_fnv1a_hash::fnv1a_hash_str_32(&value.name);
-//             if registry.entries.values().all(|e| e.hash != value.hash) {
-//                 registry.entries.insert(value);
-//             }
-//         }
-//         Ok(registry)
-//     }
-// }
-
-// impl<'de, A: Asset + Deserialize<'de>> Deserialize<'de> for AssetTable<A> {
-//     fn deserialize<D>(deserializer: D) -> Result<AssetTable<A>, D::Error>
-//     where D: Deserializer<'de> {
-//         deserializer.deserialize_seq(AssetTableDeserializer::<A> { maker: PhantomData::default() })
-//     }
-// }
-
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AssetEntry<A: Asset> {
+    #[serde(skip)]
+    pub uid: UID,
+    #[serde(skip)]
+    pub bundle: UID,
     pub name: String,
     pub asset: A,
-    #[serde(skip)]
-    pub uid: AssetUID,
-    #[serde(skip)]
-    pub id: A::Id,
 }
 
 pub struct AssetRegistry<A: Asset> {
-    entries: SlotMap<A::Id, AssetEntry<A>>,
-    uid_to_id: HashMap<AssetUID, A::Id>,
-    default: AssetRef<A>,
+    entries: HashMap<UID, AssetEntry<A>>,
+    default: Option<UID>,
 }
 
 impl<A: Asset> Default for AssetRegistry<A> {
     fn default() -> Self {
-        Self { entries: Default::default(), uid_to_id: Default::default(), default: Default::default() }
+        Self { entries: Default::default(), default: Default::default() }
     }
 }
 
-#[derive(Default)]
-pub struct AssetManager {
-    bundles: AssetRegistry<Bundle>,
-    fonts: AssetRegistry<Font>,
-    input_actions: AssetRegistry<InputAction>,
-    input_axis: AssetRegistry<InputAxis>,
-    input_tables: AssetRegistry<InputTable>,
-    materials: AssetRegistry<Material>,
-    meshes: AssetRegistry<Mesh>,
-    models: AssetRegistry<Model>,
-    rhai_scripts: AssetRegistry<RhaiScript>,
-    textures: AssetRegistry<Texture>,
-}
-
-macro_rules! into_registry {
-    ($asset:ty, $field:ident) => {
-        impl AsRef<AssetRegistry<$asset>> for AssetManager {
-            fn as_ref(&self) -> &AssetRegistry<$asset> {
-                &self.$field
-            }
+macro_rules! reflect_database {
+    (
+        pub struct $database_type:ident {
+            $(
+                $field_name:ident : AssetRegistry<$asset_type:ty>,
+            )*
         }
-        impl AsMut<AssetRegistry<$asset>> for AssetManager {
-            fn as_mut(&mut self) -> &mut AssetRegistry<$asset> {
-                &mut self.$field
+    ) => {
+        #[derive(Default)]
+        pub struct $database_type {
+            $(
+                $field_name : AssetRegistry<$asset_type>,
+            )*
+        }
+
+        pub trait AssetRegistryRef<A: Asset> {
+            fn as_registry(&self) -> &AssetRegistry<A>;
+        }
+        pub trait AssetRegistryMut<A: Asset> {
+            fn as_registry_mut(&mut self) -> &mut AssetRegistry<A>;
+        }
+        pub trait UIDHashSetMut<A: Asset> {
+            fn as_hashset_mut(&mut self) -> &mut HashSet<UID>;
+        }
+
+        $(
+            impl AssetRegistryRef<$asset_type> for AssetManager {
+                fn as_registry(&self) -> &AssetRegistry<$asset_type> {
+                    &self.database.$field_name
+                }
+            }
+            impl AssetRegistryMut<$asset_type> for AssetManager {
+                fn as_registry_mut(&mut self) -> &mut AssetRegistry<$asset_type> {
+                    &mut self.database.$field_name
+                }
+            }
+            impl UIDHashSetMut<$asset_type> for AssetBundleInfo {
+                fn as_hashset_mut(&mut self) -> &mut HashSet<UID> {
+                    &mut self.$field_name
+                }
+            }
+        )*
+
+        #[derive(Default)]
+        pub struct AssetBundleInfo {
+            name: String,
+            owner: ProgramId,
+            $(
+                $field_name : HashSet<UID>,
+            )*
+        }
+
+        #[derive(Default, Serialize, Deserialize)]
+        pub struct AssetBundleEntry<A> {
+            name: String,
+            asset: A,
+        }
+
+        #[derive(Default, Serialize, Deserialize)]
+        pub struct AssetBundle {
+            pub name: String,
+            $(
+                #[serde(skip_serializing_if = "Vec::is_empty")]
+                pub $field_name: Vec<AssetBundleEntry<$asset_type>>,
+            )*
+        }
+
+        impl AssetManager {
+            
+            pub fn export_bundle(&self, bundle: UID) -> Result<AssetBundle> {
+                let bundle = self.bundles.get(&bundle).context("Bundle not found")?;
+                let mut export = AssetBundle { name: bundle.name.clone(), ..Default::default() };
+                $(
+                    for uid in &bundle.$field_name {
+                        let entry = self.database.$field_name.entries.get(uid).context("Asset not found")?;
+                        export.$field_name.push(AssetBundleEntry { name: entry.name.clone(), asset: entry.asset.clone() });
+                    }
+                )*
+                Ok(export)
+            }
+
+            fn check_import_bundle(&self, bundle: &AssetBundle) -> Result<()> {
+                let uid = UID::new(&bundle.name);
+                if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle already exists")); }
+                $(
+                    for entry in &bundle.$field_name {
+                        if self.database.$field_name.entries.contains_key(&UID::new(&entry.name)) {
+                            return Err(anyhow!("Asset already exists"));
+                        }
+                    }
+                )*
+                Ok(())
+            }
+
+            pub fn import_bundle(&mut self, mut bundle: AssetBundle, owner: ProgramId) -> Result<()> {
+                self.check_import_bundle(&bundle)?;
+                let uid = UID::new(&bundle.name);
+                let mut new_bundle = AssetBundleInfo { name: bundle.name.clone(), owner, ..Default::default() };
+                $(
+                    for entry in &bundle.$field_name {
+                        new_bundle.$field_name.insert(UID::new(&entry.name));
+                    }
+                )*
+                self.bundles.insert(uid, new_bundle);
+                $(
+                    for entry in bundle.$field_name.drain(..) {
+                        self.register::<$asset_type>(&entry.name, uid, entry.asset)?;
+                    }
+                )*
+                Ok(())
             }
         }
     };
 }
 
-into_registry!(Bundle, bundles);
-into_registry!(Font, fonts);
-into_registry!(InputAction, input_actions);
-into_registry!(InputAxis, input_axis);
-into_registry!(InputTable, input_tables);
-into_registry!(Material, materials);
-into_registry!(Mesh, meshes);
-into_registry!(Model, models);
-into_registry!(RhaiScript, rhai_scripts);
-into_registry!(Texture, textures);
+reflect_database!(
+    pub struct AssetDatabase {
+        fonts: AssetRegistry<Font>,
+        input_actions: AssetRegistry<InputAction>,
+        input_axis: AssetRegistry<InputAxis>,
+        input_tables: AssetRegistry<InputTable>,
+        materials: AssetRegistry<Material>,
+        meshes: AssetRegistry<Mesh>,
+        models: AssetRegistry<Model>,
+        rhai_scripts: AssetRegistry<RhaiScript>,
+        textures: AssetRegistry<Texture>,
+    }
+);
+
+#[derive(Default)]
+pub struct AssetManager {
+    database: AssetDatabase,
+    bundles: HashMap<UID, AssetBundleInfo>,
+}
 
 impl AssetManager {
 
-    pub(crate) fn dispatch_event(&mut self, event: ImportAssetEvent) -> Result<()> {
-        match event {
-            ImportAssetEvent::Font(font) => {
-                self.register(&font.name, font.data)
-                    .context(format!("Failed to register imported font '{}'", font.name))?;
-            },
-            ImportAssetEvent::Material(material) => {
-                self.register(&material.name, material.data)
-                    .context(format!("Failed to register imported material '{}'", material.name))?;
-            },
-            ImportAssetEvent::Mesh(mesh) => {
-                self.register(&mesh.name, mesh.data)
-                    .context(format!("Failed to register imported mesh '{}'", mesh.name))?;
-            },
-            ImportAssetEvent::Model(model) => {
-                self.register(&model.name, model.data)
-                    .context(format!("Failed to register imported model '{}'", model.name))?;
-            },
-            ImportAssetEvent::RhaiScript(script) => {
-                self.register(&script.name, script.data)
-                    .context(format!("Failed to register imported lua script '{}'", script.name))?;
-            },
-            ImportAssetEvent::Texture(texture) => {
-                self.register(&texture.name, texture.data)
-                    .context(format!("Failed to register imported texture '{}'", texture.name))?;
-            },
-        }
+    pub fn bundle(&'_ self, uid: UID) -> Option<&'_ AssetBundleInfo> {
+        self.bundles.get(&uid)
+    }
+
+    pub fn set_default<A: Asset>(&mut self, uid: UID) -> Result<()>
+        where Self: AssetRegistryMut<A> {
+        self.as_registry_mut().default = Some(uid);
         Ok(())
     }
 
-    pub fn get<'a, A: Asset>(&'a self, id: A::Id) -> Option<&'a AssetEntry<A>>
-        where Self: AsRef<AssetRegistry<A>> {
-        let registry: &AssetRegistry<A> = self.as_ref();
-        registry.entries.get(id)
+    pub fn get<A: Asset>(&'_ self, uid: UID) -> Option<&'_ A>
+        where Self: AssetRegistryRef<A> {
+        self.as_registry().entries.get(&uid).map(|entry| &entry.asset)
     }
 
-    pub fn find<'a, A: Asset>(&'a self, uid: AssetUID) -> Option<&'a AssetEntry<A>>
-        where Self: AsRef<AssetRegistry<A>> {
-        let registry: &AssetRegistry<A> = self.as_ref();
-        registry.uid_to_id.get(&uid).and_then(|id| {
-            registry.entries.get(*id)
+    pub fn get_or_default<A: Asset>(&'_ self, uid: UID) -> Option<&'_ A>
+        where Self: AssetRegistryRef<A> {
+        self.as_registry().entries.get(&uid)
+        .or_else(|| {
+            self.as_registry().default.and_then(|uid| {
+                self.as_registry().entries.get(&uid)
+            })
         })
+        .map(|entry| &entry.asset)
+    }
+
+    pub fn get_mut<A: Asset>(&'_ mut self, uid: UID) -> Option<&'_ mut A> 
+        where Self: AssetRegistryMut<A> {
+        self.as_registry_mut().entries.get_mut(&uid).map(|entry| &mut entry.asset)
+    }
+
+    pub fn entry<A: Asset>(&'_ self, uid: UID) -> Option<&'_ AssetEntry<A>>
+        where Self: AssetRegistryRef<A> {
+        self.as_registry().entries.get(&uid)
     }
 
     pub fn iter<'a, A: Asset + 'a>(&'a self) -> impl Iterator<Item = &'a AssetEntry<A>>
-        where Self: AsRef<AssetRegistry<A>> {
-        let registry: &AssetRegistry<A> = self.as_ref();
-        registry.entries.values()
+        where Self: AssetRegistryRef<A> {
+        self.as_registry().entries.values()
     }
 
-    pub fn register<A: Asset>(&mut self, name: &str, data: A) -> Result<A::Id>
-        where Self: AsMut<AssetRegistry<A>> {
-        let registry: &mut AssetRegistry<A> = self.as_mut();
-        let uid = AssetUID::new(name);
-        let entry = AssetEntry { name: name.to_string(), asset: data, uid, id: A::Id::null() };
-        if !registry.uid_to_id.contains_key(&uid) {
-            let id = registry.entries.insert(entry);
-            registry.entries.get_mut(id).unwrap().id = id;
-            registry.uid_to_id.insert(uid, id);
-            Ok(id)
-        } else {
-            Err(anyhow!("Asset already exists"))
+    pub fn register_bundle(&mut self, name: &str, owner: ProgramId) -> Result<()> {
+        let uid = UID::new(name);
+        if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle already exists")); }
+        let bundle = AssetBundleInfo { name: name.to_string(), owner, ..Default::default() };
+        self.bundles.insert(uid, bundle);
+        Ok(())
+    }
+
+    pub fn register<A: Asset>(&mut self, name: &str, bundle: UID, data: A) -> Result<()>
+        where Self: AssetRegistryMut<A> + AssetRegistryRef<A>, AssetBundleInfo: UIDHashSetMut<A> {
+        let uid = UID::new(name);
+        let value = AssetEntry { uid, bundle, name: name.to_string(), asset: data };
+        if !self.bundles.contains_key(&bundle) { return Err(anyhow!("Bundle not found")); }
+        if self.as_registry().entries.contains_key(&uid) { return Err(anyhow!("Asset '{}' already exists", name)); }
+        self.as_registry_mut().entries.insert(uid, value);
+        self.bundles.get_mut(&bundle).unwrap().as_hashset_mut().insert(uid);
+        Ok(())
+    }
+
+    pub fn unregister<A: Asset>(&mut self, uid: UID) -> Result<()>
+        where Self: AssetRegistryMut<A>, AssetBundleInfo: UIDHashSetMut<A> {
+        if !self.as_registry_mut().entries.contains_key(&uid) { return Err(anyhow!("Asset not found")); }
+        {
+            // Remove from bundle
+            let bundle_uid = self.as_registry_mut().entries.get(&uid).unwrap().bundle;
+            let bundle = self.bundles.get_mut(&bundle_uid).context("Bundle not found")?;
+            bundle.as_hashset_mut().remove(&uid);
         }
-    }
-
-    pub fn unregister<A: Asset>(&mut self, id: A::Id) -> Result<()>
-        where Self: AsMut<AssetRegistry<A>> {
-        let registry: &mut AssetRegistry<A> = self.as_mut();
-        if registry.entries.contains_key(id) {
-
-        } else {
-            
+        {
+            // TODO: check dependencies
+            self.as_registry_mut().entries.remove(&uid);
         }
         Ok(())
     }
-}
 
-#[derive(Serialize, Deserialize)]
-pub struct AssetRef<A: Asset> {
-    pub uid: AssetUID,
-    #[serde(skip)]
-    id: A::Id,
-}
-
-impl<A: Asset> Clone for AssetRef<A> {
-    fn clone(&self) -> Self {
-        Self { uid: self.uid, id: self.id }
-    }
-}
-
-impl<A: Asset> PartialEq for AssetRef<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.uid == other.uid
-    }
-}
-
-impl<A: Asset> Default for AssetRef<A> {
-    fn default() -> Self {
-        Self::null()
-    }
-}
-
-impl<A: Asset> From<&AssetEntry<A>> for AssetRef<A> {
-    fn from(entry: &AssetEntry<A>) -> Self {
-        Self { uid: entry.uid, id: entry.id }
-    }
-}
-
-impl<A: Asset> From<&str> for AssetRef<A> {
-    fn from(name: &str) -> Self {
-        Self::new(name)
-    }
-}
-
-impl<'a, A: Asset> AssetRef<A> {
-
-    pub fn null() -> Self {
-        Self { uid: AssetUID::null(), id: A::Id::null() }
-    }
-
-    pub fn new(name: &str) -> Self {
-        Self { uid: AssetUID::new(name), id: A::Id::null() }
-    }
-
-    pub fn uid(uid: AssetUID) -> Self {
-        Self { uid, id: A::Id::null() }
-    }
-
-    pub fn resolve(&'a mut self, asset: &'a AssetManager) -> Result<()>
-        where AssetManager: AsRef<AssetRegistry<A>> {
-        let registry: &AssetRegistry<A> = asset.as_ref();
-        if let Some(id) = registry.uid_to_id.get(&self.uid) {
-            self.id = *id;
-            Ok(())
-        } else {
-            self.id = A::Id::null();
-            Err(anyhow!("Failed to resolve asset id"))
-        }
-    }
-
-    pub fn get(&'a self, asset: &'a AssetManager) -> Option<&'a AssetEntry<A>>
-        where AssetManager: AsRef<AssetRegistry<A>> {
-        let registry: &AssetRegistry<A> = asset.as_ref();
-        registry.entries.get(self.id)
-    }
-
-    pub fn get_or_default(&'a self, asset: &'a AssetManager) -> Option<&'a AssetEntry<A>>
-        where AssetManager: AsRef<AssetRegistry<A>> {
-        let registry: &AssetRegistry<A> = asset.as_ref();
-        self.get(asset).or_else(|| {
-            registry.default.get(asset)
-        })
-    }
-
-    // pub fn get_or_resolve(&'a mut self, asset: &'a AssetManager) -> Option<&'a AssetEntry<A>>
-    //     where AssetManager: AsRef<AssetRegistry<A>> {
-    //     let registry: &AssetRegistry<A> = asset.as_ref();
-    //     registry.entries.get(self.id).or_else(|| {
-    //         if self.resolve(asset).is_ok() {
-    //             registry.entries.get(self.id)
-    //         } else {
-    //             None
-    //         }
-    //     })
-    // }
-
-    pub fn is_null(&self) -> bool {
-        self.uid.is_null()
-    }
-}
-
-pub struct AssetDatabase;
-
-impl AssetDatabase {
-    pub fn get<'a, A: Asset>(app: &'a App, id: A::Id) -> Option<&'a AssetEntry<A>>
-        where AssetManager: AsRef<AssetRegistry<A>> {
-        app.asset_manager.get(id)
-    }
-    pub fn find<'a, A: Asset>(app: &'a App, uid: AssetUID) -> Option<&'a AssetEntry<A>>
-        where AssetManager: AsRef<AssetRegistry<A>> {
-        app.asset_manager.find(uid)
+    pub fn transfer<A: Asset>(&mut self, uid: UID, dst_bundle: UID) -> Result<()> 
+        where Self: AssetRegistryRef<A> + AssetRegistryMut<A>, AssetBundleInfo: UIDHashSetMut<A> {
+        let src_bundle = self.as_registry().entries.get(&uid)
+            .context("Asset not found")?.bundle;
+        if !self.bundles.contains_key(&dst_bundle) { return Err(anyhow!("Invalid destination bundle")); }
+        if src_bundle == dst_bundle { return Ok(()); }
+        self.bundles.get_mut(&src_bundle)
+            .context("Source bundle not found")?.as_hashset_mut().remove(&uid);
+        self.bundles.get_mut(&dst_bundle)
+            .unwrap().as_hashset_mut().insert(uid);
+        self.as_registry_mut().entries.get_mut(&uid).unwrap().bundle = dst_bundle;
+        Ok(())
     }
 }

@@ -28,34 +28,39 @@ impl InputManagerHandle {
 #[export_module]
 pub mod rhai_input_api {
 
-    #[rhai_fn(pure)]
-    pub(crate) fn action_pressed(input: &mut InputManagerHandle, name: &str) -> bool {
+    #[rhai_fn(pure, return_raw)]
+    pub(crate) fn action_pressed(input: &mut InputManagerHandle, name: &str) -> Result<bool, Box<EvalAltResult>> {
         let ctx: &mut ProgramContext = input.as_mut();
-        ctx.input.find_action(name.into(), &ctx.asset, false).is_pressed()
+        let id = ctx.input.find_action(name.into()).map_err(|err| err.to_string())?;
+        Ok(ctx.input.action(id).map_err(|err| err.to_string())?.is_pressed())
     }
 
-    #[rhai_fn(pure)]
-    pub(crate) fn action_released(input: &mut InputManagerHandle, name: &str) -> bool {
+    #[rhai_fn(pure, return_raw)]
+    pub(crate) fn action_released(input: &mut InputManagerHandle, name: &str) -> Result<bool, Box<EvalAltResult>> {
         let ctx: &mut ProgramContext = input.as_mut();
-        ctx.input.find_action(name.into(), &ctx.asset, false).is_released()
+        let id = ctx.input.find_action(name.into()).map_err(|err| err.to_string())?;
+        Ok(ctx.input.action(id).map_err(|err| err.to_string())?.is_released())
     }
 
-    #[rhai_fn(pure)]
-    pub(crate) fn action_just_pressed(input: &mut InputManagerHandle, name: &str) -> bool {
+    #[rhai_fn(pure, return_raw)]
+    pub(crate) fn action_just_pressed(input: &mut InputManagerHandle, name: &str) -> Result<bool, Box<EvalAltResult>> {
         let ctx: &mut ProgramContext = input.as_mut();
-        ctx.input.find_action(name.into(), &ctx.asset, false).is_just_pressed()
+        let id = ctx.input.find_action(name.into()).map_err(|err| err.to_string())?;
+        Ok(ctx.input.action(id).map_err(|err| err.to_string())?.is_just_pressed())
     }
 
-    #[rhai_fn(pure)]
-    pub(crate) fn action_just_released(input: &mut InputManagerHandle, name: &str) -> bool {
+    #[rhai_fn(pure, return_raw)]
+    pub(crate) fn action_just_released(input: &mut InputManagerHandle, name: &str) -> Result<bool, Box<EvalAltResult>> {
         let ctx: &mut ProgramContext = input.as_mut();
-        ctx.input.find_action(name.into(), &ctx.asset, false).is_just_released()
+        let id = ctx.input.find_action(name.into()).map_err(|err| err.to_string())?;
+        Ok(ctx.input.action(id).map_err(|err| err.to_string())?.is_just_released())
     }
 
-    #[rhai_fn(pure)]
-    pub(crate) fn axis_value(input: &mut InputManagerHandle, name: &str) -> f32 {
+    #[rhai_fn(pure, return_raw)]
+    pub(crate) fn axis_value(input: &mut InputManagerHandle, name: &str) -> Result<f32, Box<EvalAltResult>> {
         let ctx: &mut ProgramContext = input.as_mut();
-        ctx.input.find_axis(name.into(), &ctx.asset, 0.0).value
+        let id = ctx.input.find_axis(name.into()).map_err(|err| err.to_string())?;
+        Ok(ctx.input.axis(id).map_err(|err| err.to_string())?.value)
     }
 }
 
