@@ -9,6 +9,4 @@ pub struct InputAction {
     pub default_pressed: bool,
 }
 
-impl Asset for InputAction {
-    fn typename() -> &'static str { "input_action" }
-}
+impl Asset for InputAction {}

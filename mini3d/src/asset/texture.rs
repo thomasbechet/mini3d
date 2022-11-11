@@ -9,6 +9,4 @@ pub struct Texture {
     pub height: u32,
 }
 
-impl Asset for Texture {
-    fn typename() -> &'static str { "texture" }
-}
+impl Asset for Texture {}

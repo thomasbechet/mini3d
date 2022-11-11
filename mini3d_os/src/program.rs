@@ -1,6 +1,7 @@
-use std::{collections::HashSet, fs::File, io::{Write, Read}};
+use std::{collections::HashSet, fs::File, io::{Read, Write}};
 
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, AssetBundle}, hecs::World, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, system::{rotator::system_rotator, free_fly::system_free_fly, rhai::system_rhai_update_scripts, despawn::system_despawn_entities, renderer::{system_renderer_update_camera, system_renderer_transfer_transforms, system_renderer_check_lifecycle}}}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rhai::RhaiContext, rand, uid::UID};
+use bincode::Options;
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, AssetBundle, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
@@ -45,14 +46,13 @@ impl TimeGraph {
 
 pub struct OSProgram {
     id: ProgramId,
-    world: World,
+    ecs: ECS,
     control_layout: ControlLayout,
     control_profile: ControlProfileId,
     layout_active: bool,
     dt_record: Vec<f64>,
     last_dt: f64,
     time_graph: TimeGraph,
-    rhai: RhaiContext,
 }
 
 impl ProgramBuilder for OSProgram {
@@ -61,15 +61,14 @@ impl ProgramBuilder for OSProgram {
 
     fn build(id: ProgramId, _data: Self::BuildData) -> Self {
         Self { 
-            id, 
-            world: Default::default(),
+            id,
+            ecs: ECS::new(),
             control_layout: ControlLayout::default(),
             control_profile: ControlProfileId::null(),
             layout_active: false,
             dt_record: Vec::new(),
             last_dt: 0.0,
             time_graph: TimeGraph::new(240),
-            rhai: RhaiContext::new(),
         }
     }
 }
@@ -274,6 +273,20 @@ impl OSProgram {
                 _ => {},
             }
         }
+
+        // Scheduler
+        ctx.asset.register("test_scheduler", default_bundle, SystemSchedule {
+            systems: Vec::from([
+                SystemScheduleType::Builtin("rotator".into()),
+                SystemScheduleType::Builtin("rhai_update_scripts".into()),
+                SystemScheduleType::Builtin("renderer_check_lifecycle".into()),
+                SystemScheduleType::Builtin("renderer_transfer_transforms".into()),
+                SystemScheduleType::Builtin("renderer_update_camera".into()),
+                SystemScheduleType::Builtin("despawn_entities".into()),
+                SystemScheduleType::Builtin("free_fly".into()),
+            ]),
+        })?;
+
         Ok(())
     }
 }
@@ -283,25 +296,25 @@ impl Program for OSProgram {
     fn start(&mut self, ctx: &mut ProgramContext) -> Result<()> {
 
         // Register default bundle
-        // ctx.asset.register_bundle("default", self.id)?;
-        let default_bundle = UID::new("default");
-
         {
-            // self.load_assets(ctx)?;
-
-            // let export = ctx.asset.export_bundle("default".into())?;
-            // let mut file = File::create("assets/rom.bin").unwrap();
-            // let bytes = bincode::serialize(&export)?;
-            // let bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
-            // file.write_all(&bytes).unwrap();
+            ctx.asset.register_bundle("default", self.id).unwrap();
+            self.load_assets(ctx)?;
+            let export = ctx.asset.export_bundle("default".into())?;
+            let mut file = File::create("assets/rom.bin").unwrap();
+            let bytes = bincode::serialize(&export)?;
+            let bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+            file.write_all(&bytes).unwrap();
         
-            let mut file = File::open("assets/rom.bin").context("Failed to open file")?;
-            let mut bytes: Vec<u8> = Default::default();
-            file.read_to_end(&mut bytes).context("Failed to read to end")?;
-            let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
-                .expect("Failed to decompress");
-            let import: AssetBundle = bincode::deserialize(&bytes).context("Failed to deserialize")?;
-            ctx.asset.import_bundle(import, self.id).context("Failed to import")?;
+            // let file = File::create("assets/dump.json").unwrap();
+            // serde_json::to_writer(file, &export).expect("Failed to serialize json");
+
+            // let mut file = File::open("assets/rom.bin").context("Failed to open file")?;
+            // let mut bytes: Vec<u8> = Default::default();
+            // file.read_to_end(&mut bytes).context("Failed to read to end")?;
+            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
+            //     .expect("Failed to decompress");
+            // let import: AssetBundle = bincode::deserialize(&bytes).context("Failed to deserialize")?;
+            // ctx.asset.import_bundle(import, self.id).context("Failed to import")?;
         }
 
         ctx.input.reload_input_tables(ctx.asset);
@@ -322,7 +335,7 @@ impl Program for OSProgram {
         self.control_layout.add_control(IRect::new(5, 200, 100, 50));
 
         // Initialize world
-        self.world.spawn((
+        self.ecs.world.spawn((
             LifecycleComponent::default(),
             TransformComponent {
                 translation: Vec3::new(0.0, -7.0, 0.0),    
@@ -332,13 +345,13 @@ impl Program for OSProgram {
             RotatorComponent { speed: 90.0 },
             ModelComponent::new("alfred".into()),
         ));
-        self.world.spawn((
+        self.ecs.world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
             ModelComponent::new("alfred".into()),
         ));
         for i in 0..100 {
-            self.world.spawn((
+            self.ecs.world.spawn((
                 LifecycleComponent::default(),
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
@@ -347,16 +360,17 @@ impl Program for OSProgram {
                 RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
         }
-        self.world.spawn((
+        self.ecs.world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
             ModelComponent::new("car".into()),
             RotatorComponent { speed: 30.0 }
         ));
-        let e = self.world.spawn((
+        let e = self.ecs.world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
+                active: true,
                 switch_mode: ctx.input.find_action("switch_mode".into())?,
                 roll_left: ctx.input.find_action("roll_left".into())?,
                 roll_right: ctx.input.find_action("roll_right".into())?,
@@ -377,20 +391,19 @@ impl Program for OSProgram {
             RhaiScriptsComponent::default(),
         ));
                 
-        self.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
+        self.ecs.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
+        
+        // Configure schedule
+        let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
+        self.ecs.set_schedule(schedule).unwrap();
 
         Ok(())
     }
 
     fn update(&mut self, ctx: &mut ProgramContext) -> Result<()> {
 
-        // Call ECS systems
-        system_rotator(&mut self.world, ctx.delta_time as f32)?;
-        system_rhai_update_scripts(&mut self.world, &mut self.rhai, ctx)?;
-        system_renderer_check_lifecycle(&mut self.world, ctx.renderer, ctx.asset)?;
-        system_renderer_transfer_transforms(&mut self.world, ctx.renderer)?;
-        system_renderer_update_camera(&mut self.world, ctx.renderer)?;
-        system_despawn_entities(&mut self.world)?;
+        // Progress ECS scheduler
+        self.ecs.progress(ctx)?;
 
         // Custom code
         {
@@ -407,14 +420,15 @@ impl Program for OSProgram {
                 let id = ctx.input.find_action(CommonAction::CHANGE_CONTROL_MODE.into())?;
                 if ctx.input.action(id)?.is_just_pressed() {
                     self.layout_active = !self.layout_active;
+                    for (_, free_fly) in self.ecs.world.query_mut::<&mut FreeFlyComponent>() {
+                        free_fly.active = !self.layout_active;
+                    } 
                 }
 
                 if self.layout_active {
                     self.control_layout.update(ctx.input)?;
                     let cb0 = self.control_layout.render();
                     ctx.renderer.push_command_buffer(cb0);
-                } else {
-                    system_free_fly(&mut self.world, ctx.input, ctx.delta_time as f32)?;
                 }
             }
 

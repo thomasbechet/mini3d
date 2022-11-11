@@ -64,6 +64,7 @@ impl WGPUContext {
             width: 1600,
             height: 900,
             present_mode: wgpu::PresentMode::Fifo,
+            // present_mode: wgpu::PresentMode::Mailbox,
         };
         surface.configure(&device, &config);
 

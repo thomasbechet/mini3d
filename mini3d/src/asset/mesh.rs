@@ -21,6 +21,4 @@ pub struct Mesh {
     pub submeshes: Vec<SubMesh>,
 }
 
-impl Asset for Mesh {
-    fn typename() -> &'static str { "mesh" }
-}
+impl Asset for Mesh {}

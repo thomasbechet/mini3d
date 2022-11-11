@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{backend::{renderer::RendererBackend, Backend}, asset::AssetManager, input::InputManager, event::AppEvents};
+use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, system::SystemManager};
 
 pub trait ProgramBuilder {
     type BuildData;
@@ -25,27 +25,11 @@ struct ProgramInstance {
 pub struct ProgramContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
+    pub script: &'a mut ScriptManager,
+    pub system: &'a mut SystemManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
     pub delta_time: f64,
-}
-
-impl<'a> ProgramContext<'a> {
-    pub(crate) fn wrap(
-        asset: &'a mut AssetManager,
-        input: &'a mut InputManager,
-        renderer: &'a mut dyn RendererBackend,
-        events: &'a AppEvents,
-        delta_time: f64,
-    ) -> Self {
-        Self {
-            asset,
-            input,
-            renderer,
-            events,
-            delta_time,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -74,34 +58,27 @@ impl ProgramManager {
     }
 
     pub(crate) fn update(
-        &mut self, 
-        asset: &mut AssetManager, 
-        input: &mut InputManager, 
-        backend: &mut Backend,
-        events: &AppEvents,
-        delta_time: f64
+        &mut self,
+        ctx: &mut ProgramContext,
     ) -> Result<()> {
-        
-        // Create service wrapper
-        let mut services = ProgramContext::wrap(asset, input, backend.renderer, events, delta_time);       
 
         // Start programs
         for id in self.starting_programs.drain(..) {
             let instance = self.programs.get_mut(id).unwrap();
-            instance.program.as_mut().unwrap().start(&mut services)
+            instance.program.as_mut().unwrap().start(ctx)
                 .context(format!("Failed to start program '{}'", instance.name))?;
         }
 
         // Update programs
         for (_, instance) in self.programs.iter_mut() {
-            instance.program.as_mut().unwrap().update(&mut services)
+            instance.program.as_mut().unwrap().update(ctx)
                 .context(format!("Failed to update program '{}'", instance.name))?;
         }
 
         // Stop and remove programs
         for id in self.starting_programs.drain(..) {
             let instance = self.programs.get_mut(id).unwrap();
-            instance.program.as_mut().unwrap().stop(&mut services)
+            instance.program.as_mut().unwrap().stop(ctx)
                 .context(format!("Failed to stop program '{}'", instance.name))?;
             self.programs.remove(id);
         }

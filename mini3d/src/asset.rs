@@ -14,6 +14,7 @@ use self::material::Material;
 use self::mesh::Mesh;
 use self::model::Model;
 use self::rhai_script::RhaiScript;
+use self::system_schedule::SystemSchedule;
 use self::texture::Texture;
 
 pub mod font;
@@ -24,11 +25,10 @@ pub mod material;
 pub mod mesh;
 pub mod model;
 pub mod rhai_script;
+pub mod system_schedule;
 pub mod texture;
 
-pub trait Asset: Clone {
-    fn typename() -> &'static str;
-}
+pub trait Asset: Clone {}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AssetEntry<A: Asset> {
@@ -113,7 +113,6 @@ macro_rules! reflect_database {
         pub struct AssetBundle {
             pub name: String,
             $(
-                #[serde(skip_serializing_if = "Vec::is_empty")]
                 pub $field_name: Vec<AssetBundleEntry<$asset_type>>,
             )*
         }
@@ -176,6 +175,7 @@ reflect_database!(
         meshes: AssetRegistry<Mesh>,
         models: AssetRegistry<Model>,
         rhai_scripts: AssetRegistry<RhaiScript>,
+        system_schedules: AssetRegistry<SystemSchedule>,
         textures: AssetRegistry<Texture>,
     }
 );

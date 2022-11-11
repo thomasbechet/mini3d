@@ -6,6 +6,4 @@ pub struct RhaiScript {
     pub source: String,
 }
 
-impl Asset for RhaiScript {
-    fn typename() -> &'static str { "rhai_script" }
-}
+impl Asset for RhaiScript {}

@@ -7,6 +7,4 @@ pub struct Material {
     pub diffuse: UID,
 }
 
-impl Asset for Material {
-    fn typename() -> &'static str { "material" }
-}
+impl Asset for Material {}

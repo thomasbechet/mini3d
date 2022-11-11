@@ -6,8 +6,10 @@ use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
 use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
-use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId};
+use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId, ProgramContext};
 use crate::request::AppRequests;
+use crate::script::ScriptManager;
+use crate::system::SystemManager;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
@@ -16,6 +18,8 @@ pub struct App {
     pub(crate) asset_manager: AssetManager,
     pub(crate) input_manager: InputManager,
     pub(crate) program_manager: ProgramManager,
+    pub(crate) script_manager: ScriptManager,
+    pub(crate) system_manager: SystemManager,
 
     default_backend: DefaultBackend,
 
@@ -30,7 +34,9 @@ impl App {
             asset_manager: Default::default(), 
             input_manager: Default::default(), 
             program_manager: Default::default(),
-            default_backend: Default::default(), 
+            script_manager: Default::default(),
+            system_manager: Default::default(),
+            default_backend: Default::default(),
             accumulator: 0.0,
         };
         // Start initial program
@@ -52,7 +58,7 @@ impl App {
     ) -> Result<()> {
 
         // Build the backend
-        let mut backend = Backend::build(backend_descriptor, &mut self.default_backend);
+        let backend = Backend::build(backend_descriptor, &mut self.default_backend);
 
         // ================= DISPATCH STEP ================= //
 
@@ -86,13 +92,16 @@ impl App {
         backend.renderer.reset_command_buffers();
 
         // Update programs
-        self.program_manager.update(
-            &mut self.asset_manager, 
-            &mut self.input_manager, 
-            &mut backend,
+        let mut program_context = ProgramContext {
+            asset: &mut self.asset_manager,
+            input: &mut self.input_manager,
+            script: &mut self.script_manager,
+            system: &mut self.system_manager,
+            renderer: backend.renderer,
             events,
             delta_time,
-        ).context("Failed to update program manager")?;
+        };
+        self.program_manager.update(&mut program_context).context("Failed to update program manager")?;
 
         // ================= FIXED UPDATE STEP ================= //
 

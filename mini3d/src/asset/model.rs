@@ -7,6 +7,4 @@ pub struct Model {
     pub materials: Vec<UID>,
 }
 
-impl Asset for Model {
-    fn typename() -> &'static str { "model" }
-}
+impl Asset for Model {}

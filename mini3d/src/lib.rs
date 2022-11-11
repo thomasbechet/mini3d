@@ -9,6 +9,8 @@ pub mod math;
 pub mod program;
 pub mod request;
 pub mod rhai;
+pub mod script;
+pub mod system;
 pub mod uid;
 
 pub use glam;

@@ -19,6 +19,4 @@ pub struct InputAxis {
     pub default_value: f32,
 }
 
-impl Asset for InputAxis {
-    fn typename() -> &'static str { "input_axis" }
-}
+impl Asset for InputAxis {}

@@ -12,6 +12,4 @@ pub struct InputTable {
     pub axis: HashSet<UID>,
 }
 
-impl Asset for InputTable {
-    fn typename() -> &'static str { "input_table" }
-}
+impl Asset for InputTable {}

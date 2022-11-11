@@ -12,9 +12,7 @@ pub struct Font {
     pub glyph_locations: HashMap<char, usize>,
 }
 
-impl Asset for Font {
-    fn typename() -> &'static str { "font" }
-}
+impl Asset for Font {}
 
 impl Default for Font {
     fn default() -> Self {

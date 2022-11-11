@@ -11,25 +11,25 @@ pub mod input;
 pub mod script_storage;
 pub mod world;
 
-#[derive(Default)]
-pub struct RhaiContext {
+pub struct RhaiScriptCache {
     pub engine: rhai::Engine,
     scripts: HashMap<UID, rhai::AST>,
 }
 
-impl RhaiContext {
-
-    pub fn new() -> Self {
-        let mut context = Self {
+impl Default for RhaiScriptCache {
+    fn default() -> Self {
+        let mut cache = Self {
             engine: rhai::Engine::new(),
             scripts: Default::default(),
         };
-        context.engine.register_global_module(exported_module!(rhai_script_storage_api).into());
-        context.engine.register_global_module(exported_module!(rhai_input_api).into());
-        context.engine.register_global_module(exported_module!(rhai_world_api).into());
-        context
+        cache.engine.register_global_module(exported_module!(rhai_script_storage_api).into());
+        cache.engine.register_global_module(exported_module!(rhai_input_api).into());
+        cache.engine.register_global_module(exported_module!(rhai_world_api).into());
+        cache
     }
+}
 
+impl RhaiScriptCache {
     pub fn call(&mut self, uid: UID, asset: &AssetManager, scope: &mut rhai::Scope, function: &str) -> Result<()> {
         // Lazy script compilation
         if let hash_map::Entry::Vacant(e) = self.scripts.entry(uid) {

@@ -1,17 +1,21 @@
 use anyhow::Result;
-use hecs::{World, CommandBuffer};
+use hecs::{CommandBuffer, World};
 
 use crate::ecs::component::lifecycle::LifecycleComponent;
 
-pub fn system_despawn_entities(
-    world: &mut World,
-) -> Result<()> {
-    let mut cb = CommandBuffer::default();
-    for (e, l) in world.query_mut::<&LifecycleComponent>() {
-        if !l.alive {
-            cb.despawn(e);
+use super::{System, SystemContext};
+
+pub struct DespawnEntitiesSystem;
+
+impl System for DespawnEntitiesSystem {
+    fn run(&self, _ctx: &mut SystemContext, world: &mut World) -> Result<()> {
+        let mut cb = CommandBuffer::default();
+        for (e, l) in world.query_mut::<&LifecycleComponent>() {
+            if !l.alive {
+                cb.despawn(e);
+            }
         }
+        cb.run_on(world);
+        Ok(())
     }
-    cb.run_on(world);
-    Ok(())
 }

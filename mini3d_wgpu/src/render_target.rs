@@ -40,7 +40,7 @@ impl RenderTarget {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth24Plus,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             label: Some("render_target_depth_texture"),
         });
         let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());

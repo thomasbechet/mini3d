@@ -5,6 +5,9 @@ use crate::{input::{InputActionId, InputAxisId}};
 #[derive(Serialize, Deserialize)]
 pub struct FreeFlyComponent {
 
+    // Control if free fly is active
+    pub active: bool,
+
     // Inputs
     pub switch_mode: InputActionId,
     pub roll_left: InputActionId,
