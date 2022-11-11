@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{input::{InputActionId, InputAxisId}};
+use crate::uid::UID;
 
 #[derive(Serialize, Deserialize)]
 pub struct FreeFlyComponent {
@@ -9,17 +9,17 @@ pub struct FreeFlyComponent {
     pub active: bool,
 
     // Inputs
-    pub switch_mode: InputActionId,
-    pub roll_left: InputActionId,
-    pub roll_right: InputActionId,
-    pub view_x: InputAxisId,
-    pub view_y: InputAxisId,
-    pub move_forward: InputAxisId,
-    pub move_backward: InputAxisId,
-    pub move_up: InputAxisId,
-    pub move_down: InputAxisId,
-    pub move_left: InputAxisId,
-    pub move_right: InputAxisId,
+    pub switch_mode: UID,
+    pub roll_left: UID,
+    pub roll_right: UID,
+    pub view_x: UID,
+    pub view_y: UID,
+    pub move_forward: UID,
+    pub move_backward: UID,
+    pub move_up: UID,
+    pub move_down: UID,
+    pub move_left: UID,
+    pub move_right: UID,
     
     // View data
     pub free_mode: bool,

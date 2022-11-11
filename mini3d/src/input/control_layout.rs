@@ -2,9 +2,9 @@ use anyhow::Result;
 use glam::Vec2;
 use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
-use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}};
+use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}, uid::UID};
 
-use super::{InputManager, InputActionId, InputAxisId};
+use super::InputManager;
 
 new_key_type! { 
     pub struct ControlId;
@@ -26,16 +26,16 @@ impl Direction {
 pub struct ControlInputs {
 
     // Selection inputs
-    pub up: InputActionId,
-    pub down: InputActionId,
-    pub left: InputActionId,
-    pub right: InputActionId,
+    pub up: UID,
+    pub down: UID,
+    pub left: UID,
+    pub right: UID,
 
     // Cursor inputs
-    pub cursor_x: InputAxisId,
-    pub cursor_y: InputAxisId,
-    pub cursor_motion_x: InputAxisId,
-    pub cursor_motion_y: InputAxisId,
+    pub cursor_x: UID,
+    pub cursor_y: UID,
+    pub cursor_motion_x: UID,
+    pub cursor_motion_y: UID,
 }
 
 enum ControlMode {

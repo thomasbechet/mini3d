@@ -1,7 +1,6 @@
-use std::{collections::HashSet, fs::File, io::{Read, Write}};
+use std::{collections::HashSet, fs::File, io::Write};
 
-use bincode::Options;
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, AssetBundle, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::Result, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
@@ -289,52 +288,8 @@ impl OSProgram {
 
         Ok(())
     }
-}
 
-impl Program for OSProgram {
-    
-    fn start(&mut self, ctx: &mut ProgramContext) -> Result<()> {
-
-        // Register default bundle
-        {
-            ctx.asset.register_bundle("default", self.id).unwrap();
-            self.load_assets(ctx)?;
-            let export = ctx.asset.export_bundle("default".into())?;
-            let mut file = File::create("assets/rom.bin").unwrap();
-            let bytes = bincode::serialize(&export)?;
-            let bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
-            file.write_all(&bytes).unwrap();
-        
-            // let file = File::create("assets/dump.json").unwrap();
-            // serde_json::to_writer(file, &export).expect("Failed to serialize json");
-
-            // let mut file = File::open("assets/rom.bin").context("Failed to open file")?;
-            // let mut bytes: Vec<u8> = Default::default();
-            // file.read_to_end(&mut bytes).context("Failed to read to end")?;
-            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
-            //     .expect("Failed to decompress");
-            // let import: AssetBundle = bincode::deserialize(&bytes).context("Failed to deserialize")?;
-            // ctx.asset.import_bundle(import, self.id).context("Failed to import")?;
-        }
-
-        ctx.input.reload_input_tables(ctx.asset);
-
-        // Add initial control profile
-        self.control_profile = self.control_layout.add_profile(ControlInputs {
-            up: ctx.input.find_action(CommonAction::UP.into())?,
-            down: ctx.input.find_action(CommonAction::DOWN.into())?,
-            left: ctx.input.find_action(CommonAction::LEFT.into())?,
-            right: ctx.input.find_action(CommonAction::RIGHT.into())?,
-            cursor_x: ctx.input.find_axis(CommonAxis::CURSOR_X.into())?, 
-            cursor_y: ctx.input.find_axis(CommonAxis::CURSOR_Y.into())?,
-            cursor_motion_x: ctx.input.find_axis(CommonAxis::CURSOR_MOTION_X.into())?,
-            cursor_motion_y: ctx.input.find_axis(CommonAxis::CURSOR_MOTION_Y.into())?,
-        });
-
-        self.control_layout.add_control(IRect::new(5, 5, 100, 50));
-        self.control_layout.add_control(IRect::new(5, 200, 100, 50));
-
-        // Initialize world
+    fn setup_world(&mut self) -> Result<()> {
         self.ecs.world.spawn((
             LifecycleComponent::default(),
             TransformComponent {
@@ -371,17 +326,17 @@ impl Program for OSProgram {
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
                 active: true,
-                switch_mode: ctx.input.find_action("switch_mode".into())?,
-                roll_left: ctx.input.find_action("roll_left".into())?,
-                roll_right: ctx.input.find_action("roll_right".into())?,
-                view_x: ctx.input.find_axis(CommonAxis::VIEW_X.into())?, 
-                view_y: ctx.input.find_axis(CommonAxis::VIEW_Y.into())?,
-                move_forward: ctx.input.find_axis(CommonAxis::MOVE_FORWARD.into())?,
-                move_backward: ctx.input.find_axis(CommonAxis::MOVE_BACKWARD.into())?,
-                move_up: ctx.input.find_axis(CommonAxis::MOVE_UP.into())?,
-                move_down: ctx.input.find_axis(CommonAxis::MOVE_DOWN.into())?,
-                move_left: ctx.input.find_axis(CommonAxis::MOVE_LEFT.into())?,
-                move_right: ctx.input.find_axis(CommonAxis::MOVE_RIGHT.into())?,
+                switch_mode: "switch_mode".into(),
+                roll_left: "roll_left".into(),
+                roll_right: "roll_right".into(),
+                view_x: CommonAxis::VIEW_X.into(), 
+                view_y: CommonAxis::VIEW_Y.into(),
+                move_forward: CommonAxis::MOVE_FORWARD.into(),
+                move_backward: CommonAxis::MOVE_BACKWARD.into(),
+                move_up: CommonAxis::MOVE_UP.into(),
+                move_down: CommonAxis::MOVE_DOWN.into(),
+                move_left: CommonAxis::MOVE_LEFT.into(),
+                move_right: CommonAxis::MOVE_RIGHT.into(),
                 free_mode: false,
                 yaw: 0.0,
                 pitch: 0.0,
@@ -392,6 +347,56 @@ impl Program for OSProgram {
         ));
                 
         self.ecs.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
+
+        Ok(())
+    }
+}
+
+impl Program for OSProgram {
+    
+    fn start(&mut self, ctx: &mut ProgramContext) -> Result<()> {
+
+        // Register default bundle
+        {
+            ctx.asset.register_bundle("default", self.id).unwrap();
+            self.load_assets(ctx)?;
+            let export = ctx.asset.export_bundle("default".into())?;
+            let mut file = File::create("assets/rom.bin").unwrap();
+            let bytes = bincode::serialize(&export)?;
+            let bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+            file.write_all(&bytes).unwrap();
+        
+            // let file = File::create("assets/dump.json").unwrap();
+            // serde_json::to_writer(file, &export).expect("Failed to serialize json");
+
+            // let mut file = File::open("assets/rom.bin").context("Failed to open file")?;
+            // let mut bytes: Vec<u8> = Default::default();
+            // file.read_to_end(&mut bytes).context("Failed to read to end")?;
+            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
+            //     .expect("Failed to decompress");
+            // let import: AssetBundle = bincode::deserialize(&bytes).context("Failed to deserialize")?;
+            // ctx.asset.import_bundle(import, self.id).context("Failed to import")?;
+        }
+
+        ctx.input.reload_input_tables(ctx.asset);
+
+        // Add initial control profile
+        self.control_profile = self.control_layout.add_profile(ControlInputs {
+            up: CommonAction::UP.into(),
+            down: CommonAction::DOWN.into(),
+            left: CommonAction::LEFT.into(),
+            right: CommonAction::RIGHT.into(),
+            cursor_x: CommonAxis::CURSOR_X.into(), 
+            cursor_y: CommonAxis::CURSOR_Y.into(),
+            cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
+            cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
+        });
+
+        self.control_layout.add_control(IRect::new(5, 5, 100, 50));
+        self.control_layout.add_control(IRect::new(5, 200, 100, 50));
+
+        // Initialize world
+        self.setup_world()?;
         
         // Configure schedule
         let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
@@ -417,8 +422,7 @@ impl Program for OSProgram {
             }
 
             {
-                let id = ctx.input.find_action(CommonAction::CHANGE_CONTROL_MODE.into())?;
-                if ctx.input.action(id)?.is_just_pressed() {
+                if ctx.input.action(CommonAction::CHANGE_CONTROL_MODE.into())?.is_just_pressed() {
                     self.layout_active = !self.layout_active;
                     for (_, free_fly) in self.ecs.world.query_mut::<&mut FreeFlyComponent>() {
                         free_fly.active = !self.layout_active;
