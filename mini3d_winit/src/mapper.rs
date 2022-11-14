@@ -196,13 +196,13 @@ impl InputMapper {
         for (_, profile) in &mut self.profiles {
 
             // Update actions
-            app.asset().iter::<InputAction>().for_each(|entry| {
-                profile.actions.entry(entry.uid).or_insert_with(Default::default);
+            app.asset().iter::<InputAction>().expect("InputAction asset not found").for_each(|(uid, _)| {
+                profile.actions.entry(*uid).or_insert_with(Default::default);
             });
             
             // Update axis
-            app.asset().iter::<InputAxis>().for_each(|entry| {
-                profile.axis.entry(entry.uid).or_insert_with(Default::default);
+            app.asset().iter::<InputAxis>().expect("InputAxis asset not found").for_each(|(uid, _)| {
+                profile.axis.entry(*uid).or_insert_with(Default::default);
             });
         }
 

@@ -3,13 +3,13 @@ use slotmap::Key;
 
 use crate::asset::AssetManager;
 use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
+use crate::ecs::ECSManager;
 use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
 use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId, ProgramContext};
 use crate::request::AppRequests;
 use crate::script::ScriptManager;
-use crate::system::SystemManager;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
@@ -19,7 +19,7 @@ pub struct App {
     pub(crate) input_manager: InputManager,
     pub(crate) program_manager: ProgramManager,
     pub(crate) script_manager: ScriptManager,
-    pub(crate) system_manager: SystemManager,
+    pub(crate) ecs_manager: ECSManager,
 
     default_backend: DefaultBackend,
 
@@ -35,7 +35,7 @@ impl App {
             input_manager: Default::default(), 
             program_manager: Default::default(),
             script_manager: Default::default(),
-            system_manager: Default::default(),
+            ecs_manager: Default::default(),
             default_backend: Default::default(),
             accumulator: 0.0,
         };
@@ -96,7 +96,7 @@ impl App {
             asset: &mut self.asset_manager,
             input: &mut self.input_manager,
             script: &mut self.script_manager,
-            system: &mut self.system_manager,
+            ecs: &mut self.ecs_manager,
             renderer: backend.renderer,
             events,
             delta_time,

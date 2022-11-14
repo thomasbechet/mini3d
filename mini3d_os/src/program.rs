@@ -1,6 +1,6 @@
-use std::{collections::HashSet, fs::File, io::Write};
+use std::{collections::HashSet, fs::File, io::{Write, Read}};
 
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::Result, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
+use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
@@ -360,22 +360,31 @@ impl Program for OSProgram {
         {
             ctx.asset.register_bundle("default", self.id).unwrap();
             self.load_assets(ctx)?;
-            let export = ctx.asset.export_bundle("default".into())?;
-            let mut file = File::create("assets/rom.bin").unwrap();
-            let bytes = bincode::serialize(&export)?;
-            let bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
-            file.write_all(&bytes).unwrap();
         
             // let file = File::create("assets/dump.json").unwrap();
-            // serde_json::to_writer(file, &export).expect("Failed to serialize json");
+            // let mut json_serializer = serde_json::Serializer::new(file);
+            // ctx.asset.serialize_bundle("default".into(), &mut json_serializer)?;
 
-            // let mut file = File::open("assets/rom.bin").context("Failed to open file")?;
+            // let mut file = File::create("assets/rom.bin").unwrap();
+            // let mut bytes: Vec<u8> = Default::default();
+            // let mut bincode_serializer = bincode::Serializer::new(&mut bytes, bincode::options());
+            // ctx.asset.serialize_bundle("default".into(), &mut bincode_serializer)?;
+            // bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+            // file.write_all(&bytes).unwrap();
+
+
+            // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
             // let mut bytes: Vec<u8> = Default::default();
             // file.read_to_end(&mut bytes).context("Failed to read to end")?;
-            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
-            //     .expect("Failed to decompress");
-            // let import: AssetBundle = bincode::deserialize(&bytes).context("Failed to deserialize")?;
-            // ctx.asset.import_bundle(import, self.id).context("Failed to import")?;
+            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+            // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
+            // ctx.asset.import_bundle(import)?;
+
+            // let file = File::open("assets/dump.json").unwrap();
+            // let mut json_deserializer = serde_json::Deserializer::from_reader(file);
+            // let import = ctx.asset.deserialize_bundle(&mut json_deserializer)?;
+            // ctx.asset.import_bundle(import)?;
         }
 
         ctx.input.reload_input_tables(ctx.asset);

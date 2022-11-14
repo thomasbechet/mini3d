@@ -106,19 +106,20 @@ impl InputManager {
         }
     }
 
-    pub fn reload_input_tables(&mut self, asset: &AssetManager) {
+    pub fn reload_input_tables(&mut self, asset: &AssetManager) -> Result<()> {
         self.actions.clear();
-        for entry in asset.iter::<InputAction>() {
-            self.actions.insert(entry.uid, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
+        for (uid, entry) in asset.iter::<InputAction>()? {
+            self.actions.insert(*uid, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
         }
         self.axis.clear();
-        for entry in asset.iter::<InputAxis>() {
+        for (uid, entry) in asset.iter::<InputAxis>()? {
             let mut state =  InputAxisState { value: entry.asset.default_value, range: entry.asset.range };
             state.set_value(entry.asset.default_value);
-            self.axis.insert(entry.uid, state);
+            self.axis.insert(*uid, state);
         }
         self.text.clear();
         self.reload_input_mapping = true;
+        Ok(())
     }
 
     pub fn text(&self) -> &str {

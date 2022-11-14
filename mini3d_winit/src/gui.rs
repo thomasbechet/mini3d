@@ -1,6 +1,6 @@
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use mini3d::{glam::Vec4, app::App, slotmap::Key, asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}, uid::UID};
+use mini3d::{glam::Vec4, app::App, slotmap::Key, asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}, uid::UID, anyhow::{Context, Result}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::ControlFlow};
 
@@ -580,7 +580,7 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for entry in app.asset().iter::<InputTable>() {
+                                    for (_, entry) in app.asset().iter::<InputTable>().unwrap() {
                                         self.ui_input_table(&entry.asset, profile, ui, app, window);
                                     }
                                 });

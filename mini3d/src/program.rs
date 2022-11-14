@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use slotmap::{new_key_type, SlotMap};
 
-use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, system::SystemManager};
+use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, ecs::ECSManager};
 
 pub trait ProgramBuilder {
     type BuildData;
@@ -26,7 +26,7 @@ pub struct ProgramContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
     pub script: &'a mut ScriptManager,
-    pub system: &'a mut SystemManager,
+    pub ecs: &'a mut ECSManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
     pub delta_time: f64,

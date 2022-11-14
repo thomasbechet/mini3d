@@ -8,6 +8,7 @@ pub struct Vertex {
     pub position: Vec3,
     pub uv: Vec2,
     pub normal: Vec3,
+    #[serde(skip)]
     pub tangent: Vec4, // w: handedness of the tangent space
 }
 
