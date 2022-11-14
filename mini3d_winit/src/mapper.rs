@@ -167,10 +167,10 @@ impl InputMapper {
     pub(crate) fn save(&self) -> Result<()> {
         std::fs::create_dir_all("config").unwrap();
         let file = File::create("config/profiles.json")
-            .context("Failed to open file.")?;
+            .with_context(|| "Failed to open file.")?;
         let profiles = self.profiles.values().collect::<Vec<&_>>();
         serde_json::to_writer_pretty(&file, &profiles)
-            .context("Failed to write file.")?;
+            .with_context(|| "Failed to write file.")?;
         Ok(())
     }
 

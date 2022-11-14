@@ -340,12 +340,8 @@ impl AssetManager {
                         _ => {}
                     }
                 }
-                if name.is_none() {
-                    return Err(A::Error::custom("Missing 'name' key"));
-                }
-                if types.is_none() {
-                    return Err(A::Error::custom("Missing 'types' key"));
-                }
+                if name.is_none() { return Err(A::Error::custom("Missing 'name' key")); }
+                if types.is_none() { return Err(A::Error::custom("Missing 'types' key")); }
                 Ok(ImportAssetBundle { name: name.unwrap(), types: types.unwrap() })
             }
         }
@@ -393,7 +389,7 @@ impl AssetManager {
         {
             // Remove from bundle
             let bundle_uid = self.registry_mut::<A>()?.0.get(&uid).unwrap().bundle;
-            let bundle = self.bundles.get_mut(&bundle_uid).context("Bundle not found")?;
+            let bundle = self.bundles.get_mut(&bundle_uid).with_context(|| "Bundle not found")?;
             let typeid = TypeId::of::<A>();
             bundle.types.get_mut(&typeid).with_context(|| "Typeid in bundle was not found")?.remove(&uid);
         }

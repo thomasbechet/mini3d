@@ -101,7 +101,7 @@ impl App {
             events,
             delta_time,
         };
-        self.program_manager.update(&mut program_context).context("Failed to update program manager")?;
+        self.program_manager.update(&mut program_context).with_context(|| "Failed to update program manager")?;
 
         // ================= FIXED UPDATE STEP ================= //
 

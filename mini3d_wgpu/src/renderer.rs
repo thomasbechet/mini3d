@@ -243,7 +243,7 @@ impl WGPURenderer {
 
     fn create_texture(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
         let texture = asset.entry::<asset::texture::Texture>(uid)
-            .context("Texture not found")?;
+            .with_context(|| "Texture not found")?;
         self.textures.insert(uid, Texture::from_asset(
             &self.context, 
             &texture.asset,
@@ -255,11 +255,11 @@ impl WGPURenderer {
 
     fn create_mesh(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
         let mesh = asset.get::<asset::mesh::Mesh>(uid)
-            .context("Mesh asset not found")?;
+            .with_context(|| "Mesh asset not found")?;
         let mut submeshes: Vec<SubMeshId> = Default::default();
         for submesh in &mesh.submeshes {
             let descriptor = self.vertex_buffer.add(&self.context, &submesh.vertices)
-                .context("Failed to create submesh")?;
+                .with_context(|| "Failed to create submesh")?;
             let submesh_id = self.submeshes.insert(descriptor);
             submeshes.push(submesh_id);
         }
@@ -269,7 +269,7 @@ impl WGPURenderer {
 
     fn create_material(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
         let material = asset.entry::<asset::material::Material>(uid)
-            .context("Material asset not found")?;
+            .with_context(|| "Material asset not found")?;
         if !self.textures.contains_key(&material.asset.diffuse) {
             self.create_texture(material.asset.diffuse, asset)?;
         }
@@ -500,7 +500,7 @@ impl RendererBackend for WGPURenderer {
             RendererModelDescriptor::FromAsset(uid) => {
                 // Find the model asset
                 let model = asset.get::<asset::model::Model>(*uid)
-                    .context("Model asset not found")?;
+                    .with_context(|| "Model asset not found")?;
                 // Create the model index
                 let model_index = self.model_buffer.add();
                 // Find the mesh
@@ -520,7 +520,7 @@ impl RendererBackend for WGPURenderer {
                     .submeshes.iter().enumerate()
                     .map(|(i, submesh)| {
                         let material = model.materials.get(i)
-                            .context(format!("Missing material in model at index {}", i))?;
+                            .with_context(|| format!("Missing material in model at index {}", i))?;
                         let object_id = self.objects.insert(Object {
                             submesh: *submesh, 
                             material: *material,
@@ -549,7 +549,7 @@ impl RendererBackend for WGPURenderer {
     }
     fn update_model_transform(&mut self, id: RendererModelId, mat: Mat4) -> Result<()> { 
         let model = self.models.get(id)
-            .context("Model id not found")?;
+            .with_context(|| "Model id not found")?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())
     }

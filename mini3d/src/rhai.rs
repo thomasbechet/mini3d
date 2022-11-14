@@ -34,7 +34,7 @@ impl RhaiScriptCache {
         // Lazy script compilation
         if let hash_map::Entry::Vacant(e) = self.scripts.entry(uid) {
             let script = asset.get::<RhaiScript>(uid)
-                .context("Rhai script not found")?;
+                .with_context(|| "Rhai script not found")?;
             let ast = self.engine.compile(script.source.clone())?;
             e.insert(ast);
         }

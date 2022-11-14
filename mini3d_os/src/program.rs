@@ -375,7 +375,7 @@ impl Program for OSProgram {
 
             // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
             // let mut bytes: Vec<u8> = Default::default();
-            // file.read_to_end(&mut bytes).context("Failed to read to end")?;
+            // file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
             // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
             // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
             // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;

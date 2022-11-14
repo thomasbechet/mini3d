@@ -100,8 +100,9 @@ impl SystemScheduler {
             match system {
                 SystemScheduleType::Builtin(system_uid) => {
                     let entry = ctx.ecs.systems.get(system_uid)
-                        .context(format!("Builtin system with UID '{}' from scheduler was not registered", system_uid))?;           
-                    entry.system.run(&mut system_context, world).context(format!("Error raised while executing system '{}'", entry.name))?;
+                        .with_context(|| format!("Builtin system with UID '{}' from scheduler was not registered", system_uid))?;           
+                    entry.system.run(&mut system_context, world)
+                        .with_context(|| format!("Error raised while executing system '{}'", entry.name))?;
                 },
                 SystemScheduleType::RhaiScript(_) => {
                     // TODO:

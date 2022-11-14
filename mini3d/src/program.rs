@@ -66,20 +66,20 @@ impl ProgramManager {
         for id in self.starting_programs.drain(..) {
             let instance = self.programs.get_mut(id).unwrap();
             instance.program.as_mut().unwrap().start(ctx)
-                .context(format!("Failed to start program '{}'", instance.name))?;
+                .with_context(|| format!("Failed to start program '{}'", instance.name))?;
         }
 
         // Update programs
         for (_, instance) in self.programs.iter_mut() {
             instance.program.as_mut().unwrap().update(ctx)
-                .context(format!("Failed to update program '{}'", instance.name))?;
+                .with_context(|| format!("Failed to update program '{}'", instance.name))?;
         }
 
         // Stop and remove programs
         for id in self.starting_programs.drain(..) {
             let instance = self.programs.get_mut(id).unwrap();
             instance.program.as_mut().unwrap().stop(ctx)
-                .context(format!("Failed to stop program '{}'", instance.name))?;
+                .with_context(|| format!("Failed to stop program '{}'", instance.name))?;
             self.programs.remove(id);
         }
 
