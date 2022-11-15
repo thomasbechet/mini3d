@@ -358,8 +358,8 @@ impl Program for OSProgram {
 
         // Register default bundle
         {
-            ctx.asset.register_bundle("default", self.id).unwrap();
-            self.load_assets(ctx)?;
+            // ctx.asset.register_bundle("default", self.id).unwrap();
+            // self.load_assets(ctx)?;
         
             // let file = File::create("assets/dump.json").unwrap();
             // let mut json_serializer = serde_json::Serializer::new(file);
@@ -373,13 +373,13 @@ impl Program for OSProgram {
             // file.write_all(&bytes).unwrap();
 
 
-            // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
-            // let mut bytes: Vec<u8> = Default::default();
-            // file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
-            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
-            // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
-            // ctx.asset.import_bundle(import)?;
+            let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
+            let mut bytes: Vec<u8> = Default::default();
+            file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
+            let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+            let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
+            ctx.asset.import_bundle(import)?;
 
             // let file = File::open("assets/dump.json").unwrap();
             // let mut json_deserializer = serde_json::Deserializer::from_reader(file);
@@ -404,9 +404,29 @@ impl Program for OSProgram {
         self.control_layout.add_control(IRect::new(5, 5, 100, 50));
         self.control_layout.add_control(IRect::new(5, 200, 100, 50));
 
-        // Initialize world
-        self.setup_world()?;
-        
+        {
+            // Initialize world
+            // self.setup_world()?;
+
+            // let file = File::create("assets/world.json")?;
+            // let mut serializer = serde_json::Serializer::new(file);
+            // self.ecs.serialize(ctx.ecs, &mut serializer)?;
+
+            // let file = File::create("assets/world.bin")?;
+            // let mut serializer = bincode::Serializer::new(file, bincode::options());
+            // self.ecs.serialize(ctx.ecs, &mut serializer)?;
+
+            // let file = File::open("assets/world.json")?;
+            // let mut deserializer = serde_json::Deserializer::from_reader(file);
+            // self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
+
+            let mut file = File::open("assets/world.bin")?;
+            let mut bytes: Vec<u8> = Default::default();
+            file.read_to_end(&mut bytes).unwrap();
+            let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
+        }
+
         // Configure schedule
         let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
         self.ecs.set_schedule(schedule).unwrap();

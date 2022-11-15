@@ -131,8 +131,7 @@ impl<'de, 'a> DeserializeSeed<'de> for AnyAssetRegistryDeserializeSeed<'a> {
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
         use serde::de::Error;
         let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-        self.registry.deserialize(&mut deserializer)
-            .with_context(|| "Failed to deserialize").map_err(D::Error::custom)
+        self.registry.deserialize(&mut deserializer).map_err(D::Error::custom)
     }
 } 
 

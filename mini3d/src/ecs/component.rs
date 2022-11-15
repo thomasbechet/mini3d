@@ -9,4 +9,4 @@ pub mod rotator;
 pub mod script_storage;
 pub mod transform;
 
-pub trait Component: Clone + Serialize + for<'a> Deserialize<'a> {}
+pub trait Component: Serialize + for<'a> Deserialize<'a> + Send + Sync + 'static {}

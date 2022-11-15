@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
+use super::Component;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum NodeValue {
     Null,
@@ -118,3 +120,5 @@ impl ScriptStorageComponent {
         })
     }
 }
+
+impl Component for ScriptStorageComponent {}

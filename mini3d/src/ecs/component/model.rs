@@ -3,6 +3,8 @@ use slotmap::Key;
 
 use crate::{backend::renderer::RendererModelId, uid::UID};
 
+use super::Component;
+
 #[derive(Serialize, Deserialize)]
 pub struct ModelComponent {
     pub uid: UID,
@@ -15,3 +17,5 @@ impl ModelComponent {
         Self { uid, id: RendererModelId::null() }
     }
 }
+
+impl Component for ModelComponent {}
