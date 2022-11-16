@@ -1,6 +1,6 @@
 use rhai::plugin::*;
 
-use crate::ecs::system::SystemContext;
+use crate::ecs::SystemContext;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub(crate) struct InputManagerHandle(usize);

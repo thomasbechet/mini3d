@@ -18,7 +18,7 @@ new_key_type! { pub struct ProgramId; }
 
 struct ProgramInstance {
     name: String,
-    parent: ProgramId,
+    _parent: ProgramId,
     program: Option<Box<dyn Program>>,
 }
 
@@ -36,7 +36,7 @@ pub struct ProgramContext<'a> {
 pub(crate) struct ProgramManager {
     programs: SlotMap<ProgramId, ProgramInstance>,
     starting_programs: Vec<ProgramId>,
-    stopping_programs: Vec<ProgramId>,
+    _stopping_programs: Vec<ProgramId>,
 }
 
 impl ProgramManager {
@@ -46,7 +46,7 @@ impl ProgramManager {
         // Prepare program instance
         let id = self.programs.insert(ProgramInstance {
             name: name.to_string(),
-            parent,
+            _parent: parent,
             program: None,
         });
         // Build the program

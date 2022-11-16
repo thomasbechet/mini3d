@@ -1,7 +1,5 @@
 use serde::{Serialize, Deserialize};
 
-use super::Component;
-
 #[derive(Serialize, Deserialize)]
 pub struct LifecycleComponent {
     pub alive: bool,
@@ -12,5 +10,3 @@ impl Default for LifecycleComponent {
         Self { alive: true }
     }
 }
-
-impl Component for LifecycleComponent {}

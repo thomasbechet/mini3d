@@ -2,6 +2,7 @@ use self::renderer::{RendererBackend, DummyRendererBackend};
 
 pub mod renderer;
 
+#[derive(Default)]
 pub struct BackendDescriptor<'a> {
     pub(crate) renderer: Option<&'a mut dyn RendererBackend>,
 }
@@ -9,7 +10,7 @@ pub struct BackendDescriptor<'a> {
 impl<'a> BackendDescriptor<'a> {
 
     pub fn new() -> Self {
-        Self { renderer: None }
+        Self::default()
     }
 
     pub fn with_renderer<R: RendererBackend>(

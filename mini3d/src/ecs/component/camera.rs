@@ -3,8 +3,6 @@ use slotmap::Key;
 
 use crate::backend::renderer::RendererCameraId;
 
-use super::Component;
-
 #[derive(Serialize, Deserialize)]
 pub struct CameraComponent {
     pub fov: f32,
@@ -17,5 +15,3 @@ impl Default for CameraComponent {
         Self { fov: 110.0, id: RendererCameraId::null() }
     }
 }
-
-impl Component for CameraComponent {}

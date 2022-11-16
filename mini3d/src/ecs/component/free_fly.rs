@@ -2,8 +2,6 @@ use serde::{Serialize, Deserialize};
 
 use crate::uid::UID;
 
-use super::Component;
-
 #[derive(Serialize, Deserialize)]
 pub struct FreeFlyComponent {
 
@@ -37,5 +35,3 @@ impl FreeFlyComponent {
     pub const ROTATION_SENSIBILITY: f32 = 180.0;
     pub const ZOOM_SPEED: f32 = 10.0;
 }
-
-impl Component for FreeFlyComponent {}

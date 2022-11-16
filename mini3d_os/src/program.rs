@@ -76,101 +76,101 @@ impl OSProgram {
     fn load_assets(&mut self, ctx: &mut ProgramContext) -> Result<()> {
         let default_bundle = UID::new("default");
         // Register default font
-        ctx.asset.register("default", default_bundle, Font::default())?;
+        ctx.asset.add("default", default_bundle, Font::default())?;
 
         // Register common inputs
-        ctx.asset.register(CommonAction::UP, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::UP, default_bundle, InputAction {
             display_name: "Up".to_string(),
             description: "Layout navigation control (go up).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.register(CommonAction::LEFT, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::LEFT, default_bundle, InputAction {
             display_name: "Left".to_string(),
             description: "Layout navigation control (go left).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.register(CommonAction::DOWN, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::DOWN, default_bundle, InputAction {
             display_name: "Down".to_string(),
             description: "Layout navigation control (go down).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.register(CommonAction::RIGHT, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::RIGHT, default_bundle, InputAction {
             display_name: "Right".to_string(),
             description: "Layout navigation control (go right).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.register(CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputAction {
             display_name: "Change Control Mode".to_string(),
             description: "Switch between selection and cursor control mode.".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.register(CommonAxis::CURSOR_X, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_X, default_bundle, InputAxis {
             display_name: "Cursor X".to_string(),
             description: "Horizontal position of the mouse cursor relative to the screen.".to_string(),
             range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 },
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::CURSOR_Y, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_Y, default_bundle, InputAxis {
             display_name: "Cursor Y".to_string(),
             description: "Vertical position of the mouse cursor relative to the screen.".to_string(),
             range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 },
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::CURSOR_MOTION_X, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_MOTION_X, default_bundle, InputAxis {
             display_name: "Cursor Motion X".to_string(),
             description: "Delta mouvement of the mouse on the horizontal axis.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::CURSOR_MOTION_Y, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_MOTION_Y, default_bundle, InputAxis {
             display_name: "Cursor Motion Y".to_string(),
             description: "Delta mouvement of the mouse on the vertical axis.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::VIEW_X, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::VIEW_X, default_bundle, InputAxis {
             display_name: "View X".to_string(),
             description: "View horizontal delta movement.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::VIEW_Y, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::VIEW_Y, default_bundle, InputAxis {
             display_name: "View Y".to_string(),
             description: "View vertical delta movement.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::MOVE_FORWARD, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_FORWARD, default_bundle, InputAxis { 
             display_name: "Move Forward".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::MOVE_BACKWARD, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_BACKWARD, default_bundle, InputAxis { 
             display_name: "Move Backward".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::MOVE_LEFT, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_LEFT, default_bundle, InputAxis { 
             display_name: "Move Left".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::MOVE_RIGHT, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_RIGHT, default_bundle, InputAxis { 
             display_name: "Move Right".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::MOVE_UP, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_UP, default_bundle, InputAxis { 
             display_name: "Move Up".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.register(CommonAxis::MOVE_DOWN, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_DOWN, default_bundle, InputAxis { 
             display_name: "Move Down".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
@@ -178,34 +178,34 @@ impl OSProgram {
         })?;
                 
         // Register default inputs
-        ctx.asset.register("roll_left", default_bundle, InputAction { 
+        ctx.asset.add("roll_left", default_bundle, InputAction { 
             display_name: "Roll Left".to_string(), 
             description: "".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.register("roll_right", default_bundle, InputAction { 
+        ctx.asset.add("roll_right", default_bundle, InputAction { 
             display_name: "Roll Right".to_string(), 
             description: "".to_string(), 
             default_pressed: false,
         })?;
-        ctx.asset.register("switch_mode", default_bundle, InputAction { 
+        ctx.asset.add("switch_mode", default_bundle, InputAction { 
             display_name: "Switch Mode".to_string(), 
             description: "".to_string(), 
             default_pressed: false,
         })?;
 
         // Register input tables
-        ctx.asset.register::<InputTable>("common", default_bundle, InputTable { 
+        ctx.asset.add::<InputTable>("common", default_bundle, InputTable { 
             display_name: "Common Inputs".to_string(),
             description: "".to_string(), 
-            actions: HashSet::from([
+            actions: Vec::from([
                 CommonAction::UP.into(),
                 CommonAction::LEFT.into(),
                 CommonAction::DOWN.into(),
                 CommonAction::RIGHT.into(),
                 CommonAction::CHANGE_CONTROL_MODE.into(),
             ]),
-            axis: HashSet::from([
+            axis: Vec::from([
                 CommonAxis::CURSOR_X.into(),
                 CommonAxis::CURSOR_Y.into(),
                 CommonAxis::CURSOR_MOTION_X.into(),
@@ -220,29 +220,29 @@ impl OSProgram {
                 CommonAxis::MOVE_DOWN.into(),
             ]),
         })?;
-        ctx.asset.register::<InputTable>("default", default_bundle, InputTable {
+        ctx.asset.add::<InputTable>("default", default_bundle, InputTable {
             display_name: "Default Inputs".to_string(),
             description: "".to_string(),
-            actions: HashSet::from([
+            actions: Vec::from([
                 "roll_left".into(),
                 "roll_right".into(),
                 "switch_mode".into(),
             ]),
-            axis: HashSet::from([]),
+            axis: Vec::from([]),
         })?;
 
         // Non default assets
-        ctx.asset.register::<Material>("alfred", default_bundle, Material { 
+        ctx.asset.add::<Material>("alfred", default_bundle, Material { 
             diffuse: "alfred".into(),
         })?;
-        ctx.asset.register::<Material>("car", default_bundle, Material {
+        ctx.asset.add::<Material>("car", default_bundle, Material {
             diffuse: "car".into(),
         })?;
-        ctx.asset.register::<Model>("car", default_bundle, Model { 
+        ctx.asset.add::<Model>("car", default_bundle, Model { 
             mesh: "car".into(),
             materials: Vec::from(["car".into()])
         })?;
-        ctx.asset.register::<Model>("alfred", default_bundle, Model { 
+        ctx.asset.add::<Model>("alfred", default_bundle, Model { 
             mesh: "alfred".into(), 
             materials: Vec::from([
                 "alfred".into(),
@@ -255,26 +255,26 @@ impl OSProgram {
         for import in &ctx.events.asset {
             match import {
                 mini3d::event::asset::ImportAssetEvent::Material(material) => {
-                    ctx.asset.register::<Material>(&material.name, default_bundle, material.data.clone())?;
+                    ctx.asset.add::<Material>(&material.name, default_bundle, material.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::Mesh(mesh) => {
-                    ctx.asset.register::<Mesh>(&mesh.name, default_bundle, mesh.data.clone())?;
+                    ctx.asset.add::<Mesh>(&mesh.name, default_bundle, mesh.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::Model(model) => {
-                    ctx.asset.register::<Model>(&model.name, default_bundle, model.data.clone())?;
+                    ctx.asset.add::<Model>(&model.name, default_bundle, model.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::RhaiScript(rhai_script) => {
-                    ctx.asset.register::<RhaiScript>(&rhai_script.name, default_bundle, rhai_script.data.clone())?;
+                    ctx.asset.add::<RhaiScript>(&rhai_script.name, default_bundle, rhai_script.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::Texture(texture) => {
-                    ctx.asset.register::<Texture>(&texture.name, default_bundle, texture.data.clone())?;
+                    ctx.asset.add::<Texture>(&texture.name, default_bundle, texture.data.clone())?;
                 },
                 _ => {},
             }
         }
 
         // Scheduler
-        ctx.asset.register("test_scheduler", default_bundle, SystemSchedule {
+        ctx.asset.add("test_scheduler", default_bundle, SystemSchedule {
             systems: Vec::from([
                 SystemScheduleType::Builtin("rotator".into()),
                 SystemScheduleType::Builtin("rhai_update_scripts".into()),

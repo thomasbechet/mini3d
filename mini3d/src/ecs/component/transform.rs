@@ -1,8 +1,6 @@
 use glam::{Mat4, Vec3, Quat};
 use serde::{Serialize, Deserialize};
 
-use super::Component;
-
 #[derive(Serialize, Deserialize)]
 pub struct TransformComponent {
     pub translation: Vec3,
@@ -48,5 +46,3 @@ impl TransformComponent {
         self.rotation * Vec3::NEG_X
     }
 }
-
-impl Component for TransformComponent {}

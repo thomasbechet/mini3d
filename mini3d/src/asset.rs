@@ -212,13 +212,13 @@ impl AssetType {
 
 struct AssetBundle {
     name: String,
-    owner: ProgramId,
+    _owner: ProgramId,
     types: HashMap<TypeId, HashSet<UID>>,
 }
 
 impl AssetBundle {
     fn new(name: &str, owner: ProgramId) -> Self {
-        Self { name: name.to_string(), owner, types: Default::default() }
+        Self { name: name.to_string(), _owner: owner, types: Default::default() }
     }
 }
 
@@ -231,16 +231,16 @@ pub struct AssetManager {
 impl Default for AssetManager {
     fn default() -> Self {
         let mut manager = Self { types: Default::default(), uid_to_type: Default::default(), bundles: Default::default() };
-        manager.register_type::<Font>("font").unwrap();
-        manager.register_type::<InputAction>("input_action").unwrap();
-        manager.register_type::<InputAxis>("input_axis").unwrap();
-        manager.register_type::<InputTable>("input_table").unwrap();
-        manager.register_type::<Material>("material").unwrap();
-        manager.register_type::<Mesh>("mesh").unwrap();
-        manager.register_type::<Model>("model").unwrap();
-        manager.register_type::<RhaiScript>("rhai_script").unwrap();
-        manager.register_type::<SystemSchedule>("system_schedule").unwrap();
-        manager.register_type::<Texture>("texture").unwrap();
+        manager.register::<Font>("font").unwrap();
+        manager.register::<InputAction>("input_action").unwrap();
+        manager.register::<InputAxis>("input_axis").unwrap();
+        manager.register::<InputTable>("input_table").unwrap();
+        manager.register::<Material>("material").unwrap();
+        manager.register::<Mesh>("mesh").unwrap();
+        manager.register::<Model>("model").unwrap();
+        manager.register::<RhaiScript>("rhai_script").unwrap();
+        manager.register::<SystemSchedule>("system_schedule").unwrap();
+        manager.register::<Texture>("texture").unwrap();
         manager
     }
 }
@@ -359,7 +359,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn register_type<A: Asset + Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
+    pub fn register<A: Asset + Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
         let typeid = TypeId::of::<A>();
         let uid: UID = name.into();
         if self.types.contains_key(&typeid) || self.uid_to_type.contains_key(&uid) {
@@ -370,7 +370,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn register<A: Asset + 'static>(&mut self, name: &str, bundle: UID, data: A) -> Result<()> {
+    pub fn add<A: Asset + 'static>(&mut self, name: &str, bundle: UID, data: A) -> Result<()> {
         if !self.bundles.contains_key(&bundle) { return Err(anyhow!("Bundle not found")); }
         let uid = UID::new(name);
         if self.registry::<A>()?.0.contains_key(&uid) { return Err(anyhow!("Asset '{}' already exists", name)); }
@@ -383,7 +383,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn unregister<A: Asset + 'static>(&mut self, uid: UID) -> Result<()> {
+    pub fn remove<A: Asset + 'static>(&mut self, uid: UID) -> Result<()> {
         if !self.registry_mut::<A>()?.0.contains_key(&uid) { return Err(anyhow!("Asset not found")); }
         {
             // Remove from bundle

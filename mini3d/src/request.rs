@@ -1,3 +1,4 @@
+#[derive(Default)]
 pub struct AppRequests {
     pub(crate) shutdown: bool,
     pub(crate) reload_input_mapping: bool,
@@ -6,7 +7,7 @@ pub struct AppRequests {
 impl AppRequests {
 
     pub fn new() -> Self {
-        Self { shutdown: false, reload_input_mapping: false }
+        Self::default()
     }
 
     pub fn shutdown(&self) -> bool {

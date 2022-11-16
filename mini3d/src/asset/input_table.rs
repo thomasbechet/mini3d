@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use serde::{Serialize, Deserialize};
 
 use super::{Asset, UID};
@@ -8,8 +6,8 @@ use super::{Asset, UID};
 pub struct InputTable {
     pub display_name: String,
     pub description: String,
-    pub actions: HashSet<UID>,
-    pub axis: HashSet<UID>,
+    pub actions: Vec<UID>,
+    pub axis: Vec<UID>,
 }
 
 impl Asset for InputTable {}

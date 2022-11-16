@@ -3,8 +3,6 @@ use serde::{Serialize, Deserialize};
 
 use crate::uid::UID;
 
-use super::Component;
-
 pub const MAX_RHAI_SCRIPT_COUNT: usize = 16;
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,5 +39,3 @@ impl RhaiScriptsComponent {
         }
     }
 }
-
-impl Component for RhaiScriptsComponent {}

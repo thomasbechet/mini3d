@@ -105,7 +105,7 @@ impl App {
 
         // ================= FIXED UPDATE STEP ================= //
 
-        delta_time = FIXED_TIMESTEP;
+        // delta_time = FIXED_TIMESTEP;
         while self.accumulator >= FIXED_TIMESTEP {
             self.accumulator -= FIXED_TIMESTEP;
 

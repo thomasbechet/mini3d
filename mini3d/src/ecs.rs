@@ -4,27 +4,39 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::SerializeTuple, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{program::ProgramContext, asset::system_schedule::{SystemScheduleType, SystemSchedule}, uid::UID};
+use crate::{program::ProgramContext, asset::{system_schedule::{SystemScheduleType, SystemSchedule}, AssetManager}, uid::UID, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend};
 
-use self::{system::{SystemContext, System, despawn::DespawnEntitiesSystem, free_fly::FreeFlySystem, renderer::{RendererCheckLifecycleSystem, RendererTransferTransformsSystem, RendererUpdateCameraSystem}, rhai::RhaiUpdateScriptsSystem, rotator::RotatorSystem}, component::{camera::CameraComponent, free_fly::FreeFlyComponent, lifecycle::LifecycleComponent, model::ModelComponent, rhai_scripts::RhaiScriptsComponent, rotator::RotatorComponent, script_storage::ScriptStorageComponent, transform::TransformComponent, Component}};
+use self::{system::{despawn, free_fly, renderer, rhai, rotator}, component::{camera::CameraComponent, free_fly::FreeFlyComponent, lifecycle::LifecycleComponent, model::ModelComponent, rhai_scripts::RhaiScriptsComponent, rotator::RotatorComponent, script_storage::ScriptStorageComponent, transform::TransformComponent}};
 
 pub mod component;
 pub mod system;
 
+pub struct SystemContext<'a> {
+    pub asset: &'a mut AssetManager,
+    pub input: &'a mut InputManager,
+    pub script: &'a mut ScriptManager,
+    pub renderer: &'a mut dyn RendererBackend,
+    pub delta_time: f64,
+}
+
+pub type SystemRunCallback = fn(&mut SystemContext, &mut World) -> Result<()>;
+
+struct SystemCallbacks {
+    run: SystemRunCallback,
+}
+
 struct SystemEntry {
     name: String,
-    system: Box<dyn System>,
+    callbacks: SystemCallbacks,
 }
 
-trait AnyComponentInfo {
+trait AnyComponent {
     fn serialize_column<'a>(&'a self, archetype: &'a Archetype) -> Result<Box<dyn AnyArchetypeColumnIterator<'a> + 'a>>;
-    fn add_to_batch(&self, batch: &mut ColumnBatchType);
     fn deserialize_column(&self, batch: &mut ColumnBatchBuilder, entity_count: u32, deserializer: &mut dyn erased_serde::Deserializer) -> Result<()>;
+    fn add_to_batch(&self, batch: &mut ColumnBatchType);
 }
 
-struct ComponentInfo<C: Component> {
-    marker: PhantomData<C>
-}
+struct Component<C> { marker: PhantomData<C> }
 
 trait AnyComponentDeserializeSeed<'a> {}
 
@@ -32,13 +44,13 @@ trait AnyArchetypeColumnIterator<'a> {
     fn next<'b>(&'b mut self) -> Option<&'b (dyn erased_serde::Serialize + 'b)>;
 }
 
-impl<C: Component + Serialize> AnyComponentInfo for ComponentInfo<C> {
+impl<C: hecs::Component + Serialize + for<'de> Deserialize<'de>> AnyComponent for Component<C> {
     fn serialize_column<'a>(&'a self, archetype: &'a Archetype) -> Result<Box<dyn AnyArchetypeColumnIterator<'a> + 'a>> {
-        struct ArchetypeColumnIterator<'a, C: Component + Serialize> {
+        struct ArchetypeColumnIterator<'a, C: hecs::Component + Serialize> {
             reference: ArchetypeColumn<'a, C>,
             next: usize,
         }
-        impl<'a, C: Component + Serialize> AnyArchetypeColumnIterator<'a> for ArchetypeColumnIterator<'a, C> {
+        impl<'a, C: hecs::Component + Serialize> AnyArchetypeColumnIterator<'a> for ArchetypeColumnIterator<'a, C> {
             fn next<'b>(&'b mut self) -> Option<&'b (dyn erased_serde::Serialize + 'b)> {
                 let current = self.next;
                 self.next += 1;
@@ -51,16 +63,13 @@ impl<C: Component + Serialize> AnyComponentInfo for ComponentInfo<C> {
         let reference = archetype.get::<&C>().with_context(|| "Archetype doesn't contain component")?;
         Ok(Box::new(ArchetypeColumnIterator { reference, next: 0 }))
     }
-    fn add_to_batch(&self, batch: &mut ColumnBatchType) {
-        batch.add::<C>();
-    }
     fn deserialize_column(&self, batch: &mut ColumnBatchBuilder, entity_count: u32, deserializer: &mut dyn erased_serde::Deserializer) -> Result<()> {
-        struct ColumnVisitor<'a, C: Component> {
+        struct ColumnVisitor<'a, C: hecs::Component + for<'de> Deserialize<'de>> {
             batch: &'a mut ColumnBatchBuilder,
             entity_count: u32,
             marker: PhantomData<C>,
         }
-        impl<'de, 'a, C: Component> Visitor<'de> for ColumnVisitor<'a, C> {
+        impl<'de, 'a, C: hecs::Component + for<'b> Deserialize<'b>> Visitor<'de> for ColumnVisitor<'a, C> {
             type Value = ();
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(formatter, "a set of {} {} values", self.entity_count, type_name::<C>())
@@ -84,7 +93,9 @@ impl<C: Component + Serialize> AnyComponentInfo for ComponentInfo<C> {
         deserializer.deserialize_tuple(entity_count as usize, ColumnVisitor::<C> { batch, entity_count, marker: PhantomData })?;
         Ok(())
     }
-
+    fn add_to_batch(&self, batch: &mut ColumnBatchType) {
+        batch.add::<C>();
+    }
 }
 
 trait AnyArchetypeColumnSerialize {
@@ -94,7 +105,7 @@ trait AnyArchetypeColumnSerialize {
 struct ComponentEntry {
     name: String,
     type_id: TypeId,
-    info: Box<dyn AnyComponentInfo>,
+    component: Box<dyn AnyComponent>,
 }
 
 pub struct ECSManager {
@@ -107,13 +118,13 @@ impl Default for ECSManager {
     fn default() -> Self {
         let mut manager = Self { systems: HashMap::default(), components: HashMap::default(), component_type_to_uid: HashMap::default() };
 
-        manager.register_system("despawn_entities", DespawnEntitiesSystem {}).unwrap();
-        manager.register_system("free_fly", FreeFlySystem {}).unwrap();
-        manager.register_system("renderer_check_lifecycle", RendererCheckLifecycleSystem {}).unwrap();
-        manager.register_system("renderer_transfer_transforms", RendererTransferTransformsSystem {}).unwrap();
-        manager.register_system("renderer_update_camera", RendererUpdateCameraSystem {}).unwrap();
-        manager.register_system("rhai_update_scripts", RhaiUpdateScriptsSystem {}).unwrap();
-        manager.register_system("rotator", RotatorSystem {}).unwrap();
+        manager.register_system("despawn_entities", despawn::run).unwrap();
+        manager.register_system("free_fly", free_fly::run).unwrap();
+        manager.register_system("renderer_check_lifecycle", renderer::check_lifecycle).unwrap();
+        manager.register_system("renderer_transfer_transforms", renderer::transfer_transforms).unwrap();
+        manager.register_system("renderer_update_camera", renderer::update_camera).unwrap();
+        manager.register_system("rhai_update_scripts", rhai::update_scripts).unwrap();
+        manager.register_system("rotator", rotator::run).unwrap();
         
         manager.register_component::<CameraComponent>("camera").unwrap();
         manager.register_component::<FreeFlyComponent>("free_fly").unwrap();
@@ -130,28 +141,33 @@ impl Default for ECSManager {
 
 impl ECSManager {
 
-    pub fn register_system<S: System + 'static>(&mut self, name: &str, system: S) -> Result<()> {
+    pub fn register_system(&mut self, name: &str, run: SystemRunCallback) -> Result<()> {
         let uid: UID = name.into();
         if self.systems.contains_key(&uid) {
             return Err(anyhow!("System '{}' already exists", name));
         }
         self.systems.insert(uid, SystemEntry { 
             name: name.to_string(),
-            system: Box::new(system) 
+            callbacks: SystemCallbacks { run }
         });
         Ok(())
     }
 
-    pub fn register_component<C: Component>(&mut self, name: &str) -> Result<()> {
+    pub fn register_component<C: hecs::Component + Serialize + for<'de> Deserialize<'de>>(&mut self, name: &str) -> Result<()> {
         let uid: UID = name.into();
         let type_id = TypeId::of::<C>();
-        if self.components.contains_key(&uid) || self.component_type_to_uid.contains_key(&type_id) {
-            return Err(anyhow!("Component '{}' already exists", name));
+        if self.components.contains_key(&uid) {
+            return Err(anyhow!("Component with name '{}' already registered", name));
         }
-        self.components.insert(uid, ComponentEntry { name: name.to_string(), type_id, info: Box::new(ComponentInfo::<C> { marker: PhantomData }) });
+        if let Some(uid) = self.component_type_to_uid.get(&type_id) {
+            let component = self.components.get(uid).unwrap();
+            return Err(anyhow!("Component '{}' registered with the same type id", component.name));
+        }
+        self.components.insert(uid, ComponentEntry { name: name.to_string(), type_id, component: Box::new(Component::<C> { marker: PhantomData }) });
         self.component_type_to_uid.insert(type_id, uid);
         Ok(())
     }
+
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -173,7 +189,7 @@ impl SystemScheduler {
                 SystemScheduleType::Builtin(system_uid) => {
                     let entry = ctx.ecs.systems.get(system_uid)
                         .with_context(|| format!("Builtin system with UID '{}' from scheduler was not registered", system_uid))?;           
-                    entry.system.run(&mut system_context, world)
+                    (entry.callbacks.run)(&mut system_context, world)
                         .with_context(|| format!("Error raised while executing system '{}'", entry.name))?;
                 },
                 SystemScheduleType::RhaiScript(_) => {
@@ -255,7 +271,7 @@ impl<'a> SerializeContext for ECSSerializeContext<'a> {
         mut out: S,
     ) -> Result<S::Ok, S::Error> {
         struct ArchetypeColumnSerialize<'a> {
-            component_info: &'a dyn AnyComponentInfo,
+            component: &'a dyn AnyComponent,
             archetype: &'a Archetype,
             component_count: u32,
         }
@@ -263,7 +279,7 @@ impl<'a> SerializeContext for ECSSerializeContext<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer 
             {
-                let mut iterator = self.component_info.serialize_column(self.archetype)
+                let mut iterator = self.component.serialize_column(self.archetype)
                     .with_context(|| "Failed to create iterator").map_err(S::Error::custom)?;
                 let mut tuple = serializer.serialize_tuple(self.component_count as usize)?;
                 while let Some(c) = iterator.next() {
@@ -276,7 +292,7 @@ impl<'a> SerializeContext for ECSSerializeContext<'a> {
         for uid in &self.components {
             let component = self.manager.components.get(uid)
                 .with_context(|| "Component not found").map_err(S::Error::custom)?;
-            out.serialize_element(&ArchetypeColumnSerialize { component_info: component.info.as_ref(), archetype, component_count: archetype.len() })?;
+            out.serialize_element(&ArchetypeColumnSerialize { component: component.component.as_ref(), archetype, component_count: archetype.len() })?;
         }
         out.end()
     }
@@ -302,7 +318,7 @@ impl<'a> DeserializeContext for ECSDeserializeContext<'a> {
         for uid in &self.components {
             let component = self.manager.components.get(uid)
                 .with_context(|| "Component not found").map_err(A::Error::custom)?;
-            component.info.add_to_batch(&mut batch);
+            component.component.add_to_batch(&mut batch);
         }
         Ok(batch)
     }
@@ -326,7 +342,7 @@ impl<'a> DeserializeContext for ECSDeserializeContext<'a> {
                 where D: serde::Deserializer<'de> 
             {
                 let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-                self.component.info.deserialize_column(self.batch, self.entity_count, &mut deserializer)
+                self.component.component.deserialize_column(self.batch, self.entity_count, &mut deserializer)
                     .map_err(D::Error::custom)
             }
         }
