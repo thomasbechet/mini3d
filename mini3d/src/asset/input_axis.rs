@@ -1,7 +1,5 @@
 use serde::{Serialize, Deserialize};
 
-use super::Asset;
-
 #[derive(Default, Clone, Copy, Serialize, Deserialize)]
 pub enum InputAxisRange {
     Clamped { min: f32, max: f32 },
@@ -18,5 +16,3 @@ pub struct InputAxis {
     pub range: InputAxisRange,
     pub default_value: f32,
 }
-
-impl Asset for InputAxis {}

@@ -1,8 +1,6 @@
 use glam::{Vec3, Vec2, Vec4};
 use serde::{Serialize, Deserialize};
 
-use super::Asset;
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Vertex {
     pub position: Vec3,
@@ -21,5 +19,3 @@ pub struct SubMesh {
 pub struct Mesh {
     pub submeshes: Vec<SubMesh>,
 }
-
-impl Asset for Mesh {}

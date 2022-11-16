@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use super::{Asset, UID};
+use crate::uid::UID;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InputTable {
@@ -9,5 +9,3 @@ pub struct InputTable {
     pub actions: Vec<UID>,
     pub axis: Vec<UID>,
 }
-
-impl Asset for InputTable {}

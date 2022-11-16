@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use bitvec::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use super::Asset;
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Font {
     pub glyph_width: u8,
@@ -11,8 +9,6 @@ pub struct Font {
     pub data: BitVec<u8, Msb0>,
     pub glyph_locations: HashMap<char, usize>,
 }
-
-impl Asset for Font {}
 
 impl Default for Font {
     fn default() -> Self {
