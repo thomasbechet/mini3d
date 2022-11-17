@@ -9,6 +9,7 @@ use crate::input::InputManager;
 use crate::process::{ProcessManager, Process, ProcessBuilder, ProcessManagerContext};
 use crate::request::AppRequests;
 use crate::script::ScriptManager;
+use crate::signal::SignalManager;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
@@ -19,6 +20,7 @@ pub struct App {
     pub(crate) process_manager: ProcessManager,
     pub(crate) script_manager: ScriptManager,
     pub(crate) ecs_manager: ECSManager,
+    pub(crate) signal_manager: SignalManager,
 
     default_backend: DefaultBackend,
 
@@ -34,6 +36,7 @@ impl App {
             process_manager: ProcessManager::with_root::<P>(data),
             script_manager: Default::default(),
             ecs_manager: Default::default(),
+            signal_manager: Default::default(),
             default_backend: Default::default(),
             accumulator: 0.0,
         })
@@ -91,6 +94,7 @@ impl App {
             input: &mut self.input_manager,
             script: &mut self.script_manager,
             ecs: &mut self.ecs_manager,
+            signal: &mut self.signal_manager,
             renderer: backend.renderer,
             events,
             delta_time,
@@ -113,6 +117,9 @@ impl App {
             requests.reload_input_mapping = true;
             self.input_manager.reload_input_mapping = false;
         }
+
+        // ================= CLEANUP STEP ================= // 
+        self.signal_manager.cleanup();
 
         Ok(())
     }

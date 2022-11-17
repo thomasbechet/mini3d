@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, Context};
 use std::collections::HashMap;
 
-use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, ecs::ECSManager, uid::UID};
+use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, ecs::ECSManager, uid::UID, signal::SignalManager};
 
 pub trait ProcessBuilder {
     type BuildData;
@@ -34,6 +34,7 @@ pub(crate) struct ProcessManagerContext<'a> {
     pub input: &'a mut InputManager,
     pub script: &'a mut ScriptManager,
     pub ecs: &'a mut ECSManager,
+    pub signal: &'a mut SignalManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
     pub delta_time: f64,
@@ -83,6 +84,7 @@ pub struct ProcessContext<'a, 'b> {
     pub input: &'a mut InputManager,
     pub script: &'a mut ScriptManager,
     pub ecs: &'a mut ECSManager,
+    pub signal: &'a mut SignalManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
     pub delta_time: f64,
@@ -119,6 +121,7 @@ impl ProcessManager {
             input: ctx.input,
             script: ctx.script,
             ecs: ctx.ecs,
+            signal: ctx.signal,
             renderer: ctx.renderer,
             events: ctx.events,
             delta_time: ctx.delta_time,
