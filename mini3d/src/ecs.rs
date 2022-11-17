@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::SerializeTuple, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{program::ProgramContext, asset::{system_schedule::{SystemScheduleType, SystemSchedule}, AssetManager}, uid::UID, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend};
+use crate::{process::ProcessContext, asset::{system_schedule::{SystemScheduleType, SystemSchedule}, AssetManager}, uid::UID, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend};
 
 use self::{system::{despawn, free_fly, renderer, rhai, rotator}, component::{camera::CameraComponent, free_fly::FreeFlyComponent, lifecycle::LifecycleComponent, model::ModelComponent, rhai_scripts::RhaiScriptsComponent, rotator::RotatorComponent, script_storage::ScriptStorageComponent, transform::TransformComponent}};
 
@@ -176,7 +176,7 @@ pub struct SystemScheduler {
 }
 
 impl SystemScheduler {
-    pub(crate) fn run(&self, ctx: &mut ProgramContext, world: &mut World) -> Result<()> {
+    pub(crate) fn run(&self, ctx: &mut ProcessContext, world: &mut World) -> Result<()> {
         let mut system_context = SystemContext {
             asset: ctx.asset,
             input: ctx.input,
@@ -218,7 +218,7 @@ impl ECS {
         Ok(())
     }
 
-    pub fn progress(&mut self, ctx: &mut ProgramContext) -> Result<()> {
+    pub fn progress(&mut self, ctx: &mut ProcessContext) -> Result<()> {
         self.scheduler.run(ctx, &mut self.world)?;
         Ok(())
     }

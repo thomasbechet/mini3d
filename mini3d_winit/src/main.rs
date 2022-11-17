@@ -3,7 +3,7 @@ use std::{time::{SystemTime, Instant}, path::Path};
 use gui::WindowGUI;
 use mapper::InputMapper;
 use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, asset::rhai_script::RhaiScript};
-use mini3d_os::program::OSProgram;
+use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::compute_fixed_viewport;
@@ -55,8 +55,8 @@ fn main() {
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &mapper);
 
     // Application
-    let mut app = App::new::<OSProgram>(())
-        .expect("Failed to create application with OS program");
+    let mut app = App::new::<OSProcess>(())
+        .expect("Failed to create application with OS process");
     let mut events = AppEvents::new();
     let mut requests = AppRequests::new();
 

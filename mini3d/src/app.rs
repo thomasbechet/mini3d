@@ -1,5 +1,4 @@
-use anyhow::{Context, Result};
-use slotmap::Key;
+use anyhow::Result;
 
 use crate::asset::AssetManager;
 use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
@@ -7,7 +6,7 @@ use crate::ecs::ECSManager;
 use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
-use crate::program::{ProgramManager, Program, ProgramBuilder, ProgramId, ProgramContext};
+use crate::process::{ProcessManager, Process, ProcessBuilder, ProcessManagerContext};
 use crate::request::AppRequests;
 use crate::script::ScriptManager;
 
@@ -17,7 +16,7 @@ const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 pub struct App {
     pub(crate) asset_manager: AssetManager,
     pub(crate) input_manager: InputManager,
-    pub(crate) program_manager: ProgramManager,
+    pub(crate) process_manager: ProcessManager,
     pub(crate) script_manager: ScriptManager,
     pub(crate) ecs_manager: ECSManager,
 
@@ -28,21 +27,16 @@ pub struct App {
 
 impl App {
 
-    pub fn new<P: Program + ProgramBuilder + 'static>(data: P::BuildData) -> Result<Self> {
-        // Default application state
-        let mut app = Self {
+    pub fn new<P: Process + ProcessBuilder + 'static>(data: P::BuildData) -> Result<Self> {
+        Ok(Self {
             asset_manager: Default::default(), 
             input_manager: Default::default(), 
-            program_manager: Default::default(),
+            process_manager: ProcessManager::with_root::<P>(data),
             script_manager: Default::default(),
             ecs_manager: Default::default(),
             default_backend: Default::default(),
             accumulator: 0.0,
-        };
-        // Start initial program
-        app.program_manager.run::<P>("root", data, ProgramId::null())?;
-        // Return application
-        Ok(app)
+        })
     }
 
     pub fn asset(&self) -> &'_ AssetManager {
@@ -91,8 +85,8 @@ impl App {
         // Prepare resources for drawing
         backend.renderer.reset_command_buffers();
 
-        // Update programs
-        let mut program_context = ProgramContext {
+        // Update processes
+        let mut ctx = ProcessManagerContext {
             asset: &mut self.asset_manager,
             input: &mut self.input_manager,
             script: &mut self.script_manager,
@@ -101,7 +95,7 @@ impl App {
             events,
             delta_time,
         };
-        self.program_manager.update(&mut program_context).with_context(|| "Failed to update program manager")?;
+        self.process_manager.update(&mut ctx)?;
 
         // ================= FIXED UPDATE STEP ================= //
 

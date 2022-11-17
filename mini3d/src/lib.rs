@@ -6,7 +6,7 @@ pub mod event;
 pub mod graphics;
 pub mod input;
 pub mod math;
-pub mod program;
+pub mod process;
 pub mod request;
 pub mod rhai;
 pub mod script;

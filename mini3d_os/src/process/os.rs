@@ -1,80 +1,40 @@
-use std::{collections::HashSet, fs::File, io::{Write, Read}};
+use std::{fs::File, io::Read};
 
-use mini3d::{program::{ProgramId, ProgramBuilder, Program, ProgramContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{CommandBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
+use mini3d::{process::{ProcessBuilder, Process, ProcessContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
-struct TimeGraph {
-    records: Vec<f64>,
-    head: usize,
-}
+use super::profiler::ProfilerProcess;
 
-impl TimeGraph {
-    pub fn new(count: usize) -> Self {
-        Self {
-            records: vec![0.0; count],
-            head: 0,
-        }
-    }
-    pub fn add(&mut self, value: f64) {
-        self.records[self.head] = value;
-        self.head = (self.head + 1) % self.records.len();
-    }
-    pub fn render(&self) -> CommandBuffer {
-        let mut builder = CommandBuffer::builder();
-        let mut current = self.head;
-        let base_x = 5;
-        let base_y = 5;
-        let height = 60;
-        builder.draw_hline(SCREEN_HEIGHT as i32 - base_y, base_x, self.records.len() as i32);
-        builder.draw_vline(base_x, SCREEN_HEIGHT as i32 - base_y - height, SCREEN_HEIGHT as i32 - base_y);
-        loop {
-            let vy = ((self.records[current] / (2.0 / 60.0)) * height as f64) as u32;
-            let x = base_x + current as i32;
-            let y = SCREEN_HEIGHT as i32 - base_y - vy as i32;
-            builder.fill_rect(IRect::new(x, y, 1, 1));
-            // builder.draw_vline(x, y, SCREEN_HEIGHT as i32 - base_y);
-            current = (current + 1) % self.records.len();
-            if current == self.head {
-                break
-            }
-        }
-        builder.build()
-    }
-}
-
-pub struct OSProgram {
-    id: ProgramId,
+pub struct OSProcess {
+    uid: UID,
     ecs: ECS,
     control_layout: ControlLayout,
     control_profile: ControlProfileId,
     layout_active: bool,
-    dt_record: Vec<f64>,
-    last_dt: f64,
-    time_graph: TimeGraph,
 }
 
-impl ProgramBuilder for OSProgram {
+impl ProcessBuilder for OSProcess {
     
     type BuildData = ();
 
-    fn build(id: ProgramId, _data: Self::BuildData) -> Self {
+    fn build(uid: UID, _data: Self::BuildData) -> Self {
         Self { 
-            id,
+            uid,
             ecs: ECS::new(),
             control_layout: ControlLayout::default(),
             control_profile: ControlProfileId::null(),
             layout_active: false,
-            dt_record: Vec::new(),
-            last_dt: 0.0,
-            time_graph: TimeGraph::new(240),
         }
     }
 }
 
-impl OSProgram {
-    fn load_assets(&mut self, ctx: &mut ProgramContext) -> Result<()> {
+impl OSProcess {
+
+    fn setup_assets(&mut self, ctx: &mut ProcessContext) -> Result<()> {
+        ctx.asset.add_bundle("default", self.uid).unwrap();
         let default_bundle = UID::new("default");
+
         // Register default font
         ctx.asset.add("default", default_bundle, Font::default())?;
 
@@ -102,6 +62,11 @@ impl OSProgram {
         ctx.asset.add(CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputAction {
             display_name: "Change Control Mode".to_string(),
             description: "Switch between selection and cursor control mode.".to_string(),
+            default_pressed: false,
+        })?;
+        ctx.asset.add(CommonAction::TOGGLE_PROFILER, default_bundle, InputAction {
+            display_name: "Toggle Profiler".to_string(),
+            description: "Show or hide the profiler.".to_string(),
             default_pressed: false,
         })?;
         ctx.asset.add(CommonAxis::CURSOR_X, default_bundle, InputAxis {
@@ -204,6 +169,7 @@ impl OSProgram {
                 CommonAction::DOWN.into(),
                 CommonAction::RIGHT.into(),
                 CommonAction::CHANGE_CONTROL_MODE.into(),
+                CommonAction::TOGGLE_PROFILER.into(),
             ]),
             axis: Vec::from([
                 CommonAxis::CURSOR_X.into(),
@@ -352,14 +318,13 @@ impl OSProgram {
     }
 }
 
-impl Program for OSProgram {
+impl Process for OSProcess {
     
-    fn start(&mut self, ctx: &mut ProgramContext) -> Result<()> {
+    fn start(&mut self, ctx: &mut ProcessContext) -> Result<()> {
 
         // Register default bundle
         {
-            // ctx.asset.register_bundle("default", self.id).unwrap();
-            // self.load_assets(ctx)?;
+            self.setup_assets(ctx)?;
         
             // let file = File::create("assets/dump.json").unwrap();
             // let mut json_serializer = serde_json::Serializer::new(file);
@@ -373,13 +338,13 @@ impl Program for OSProgram {
             // file.write_all(&bytes).unwrap();
 
 
-            let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
-            let mut bytes: Vec<u8> = Default::default();
-            file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
-            let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
-            let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
-            ctx.asset.import_bundle(import)?;
+            // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
+            // let mut bytes: Vec<u8> = Default::default();
+            // file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
+            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+            // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
+            // ctx.asset.import_bundle(import)?;
 
             // let file = File::open("assets/dump.json").unwrap();
             // let mut json_deserializer = serde_json::Deserializer::from_reader(file);
@@ -387,7 +352,7 @@ impl Program for OSProgram {
             // ctx.asset.import_bundle(import)?;
         }
 
-        ctx.input.reload_input_tables(ctx.asset);
+        ctx.input.reload_input_tables(ctx.asset)?;
 
         // Add initial control profile
         self.control_profile = self.control_layout.add_profile(ControlInputs {
@@ -431,57 +396,38 @@ impl Program for OSProgram {
         let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
         self.ecs.set_schedule(schedule).unwrap();
 
+        // Run profiler
+        ctx.process.start::<ProfilerProcess>("profiler", ())?;
+
         Ok(())
     }
 
-    fn update(&mut self, ctx: &mut ProgramContext) -> Result<()> {
+    fn update(&mut self, ctx: &mut ProcessContext) -> Result<()> {
 
-        // Progress ECS scheduler
+        // Progress ECS
         self.ecs.progress(ctx)?;
 
-        // Custom code
-        {
-            // Compute fps
-            self.dt_record.push(ctx.delta_time);
-            self.time_graph.add(ctx.delta_time);
-            if self.dt_record.len() > 30 {
-                self.dt_record.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                self.last_dt = self.dt_record[14];
-                self.dt_record.clear();
-            }
-
-            {
-                if ctx.input.action(CommonAction::CHANGE_CONTROL_MODE.into())?.is_just_pressed() {
-                    self.layout_active = !self.layout_active;
-                    for (_, free_fly) in self.ecs.world.query_mut::<&mut FreeFlyComponent>() {
-                        free_fly.active = !self.layout_active;
-                    } 
-                }
-
-                if self.layout_active {
-                    self.control_layout.update(ctx.input)?;
-                    let cb0 = self.control_layout.render();
-                    ctx.renderer.push_command_buffer(cb0);
-                }
-            }
-
-            let cb1 = CommandBuffer::build_with(|builder| {
-                let font = UID::new("default");
-                builder
-                .print((8, 8).into(), format!("dt : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), font)
-                .print((8, 17).into(), format!("dc : {}", ctx.renderer.statistics().draw_count).as_str(), font)
-                .print((8, 26).into(), format!("tc : {}", ctx.renderer.statistics().triangle_count).as_str(), font)
-                .print((8, 35).into(), format!("vp : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), font)
-                .fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2))
-            });
-            ctx.renderer.push_command_buffer(cb1);
-            ctx.renderer.push_command_buffer(self.time_graph.render());
+        // Toggle control mode
+        if ctx.input.action(CommonAction::CHANGE_CONTROL_MODE.into())?.is_just_pressed() {
+            self.layout_active = !self.layout_active;
+            for (_, free_fly) in self.ecs.world.query_mut::<&mut FreeFlyComponent>() {
+                free_fly.active = !self.layout_active;
+            } 
         }
 
-        Ok(())
-    }
+        // Toggle control layout
+        if self.layout_active {
+            self.control_layout.update(ctx.input)?;
+            let cb0 = self.control_layout.render();
+            ctx.renderer.push_command_buffer(cb0);
+        }
 
-    fn stop(&mut self, _ctx: &mut ProgramContext) -> Result<()> { 
-        Ok(()) 
+        // Render center cross
+        let cb = CommandBuffer::build_with(|builder| {
+            builder.fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2))
+        });
+        ctx.renderer.push_command_buffer(cb);
+
+        Ok(())
     }
 }

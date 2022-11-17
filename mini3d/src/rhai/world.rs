@@ -1,25 +1,25 @@
 use rhai::plugin::*;
 
-use crate::program::ProgramContext;
+use crate::process::ProcessContext;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub(crate) struct WorldHandle(usize);
 
-impl From<&mut ProgramContext<'_>> for WorldHandle {
-    fn from(input: &mut ProgramContext) -> Self {
+impl From<&mut ProcessContext<'_, '_>> for WorldHandle {
+    fn from(input: &mut ProcessContext) -> Self {
         Self::new(input)
     }
 }
 
-impl<'a> AsMut<ProgramContext<'a>> for WorldHandle {
-    fn as_mut(&mut self) -> &mut ProgramContext<'a> {
+impl<'a, 'b> AsMut<ProcessContext<'a, 'b>> for WorldHandle {
+    fn as_mut(&mut self) -> &mut ProcessContext<'a, 'b> {
         unsafe { std::mem::transmute(self.0) }
     }
 }
 
 impl WorldHandle {
 
-    fn new(input: &mut ProgramContext) -> Self {
+    fn new(input: &mut ProcessContext) -> Self {
         let handle = unsafe { std::mem::transmute(input) };
         Self(handle)
     }

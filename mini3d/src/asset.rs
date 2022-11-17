@@ -8,7 +8,6 @@ use serde::de::{Visitor, MapAccess, self, DeserializeSeed};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Deserialize, Deserializer, Serializer};
 
-use crate::program::ProgramId;
 use crate::uid::UID;
 
 use self::font::Font;
@@ -210,12 +209,12 @@ impl AssetType {
 
 struct AssetBundle {
     name: String,
-    _owner: ProgramId,
+    _owner: UID,
     types: HashMap<TypeId, HashSet<UID>>,
 }
 
 impl AssetBundle {
-    fn new(name: &str, owner: ProgramId) -> Self {
+    fn new(name: &str, owner: UID) -> Self {
         Self { name: name.to_string(), _owner: owner, types: Default::default() }
     }
 }
@@ -295,7 +294,7 @@ impl AssetManager {
         Ok(self.registry::<A>()?.0.iter())
     }
 
-    pub fn register_bundle(&mut self, name: &str, owner: ProgramId) -> Result<()> {
+    pub fn add_bundle(&mut self, name: &str, owner: UID) -> Result<()> {
         let uid = UID::new(name);
         if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle already exists")); }
         self.bundles.insert(uid, AssetBundle::new(name, owner));

@@ -12,6 +12,7 @@ impl CommonAction {
     pub const DOWN: &'static str = "down"; 
     pub const RIGHT: &'static str = "right";
     pub const CHANGE_CONTROL_MODE: &'static str = "change_control_mode";
+    pub const TOGGLE_PROFILER: &'static str = "toggle_profiler";
 }
 
 pub struct CommonAxis;
