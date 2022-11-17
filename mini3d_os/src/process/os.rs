@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use mini3d::{process::{ProcessBuilder, Process, ProcessContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
+use mini3d::{process::{ProcessBuilder, Process, ProcessContext}, asset::{material::Material, model::Model, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, font::Font, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_schedule::{SystemSchedule, SystemScheduleType}}, ecs::{component::{transform::TransformComponent, model::ModelComponent, rotator::RotatorComponent, free_fly::FreeFlyComponent, camera::CameraComponent, rhai_scripts::RhaiScriptsComponent, script_storage::ScriptStorageComponent, lifecycle::LifecycleComponent}, ECS}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::Result, glam::{Vec3, Quat}, input::{control_layout::{ControlLayout, ControlProfileId, ControlInputs}}, slotmap::Key, math::rect::IRect, rand, uid::UID};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
@@ -324,7 +324,7 @@ impl Process for OSProcess {
 
         // Register default bundle
         {
-            self.setup_assets(ctx)?;
+            // self.setup_assets(ctx)?;
         
             // let file = File::create("assets/dump.json").unwrap();
             // let mut json_serializer = serde_json::Serializer::new(file);
@@ -335,16 +335,18 @@ impl Process for OSProcess {
             // let mut bincode_serializer = bincode::Serializer::new(&mut bytes, bincode::options());
             // ctx.asset.serialize_bundle("default".into(), &mut bincode_serializer)?;
             // bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+            // use std::io::Write;
             // file.write_all(&bytes).unwrap();
 
 
-            // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
-            // let mut bytes: Vec<u8> = Default::default();
-            // file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
-            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
-            // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
-            // ctx.asset.import_bundle(import)?;
+            use mini3d::anyhow::Context;
+            let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
+            let mut bytes: Vec<u8> = Default::default();
+            file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
+            let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+            let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
+            ctx.asset.import_bundle(import)?;
 
             // let file = File::open("assets/dump.json").unwrap();
             // let mut json_deserializer = serde_json::Deserializer::from_reader(file);

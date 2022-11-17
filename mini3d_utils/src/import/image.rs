@@ -36,12 +36,11 @@ impl ImageImporter {
 
     pub fn import(&self) -> Result<ImageImport, String> {
         // Find the asset name either from the user defined name or the source
-        let filename = self.name.clone().or(
-            self.path.file_stem().map(|n| n.to_owned().into_string().unwrap().into())
-        ).ok_or("Failed to get name from path (no name provided)".to_string())?;
+        let filename = self.name.clone().or_else(|| self.path.file_stem().map(|n| n.to_owned().into_string().unwrap()))
+            .ok_or_else(|| "Failed to get name from path (no name provided)".to_string())?;
         // Load the image
         let image = image::open(&self.path)
-            .map_err(|err| format!("Failed open image: {err}").to_string())?;
+            .map_err(|err| format!("Failed open image: {err}"))?;
         // Convert to rgba8
         let data = image.to_rgba8();
         // Build the texture
