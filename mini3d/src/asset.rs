@@ -10,28 +10,6 @@ use serde::{Serialize, Deserialize, Deserializer, Serializer};
 
 use crate::uid::UID;
 
-use self::font::Font;
-use self::input_action::InputAction;
-use self::input_axis::InputAxis;
-use self::input_table::InputTable;
-use self::material::Material;
-use self::mesh::Mesh;
-use self::model::Model;
-use self::rhai_script::RhaiScript;
-use self::system_schedule::SystemSchedule;
-use self::texture::Texture;
-
-pub mod font;
-pub mod input_action;
-pub mod input_axis;
-pub mod input_table;
-pub mod material;
-pub mod mesh;
-pub mod model;
-pub mod rhai_script;
-pub mod system_schedule;
-pub mod texture;
-
 #[derive(Serialize, Deserialize)]
 pub struct AssetEntry<A> {
     pub name: String,
@@ -219,27 +197,11 @@ impl AssetBundle {
     }
 }
 
+#[derive(Default)]
 pub struct AssetManager {
     types: HashMap<TypeId, AssetType>,
     uid_to_type: HashMap<UID, TypeId>,
     bundles: HashMap<UID, AssetBundle>,
-}
-
-impl Default for AssetManager {
-    fn default() -> Self {
-        let mut manager = Self { types: Default::default(), uid_to_type: Default::default(), bundles: Default::default() };
-        manager.register::<Font>("font").unwrap();
-        manager.register::<InputAction>("input_action").unwrap();
-        manager.register::<InputAxis>("input_axis").unwrap();
-        manager.register::<InputTable>("input_table").unwrap();
-        manager.register::<Material>("material").unwrap();
-        manager.register::<Mesh>("mesh").unwrap();
-        manager.register::<Model>("model").unwrap();
-        manager.register::<RhaiScript>("rhai_script").unwrap();
-        manager.register::<SystemSchedule>("system_schedule").unwrap();
-        manager.register::<Texture>("texture").unwrap();
-        manager
-    }
 }
 
 impl AssetManager {

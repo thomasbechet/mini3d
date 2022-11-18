@@ -1,6 +1,7 @@
 pub mod app;
 pub mod asset;
 pub mod backend;
+pub mod content;
 pub mod ecs;
 pub mod event;
 pub mod graphics;

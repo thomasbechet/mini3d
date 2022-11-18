@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::asset::{font::Font, material::Material, mesh::Mesh, texture::Texture, rhai_script::RhaiScript, model::Model};
+use crate::content::asset::{font::Font, mesh::Mesh, material::Material, model::Model, rhai_script::RhaiScript, texture::Texture};
 
 #[derive(Serialize, Deserialize)]
 pub struct AssetImportEntry<T> {

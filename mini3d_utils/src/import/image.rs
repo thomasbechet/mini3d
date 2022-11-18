@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, AppEvents}, asset::texture::Texture};
+use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, AppEvents}, content::asset::texture::Texture};
 
 pub struct ImageImport {
     texture: AssetImportEntry<Texture>

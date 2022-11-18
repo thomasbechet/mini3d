@@ -1,6 +1,6 @@
 use std::{path::{Path, PathBuf}, fs::File, io::Read};
 
-use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, AppEvents}, asset::{mesh::{Mesh, Vertex, SubMesh}, material::Material, model::Model}, glam::{Vec3, Vec2, Vec4}};
+use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, AppEvents}, glam::{Vec3, Vec2, Vec4}, content::asset::{material::Material, model::Model, mesh::{Mesh, Vertex, SubMesh}}};
 use wavefront_obj::obj::{Primitive, self};
 
 fn vec3_from_vertex(v: &obj::Vertex) -> Vec3 {

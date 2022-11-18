@@ -4,10 +4,6 @@ use anyhow::{Result, anyhow, Context};
 
 use crate::uid::UID;
 
-use self::command::CommandSignal;
-
-pub mod command;
-
 struct SignalQueue<S> {
     signals: VecDeque<S>,
 }
@@ -32,16 +28,9 @@ impl<S: 'static> AnySignalQueue for SignalQueue<S> {
     }
 }
 
+#[derive(Default)]
 pub struct SignalManager {
     queues: HashMap<UID, Box<dyn AnySignalQueue>>,
-}
-
-impl Default for SignalManager {
-    fn default() -> Self {
-        let mut manager = Self { queues: Default::default() };
-        manager.register::<CommandSignal>("command").unwrap();
-        manager
-    }
 }
 
 impl SignalManager {

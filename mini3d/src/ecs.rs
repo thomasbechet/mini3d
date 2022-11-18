@@ -4,12 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::SerializeTuple, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{process::ProcessContext, asset::{system_schedule::{SystemScheduleType, SystemSchedule}, AssetManager}, uid::UID, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend};
-
-use self::{system::{despawn, free_fly, renderer, rhai, rotator}, component::{camera::CameraComponent, free_fly::FreeFlyComponent, lifecycle::LifecycleComponent, model::ModelComponent, rhai_scripts::RhaiScriptsComponent, rotator::RotatorComponent, script_storage::ScriptStorageComponent, transform::TransformComponent}};
-
-pub mod component;
-pub mod system;
+use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend, uid::UID, process::ProcessContext, content::asset::system_schedule::{SystemScheduleType, SystemSchedule}};
 
 pub struct SystemContext<'a> {
     pub asset: &'a mut AssetManager,
@@ -108,35 +103,11 @@ struct ComponentEntry {
     component: Box<dyn AnyComponent>,
 }
 
+#[derive(Default)]
 pub struct ECSManager {
     systems: HashMap<UID, SystemEntry>,
     components: HashMap<UID, ComponentEntry>,
     component_type_to_uid: HashMap<TypeId, UID>,
-}
-
-impl Default for ECSManager {
-    fn default() -> Self {
-        let mut manager = Self { systems: HashMap::default(), components: HashMap::default(), component_type_to_uid: HashMap::default() };
-
-        manager.register_system("despawn_entities", despawn::run).unwrap();
-        manager.register_system("free_fly", free_fly::run).unwrap();
-        manager.register_system("renderer_check_lifecycle", renderer::check_lifecycle).unwrap();
-        manager.register_system("renderer_transfer_transforms", renderer::transfer_transforms).unwrap();
-        manager.register_system("renderer_update_camera", renderer::update_camera).unwrap();
-        manager.register_system("rhai_update_scripts", rhai::update_scripts).unwrap();
-        manager.register_system("rotator", rotator::run).unwrap();
-        
-        manager.register_component::<CameraComponent>("camera").unwrap();
-        manager.register_component::<FreeFlyComponent>("free_fly").unwrap();
-        manager.register_component::<LifecycleComponent>("lifecycle").unwrap();
-        manager.register_component::<ModelComponent>("model").unwrap();
-        manager.register_component::<RhaiScriptsComponent>("rhai_scripts").unwrap();
-        manager.register_component::<RotatorComponent>("rotator").unwrap();
-        manager.register_component::<ScriptStorageComponent>("script_storage").unwrap();
-        manager.register_component::<TransformComponent>("transform").unwrap();
-        
-        manager
-    }
 }
 
 impl ECSManager {

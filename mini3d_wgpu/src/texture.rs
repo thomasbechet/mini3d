@@ -1,4 +1,4 @@
-use mini3d::asset;
+use mini3d::content::asset;
 use wgpu::util::DeviceExt;
 
 use crate::context::WGPUContext;

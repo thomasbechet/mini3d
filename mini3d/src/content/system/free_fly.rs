@@ -2,7 +2,7 @@ use anyhow::Result;
 use glam::{Vec3, Quat};
 use hecs::World;
 
-use crate::{ecs::{component::{transform::TransformComponent, free_fly::FreeFlyComponent}, SystemContext}};
+use crate::{ecs::SystemContext, content::component::{transform::TransformComponent, free_fly::FreeFlyComponent}};
 
 pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
     for (_, (transform, free_fly)) in world.query_mut::<(&mut TransformComponent, &mut FreeFlyComponent)>() {

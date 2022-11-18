@@ -1,7 +1,7 @@
 use anyhow::Result;
 use hecs::World;
 
-use crate::{ecs::{component::{rhai_scripts::{RhaiScriptsComponent, RhaiScriptState}, script_storage::ScriptStorageComponent}, SystemContext}, rhai::{script_storage::ScriptStorageHandle, input::InputManagerHandle}};
+use crate::{ecs::SystemContext, rhai::{input::InputManagerHandle, script_storage::ScriptStorageHandle}, content::component::{rhai_scripts::{RhaiScriptsComponent, RhaiScriptState}, script_storage::ScriptStorageComponent}};
 
 pub fn update_scripts(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
     for (_, (scripts, storage)) in world.query_mut::<(&mut RhaiScriptsComponent, Option<&mut ScriptStorageComponent>)>() {

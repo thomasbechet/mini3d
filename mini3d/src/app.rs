@@ -2,6 +2,7 @@ use anyhow::Result;
 
 use crate::asset::AssetManager;
 use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
+use crate::content;
 use crate::ecs::ECSManager;
 use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
@@ -30,7 +31,7 @@ pub struct App {
 impl App {
 
     pub fn new<P: Process + ProcessBuilder + 'static>(data: P::BuildData) -> Result<Self> {
-        Ok(Self {
+        let mut app = Self {
             asset_manager: Default::default(), 
             input_manager: Default::default(), 
             process_manager: ProcessManager::with_root::<P>(data),
@@ -39,7 +40,9 @@ impl App {
             signal_manager: Default::default(),
             default_backend: Default::default(),
             accumulator: 0.0,
-        })
+        };
+        content::register_core_content(&mut app)?;
+        Ok(app)
     }
 
     pub fn asset(&self) -> &'_ AssetManager {
