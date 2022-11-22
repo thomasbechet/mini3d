@@ -4,18 +4,49 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use anyhow::{Result, anyhow, Context};
-use serde::de::{Visitor, MapAccess, self, DeserializeSeed};
-use serde::ser::{SerializeMap, SerializeSeq, SerializeTuple};
+use serde::de::{Visitor, self, DeserializeSeed};
+use serde::ser::{SerializeSeq, SerializeTuple};
 use serde::{Serialize, Deserialize, Deserializer, Serializer};
 
 use crate::uid::UID;
 
-#[derive(Serialize, Deserialize)]
 pub struct AssetEntry<A> {
     pub name: String,
     pub asset: A,
-    #[serde(skip)]
     pub bundle: UID,
+}
+
+impl<A: Serialize> Serialize for AssetEntry<A> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer {
+        let mut tuple = serializer.serialize_tuple(2)?;
+        tuple.serialize_element(&self.name)?;
+        tuple.serialize_element(&self.asset)?;
+        tuple.end()
+    }
+}
+
+impl<'de, A: Deserialize<'de>> Deserialize<'de> for AssetEntry<A> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de> {
+        struct AssetEntryVisitor<A> { marker: PhantomData<A> }
+        impl<'de, A: Deserialize<'de>> Visitor<'de> for AssetEntryVisitor<A> {
+            type Value = AssetEntry<A>;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Asset entry")
+            }
+            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                where S: de::SeqAccess<'de> {
+                use serde::de::Error;
+                let name: String = seq.next_element()?.with_context(|| "Expect name").map_err(Error::custom)?;
+                let asset: A = seq.next_element()?.with_context(|| "Expect asset").map_err(Error::custom)?;
+                Ok(AssetEntry { name, asset, bundle: UID::from(0) })
+            }
+        }
+        deserializer.deserialize_tuple(2, AssetEntryVisitor::<A> { marker: PhantomData })
+    }
 }
 
 struct AssetRegistry<A>(HashMap<UID, AssetEntry<A>>);
@@ -31,7 +62,7 @@ trait AnyAssetRegistry: Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn merge(&mut self, other: &mut dyn AnyAssetRegistry) -> Result<()>;
     fn serialize_entries<'a>(&'a self, set: &'a HashSet<UID>) -> Box<dyn erased_serde::Serialize + 'a>;
-    fn deserialize<'de>(&self, deserializer: &mut dyn erased_serde::Deserializer<'de>) -> Result<Box<dyn AnyAssetRegistry>>;
+    fn deserialize<'de>(&self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'de>) -> Result<Box<dyn AnyAssetRegistry>>;
 }
 
 impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for AssetRegistry<A> {
@@ -57,8 +88,7 @@ impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for As
                 use serde::ser::Error;
                 let mut seq = serializer.serialize_seq(Some(self.set.len()))?;
                 for uid in self.set {
-                    let entry = self.registry.0.get(uid)
-                        .with_context(|| "Entry not found").map_err(S::Error::custom)?;
+                    let entry = self.registry.0.get(uid).with_context(|| "Entry not found").map_err(S::Error::custom)?;
                     seq.serialize_element(entry)?;
                 }
                 seq.end()
@@ -66,7 +96,7 @@ impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for As
         }
         Box::new(AssetRegistrySerialize::<'a, A> { set, registry: self })
     }
-    fn deserialize<'a>(&self, deserializer: &mut dyn erased_serde::Deserializer<'a>) -> Result<Box<dyn AnyAssetRegistry>> {
+    fn deserialize<'a>(&self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'a>) -> Result<Box<dyn AnyAssetRegistry>> {
         struct AssetEntryVisitor<A> { marker: PhantomData<A> }
         impl<'de, A: Deserialize<'de>> Visitor<'de> for AssetEntryVisitor<A> {
             type Value = Vec<AssetEntry<A>>;
@@ -87,84 +117,12 @@ impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for As
         let mut entries = deserializer.deserialize_seq(AssetEntryVisitor::<A> { marker: PhantomData })?;
         // Build the registry
         let mut registry: AssetRegistry<A> = Default::default();
-        for entry in entries.drain(..) {
+        for mut entry in entries.drain(..) {
             let uid = UID::new(&entry.name);
+            entry.bundle = bundle;
             registry.0.insert(uid, entry);
         }
         Ok(Box::new(registry))
-    }
-}
-
-//////////////// DESERIALIZATION /////////////////
-
-struct AnyAssetRegistryDeserializeSeed<'a> {
-    registry: &'a dyn AnyAssetRegistry,
-}
-
-impl<'de, 'a> DeserializeSeed<'de> for AnyAssetRegistryDeserializeSeed<'a> {
-    type Value = Box<dyn AnyAssetRegistry>;
-    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
-        use serde::de::Error;
-        let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-        self.registry.deserialize(&mut deserializer).map_err(D::Error::custom)
-    }
-} 
-
-struct AssetTypesDeserializeSeed<'a> {
-    manager: &'a AssetManager,
-}
-
-impl<'de, 'a> DeserializeSeed<'de> for AssetTypesDeserializeSeed<'a> {
-    type Value = HashMap<TypeId, Box<dyn AnyAssetRegistry>>;
-    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
-        struct RegistryTypeVisitor<'a> {
-            manager: &'a AssetManager,
-        }
-        impl<'de, 'a> Visitor<'de> for RegistryTypeVisitor<'a> {
-            type Value = HashMap<TypeId, Box<dyn AnyAssetRegistry>>;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Asset types")
-            }
-            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
-                where M: MapAccess<'de>
-            {
-                use serde::de::Error;
-                let mut types: Self::Value = Default::default();
-                while let Some(type_name) = map.next_key::<String>()? {
-                    let type_uid = UID::new(&type_name);
-                    let type_id = self.manager.uid_to_type.get(&type_uid)
-                        .with_context(|| format!("Asset type '{}' not found", type_name)).map_err(M::Error::custom)?;
-                    let type_asset = self.manager.types.get(type_id)
-                        .with_context(|| format!("Asset type '{}' not found", type_name)).map_err(M::Error::custom)?;
-                    let registry = map.next_value_seed(AnyAssetRegistryDeserializeSeed { registry: type_asset.registry.as_ref() })?;
-                    types.insert(*type_id, registry);
-                }
-                Ok(types)
-            }
-        }
-        deserializer.deserialize_map(RegistryTypeVisitor { manager: self.manager }) 
-    }
-}
-
-//////////////// SERIALIZATION /////////////////
-
-struct AssetTypesSerialize<'a> {
-    types: &'a HashMap<TypeId, HashSet<UID>>,
-    manager: &'a AssetManager,
-}
-
-impl<'a> Serialize for AssetTypesSerialize<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer 
-    {
-        use serde::ser::Error;
-        let mut map = serializer.serialize_map(Some(self.types.len()))?;
-        for (type_id, set) in self.types.iter() {
-            let asset_type = self.manager.types.get(type_id)
-                .with_context(|| "Asset type not found").map_err(S::Error::custom)?;
-            map.serialize_entry(&asset_type.name, &asset_type.registry.serialize_entries(set))?;
-        }
-        map.end()
     }
 }
 
@@ -264,6 +222,34 @@ impl AssetManager {
     }
 
     pub fn serialize_bundle<S: Serializer>(&self, uid: UID, serializer: S) -> Result<S::Ok, S::Error> {
+        struct AssetTypesSerialize<'a> {
+            manager: &'a AssetManager,
+            types: &'a HashMap<TypeId, HashSet<UID>>,
+        }
+        impl<'a> Serialize for AssetTypesSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                struct AssetTypeSerialize<'a> {
+                    asset_type: &'a AssetType,
+                    set: &'a HashSet<UID>,
+                }
+                impl<'a> Serialize for AssetTypeSerialize<'a> {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                        where S: Serializer {
+                        let mut tuple = serializer.serialize_tuple(2)?;
+                        tuple.serialize_element(&self.asset_type.name)?;
+                        tuple.serialize_element(&self.asset_type.registry.serialize_entries(self.set))?;
+                        tuple.end()
+                    }
+                }
+                let mut seq = serializer.serialize_seq(Some(self.types.len()))?;
+                for (type_id, set) in self.types.iter() {
+                    let asset_type = self.manager.types.get(type_id).with_context(|| "Asset type not found").map_err(Error::custom)?;
+                    seq.serialize_element(&AssetTypeSerialize { asset_type, set })?;
+                }
+                seq.end()
+            }
+        }
         use serde::ser::Error;
         let bundle = self.bundles.get(&uid).with_context(|| "Bundle not found").map_err(S::Error::custom)?;
         let mut tuple = serializer.serialize_tuple(2)?;
@@ -284,6 +270,78 @@ impl AssetManager {
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: de::SeqAccess<'de> 
             {
+                struct AssetTypesDeserializeSeed<'a> {
+                    manager: &'a AssetManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for AssetTypesDeserializeSeed<'a> {
+                    type Value = HashMap<TypeId, Box<dyn AnyAssetRegistry>>;
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        struct AssetTypesVisitor<'a> {
+                            manager: &'a AssetManager,
+                        }
+                        impl<'de, 'a> Visitor<'de> for AssetTypesVisitor<'a> {
+                            type Value = HashMap<TypeId, Box<dyn AnyAssetRegistry>>;
+                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                formatter.write_str("Asset types")
+                            }
+                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                                where A: de::SeqAccess<'de> {
+                                struct AssetTypeDeserializeSeed<'a> {
+                                    manager: &'a AssetManager,
+                                }
+                                impl<'de, 'a> DeserializeSeed<'de> for AssetTypeDeserializeSeed<'a> {
+                                    type Value = (TypeId, Box<dyn AnyAssetRegistry>);
+                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                                        where D: Deserializer<'de> {
+                                        struct AssetTypeVisitor<'a> {
+                                            manager: &'a AssetManager,
+                                        }
+                                        impl<'de, 'a> Visitor<'de> for AssetTypeVisitor<'a> {
+                                            type Value = (TypeId, Box<dyn AnyAssetRegistry>);
+                                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                                formatter.write_str("Asset type")
+                                            }
+                                            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                                                where S: de::SeqAccess<'de> {
+                                                struct AssetTypeEntryDeserializeSeed<'a> {
+                                                    registry: &'a dyn AnyAssetRegistry,
+                                                }
+                                                impl<'de, 'a> DeserializeSeed<'de> for AssetTypeEntryDeserializeSeed<'a> {
+                                                    type Value = Box<dyn AnyAssetRegistry>;
+                                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                                                        where D: Deserializer<'de> {
+                                                        let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
+                                                        self.registry.deserialize(UID::from(0), &mut deserializer).map_err(Error::custom)
+                                                    }
+                                                }
+                                                let name: String = seq.next_element()?.with_context(|| "Expect asset type name").map_err(Error::custom)?;
+                                                let uid = UID::new(&name);
+                                                let type_id = self.manager.uid_to_type.get(&uid)
+                                                    .with_context(|| format!("Asset type '{}' not found", name)).map_err(Error::custom)?;
+                                                let asset_type = self.manager.types.get(type_id)
+                                                    .with_context(|| "Asset type not found from UID").map_err(Error::custom)?;
+                                                let registry = seq.next_element_seed(AssetTypeEntryDeserializeSeed { registry: asset_type.registry.as_ref() })
+                                                    ?.with_context(|| "Expect asset entries").map_err(Error::custom)?;
+                                                Ok((*type_id, registry))
+                                            }
+                                        }
+                                        deserializer.deserialize_tuple(2, AssetTypeVisitor { manager: self.manager })
+                                    }
+                                }
+                                let mut hashmap: Self::Value = Default::default();
+                                while let Some((type_id, registry)) = seq.next_element_seed(AssetTypeDeserializeSeed { manager: self.manager })? {
+                                    if hashmap.contains_key(&type_id) {
+                                        return Err(Error::custom("Asset type already exists"));
+                                    }
+                                    hashmap.insert(type_id, registry);
+                                }
+                                Ok(hashmap)
+                            }
+                        }
+                        deserializer.deserialize_seq(AssetTypesVisitor { manager: self.manager })
+                    }
+                }
                 use serde::de::Error;
                 let name: String = seq.next_element()?.with_context(|| "Expect name").map_err(Error::custom)?;
                 let types = seq.next_element_seed(AssetTypesDeserializeSeed { manager: self.manager })?
