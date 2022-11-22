@@ -1,4 +1,4 @@
-use mini3d::{anyhow::{anyhow, Result}, content::asset};
+use mini3d::{anyhow::{anyhow, Result}, feature::asset};
 
 use crate::context::WGPUContext;
 

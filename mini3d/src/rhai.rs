@@ -3,7 +3,7 @@ use std::collections::{HashMap, hash_map};
 use rhai::exported_module;
 use anyhow::{Result, anyhow, Context};
 
-use crate::{asset::AssetManager, uid::UID, content::asset::rhai_script::RhaiScript};
+use crate::{asset::AssetManager, uid::UID, feature::asset::rhai_script::RhaiScript};
 
 use self::{script_storage::rhai_script_storage_api, input::rhai_input_api, world::rhai_world_api};
 

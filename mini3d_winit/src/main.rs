@@ -1,8 +1,8 @@
-use std::{time::{SystemTime, Instant}, path::Path};
+use std::{time::{SystemTime, Instant}, path::Path, fs::File};
 
 use gui::WindowGUI;
 use mapper::InputMapper;
-use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, content::asset::rhai_script::RhaiScript};
+use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, feature::{asset::rhai_script::RhaiScript, process::profiler::ProfilerProcess}};
 use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -55,8 +55,9 @@ fn main() {
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &mapper);
 
     // Application
-    let mut app = App::new::<OSProcess>(())
-        .expect("Failed to create application with OS process");
+    let mut app = App::new().expect("Failed to create application");
+    app.process.register::<OSProcess>("os").expect("Failed to register os process");
+    app.process.start("root", OSProcess::default()).expect("Failed to start os process");
     let mut events = AppEvents::new();
     let mut requests = AppRequests::new();
 

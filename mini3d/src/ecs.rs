@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::SerializeTuple, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend, uid::UID, process::ProcessContext, content::asset::system_schedule::{SystemScheduleType, SystemSchedule}};
+use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemSchedule}};
 
 pub struct SystemContext<'a> {
     pub asset: &'a mut AssetManager,

@@ -1,6 +1,6 @@
 use rhai::plugin::*;
 
-use crate::content::component::script_storage::ScriptStorageComponent;
+use crate::feature::component::script_storage::ScriptStorageComponent;
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub(crate) struct ScriptStorageHandle(usize);

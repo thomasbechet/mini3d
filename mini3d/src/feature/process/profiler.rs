@@ -1,23 +1,37 @@
-use mini3d::{graphics::{CommandBuffer, SCREEN_HEIGHT}, math::rect::IRect, process::{ProcessBuilder, Process, ProcessContext}, uid::UID, anyhow::Result};
+use anyhow::Result;
+use serde::{Serialize, Deserialize};
 
-use crate::input::CommonAction;
+use crate::{graphics::{CommandBuffer, SCREEN_HEIGHT}, math::rect::IRect, process::{ProcessContext, Process}, uid::UID};
 
+#[derive(Serialize, Deserialize)]
 struct TimeGraph {
     records: Vec<f64>,
     head: usize,
 }
 
+impl Default for TimeGraph {
+    fn default() -> Self {
+        Self {
+            records: vec![0.0; 240],
+            head: 0,
+        }
+    }
+}
+
 impl TimeGraph {
+
     pub fn new(count: usize) -> Self {
         Self {
             records: vec![0.0; count],
             head: 0,
         }
     }
+
     pub fn add(&mut self, value: f64) {
         self.records[self.head] = value;
         self.head = (self.head + 1) % self.records.len();
     }
+    
     pub fn render(&self) -> CommandBuffer {
         let mut builder = CommandBuffer::builder();
         let mut current = self.head;
@@ -41,19 +55,19 @@ impl TimeGraph {
     }
 }
 
-pub(crate) struct ProfilerProcess {
+#[derive(Serialize, Deserialize)]
+pub struct ProfilerProcess {
+    toggle_action: UID,
     active: bool,
     dt_record: Vec<f64>,
     last_dt: f64,
     time_graph: TimeGraph,
 }
 
-impl ProcessBuilder for ProfilerProcess {
-    
-    type BuildData = ();
-
-    fn build(_uid: UID, _data: Self::BuildData) -> Self {
+impl ProfilerProcess {
+    pub fn new(toggle_action: UID) -> Self {
         Self {
+            toggle_action,
             active: false,
             dt_record: Vec::new(),
             last_dt: 0.0,
@@ -67,7 +81,7 @@ impl Process for ProfilerProcess {
     fn post_update(&mut self, ctx: &mut ProcessContext) -> Result<()> {
 
         // Toggle active
-        if ctx.input.action(UID::new(CommonAction::TOGGLE_PROFILER))?.is_just_pressed() {
+        if ctx.input.action(self.toggle_action)?.is_just_pressed() {
             self.active = !self.active;
         }
 

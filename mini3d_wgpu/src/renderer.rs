@@ -4,7 +4,7 @@ use mini3d::anyhow::{Result, Context};
 use mini3d::app::App;
 use mini3d::asset::AssetManager;
 use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererCameraId, RendererStatistics, RendererModelDescriptor};
-use mini3d::content;
+use mini3d::feature;
 use mini3d::glam::{Vec4, Mat4, Vec3};
 use mini3d::graphics::CommandBuffer;
 use mini3d::slotmap::{SlotMap, new_key_type};
@@ -243,7 +243,7 @@ impl WGPURenderer {
     }
 
     fn create_texture(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
-        let texture = asset.entry::<content::asset::texture::Texture>(uid)
+        let texture = asset.entry::<feature::asset::texture::Texture>(uid)
             .with_context(|| "Texture not found")?;
         self.textures.insert(uid, Texture::from_asset(
             &self.context, 
@@ -255,7 +255,7 @@ impl WGPURenderer {
     }
 
     fn create_mesh(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
-        let mesh = asset.get::<content::asset::mesh::Mesh>(uid)
+        let mesh = asset.get::<feature::asset::mesh::Mesh>(uid)
             .with_context(|| "Mesh asset not found")?;
         let mut submeshes: Vec<SubMeshId> = Default::default();
         for submesh in &mesh.submeshes {
@@ -269,7 +269,7 @@ impl WGPURenderer {
     }
 
     fn create_material(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
-        let material = asset.entry::<content::asset::material::Material>(uid)
+        let material = asset.entry::<feature::asset::material::Material>(uid)
             .with_context(|| "Material asset not found")?;
         if !self.textures.contains_key(&material.asset.diffuse) {
             self.create_texture(material.asset.diffuse, asset)?;
@@ -500,7 +500,7 @@ impl RendererBackend for WGPURenderer {
         match desc {
             RendererModelDescriptor::FromAsset(uid) => {
                 // Find the model asset
-                let model = asset.get::<content::asset::model::Model>(*uid)
+                let model = asset.get::<feature::asset::model::Model>(*uid)
                     .with_context(|| "Model asset not found")?;
                 // Create the model index
                 let model_index = self.model_buffer.add();

@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use anyhow::{Result, anyhow, Context};
 use serde::de::{Visitor, MapAccess, self, DeserializeSeed};
-use serde::ser::{SerializeMap, SerializeSeq};
+use serde::ser::{SerializeMap, SerializeSeq, SerializeTuple};
 use serde::{Serialize, Deserialize, Deserializer, Serializer};
 
 use crate::uid::UID;
@@ -266,10 +266,10 @@ impl AssetManager {
     pub fn serialize_bundle<S: Serializer>(&self, uid: UID, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
         let bundle = self.bundles.get(&uid).with_context(|| "Bundle not found").map_err(S::Error::custom)?;
-        let mut map = serializer.serialize_map(Some(2))?;
-        map.serialize_entry("name", &bundle.name)?;
-        map.serialize_entry("types", & AssetTypesSerialize { types: &bundle.types, manager: self })?;
-        map.end()
+        let mut tuple = serializer.serialize_tuple(2)?;
+        tuple.serialize_element(&bundle.name)?;
+        tuple.serialize_element(&AssetTypesSerialize { types: &bundle.types, manager: self })?;
+        tuple.end()
     }
 
     pub fn deserialize_bundle<'a, D: Deserializer<'a>>(&self, deserializer: D) -> Result<ImportAssetBundle> {
@@ -281,29 +281,17 @@ impl AssetManager {
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("Import asset bundle")
             }
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-                where A: MapAccess<'de> 
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where A: de::SeqAccess<'de> 
             {
                 use serde::de::Error;
-                let mut name: Option<String> = None;
-                let mut types: Option<HashMap<TypeId, Box<dyn AnyAssetRegistry>>> = None;
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            name = Some(map.next_value::<String>()?);
-                        },
-                        "types" => {
-                            types = Some(map.next_value_seed(AssetTypesDeserializeSeed { manager: self.manager })?);
-                        },
-                        _ => {}
-                    }
-                }
-                if name.is_none() { return Err(A::Error::custom("Missing 'name' key")); }
-                if types.is_none() { return Err(A::Error::custom("Missing 'types' key")); }
-                Ok(ImportAssetBundle { name: name.unwrap(), types: types.unwrap() })
+                let name: String = seq.next_element()?.with_context(|| "Expect name").map_err(Error::custom)?;
+                let types = seq.next_element_seed(AssetTypesDeserializeSeed { manager: self.manager })?
+                    .with_context(|| "Expect types").map_err(Error::custom)?;
+                Ok(ImportAssetBundle { name, types })
             }
         }
-        let import = deserializer.deserialize_map(ImportAssetBundleVisitor { manager: self })
+        let import = deserializer.deserialize_tuple(2, ImportAssetBundleVisitor { manager: self })
             .map_err(|err| anyhow!("Failed to deserialize bundle: {}", err.to_string()))?;
         Ok(import)
     }

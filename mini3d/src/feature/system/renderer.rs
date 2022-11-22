@@ -2,7 +2,7 @@ use anyhow::Result;
 use hecs::World;
 use slotmap::Key;
 
-use crate::{ecs::SystemContext, content::component::{lifecycle::LifecycleComponent, camera::CameraComponent, model::ModelComponent, transform::TransformComponent}, backend::renderer::RendererModelDescriptor};
+use crate::{ecs::SystemContext, feature::component::{lifecycle::LifecycleComponent, camera::CameraComponent, model::ModelComponent, transform::TransformComponent}, backend::renderer::RendererModelDescriptor};
 
 pub fn check_lifecycle(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
 

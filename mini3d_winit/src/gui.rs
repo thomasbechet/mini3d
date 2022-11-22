@@ -1,6 +1,6 @@
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use mini3d::{glam::Vec4, app::App, slotmap::Key, uid::UID, content::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
+use mini3d::{glam::Vec4, app::App, slotmap::Key, uid::UID, feature::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::ControlFlow};
 
@@ -244,7 +244,7 @@ impl WindowGUI {
                     })
                     .body(|mut body| {
                         input_table.actions.iter().for_each(|uid| {
-                            let action = app.asset().entry::<InputAction>(*uid).expect("Action UID not found");
+                            let action = app.asset.entry::<InputAction>(*uid).expect("Action UID not found");
                             if let Some(map_action) = profile.actions.get_mut(uid) {
                                 body.row(20.0, |mut row| {
                                     if self.show_uid {
@@ -337,7 +337,7 @@ impl WindowGUI {
                     })
                     .body(|mut body| {
                         input_table.axis.iter().for_each(|uid| {
-                            let axis = app.asset().entry::<InputAxis>(*uid).expect("Axis UID not found");
+                            let axis = app.asset.entry::<InputAxis>(*uid).expect("Axis UID not found");
                             if let Some(map_axis) = profile.axis.get_mut(uid) {
                                 body.row(20.0, |mut row| {
                                     if self.show_uid {
@@ -580,7 +580,7 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for (_, entry) in app.asset().iter::<InputTable>().unwrap() {
+                                    for (_, entry) in app.asset.iter::<InputTable>().unwrap() {
                                         self.ui_input_table(&entry.asset, profile, ui, app, window);
                                     }
                                 });

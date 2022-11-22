@@ -1,3 +1,4 @@
+use mini3d::graphics::{SCREEN_WIDTH, SCREEN_HEIGHT};
 use winit::{event_loop::EventLoop, dpi::PhysicalSize, window::{WindowBuilder, CursorGrabMode, Fullscreen}};
 
 pub(crate) struct Window {
@@ -10,7 +11,7 @@ impl Window {
 
     pub(crate) fn new(event_loop: &EventLoop<()>) -> Self {
         let window = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(1024 - 30, 640))
+            .with_inner_size(PhysicalSize::new(SCREEN_WIDTH * 3 - 30, SCREEN_HEIGHT * 3))
             .with_resizable(true)
             .build(event_loop)
             .unwrap();

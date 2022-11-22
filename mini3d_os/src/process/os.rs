@@ -1,38 +1,26 @@
 use std::{fs::File, io::Read};
 
-use mini3d::{uid::UID, ecs::ECS, input::control_layout::{ControlLayout, ControlProfileId, ControlInputs}, process::{ProcessBuilder, ProcessContext, Process}, content::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::Result, glam::{Vec3, Quat}, rand, math::rect::IRect, slotmap::Key};
+use mini3d::{uid::UID, ecs::ECS, input::control_layout::{ControlLayout, ControlProfileId, ControlInputs}, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::Result, glam::{Vec3, Quat}, rand, math::rect::IRect};
+use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
-use super::profiler::ProfilerProcess;
-
+#[derive(Default, Serialize, Deserialize)]
 pub struct OSProcess {
-    uid: UID,
+    #[serde(skip)]
     ecs: ECS,
+    #[serde(skip)]
     control_layout: ControlLayout,
+    #[serde(skip)]
     control_profile: ControlProfileId,
+    #[serde(skip)]
     layout_active: bool,
-}
-
-impl ProcessBuilder for OSProcess {
-    
-    type BuildData = ();
-
-    fn build(uid: UID, _data: Self::BuildData) -> Self {
-        Self { 
-            uid,
-            ecs: ECS::new(),
-            control_layout: ControlLayout::default(),
-            control_profile: ControlProfileId::null(),
-            layout_active: false,
-        }
-    }
 }
 
 impl OSProcess {
 
     fn setup_assets(&mut self, ctx: &mut ProcessContext) -> Result<()> {
-        ctx.asset.add_bundle("default", self.uid).unwrap();
+        ctx.asset.add_bundle("default", ctx.uid).unwrap();
         let default_bundle = UID::new("default");
 
         // Register default font
@@ -399,8 +387,7 @@ impl Process for OSProcess {
         self.ecs.set_schedule(schedule).unwrap();
 
         // Run profiler
-        ctx.process.start::<ProfilerProcess>("profiler", ())?;
-
+        ctx.process.start("profiler", ProfilerProcess::new(UID::new(CommonAction::TOGGLE_PROFILER)))?;
         Ok(())
     }
 
