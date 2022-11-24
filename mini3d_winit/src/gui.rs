@@ -38,6 +38,13 @@ pub(crate) struct WindowGUI {
     record_request: Option<RecordRequest>,
 }
 
+pub(crate) struct WindowControl<'a> {
+    pub control_flow: &'a mut ControlFlow, 
+    pub display_mode: &'a mut DisplayMode,
+    pub request_save: &'a mut bool,
+    pub request_load: &'a mut bool,
+}
+
 impl WindowGUI {
 
     pub(crate) fn new(context: &WGPUContext, window: &winit::window::Window, mapper: &InputMapper) -> Self {
@@ -462,8 +469,7 @@ impl WindowGUI {
         window: &mut Window,
         app: &App,
         mapper: &mut InputMapper,
-        control_flow: &mut ControlFlow, 
-        display_mode: &mut DisplayMode,
+        control: &mut WindowControl,
         delta_time: f64
     ) {
         self.platform.begin_frame();
@@ -478,7 +484,7 @@ impl WindowGUI {
                     egui::menu::bar(ui, |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.button("Exit").clicked() {
-                                *control_flow = ControlFlow::Exit;
+                                *control.control_flow = ControlFlow::Exit;
                             }
                         });
                         ui.menu_button("Edit", |ui| {
@@ -487,10 +493,20 @@ impl WindowGUI {
                                 self.page = Page::InputConfig;
                             }
                         });
+                        ui.menu_button("State", |ui| {
+                            if ui.button("Save").clicked() {
+                                ui.close_menu();
+                                *control.request_save = true;
+                            }
+                            if ui.button("Load").clicked() {
+                                ui.close_menu();
+                                *control.request_load = true;
+                            }
+                        });
                         ui.menu_button("View", |ui| {
                             if ui.button("Fullscreen").clicked() && !self.is_fullscreen() {
                                 ui.close_menu();
-                                *display_mode = set_display_mode(window, self, DisplayMode::FullscreenFocus);
+                                *control.display_mode = set_display_mode(window, self, DisplayMode::FullscreenFocus);
                             }
                         });
                         ui.menu_button("Help", |ui| {

@@ -1,6 +1,6 @@
 use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
-use gui::WindowGUI;
+use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
 use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, feature::asset::rhai_script::RhaiScript};
 use mini3d_os::process::os::OSProcess;
@@ -257,8 +257,12 @@ fn main() {
                     &mut window,
                     &app,
                     &mut mapper,
-                    control_flow,
-                    &mut display_mode,
+                    &mut WindowControl {
+                        control_flow,
+                        display_mode: &mut display_mode,
+                        request_save: &mut save_state,
+                        request_load: &mut load_state,
+                    },
                     delta_time
                 );
 
