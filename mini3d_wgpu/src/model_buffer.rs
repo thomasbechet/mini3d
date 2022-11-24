@@ -44,15 +44,14 @@ impl ModelBuffer {
 
     pub(crate) fn add(&mut self) -> ModelIndex {
         // Find free index or create a new one
-        let index = match self.free_model_indices.pop() {
+        match self.free_model_indices.pop() {
             Some(index) => index,
             None => {
                 let index: ModelIndex = self.model_count;
                 self.model_count += 1;
                 index
             },
-        };
-        index
+        }
     }
 
     pub(crate) fn remove(&mut self, index: ModelIndex) {

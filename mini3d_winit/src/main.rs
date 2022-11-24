@@ -1,8 +1,8 @@
-use std::{time::{SystemTime, Instant}, path::Path, fs::File};
+use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::WindowGUI;
 use mapper::InputMapper;
-use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, feature::{asset::rhai_script::RhaiScript, process::profiler::ProfilerProcess}};
+use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, feature::asset::rhai_script::RhaiScript};
 use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -72,6 +72,10 @@ fn main() {
     // Set initial display
     let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
 
+    // Save state
+    let mut save_state = false;
+    let mut load_state = false;
+
     ImageImporter::new()
         .from_source(Path::new("assets/car.png"))
         .with_name("car")
@@ -129,6 +133,13 @@ fn main() {
                             // Unfocus mouse
                             if state == ElementState::Pressed && keycode == VirtualKeyCode::Escape && !gui.is_recording() {
                                 display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
+                            }
+
+                            // Save/Load state
+                            if state == ElementState::Pressed && keycode == VirtualKeyCode::F5 && !gui.is_recording() {
+                                save_state = true;
+                            } else if state == ElementState::Pressed && keycode == VirtualKeyCode::F6 && !gui.is_recording() {
+                                load_state = true;
                             }
 
                             // Toggle fullscreen
@@ -254,6 +265,72 @@ fn main() {
                 // Progress application
                 app.progress(desc, &events, &mut requests, delta_time)
                     .expect("Failed to progress application");
+
+                // Save/Load state
+                if save_state {
+
+                    // {
+                    //     let file = File::create("assets/state.json").expect("Failed to create file");
+                    //     let mut serializer = serde_json::Serializer::new(file);
+                    //     app.save_state(&mut serializer).expect("Failed to serialize");
+                    // }
+
+                    {
+                        let mut file = File::create("assets/state.bin").unwrap();
+                        let mut bytes: Vec<u8> = Default::default();
+                        let mut bincode_serializer = bincode::Serializer::new(&mut bytes, bincode::options());
+                        app.save_state(&mut bincode_serializer).expect("Failed to serialize");
+                        bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+                        file.write_all(&bytes).unwrap();
+                    }
+                    
+                    // {
+                    //     let mut file = File::create("assets/state_postcard.bin").unwrap();
+                    //     struct AppSerialize<'a> {
+                    //         app: &'a App,
+                    //     }
+                    //     use serde::Serialize;
+                    //     impl<'a> Serialize for AppSerialize<'a> {
+                    //         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                    //             where S: serde::Serializer {
+                    //             self.app.save_state(serializer)
+                    //         }
+                    //     }
+                    //     let mut bytes = postcard::to_allocvec(&AppSerialize { app: &app }).unwrap();
+                    //     bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+                    //     file.write_all(&bytes).unwrap();
+                    // }
+
+                    save_state = false;
+                } else if load_state {
+                    renderer.reset().expect("Failed to reset renderer");
+                    
+                    // {
+                    //     let file = File::open("assets/state.json").expect("Failed to open file");
+                    //     let mut deserializer = serde_json::Deserializer::from_reader(file);
+                    //     app.load_state(&mut deserializer).expect("Failed to deserialize");
+                    // }
+                    
+                    {
+                        let mut file = File::open("assets/state.bin").expect("Failed to open file");
+                        let mut bytes: Vec<u8> = Default::default();
+                        file.read_to_end(&mut bytes).expect("Failed to read to end");
+                        let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+                        let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+                        app.load_state(&mut deserializer).expect("Failed to load state");
+                    }
+
+                    // {
+                    //     let mut file = File::open("assets/state_postcard.bin").expect("Failed to open file");
+                    //     let mut bytes: Vec<u8> = Default::default();
+                    //     file.read_to_end(&mut bytes).expect("Failed to read to end");
+                    //     let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+                    //     let mut deserializer = postcard::Deserializer::from_bytes(&bytes);
+                    //     app.load_state(&mut deserializer).expect("Failed to load state");
+                    // }
+
+                    load_state = false;
+                }
 
                 // Invoke WGPU Renderer
                 let viewport = compute_fixed_viewport(gui.central_viewport());

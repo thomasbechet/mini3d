@@ -1,6 +1,7 @@
 use std::{collections::{HashMap, VecDeque}, any::Any};
 
 use anyhow::{Result, anyhow, Context};
+use serde::{Serializer, Deserializer};
 
 use crate::uid::UID;
 
@@ -39,6 +40,14 @@ impl SignalManager {
         for queue in self.queues.values_mut() {
             queue.clear();
         }
+    }
+
+    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_unit()
+    }
+
+    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, _deserializer: D) -> Result<(), D::Error> {
+        Ok(())
     }
 
     pub fn register<S: 'static>(&mut self, name: &str) -> Result<()> {

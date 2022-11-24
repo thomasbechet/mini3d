@@ -201,17 +201,24 @@ impl MeshPass {
             });
         }
 
-        // TODO: handle removed objects
+        // Remove objects
+        for object in self.removed_objects.drain(..) {
+            self.pass_objects.remove(object);
+        }
 
         // Create sorted batches from object pass
         {
+            // Collect batches info (old batches are erased)
             self.batches = self.pass_objects.iter()
-            .map(|(id, o)| RenderBatch {
-                submesh: objects.get(id).unwrap().submesh,
-                material: objects.get(id).unwrap().material,
-                model_index: objects.get(id).unwrap().model_index,
-            })
-            .collect::<Vec<_>>();
+                .map(|(id, _)| RenderBatch {
+                    // TODO: use key to change draw order ?
+                    submesh: objects.get(id).unwrap().submesh,
+                    material: objects.get(id).unwrap().material,
+                    model_index: objects.get(id).unwrap().model_index,
+                })
+                .collect::<Vec<_>>();
+
+            // Sort batches by material then by submesh
             self.batches.sort_by_key(|r| (r.material, r.submesh));
         }
 
@@ -221,13 +228,15 @@ impl MeshPass {
             self.instanced_batches.clear();
 
             // Insert first batch, will be used for the first comparison
-            self.instanced_batches.push(InstancedRenderBatch {
-                submesh: self.batches.first().unwrap().submesh,
-                material: self.batches.first().unwrap().material,
-                first_instance: 0,
-                instance_count: 0,
-                triangle_count: 0,
-            });
+            if !self.batches.is_empty() {
+                self.instanced_batches.push(InstancedRenderBatch {
+                    submesh: self.batches.first().unwrap().submesh,
+                    material: self.batches.first().unwrap().material,
+                    first_instance: 0,
+                    instance_count: 0,
+                    triangle_count: 0,
+                });
+            }
 
             // Prepare instance object id
             for (instance_id, batch) in self.batches.iter().enumerate() {
@@ -269,13 +278,16 @@ impl MeshPass {
         {
             // Clear batches
             self.multi_instanced_batches.clear();
+
             // Insert first group
-            self.multi_instanced_batches.push(MultiInstancedRenderBatch { 
-                material: self.instanced_batches.first().unwrap().material,
-                first: 0,
-                count: 0,
-                triangle_count: 0,
-            });
+            if !self.instanced_batches.is_empty() {
+                self.multi_instanced_batches.push(MultiInstancedRenderBatch { 
+                    material: self.instanced_batches.first().unwrap().material,
+                    first: 0,
+                    count: 0,
+                    triangle_count: 0,
+                });
+            }
 
             // Build multi instanced render batches
             for (batch_id, batch) in self.instanced_batches.iter().enumerate() {

@@ -61,13 +61,18 @@ trait AnyAssetRegistry: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn merge(&mut self, other: &mut dyn AnyAssetRegistry) -> Result<()>;
+    fn collect_uids(&self) -> HashSet<UID>;
+    fn clear(&mut self);
     fn serialize_entries<'a>(&'a self, set: &'a HashSet<UID>) -> Box<dyn erased_serde::Serialize + 'a>;
     fn deserialize<'de>(&self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'de>) -> Result<Box<dyn AnyAssetRegistry>>;
 }
 
 impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for AssetRegistry<A> {
+
     fn as_any(&self) -> &dyn Any { self }
+
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
+
     fn merge(&mut self, other: &mut dyn AnyAssetRegistry) -> Result<()> {
         let other: &mut AssetRegistry<A> = other.as_any_mut().downcast_mut().with_context(|| "Invalid asset type cast")?;
         for (uid, entry) in other.0.drain() {
@@ -76,6 +81,15 @@ impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for As
         }
         Ok(())
     }
+
+    fn collect_uids(&self) -> HashSet<UID> {
+        self.0.keys().copied().collect::<HashSet<UID>>()
+    }
+
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+
     fn serialize_entries<'a>(&'a self, set: &'a HashSet<UID>) -> Box<dyn erased_serde::Serialize + 'a> {
         struct AssetRegistrySerialize<'a, A> {
             set: &'a HashSet<UID>,
@@ -96,6 +110,7 @@ impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetRegistry for As
         }
         Box::new(AssetRegistrySerialize::<'a, A> { set, registry: self })
     }
+
     fn deserialize<'a>(&self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'a>) -> Result<Box<dyn AnyAssetRegistry>> {
         struct AssetEntryVisitor<A> { marker: PhantomData<A> }
         impl<'de, A: Deserialize<'de>> Visitor<'de> for AssetEntryVisitor<A> {
@@ -145,13 +160,12 @@ impl AssetType {
 
 struct AssetBundle {
     name: String,
-    _owner: UID,
     types: HashMap<TypeId, HashSet<UID>>,
 }
 
 impl AssetBundle {
-    fn new(name: &str, owner: UID) -> Self {
-        Self { name: name.to_string(), _owner: owner, types: Default::default() }
+    fn new(name: &str) -> Self {
+        Self { name: name.to_string(), types: Default::default() }
     }
 }
 
@@ -174,6 +188,177 @@ impl AssetManager {
     fn registry_mut<A: 'static>(&'_ mut self) -> Result<&'_ mut AssetRegistry<A>> {
         self.types.get_mut(&TypeId::of::<A>()).map(|t| t.registry.as_any_mut().downcast_mut().unwrap())
             .with_context(|| "Asset type not found")
+    }
+
+    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        struct BundlesSerialize<'a> {
+            manager: &'a AssetManager,
+        }
+        impl<'a> Serialize for BundlesSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                struct BundleSerialize<'a> {
+                    manager: &'a AssetManager,
+                    uid: UID,
+                }
+                impl<'a> Serialize for BundleSerialize<'a> {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                        where S: Serializer {
+                        self.manager.serialize_bundle(self.uid, serializer)
+                    }
+                }
+                let mut seq = serializer.serialize_seq(Some(self.manager.bundles.len()))?;
+                for uid in self.manager.bundles.keys() {
+                    seq.serialize_element(&BundleSerialize { uid: *uid, manager: self.manager })?;
+                }
+                seq.end()
+            }
+        }
+        struct DefaultsSerialize<'a> {
+            manager: &'a AssetManager,
+        }
+        impl<'a> Serialize for DefaultsSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                struct DefaultSerialize {
+                    type_name: UID,
+                    asset: Option<UID>,
+                }
+                impl Serialize for DefaultSerialize {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                        where S: Serializer {
+                        let mut tuple = serializer.serialize_tuple(2)?;
+                        tuple.serialize_element(&self.type_name)?;
+                        tuple.serialize_element(&self.asset)?;
+                        tuple.end()
+                    }
+                }
+                let mut seq = serializer.serialize_seq(Some(self.manager.types.len()))?;
+                for asset_type in self.manager.types.values() {
+                    seq.serialize_element(&DefaultSerialize { type_name: UID::new(&asset_type.name), asset: asset_type.default })?;
+                }
+                seq.end()
+            }
+        }
+        let mut tuple = serializer.serialize_tuple(2)?;
+        tuple.serialize_element(&BundlesSerialize { manager: self })?;
+        tuple.serialize_element(&DefaultsSerialize { manager: self })?;
+        tuple.end()
+    }
+
+    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+        struct AssetManagerVisitor<'a> {
+            manager: &'a mut AssetManager,
+        }
+        impl<'de, 'a> Visitor<'de> for AssetManagerVisitor<'a> {
+            type Value = ();
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Asset manager")
+            }
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where A: de::SeqAccess<'de> {
+                struct BundlesDeserializeSeed<'a> {
+                    manager: &'a mut AssetManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for BundlesDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        struct BundlesVisitor<'a> {
+                            manager: &'a mut AssetManager,
+                        }
+                        impl<'de, 'a> Visitor<'de> for BundlesVisitor<'a> {
+                            type Value = ();
+                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                formatter.write_str("Bundles")
+                            }
+                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                                where A: de::SeqAccess<'de> {
+                                use serde::de::Error;
+                                struct BundleDeserializeSeed<'a> {
+                                    manager: &'a mut AssetManager,
+                                }
+                                impl<'de, 'a> DeserializeSeed<'de> for BundleDeserializeSeed<'a> {
+                                    type Value = ImportAssetBundle;
+                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                                        where D: Deserializer<'de> {
+                                        self.manager.deserialize_bundle(deserializer)
+                                    }
+                                }
+                                while let Some(import) = seq.next_element_seed(BundleDeserializeSeed { manager: self.manager })? {
+                                    self.manager.import_bundle(import).map_err(Error::custom)?;
+                                }
+                                Ok(())
+                            }
+                        }
+                        self.manager.bundles.clear();
+                        for asset_type in self.manager.types.values_mut() {
+                            asset_type.registry.clear();
+                            asset_type.default = None;
+                        }
+                        deserializer.deserialize_seq(BundlesVisitor { manager: self.manager })
+                    }
+                }
+                struct DefaultsDeserializeSeed<'a> {
+                    manager: &'a mut AssetManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for DefaultsDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        struct DefaultsVisitor<'a> {
+                            manager: &'a mut AssetManager,
+                        }
+                        impl<'de, 'a> Visitor<'de> for DefaultsVisitor<'a> {
+                            type Value = ();
+                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                formatter.write_str("Defaults")
+                            }
+                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                                where A: de::SeqAccess<'de> {
+                                struct DefaultDeserializeSeed<'a> {
+                                    manager: &'a mut AssetManager,
+                                }
+                                impl<'de, 'a> DeserializeSeed<'de> for DefaultDeserializeSeed<'a> {
+                                    type Value = ();
+                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                                        where D: Deserializer<'de> {
+                                        struct DefaultVisitor<'a> {
+                                            manager: &'a mut AssetManager,
+                                        }
+                                        impl<'de, 'a> Visitor<'de> for DefaultVisitor<'a> {
+                                            type Value = ();
+                                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                                formatter.write_str("Default entry")
+                                            }
+                                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                                                where A: de::SeqAccess<'de> {
+                                                let name: UID = seq.next_element()?.with_context(|| "Expect typename").map_err(Error::custom)?;
+                                                let asset: Option<UID> = seq.next_element()?.with_context(|| "Expect default asset (option)").map_err(Error::custom)?;
+                                                let type_id = self.manager.uid_to_type.get(&name).with_context(|| "Type id not found").map_err(Error::custom)?;
+                                                let asset_type = self.manager.types.get_mut(type_id).with_context(|| "Asset type not found").map_err(Error::custom)?;
+                                                asset_type.default = asset;
+                                                Ok(())
+                                            }
+                                        }
+                                        deserializer.deserialize_tuple(2, DefaultVisitor { manager: self.manager })
+                                    }
+                                }
+                                use serde::de::Error;
+                                while seq.next_element_seed(DefaultDeserializeSeed { manager: self.manager })?.is_some() {}
+                                Ok(())
+                            }
+                        }
+                        deserializer.deserialize_seq(DefaultsVisitor { manager: self.manager })
+                    }
+                }
+                seq.next_element_seed(BundlesDeserializeSeed { manager: self.manager })?;
+                seq.next_element_seed(DefaultsDeserializeSeed { manager: self.manager })?;
+                Ok(())
+            }
+        }
+        deserializer.deserialize_tuple(2, AssetManagerVisitor { manager: self })?;
+        Ok(())
     }
 
     pub fn set_default<A: 'static>(&mut self, uid: UID) -> Result<()> {
@@ -214,10 +399,10 @@ impl AssetManager {
         Ok(self.registry::<A>()?.0.iter())
     }
 
-    pub fn add_bundle(&mut self, name: &str, owner: UID) -> Result<()> {
+    pub fn add_bundle(&mut self, name: &str) -> Result<()> {
         let uid = UID::new(name);
         if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle already exists")); }
-        self.bundles.insert(uid, AssetBundle::new(name, owner));
+        self.bundles.insert(uid, AssetBundle::new(name));
         Ok(())
     }
 
@@ -258,7 +443,7 @@ impl AssetManager {
         tuple.end()
     }
 
-    pub fn deserialize_bundle<'a, D: Deserializer<'a>>(&self, deserializer: D) -> Result<ImportAssetBundle> {
+    pub fn deserialize_bundle<'a, D: Deserializer<'a>>(&self, deserializer: D) -> Result<ImportAssetBundle, D::Error> {
         struct ImportAssetBundleVisitor<'a> {
             manager: &'a AssetManager,
         }
@@ -349,29 +534,28 @@ impl AssetManager {
                 Ok(ImportAssetBundle { name, types })
             }
         }
-        let import = deserializer.deserialize_tuple(2, ImportAssetBundleVisitor { manager: self })
-            .map_err(|err| anyhow!("Failed to deserialize bundle: {}", err.to_string()))?;
-        Ok(import)
+        deserializer.deserialize_tuple(2, ImportAssetBundleVisitor { manager: self })
     }
 
     pub fn import_bundle(&mut self, mut import: ImportAssetBundle) -> Result<()> {
-        let uid = UID::new(&import.name);
-        if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle name '{}' already exists", import.name)); }
-        for (typeid, assets) in &mut import.types {
-            let asset_type = self.types.get_mut(typeid).with_context(|| "Asset type not found")?;
+        self.add_bundle(&import.name)?;
+        let bundle = self.bundles.get_mut(&UID::new(&import.name)).expect("Bundle not found");
+        for (type_id, assets) in &mut import.types {
+            let asset_type = self.types.get_mut(type_id).with_context(|| "Asset type not found")?;
+            bundle.types.insert(*type_id, assets.collect_uids());
             asset_type.registry.merge(assets.as_mut())?;
         }
         Ok(())
     }
 
     pub fn register<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
-        let typeid = TypeId::of::<A>();
+        let type_id = TypeId::of::<A>();
         let uid: UID = name.into();
-        if self.types.contains_key(&typeid) || self.uid_to_type.contains_key(&uid) {
+        if self.types.contains_key(&type_id) || self.uid_to_type.contains_key(&uid) {
             return Err(anyhow!("Asset type already registered"));
         }
-        self.types.insert(typeid, AssetType::new::<A>(name));
-        self.uid_to_type.insert(uid, typeid);
+        self.types.insert(type_id, AssetType::new::<A>(name));
+        self.uid_to_type.insert(uid, type_id);
         Ok(())
     }
 
@@ -381,8 +565,8 @@ impl AssetManager {
         if self.registry::<A>()?.0.contains_key(&uid) { return Err(anyhow!("Asset '{}' already exists", name)); }
         let value = AssetEntry { name: name.to_string(), asset: data, bundle };
         self.registry_mut::<A>()?.0.insert(uid, value);
-        let typeid = TypeId::of::<A>();
-        self.bundles.get_mut(&bundle).unwrap().types.entry(typeid)
+        let type_id = TypeId::of::<A>();
+        self.bundles.get_mut(&bundle).unwrap().types.entry(type_id)
             .or_insert_with(Default::default)
             .insert(uid);
         Ok(())
@@ -394,8 +578,8 @@ impl AssetManager {
             // Remove from bundle
             let bundle_uid = self.registry_mut::<A>()?.0.get(&uid).unwrap().bundle;
             let bundle = self.bundles.get_mut(&bundle_uid).with_context(|| "Bundle not found")?;
-            let typeid = TypeId::of::<A>();
-            bundle.types.get_mut(&typeid).with_context(|| "Typeid in bundle was not found")?.remove(&uid);
+            let type_id = TypeId::of::<A>();
+            bundle.types.get_mut(&type_id).with_context(|| "Typeid in bundle was not found")?.remove(&uid);
         }
         {
             // TODO: check dependencies
@@ -409,12 +593,12 @@ impl AssetManager {
             .with_context(|| "Asset not found")?.bundle;
         if !self.bundles.contains_key(&dst_bundle) { return Err(anyhow!("Invalid destination bundle")); }
         if src_bundle == dst_bundle { return Ok(()); }
-        let typeid = TypeId::of::<A>();
+        let type_id = TypeId::of::<A>();
         self.bundles.get_mut(&src_bundle).with_context(|| "Source bundle not found")?
-            .types.get_mut(&typeid).with_context(|| "Typeid in source bundle not found")?
+            .types.get_mut(&type_id).with_context(|| "Typeid in source bundle not found")?
             .remove(&uid);
         self.bundles.get_mut(&dst_bundle)
-            .unwrap().types.entry(typeid).or_insert_with(Default::default).insert(uid);
+            .unwrap().types.entry(type_id).or_insert_with(Default::default).insert(uid);
         self.registry_mut::<A>()?.0.get_mut(&uid).unwrap().bundle = dst_bundle;
         Ok(())
     }

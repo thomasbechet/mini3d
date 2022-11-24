@@ -242,6 +242,15 @@ impl WGPURenderer {
         }
     }
 
+    pub fn reset(&mut self) -> Result<()> {
+        // Remove all models
+        let ids = self.models.keys().collect::<Vec<_>>();
+        for id in ids {
+            self.remove_model(id)?;
+        }
+        Ok(())
+    }
+
     fn create_texture(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
         let texture = asset.entry::<feature::asset::texture::Texture>(uid)
             .with_context(|| "Texture not found")?;
@@ -282,7 +291,7 @@ impl WGPURenderer {
                 &self.flat_material_bind_group_layout, 
                 &diffuse.view,
                 &material.name,
-            ) 
+            )
         });
         Ok(())
     }
@@ -328,7 +337,7 @@ impl WGPURenderer {
         // Update mesh passes
         {
             if self.forward_mesh_pass.out_of_date() {
-                println!("rebuild mesh pass");
+                println!("rebuild forward mesh pass");
                 self.forward_mesh_pass.build(&self.objects, &self.submeshes);
                 self.forward_mesh_pass.write_buffers(&self.context);
             }
@@ -460,8 +469,8 @@ impl WGPURenderer {
             surface_render_pass.set_viewport(
                 app_viewport.x, 
                 app_viewport.y, 
-                app_viewport.z, 
-                app_viewport.w, 
+                app_viewport.z,
+                app_viewport.w,
                 0.0, 1.0
             );
 
@@ -499,15 +508,19 @@ impl RendererBackend for WGPURenderer {
     fn add_model(&mut self, desc: &RendererModelDescriptor, asset: &AssetManager) -> Result<RendererModelId> { 
         match desc {
             RendererModelDescriptor::FromAsset(uid) => {
+
                 // Find the model asset
                 let model = asset.get::<feature::asset::model::Model>(*uid)
                     .with_context(|| "Model asset not found")?;
+
                 // Create the model index
                 let model_index = self.model_buffer.add();
-                // Find the mesh
+
+                // Create missing meshes
                 if !self.meshes.contains_key(&model.mesh) {
                     self.create_mesh(model.mesh, asset)?;
                 }
+
                 // Create missing materials
                 model.materials.iter()
                     .map(|material| {
@@ -516,7 +529,8 @@ impl RendererBackend for WGPURenderer {
                         }
                         Ok(())
                     }).collect::<Result<Vec<_>>>()?;
-                // Try create objects
+
+                // Create objects and collect ids
                 let objects = self.meshes.get(&model.mesh).expect("Mesh was not created")
                     .submeshes.iter().enumerate()
                     .map(|(i, submesh)| {
@@ -535,6 +549,7 @@ impl RendererBackend for WGPURenderer {
                         Ok(object_id)
                     })
                     .collect::<Result<Vec<_>>>()?;
+
                 // Add model
                 Ok(self.models.insert(Model { 
                     mesh: model.mesh, 
@@ -545,8 +560,26 @@ impl RendererBackend for WGPURenderer {
             },
         }
     }
-    fn remove_model(&mut self, _id: RendererModelId) -> Result<()> { 
-        todo!()
+    fn remove_model(&mut self, id: RendererModelId) -> Result<()> { 
+
+        // Remove model
+        let model = self.models.remove(id).with_context(|| "Model not found")?;
+        for id in &model.objects {
+
+            // Remove objects
+            let object = self.objects.remove(*id).with_context(|| "Object not found")?;
+            if object.draw_forward_pass {
+                self.forward_mesh_pass.remove(*id);
+            }
+            if object.draw_shadow_pass {
+                // TODO: remove from pass
+            }
+        }
+
+        // Remove index
+        self.model_buffer.remove(model.model_index);
+
+        Ok(())
     }
     fn update_model_transform(&mut self, id: RendererModelId, mat: Mat4) -> Result<()> { 
         let model = self.models.get(id)

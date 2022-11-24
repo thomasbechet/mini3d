@@ -1,5 +1,6 @@
 use anyhow::Result;
 use glam::Vec2;
+use serde::{Serialize, Deserialize};
 use slotmap::{SlotMap, SecondaryMap, new_key_type, Key};
 
 use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION}, uid::UID};
@@ -23,6 +24,7 @@ impl Direction {
     pub(crate) const COUNT: usize = 4;
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ControlInputs {
 
     // Selection inputs
@@ -38,18 +40,20 @@ pub struct ControlInputs {
     pub cursor_motion_y: UID,
 }
 
+#[derive(Serialize, Deserialize)]
 enum ControlMode {
     Selection { selected: ControlId },
     Cursor { position: Vec2 },
 }
 
+#[derive(Serialize, Deserialize)]
 struct ControlProfile {
     mode: ControlMode,
     inputs: ControlInputs,
     last_cursor_position: Vec2,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct ControlLayout {
 
     // Layout data

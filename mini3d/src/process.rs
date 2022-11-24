@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow, Context};
-use serde::{Deserialize, Serialize, Serializer, ser::SerializeTuple, Deserializer, de::{Visitor, DeserializeSeed}};
+use serde::{Deserialize, Serialize, Serializer, ser::{SerializeTuple, SerializeSeq}, Deserializer, de::{Visitor, DeserializeSeed}};
 use std::{collections::HashMap, any::TypeId, marker::PhantomData};
 
 use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, ecs::ECSManager, uid::UID, signal::SignalManager};
@@ -250,7 +250,7 @@ impl ProcessManager {
         Ok(())
     }
 
-    pub fn serialize_process<S: Serializer>(&self, process: UID, serializer: S) -> Result<S::Ok, S::Error> {
+    pub(crate) fn serialize_process<S: Serializer>(&self, process: UID, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
         let instance = self.instances.get(&process)
             .with_context(|| "Process not found").map_err(Error::custom)?;
@@ -266,15 +266,15 @@ impl ProcessManager {
         tuple.end()
     }
 
-    pub fn deserialize_process<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
-        struct ProcessDataVisitor<'a> {
+    pub(crate) fn deserialize_process<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+        struct ProcessInstanceVisitor<'a> {
             instances: &'a mut HashMap<UID, Box<dyn AnyProcessInstance>>,
             meta: &'a mut ProcessMetaTable,
         }
-        impl<'de, 'a> Visitor<'de> for ProcessDataVisitor<'a> {
+        impl<'de, 'a> Visitor<'de> for ProcessInstanceVisitor<'a> {
             type Value = ();
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Process data")
+                formatter.write_str("Process instance")
             }
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: serde::de::SeqAccess<'de>
@@ -312,7 +312,56 @@ impl ProcessManager {
                 Ok(())
             }
         }
-        deserializer.deserialize_tuple(4, ProcessDataVisitor { instances: &mut self.instances, meta: &mut self.meta })?;
+        deserializer.deserialize_tuple(4, ProcessInstanceVisitor { instances: &mut self.instances, meta: &mut self.meta })?;
+        Ok(())
+    }
+
+    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        struct ProcessSerialize<'a> {
+            manager: &'a ProcessManager,
+            uid: UID,
+        }
+        impl<'a> Serialize for ProcessSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.serialize_process(self.uid, serializer)
+            }
+        }
+        let mut seq = serializer.serialize_seq(Some(self.instances.len()))?;
+        for uid in self.instances.keys() {
+            seq.serialize_element(&ProcessSerialize { manager: self, uid: *uid })?;
+        }
+        seq.end()
+    }
+
+    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+        struct ProcessVisitor<'a> {
+            manager: &'a mut ProcessManager,
+        }
+        impl<'de, 'a> Visitor<'de> for ProcessVisitor<'a> {
+            type Value = ();
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Process")
+            }
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where A: serde::de::SeqAccess<'de> {
+                struct ProcessDeserializeSeed<'a> {
+                    manager: &'a mut ProcessManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for ProcessDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.deserialize_process(deserializer)
+                    }
+                }
+                while seq.next_element_seed(ProcessDeserializeSeed { manager: self.manager })?.is_some() {}
+                Ok(())
+            }
+        }
+        self.instances.clear();
+        self.meta.states.clear();
+        deserializer.deserialize_seq(ProcessVisitor { manager: self })?;
         Ok(())
     }
 

@@ -1,8 +1,9 @@
 use glam::IVec2;
+use serde::{Serialize, Deserialize};
 
 /// Basic rectangle structure with useful functions
 /// Vec4: xy -> top-left, zw -> bottom-right
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct IRect {
     tl: IVec2,
     br: IVec2,

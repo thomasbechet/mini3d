@@ -1,26 +1,22 @@
 use std::{fs::File, io::Read};
 
-use mini3d::{uid::UID, ecs::ECS, input::control_layout::{ControlLayout, ControlProfileId, ControlInputs}, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::Result, glam::{Vec3, Quat}, rand, math::rect::IRect};
+use mini3d::{uid::UID, input::control_layout::{ControlLayout, ControlProfileId, ControlInputs}, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, ecs::ECS};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct OSProcess {
-    #[serde(skip)]
-    ecs: ECS,
-    #[serde(skip)]
+    ecs: UID,
     control_layout: ControlLayout,
-    #[serde(skip)]
     control_profile: ControlProfileId,
-    #[serde(skip)]
     layout_active: bool,
 }
 
 impl OSProcess {
 
     fn setup_assets(&mut self, ctx: &mut ProcessContext) -> Result<()> {
-        ctx.asset.add_bundle("default", ctx.uid).unwrap();
+        ctx.asset.add_bundle("default").unwrap();
         let default_bundle = UID::new("default");
 
         // Register default font
@@ -243,8 +239,10 @@ impl OSProcess {
         Ok(())
     }
 
-    fn setup_world(&mut self) -> Result<()> {
-        self.ecs.world.spawn((
+    fn setup_world(&mut self, ctx: &mut ProcessContext) -> Result<()> {
+        self.ecs = ctx.ecs.add("main").with_context(|| "Failed to create ECS")?;
+        let world = ctx.ecs.world(self.ecs)?;
+        world.spawn((
             LifecycleComponent::default(),
             TransformComponent {
                 translation: Vec3::new(0.0, -7.0, 0.0),    
@@ -254,13 +252,13 @@ impl OSProcess {
             RotatorComponent { speed: 90.0 },
             ModelComponent::new("alfred".into()),
         ));
-        self.ecs.world.spawn((
+        world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
             ModelComponent::new("alfred".into()),
         ));
         for i in 0..100 {
-            self.ecs.world.spawn((
+            world.spawn((
                 LifecycleComponent::default(),
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
@@ -269,13 +267,13 @@ impl OSProcess {
                 RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
         }
-        self.ecs.world.spawn((
+        world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
             ModelComponent::new("car".into()),
             RotatorComponent { speed: 30.0 }
         ));
-        let e = self.ecs.world.spawn((
+        let e = world.spawn((
             LifecycleComponent::default(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
@@ -300,7 +298,7 @@ impl OSProcess {
             RhaiScriptsComponent::default(),
         ));
                 
-        self.ecs.world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
+        world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
 
         Ok(())
     }
@@ -327,7 +325,6 @@ impl Process for OSProcess {
             // file.write_all(&bytes).unwrap();
 
 
-            use mini3d::anyhow::Context;
             let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
             let mut bytes: Vec<u8> = Default::default();
             file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
@@ -361,7 +358,7 @@ impl Process for OSProcess {
 
         {
             // Initialize world
-            // self.setup_world()?;
+            self.setup_world(ctx)?;
 
             // let file = File::create("assets/world.json")?;
             // let mut serializer = serde_json::Serializer::new(file);
@@ -375,16 +372,16 @@ impl Process for OSProcess {
             // let mut deserializer = serde_json::Deserializer::from_reader(file);
             // self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
 
-            let mut file = File::open("assets/world.bin")?;
-            let mut bytes: Vec<u8> = Default::default();
-            file.read_to_end(&mut bytes).unwrap();
-            let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
+            // let mut file = File::open("assets/world.bin")?;
+            // let mut bytes: Vec<u8> = Default::default();
+            // file.read_to_end(&mut bytes).unwrap();
+            // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            // self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
         }
 
         // Configure schedule
         let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
-        self.ecs.set_schedule(schedule).unwrap();
+        ctx.ecs.set_schedule(self.ecs, schedule)?;
 
         // Run profiler
         ctx.process.start("profiler", ProfilerProcess::new(UID::new(CommonAction::TOGGLE_PROFILER)))?;
@@ -394,12 +391,12 @@ impl Process for OSProcess {
     fn update(&mut self, ctx: &mut ProcessContext) -> Result<()> {
 
         // Progress ECS
-        self.ecs.progress(ctx)?;
+        ECS::progress(self.ecs, ctx)?;
 
-        // Toggle control mode
+        // // Toggle control mode
         if ctx.input.action(CommonAction::CHANGE_CONTROL_MODE.into())?.is_just_pressed() {
             self.layout_active = !self.layout_active;
-            for (_, free_fly) in self.ecs.world.query_mut::<&mut FreeFlyComponent>() {
+            for (_, free_fly) in ctx.ecs.world(self.ecs)?.query_mut::<&mut FreeFlyComponent>() {
                 free_fly.active = !self.layout_active;
             } 
         }

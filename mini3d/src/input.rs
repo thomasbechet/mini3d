@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use anyhow::{Result, anyhow};
-use serde::{Serialize, Deserialize};
+use anyhow::{Result, anyhow, Context};
+use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
 
 use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::{input_axis::{InputAxisRange, InputAxis}, input_action::InputAction}, asset::AssetManager};
 
@@ -104,6 +104,35 @@ impl InputManager {
                 }
             },
         }
+    }
+
+    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut tuple = serializer.serialize_tuple(2)?;
+        tuple.serialize_element(&self.actions)?;
+        tuple.serialize_element(&self.axis)?;
+        tuple.end()
+    }
+
+    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+        struct InputVisitor<'a> {
+            manager: &'a mut InputManager,
+        }
+        impl<'de, 'a> Visitor<'de> for InputVisitor<'a> {
+            type Value = ();
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Input manager data")
+            }
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where A: serde::de::SeqAccess<'de> {
+                use serde::de::Error;
+                self.manager.actions = seq.next_element()?.with_context(|| "Expect actions").map_err(Error::custom)?;
+                self.manager.axis = seq.next_element()?.with_context(|| "Expect axis").map_err(Error::custom)?;
+                Ok(())
+            }
+        }
+        self.reload_input_mapping = true;
+        self.text.clear();
+        deserializer.deserialize_tuple(2, InputVisitor { manager: self })
     }
 
     pub fn reload_input_tables(&mut self, asset: &AssetManager) -> Result<()> {

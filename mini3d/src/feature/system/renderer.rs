@@ -28,15 +28,15 @@ pub fn check_lifecycle(ctx: &mut SystemContext, world: &mut World) -> Result<()>
 }
 
 pub fn transfer_transforms(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
-    for (_, (t, c)) in world.query_mut::<(&TransformComponent, &CameraComponent)>() {
-        ctx.renderer.update_camera(c.id, t.translation, t.forward(), t.up(), c.fov)?;
+    for (_, (t, m)) in world.query_mut::<(&TransformComponent, &ModelComponent)>() {
+        ctx.renderer.update_model_transform(m.id, t.matrix())?;
     }
     Ok(())
 }
 
 pub fn update_camera(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
-    for (_, (t, m)) in world.query_mut::<(&TransformComponent, &ModelComponent)>() {
-        ctx.renderer.update_model_transform(m.id, t.matrix())?;
+    for (_, (t, c)) in world.query_mut::<(&TransformComponent, &CameraComponent)>() {
+        ctx.renderer.update_camera(c.id, t.translation, t.forward(), t.up(), c.fov)?;
     }
     Ok(())
 }

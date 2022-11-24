@@ -1,4 +1,7 @@
 use anyhow::Result;
+use serde::de::{Visitor, DeserializeSeed};
+use serde::ser::SerializeTuple;
+use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::AssetManager;
 use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
@@ -85,6 +88,134 @@ impl App {
         };
         app.register_feature()?;
         Ok(app)
+    }
+
+    pub fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        struct AssetManagerSerialize<'a> {
+            manager: &'a AssetManager,
+        }
+        impl<'a> Serialize for AssetManagerSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.save_state(serializer)
+            }
+        }
+        struct ProcessManagerSerialize<'a> {
+            manager: &'a ProcessManager,
+        }
+        impl<'a> Serialize for ProcessManagerSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.save_state(serializer)
+            }
+        }
+        struct ECSManagerSerialize<'a> {
+            manager: &'a ECSManager,
+        }
+        impl<'a> Serialize for ECSManagerSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.save_state(serializer)
+            }
+        }
+        struct InputManagerSerialize<'a> {
+            manager: &'a InputManager,
+        }
+        impl<'a> Serialize for InputManagerSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.save_state(serializer)
+            }
+        }
+        struct SignalManagerSerialize<'a> {
+            manager: &'a SignalManager,
+        }
+        impl<'a> Serialize for SignalManagerSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.save_state(serializer)
+            }
+        }
+        let mut tuple = serializer.serialize_tuple(5)?;
+        tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
+        tuple.serialize_element(&ProcessManagerSerialize { manager: &self.process })?;
+        tuple.serialize_element(&ECSManagerSerialize { manager: &self.ecs })?;
+        tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
+        tuple.serialize_element(&SignalManagerSerialize { manager: &self.signal })?;
+        tuple.end()
+    }
+
+    pub fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+        struct AppVisitor<'a> {
+            app: &'a mut App,
+        }
+        impl<'de, 'a> Visitor<'de> for AppVisitor<'a> {
+            type Value = ();
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("App")
+            }
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where A: serde::de::SeqAccess<'de> {
+                struct AssetManagerDeserializeSeed<'a> {
+                    manager: &'a mut AssetManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for AssetManagerDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.load_state(deserializer)
+                    }
+                }
+                struct ProcessManagerDeserializeSeed<'a> {
+                    manager: &'a mut ProcessManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for ProcessManagerDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.load_state(deserializer)
+                    }
+                }
+                struct ECSManagerDeserializeSeed<'a> {
+                    manager: &'a mut ECSManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.load_state(deserializer)
+                    }
+                }
+                struct InputManagerDeserializeSeed<'a> {
+                    manager: &'a mut InputManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for InputManagerDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.load_state(deserializer)
+                    }
+                }
+                struct SignalManagerDeserializeSeed<'a> {
+                    manager: &'a mut SignalManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for SignalManagerDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.load_state(deserializer)
+                    }
+                }
+                seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.app.asset })?;
+                seq.next_element_seed(ProcessManagerDeserializeSeed { manager: &mut self.app.process })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.app.ecs })?;
+                seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.app.input })?;
+                seq.next_element_seed(SignalManagerDeserializeSeed { manager: &mut self.app.signal })?;
+                Ok(())
+            }
+        }
+        deserializer.deserialize_tuple(5, AppVisitor { app: self })?;
+        Ok(())
     }
 
     pub fn progress<'a>(
