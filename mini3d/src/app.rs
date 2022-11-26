@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use serde::de::{Visitor, DeserializeSeed};
 use serde::ser::SerializeTuple;
 use serde::{Serializer, Deserializer, Serialize};
@@ -29,6 +29,7 @@ pub struct App {
     default_backend: DefaultBackend,
 
     accumulator: f64,
+    time: f64,
 }
 
 impl App {
@@ -85,6 +86,7 @@ impl App {
             signal: Default::default(),
             default_backend: Default::default(),
             accumulator: 0.0,
+            time: 0.0,
         };
         app.register_feature()?;
         Ok(app)
@@ -136,12 +138,14 @@ impl App {
                 self.manager.save_state(serializer)
             }
         }
-        let mut tuple = serializer.serialize_tuple(5)?;
+        let mut tuple = serializer.serialize_tuple(7)?;
         tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
         tuple.serialize_element(&ProcessManagerSerialize { manager: &self.process })?;
         tuple.serialize_element(&ECSManagerSerialize { manager: &self.ecs })?;
         tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
         tuple.serialize_element(&SignalManagerSerialize { manager: &self.signal })?;
+        tuple.serialize_element(&self.accumulator)?;
+        tuple.serialize_element(&self.time)?;
         tuple.end()
     }
 
@@ -156,6 +160,7 @@ impl App {
             }
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: serde::de::SeqAccess<'de> {
+                use serde::de::Error;
                 struct AssetManagerDeserializeSeed<'a> {
                     manager: &'a mut AssetManager,
                 }
@@ -211,10 +216,12 @@ impl App {
                 seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.app.ecs })?;
                 seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.app.input })?;
                 seq.next_element_seed(SignalManagerDeserializeSeed { manager: &mut self.app.signal })?;
+                self.app.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
+                self.app.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
                 Ok(())
             }
         }
-        deserializer.deserialize_tuple(5, AppVisitor { app: self })?;
+        deserializer.deserialize_tuple(7, AppVisitor { app: self })?;
         Ok(())
     }
 
@@ -256,6 +263,7 @@ impl App {
             delta_time = MAXIMUM_TIMESTEP; // Slowing down
         }
         self.accumulator += delta_time;
+        self.time += delta_time;
 
         // Prepare resources for drawing
         backend.renderer.reset_command_buffers();
@@ -270,6 +278,7 @@ impl App {
             renderer: backend.renderer,
             events,
             delta_time,
+            time: self.time,
         };
         self.process.update(&mut ctx)?;
 

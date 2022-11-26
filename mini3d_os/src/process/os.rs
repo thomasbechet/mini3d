@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use mini3d::{uid::UID, input::control_layout::{ControlLayout, ControlProfileId, ControlInputs}, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, ecs::ECS};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, ecs::ECS, gui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -8,8 +8,8 @@ use crate::{input::{CommonAxis, CommonAction}};
 #[derive(Default, Serialize, Deserialize)]
 pub struct OSProcess {
     ecs: UID,
-    control_layout: ControlLayout,
-    control_profile: ControlProfileId,
+    navigation_layout: NavigationLayout,
+    control_profile: UID,
     layout_active: bool,
 }
 
@@ -342,7 +342,7 @@ impl Process for OSProcess {
         ctx.input.reload_input_tables(ctx.asset)?;
 
         // Add initial control profile
-        self.control_profile = self.control_layout.add_profile(ControlInputs {
+        self.control_profile = self.navigation_layout.add_profile("main", NavigationLayoutInputs {
             up: CommonAction::UP.into(),
             down: CommonAction::DOWN.into(),
             left: CommonAction::LEFT.into(),
@@ -351,10 +351,13 @@ impl Process for OSProcess {
             cursor_y: CommonAxis::CURSOR_Y.into(),
             cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
             cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
-        });
+        })?;
 
-        self.control_layout.add_control(IRect::new(5, 5, 100, 50));
-        self.control_layout.add_control(IRect::new(5, 200, 100, 50));
+        self.navigation_layout.add_area("area1", IRect::new(5, 5, 100, 50))?;
+        self.navigation_layout.add_area("area2", IRect::new(5, 200, 100, 50))?;
+        self.navigation_layout.add_area("area3", IRect::new(150, 5, 100, 50))?;
+        self.navigation_layout.add_area("area4", IRect::new(150, 200, 50, 50))?;
+        self.navigation_layout.add_area("area5", IRect::new(400, 50, 100, 200))?;
 
         {
             // Initialize world
@@ -403,8 +406,8 @@ impl Process for OSProcess {
 
         // Toggle control layout
         if self.layout_active {
-            self.control_layout.update(ctx.input)?;
-            let cb0 = self.control_layout.render();
+            self.navigation_layout.update(ctx.input, ctx.time)?;
+            let cb0 = self.navigation_layout.render(ctx.time);
             ctx.renderer.push_command_buffer(cb0);
         }
 

@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 
 /// Basic rectangle structure with useful functions
 /// Vec4: xy -> top-left, zw -> bottom-right
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct IRect {
     tl: IVec2,
     br: IVec2,
@@ -72,6 +72,18 @@ impl IRect {
     }
 
     #[inline]
+    pub fn top(&self) -> i32 { self.tl.y }
+
+    #[inline]
+    pub fn bottom(&self) -> i32 { self.br.y }
+
+    #[inline]
+    pub fn left(&self) -> i32 { self.tl.x }
+
+    #[inline]
+    pub fn right(&self) -> i32 { self.br.x }
+
+    #[inline]
     pub fn width(&self) -> u32 {
         self.br.x as u32 - self.tl.x as u32
     }
@@ -90,5 +102,13 @@ impl IRect {
     pub fn clamp(&mut self, rect: &IRect) {
         self.tl = self.tl.max(rect.tl);
         self.br = self.br.min(rect.br);
+    }
+
+    #[inline]
+    pub fn lerp(&self, rect: &IRect, a: f32) -> Self {
+        Self {
+            tl: self.tl.as_vec2().lerp(rect.tl.as_vec2(), a).as_ivec2(),
+            br: self.br.as_vec2().lerp(rect.br.as_vec2(), a).as_ivec2(),
+        }
     }
 }

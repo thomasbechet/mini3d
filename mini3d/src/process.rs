@@ -54,6 +54,7 @@ pub(crate) struct ProcessManagerContext<'a> {
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
     pub delta_time: f64,
+    pub time: f64,
 }
 
 #[derive(Default)]
@@ -156,7 +157,8 @@ pub struct ProcessContext<'a, 'b> {
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
     pub delta_time: f64,
-    pub uid: UID,
+    pub time: f64,
+    pub process_uid: UID,
 }
 
 struct ProcessInstance<P: Process>(P);
@@ -198,7 +200,8 @@ impl ProcessManager {
             renderer: ctx.renderer,
             events: ctx.events,
             delta_time: ctx.delta_time,
-            uid,
+            time: ctx.time,
+            process_uid: uid,
         };
         f(instance.process_mut(), &mut ctx)?;
         for (uid, process) in interface.started_processes.drain() {

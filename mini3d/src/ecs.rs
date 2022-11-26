@@ -4,14 +4,16 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemSchedule}};
+use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemSchedule}, signal::SignalManager};
 
 pub struct SystemContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
+    pub signal: &'a mut SignalManager,
     pub script: &'a mut ScriptManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub delta_time: f64,
+    pub time: f64,
 }
 
 pub type SystemRunCallback = fn(&mut SystemContext, &mut World) -> Result<()>;
@@ -274,9 +276,11 @@ impl ECS {
         let mut system_context = SystemContext {
             asset: ctx.asset,
             input: ctx.input,
+            signal: ctx.signal,
             script: ctx.script,
             renderer: ctx.renderer,
             delta_time: ctx.delta_time,
+            time: ctx.time,
         };
         let manager = &mut ctx.ecs;
         let instance = manager.instances.get_mut(&uid).with_context(|| "ECS not found")?;

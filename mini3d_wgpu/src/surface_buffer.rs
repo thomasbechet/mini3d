@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer}, glam::UVec2, app::App, feature::asset::font::Font};
+use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer, SCREEN_RESOLUTION}, glam::{UVec2, IVec2}, app::App, feature::asset::font::Font};
 use wgpu::TextureViewDescriptor;
 
 use crate::context::WGPUContext;
@@ -115,23 +115,21 @@ impl SurfaceBuffer {
                     rasterizer::draw_hline(self, *y, *x0, *x1);
                 }
                 mini3d::graphics::command_buffer::Command::DrawRect { rect } => {
-                    let mut rect = *rect;
-                    rect.clamp(&SCREEN_VIEWPORT);
-                    rasterizer::draw_rect(self, rect);
+                    rasterizer::draw_rect(self, *rect);
                 }
                 mini3d::graphics::command_buffer::Command::FillRect { rect } => {
-                    let mut rect = *rect;
-                    rect.clamp(&SCREEN_VIEWPORT);
-                    rasterizer::fill_rect(self, rect);
+                    rasterizer::fill_rect(self, *rect);
                 }
-            }   
+            }
         }
     }
 }
 
 impl Plotable for SurfaceBuffer {
-    fn plot(&mut self, p: UVec2) {
-        let index = p.y as usize * SCREEN_WIDTH as usize + p.x as usize;
-        self.buffer[index] = Color::WHITE;
+    fn plot(&mut self, p: IVec2) {
+        if SCREEN_VIEWPORT.contains(p) {
+            let index = p.y as usize * SCREEN_WIDTH as usize + p.x as usize;
+            self.buffer[index] = Color::WHITE;
+        }
     }
 }

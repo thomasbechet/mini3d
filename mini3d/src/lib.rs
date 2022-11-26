@@ -5,6 +5,7 @@ pub mod ecs;
 pub mod event;
 pub mod feature;
 pub mod graphics;
+pub mod gui;
 pub mod input;
 pub mod math;
 pub mod process;

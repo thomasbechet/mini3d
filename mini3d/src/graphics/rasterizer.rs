@@ -1,4 +1,4 @@
-use glam::{UVec2, IVec2};
+use glam::IVec2;
 
 use crate::{feature::asset::font::Font, math::rect::IRect};
 
@@ -7,8 +7,8 @@ pub trait Plotable {
     /// 
     /// # Arguments
     /// 
-    /// * `p` - Point coordinates (assumed in the screen resolution)
-    fn plot(&mut self, p: UVec2);
+    /// * `p` - Point coordinates
+    fn plot(&mut self, p: IVec2);
 }
 
 pub fn draw_line(p: &mut impl Plotable, mut p0: IVec2, p1: IVec2) {
@@ -19,7 +19,7 @@ pub fn draw_line(p: &mut impl Plotable, mut p0: IVec2, p1: IVec2) {
     let mut error = dx + dy;
 
     loop {
-        p.plot(p0.as_uvec2());
+        p.plot(p0);
         if p0.x == p1.x && p0.y == p1.y {
             break;
         }
@@ -43,13 +43,13 @@ pub fn draw_line(p: &mut impl Plotable, mut p0: IVec2, p1: IVec2) {
 
 pub fn draw_vline(p: &mut impl Plotable, x: i32, y0: i32, y1: i32) {
     for y in y0..=y1 {
-        p.plot(UVec2::new(x as u32, y as u32));
+        p.plot(IVec2::new(x, y));
     }
 }
 
 pub fn draw_hline(p: &mut impl Plotable, y: i32, x0: i32, x1: i32) {
     for x in x0..=x1 {
-        p.plot(UVec2::new(x as u32, y as u32));
+        p.plot(IVec2::new(x, y));
     }
 }
 
@@ -60,9 +60,9 @@ pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
             let end = start + (font.glyph_width as usize * font.glyph_height as usize);
             for (i, b) in font.data.as_bitslice()[start..end].iter().enumerate() {
                 if *b {
-                    let px = p.x as u32 + font.glyph_width as u32 * ic as u32 + (i as u32 % font.glyph_width as u32);
-                    let py = p.y as u32 + (i as u32 / font.glyph_width as u32);
-                    plot.plot(UVec2::new(px, py));
+                    let px = p.x + font.glyph_width as i32 * ic as i32 + (i as i32 % font.glyph_width as i32);
+                    let py = p.y + (i as i32 / font.glyph_width as i32);
+                    plot.plot(IVec2::new(px, py));
                 }
             }
         }
@@ -83,7 +83,7 @@ pub fn fill_rect(p: &mut impl Plotable, rect: IRect) {
     let p1 = rect.br();
     for y in p0.y..=p1.y {
         for x in p0.x..=p1.x {
-            p.plot(UVec2::new(x as u32, y as u32));
+            p.plot(IVec2::new(x, y));
         }
     }
 }

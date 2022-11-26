@@ -5,8 +5,6 @@ use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTupl
 
 use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::{input_axis::{InputAxisRange, InputAxis}, input_action::InputAction}, asset::AssetManager};
 
-pub mod control_layout;
-
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
     pressed: bool,

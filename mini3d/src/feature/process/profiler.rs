@@ -98,10 +98,11 @@ impl Process for ProfilerProcess {
             let cb1 = CommandBuffer::build_with(|builder| {
                 let font = UID::new("default");
                 builder
-                    .print((8, 8).into(), format!("dt : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), font)
-                    .print((8, 17).into(), format!("dc : {}", ctx.renderer.statistics().draw_count).as_str(), font)
-                    .print((8, 26).into(), format!("tc : {}", ctx.renderer.statistics().triangle_count).as_str(), font)
-                    .print((8, 35).into(), format!("vp : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), font)
+                    .print((8, 8).into(), format!("dt   : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), font)
+                    .print((8, 17).into(), format!("time : {:.2}", ctx.time).as_str(), font)
+                    .print((8, 26).into(), format!("dc   : {}", ctx.renderer.statistics().draw_count).as_str(), font)
+                    .print((8, 35).into(), format!("tc   : {}", ctx.renderer.statistics().triangle_count).as_str(), font)
+                    .print((8, 44).into(), format!("vp   : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), font)
             });
             ctx.renderer.push_command_buffer(cb1);
             ctx.renderer.push_command_buffer(self.time_graph.render());
