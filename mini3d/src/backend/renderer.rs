@@ -2,7 +2,7 @@ use anyhow::Result;
 use glam::{Mat4, Vec3};
 use slotmap::new_key_type;
 
-use crate::{graphics::CommandBuffer, asset::AssetManager, uid::UID};
+use crate::{asset::AssetManager, uid::UID, graphics::command_buffer::CommandBuffer};
 
 new_key_type! {
     pub struct RendererCameraId;

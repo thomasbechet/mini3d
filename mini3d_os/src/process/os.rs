@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, CommandBuffer, SCREEN_CENTER}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, ecs::ECS, gui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, ecs::ECS, gui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -412,9 +412,8 @@ impl Process for OSProcess {
         }
 
         // Render center cross
-        let cb = CommandBuffer::build_with(|builder| {
-            builder.fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2))
-        });
+        let mut cb = CommandBuffer::empty();
+        cb.push(Command::FillRect { rect: IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2) });
         ctx.renderer.push_command_buffer(cb);
 
         Ok(())

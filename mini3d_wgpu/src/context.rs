@@ -59,8 +59,8 @@ impl WGPUContext {
         // Configure the surface
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter).first().unwrap().to_owned(),
-            // format: wgpu::TextureFormat::Rgb10a2Unorm,
+            // format: surface.get_supported_formats(&adapter).first().unwrap().to_owned(),
+            format: wgpu::TextureFormat::Bgra8UnormSrgb,
             width: 1600,
             height: 900,
             present_mode: wgpu::PresentMode::Fifo,

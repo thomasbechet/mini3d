@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, CommandBuffer, SCREEN_RESOLUTION}, glam::{UVec2, IVec2}, app::App, feature::asset::font::Font};
+use mini3d::{graphics::{SCREEN_PIXEL_COUNT, rasterizer::{Plotable, self}, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_VIEWPORT, command_buffer::CommandBuffer}, glam::IVec2, app::App, feature::asset::font::Font};
 use wgpu::TextureViewDescriptor;
 
 use crate::context::WGPUContext;

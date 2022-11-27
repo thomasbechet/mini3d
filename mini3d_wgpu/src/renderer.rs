@@ -6,7 +6,8 @@ use mini3d::asset::AssetManager;
 use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererCameraId, RendererStatistics, RendererModelDescriptor};
 use mini3d::feature;
 use mini3d::glam::{Vec4, Mat4, Vec3};
-use mini3d::graphics::CommandBuffer;
+use mini3d::graphics::color::{linear_to_srgb, srgb_to_linear};
+use mini3d::graphics::command_buffer::CommandBuffer;
 use mini3d::slotmap::{SlotMap, new_key_type};
 use mini3d::uid::UID;
 use wgpu::SurfaceError;
@@ -420,6 +421,11 @@ impl WGPURenderer {
 
         // Post Process Render Pass
         {
+            let clear_color = srgb_to_linear([
+                25.0 / 255.0, 
+                27.0 / 255.0, 
+                43.0 / 255.0
+            ]);
             let mut post_process_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("post_process_render_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -427,9 +433,9 @@ impl WGPURenderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 25.0 / 255.0,
-                            g: 27.0 / 255.0,
-                            b: 43.0 / 255.0,
+                            r: clear_color[0] as f64,
+                            g: clear_color[1] as f64,
+                            b: clear_color[2] as f64,
                             a: 1.0,
                         }),
                         store: true,

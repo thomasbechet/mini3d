@@ -13,9 +13,9 @@ pub(crate) fn create_flat_pipeline(
     let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("flat_pipeline_layout"),
         bind_group_layouts: &[
-            &global_bind_group_layout,
-            &mesh_pass_bind_group_layout, 
-            &flat_material_bind_group_layout
+            global_bind_group_layout,
+            mesh_pass_bind_group_layout, 
+            flat_material_bind_group_layout
         ],
         push_constant_ranges: &[],
     });

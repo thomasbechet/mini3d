@@ -3,7 +3,7 @@ use glam::{Vec2, IVec2};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
-use crate::{math::rect::IRect, graphics::{CommandBuffer, SCREEN_RESOLUTION, CommandBufferBuilder}, uid::UID, input::InputManager};
+use crate::{math::rect::IRect, graphics::{SCREEN_RESOLUTION, command_buffer::{CommandBuffer, Command}}, uid::UID, input::InputManager};
 
 #[derive(Clone, Copy)]
 enum Direction {
@@ -82,7 +82,7 @@ pub struct NavigationLayout {
 
 impl NavigationLayout {
 
-    fn render_selection(extent: IRect, time: f64, cbb: &mut CommandBufferBuilder) {
+    fn render_selection(extent: IRect, time: f64, cb: &mut CommandBuffer) {
         let offset = if (time % 1.0) > 0.5 { 1 } else { 0 };
         let length = 2;
 
@@ -91,22 +91,22 @@ impl NavigationLayout {
         let bl = extent.bl() + IVec2::new(-offset, offset); 
         let br = extent.br() + IVec2::new(offset, offset); 
 
-        cbb.draw_hline(tl.y, tl.x, tl.x + length);
-        cbb.draw_vline(tl.x, tl.y, tl.y + length);
+        cb.push(Command::DrawHLine { y: tl.y, x0: tl.x, x1: tl.x + length });
+        cb.push(Command::DrawVLine { x: tl.x, y0: tl.y, y1: tl.y + length });
         
-        cbb.draw_hline(tr.y, tr.x - length, tr.x);
-        cbb.draw_vline(tr.x, tr.y, tr.y + length);
+        cb.push(Command::DrawHLine { y: tr.y, x0: tr.x - length, x1: tr.x });
+        cb.push(Command::DrawVLine { x: tr.x, y0: tr.y, y1: tr.y + length });
 
-        cbb.draw_hline(bl.y, bl.x, bl.x + length);
-        cbb.draw_vline(bl.x, bl.y - length, bl.y);
+        cb.push(Command::DrawHLine { y: bl.y, x0: bl.x, x1: bl.x + length });
+        cb.push(Command::DrawVLine { x: bl.x, y0: bl.y - length, y1: bl.y });
 
-        cbb.draw_hline(br.y, br.x - length, br.x);
-        cbb.draw_vline(br.x, br.y - length, br.y);
+        cb.push(Command::DrawHLine { y: br.y, x0: br.x - length, x1: br.x });
+        cb.push(Command::DrawVLine { x: br.x, y0: br.y - length, y1: br.y });
     }
 
-    fn render_cursor(position: IVec2, _time: f64, cbb: &mut CommandBufferBuilder) {
-        cbb.draw_hline(position.y, position.x - 1, position.x + 1);
-        cbb.draw_vline(position.x, position.y - 1, position.y + 1);
+    fn render_cursor(position: IVec2, _time: f64, cb: &mut CommandBuffer) {
+        cb.push(Command::DrawHLine { y: position.y, x0: position.x - 1, x1: position.x + 1 });
+        cb.push(Command::DrawVLine { x: position.x, y0: position.y - 1, y1: position.y + 1 });
     }
 
     fn compute_directions(&mut self) {
@@ -212,8 +212,8 @@ impl NavigationLayout {
         Ok(uid)
     }
 
-    pub fn target_control(&self, uid: UID) -> Result<Option<UID>> {
-        let profile = self.profiles.get(&uid).with_context(|| "Profile not found")?;
+    pub fn hovered_area(&self, profile: UID) -> Result<Option<UID>> {
+        let profile = self.profiles.get(&profile).with_context(|| "Profile not found")?;
         Ok(profile.mode.as_ref().and_then(|mode| {
             match mode {
                 NavigationMode::Selection { uid, visual: _ } => Some(*uid),
@@ -305,7 +305,7 @@ impl NavigationLayout {
     }
 
     pub fn render(&self, time: f64) -> CommandBuffer {
-        let mut cbb = CommandBuffer::builder();
+        let mut cb = CommandBuffer::empty();
 
         // Render profiles
         for (_, (_, profile)) in self.profiles.iter().enumerate() {
@@ -317,15 +317,15 @@ impl NavigationLayout {
                 match mode {
                     NavigationMode::Selection { uid: _, visual } => {
                         let extent = visual.source_extent.lerp(&visual.target_extent, alpha(visual.source_time, time) as f32);
-                        NavigationLayout::render_selection(extent, time, &mut cbb);
+                        NavigationLayout::render_selection(extent, time, &mut cb);
                     },
                     NavigationMode::Cursor { position } => {
-                        NavigationLayout::render_cursor(position.as_ivec2(), time, &mut cbb);
+                        NavigationLayout::render_cursor(position.as_ivec2(), time, &mut cb);
                     },
                 }
             }
         }
 
-        cbb.build()
+        cb
     }
 }

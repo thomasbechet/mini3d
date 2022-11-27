@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::{graphics::{CommandBuffer, SCREEN_HEIGHT}, math::rect::IRect, process::{ProcessContext, Process}, uid::UID};
+use crate::{graphics::{SCREEN_HEIGHT, command_buffer::{CommandBuffer, Command}}, math::rect::IRect, process::{ProcessContext, Process}, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 struct TimeGraph {
@@ -33,25 +33,25 @@ impl TimeGraph {
     }
     
     pub fn render(&self) -> CommandBuffer {
-        let mut builder = CommandBuffer::builder();
+        let mut cb = CommandBuffer::empty();
         let mut current = self.head;
         let base_x = 5;
         let base_y = 5;
         let height = 60;
-        builder.draw_hline(SCREEN_HEIGHT as i32 - base_y, base_x, self.records.len() as i32);
-        builder.draw_vline(base_x, SCREEN_HEIGHT as i32 - base_y - height, SCREEN_HEIGHT as i32 - base_y);
+        cb.push(Command::DrawHLine { y: SCREEN_HEIGHT as i32 - base_y, x0: base_x, x1: self.records.len() as i32 });
+        cb.push(Command::DrawVLine { x: base_x, y0: SCREEN_HEIGHT as i32 - base_y - height, y1: SCREEN_HEIGHT as i32 - base_y });
         loop {
             let vy = ((self.records[current] / (2.0 / 60.0)) * height as f64) as u32;
             let x = base_x + current as i32;
             let y = SCREEN_HEIGHT as i32 - base_y - vy as i32;
-            builder.fill_rect(IRect::new(x, y, 1, 1));
-            // builder.draw_vline(x, y, SCREEN_HEIGHT as i32 - base_y);
+            cb.push(Command::FillRect { rect: IRect::new(x, y, 1, 1) });
+            // cb.push(Command::DrawVLine { x, y0: y, y1: SCREEN_HEIGHT as i32 - base_y });
             current = (current + 1) % self.records.len();
             if current == self.head {
                 break
             }
         }
-        builder.build()
+        cb
     }
 }
 
@@ -95,15 +95,13 @@ impl Process for ProfilerProcess {
                 self.dt_record.clear();
             }
 
-            let cb1 = CommandBuffer::build_with(|builder| {
-                let font = UID::new("default");
-                builder
-                    .print((8, 8).into(), format!("dt   : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt).as_str(), font)
-                    .print((8, 17).into(), format!("time : {:.2}", ctx.time).as_str(), font)
-                    .print((8, 26).into(), format!("dc   : {}", ctx.renderer.statistics().draw_count).as_str(), font)
-                    .print((8, 35).into(), format!("tc   : {}", ctx.renderer.statistics().triangle_count).as_str(), font)
-                    .print((8, 44).into(), format!("vp   : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1).as_str(), font)
-            });
+            let mut cb1 = CommandBuffer::empty();
+            let font = UID::new("default");
+            cb1.push(Command::Print { p: (8, 8).into(), text: format!("dt   : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt), font });
+            cb1.push(Command::Print { p: (8, 17).into(), text: format!("time : {:.2}", ctx.time), font });
+            cb1.push(Command::Print { p: (8, 26).into(), text: format!("dc   : {}", ctx.renderer.statistics().draw_count), font });
+            cb1.push(Command::Print { p: (8, 35).into(), text: format!("tc   : {}", ctx.renderer.statistics().triangle_count), font });
+            cb1.push(Command::Print { p: (8, 44).into(), text: format!("vp   : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1), font });
             ctx.renderer.push_command_buffer(cb1);
             ctx.renderer.push_command_buffer(self.time_graph.render());
         }
