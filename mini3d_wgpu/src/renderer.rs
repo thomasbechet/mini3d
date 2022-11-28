@@ -3,12 +3,11 @@ use std::collections::HashMap;
 use mini3d::anyhow::{Result, Context};
 use mini3d::app::App;
 use mini3d::asset::AssetManager;
-use mini3d::backend::renderer::{RendererBackend, RendererModelId, RendererCameraId, RendererStatistics, RendererModelDescriptor};
+use mini3d::backend::renderer::{RendererBackend, RendererStatistics, RendererModelDescriptor};
 use mini3d::feature;
 use mini3d::glam::{Vec4, Mat4, Vec3};
-use mini3d::graphics::color::{linear_to_srgb, srgb_to_linear};
+use mini3d::graphics::color::srgb_to_linear;
 use mini3d::graphics::command_buffer::CommandBuffer;
-use mini3d::slotmap::{SlotMap, new_key_type};
 use mini3d::uid::UID;
 use wgpu::SurfaceError;
 
@@ -27,13 +26,8 @@ use crate::surface_buffer::{SurfaceBuffer, Color};
 use crate::texture::Texture;
 use crate::vertex_buffer::{VertexBuffer, VertexBufferDescriptor};
 
-new_key_type! { 
-    pub(crate) struct SubMeshId;
-    pub(crate) struct ObjectId;
-}
-
 struct Mesh {
-    submeshes: Vec<SubMeshId>,
+    submeshes: Vec<UID>,
 }
 
 pub(crate) struct Material {
@@ -44,7 +38,7 @@ pub(crate) struct Material {
 /// Concrete submesh object (can be clipped)
 /// Multiple object can have a single model
 pub(crate) struct Object {
-    pub(crate) submesh: SubMeshId,
+    pub(crate) submesh: UID,
     pub(crate) material: UID,
     pub(crate) model_index: ModelIndex,
     pub(crate) draw_forward_pass: bool,
@@ -53,17 +47,30 @@ pub(crate) struct Object {
 
 /// API model representation
 /// Model has a single transform matrix
-pub(crate) struct Model {
+pub(crate) struct ModelInstance {
     mesh: UID,
     materials: Vec<UID>,
     model_index: ModelIndex,
-    objects: Vec<ObjectId>,
+    objects: Vec<UID>,
+}
+
+#[derive(Default)]
+struct UIDGenerator {
+    next: u64,
+}
+
+impl UIDGenerator {
+    fn next(&mut self) -> UID {
+        self.next += 1;
+        UID::from(self.next)
+    }
 }
 
 pub struct WGPURenderer {
 
     // Context
     context: WGPUContext,
+    uid_generator: UIDGenerator,
     
     // Scene Render Pass
     global_uniform_buffer: GlobalBuffer,
@@ -87,14 +94,14 @@ pub struct WGPURenderer {
     // Assets
     vertex_buffer: VertexBuffer,
     meshes: HashMap<UID, Mesh>,
-    submeshes: SlotMap<SubMeshId, VertexBufferDescriptor>,
+    submeshes: HashMap<UID, VertexBufferDescriptor>,
     textures: HashMap<UID, Texture>,
     materials: HashMap<UID, Material>,
     
     // Scene resources
-    models: SlotMap<RendererModelId, Model>,
+    models: HashMap<UID, ModelInstance>,
     model_buffer: ModelBuffer,
-    objects: SlotMap<ObjectId, Object>,
+    objects: HashMap<UID, Object>,
     camera: Camera,
 
     // Mesh passes
@@ -195,6 +202,7 @@ impl WGPURenderer {
 
         Self {
             context,
+            uid_generator: Default::default(),
 
             global_uniform_buffer: global_buffer,
             global_bind_group,
@@ -245,9 +253,9 @@ impl WGPURenderer {
 
     pub fn reset(&mut self) -> Result<()> {
         // Remove all models
-        let ids = self.models.keys().collect::<Vec<_>>();
-        for id in ids {
-            self.remove_model(id)?;
+        let handles = self.models.keys().copied().collect::<Vec<_>>();
+        for handle in handles {
+            self.remove_model(handle)?;
         }
         Ok(())
     }
@@ -267,12 +275,13 @@ impl WGPURenderer {
     fn create_mesh(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
         let mesh = asset.get::<feature::asset::mesh::Mesh>(uid)
             .with_context(|| "Mesh asset not found")?;
-        let mut submeshes: Vec<SubMeshId> = Default::default();
-        for submesh in &mesh.submeshes {
+        let mut submeshes: Vec<UID> = Default::default();
+        for submesh in mesh.submeshes.iter() {
             let descriptor = self.vertex_buffer.add(&self.context, &submesh.vertices)
                 .with_context(|| "Failed to create submesh")?;
-            let submesh_id = self.submeshes.insert(descriptor);
-            submeshes.push(submesh_id);
+            let submesh_uid = self.uid_generator.next();
+            self.submeshes.insert(submesh_uid, descriptor);
+            submeshes.push(submesh_uid);
         }
         self.meshes.insert(uid, Mesh { submeshes });
         Ok(())
@@ -421,11 +430,10 @@ impl WGPURenderer {
 
         // Post Process Render Pass
         {
-            let clear_color = srgb_to_linear([
-                25.0 / 255.0, 
-                27.0 / 255.0, 
-                43.0 / 255.0
-            ]);
+            let mut clear_color = [25.0 / 255.0, 27.0 / 255.0, 43.0 / 255.0];
+            if self.context.config.format.describe().srgb {
+                clear_color = srgb_to_linear(clear_color);
+            }
             let mut post_process_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("post_process_render_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -500,18 +508,18 @@ impl WGPURenderer {
 
 impl RendererBackend for WGPURenderer {
 
-    fn add_camera(&mut self) -> Result<RendererCameraId> {
-        Ok(Default::default()) 
+    fn add_camera(&mut self) -> Result<UID> {
+        Ok(Default::default())
     }
-    fn remove_camera(&mut self, _id: RendererCameraId) -> Result<()> { 
+    fn remove_camera(&mut self, _handle: UID) -> Result<()> { 
         Ok(())
     }
-    fn update_camera(&mut self, _id: RendererCameraId, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { 
+    fn update_camera(&mut self, _handle: UID, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { 
         self.camera.update(eye, forward, up, fov);
         Ok(())
     }
 
-    fn add_model(&mut self, desc: &RendererModelDescriptor, asset: &AssetManager) -> Result<RendererModelId> { 
+    fn add_model(&mut self, desc: &RendererModelDescriptor, asset: &AssetManager) -> Result<UID> { 
         match desc {
             RendererModelDescriptor::FromAsset(uid) => {
 
@@ -542,7 +550,8 @@ impl RendererBackend for WGPURenderer {
                     .map(|(i, submesh)| {
                         let material = model.materials.get(i)
                             .with_context(|| format!("Missing material in model at index {}", i))?;
-                        let object_id = self.objects.insert(Object {
+                        let object_uid = self.uid_generator.next();
+                        self.objects.insert(object_uid, Object {
                             submesh: *submesh, 
                             material: *material,
                             model_index,
@@ -551,31 +560,33 @@ impl RendererBackend for WGPURenderer {
                         });
                         // Insert in the corresponding pass
                         // TODO: check valid passes
-                        self.forward_mesh_pass.add(object_id);
-                        Ok(object_id)
+                        self.forward_mesh_pass.add(object_uid);
+                        Ok(object_uid)
                     })
                     .collect::<Result<Vec<_>>>()?;
 
                 // Add model
-                Ok(self.models.insert(Model { 
-                    mesh: model.mesh, 
+                let model_uid = self.uid_generator.next();
+                self.models.insert(model_uid, ModelInstance { 
+                    mesh: model.mesh,
                     materials: model.materials.clone(),
                     model_index,
                     objects,
-                }))
+                });
+                Ok(model_uid)
             },
         }
     }
-    fn remove_model(&mut self, id: RendererModelId) -> Result<()> { 
+    fn remove_model(&mut self, handle: UID) -> Result<()> { 
 
         // Remove model
-        let model = self.models.remove(id).with_context(|| "Model not found")?;
-        for id in &model.objects {
+        let model = self.models.remove(&handle).with_context(|| "Model not found")?;
+        for object_uid in &model.objects {
 
             // Remove objects
-            let object = self.objects.remove(*id).with_context(|| "Object not found")?;
+            let object = self.objects.remove(object_uid).with_context(|| "Object not found")?;
             if object.draw_forward_pass {
-                self.forward_mesh_pass.remove(*id);
+                self.forward_mesh_pass.remove(*object_uid);
             }
             if object.draw_shadow_pass {
                 // TODO: remove from pass
@@ -587,8 +598,8 @@ impl RendererBackend for WGPURenderer {
 
         Ok(())
     }
-    fn update_model_transform(&mut self, id: RendererModelId, mat: Mat4) -> Result<()> { 
-        let model = self.models.get(id)
+    fn update_model_transform(&mut self, handle: UID, mat: Mat4) -> Result<()> { 
+        let model = self.models.get(&handle)
             .with_context(|| "Model id not found")?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())

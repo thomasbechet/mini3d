@@ -1,11 +1,11 @@
 pub mod app;
 pub mod asset;
 pub mod backend;
-pub mod ecs;
+pub mod scene;
 pub mod event;
 pub mod feature;
 pub mod graphics;
-pub mod gui;
+pub mod ui;
 pub mod input;
 pub mod math;
 pub mod process;
@@ -16,7 +16,6 @@ pub mod signal;
 pub mod uid;
 
 pub use glam;
-pub use slotmap;
 pub use hecs;
 pub use anyhow;
 pub use rand;

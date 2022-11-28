@@ -1,8 +1,10 @@
 pub struct Color(u32);
 
 impl Color {
+
+    pub const RED: Color = Color::rgba(255, 0, 0, 255);
     
-    pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
+    pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self((a as u32) << 24 | (r as u32) << 16 | (g as u32) << 8 | (b as u32))
     }
 

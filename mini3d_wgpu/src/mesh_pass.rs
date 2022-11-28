@@ -1,6 +1,8 @@
-use mini3d::{slotmap::{SecondaryMap, SlotMap}, uid::UID};
+use std::collections::HashMap;
 
-use crate::{SubMeshId, ObjectId, Object, model_buffer::ModelIndex, context::WGPUContext, vertex_buffer::VertexBufferDescriptor};
+use mini3d::uid::UID;
+
+use crate::{Object, model_buffer::ModelIndex, context::WGPUContext, vertex_buffer::VertexBufferDescriptor};
 
 pub(crate) fn create_mesh_pass_bind_group_layout(
     context: &WGPUContext
@@ -61,13 +63,13 @@ struct PassObject {
 }
 
 pub(crate) struct RenderBatch {
-    pub(crate) submesh: SubMeshId,
+    pub(crate) submesh: UID,
     pub(crate) material: UID,
     pub(crate) model_index: ModelIndex,
 }
 
 pub(crate) struct InstancedRenderBatch {
-    pub(crate) submesh: SubMeshId,
+    pub(crate) submesh: UID,
     pub(crate) material: UID,
     pub(crate) first_instance: usize,
     pub(crate) instance_count: usize,
@@ -86,10 +88,10 @@ pub(crate) struct MeshPass {
     max_pass_object_count: usize,
     max_pass_command_count: usize,
 
-    added_objects: Vec<ObjectId>,
-    removed_objects: Vec<ObjectId>,
+    added_objects: Vec<UID>,
+    removed_objects: Vec<UID>,
 
-    pass_objects: SecondaryMap<ObjectId, PassObject>,
+    pass_objects: HashMap<UID, PassObject>,
 
     // Non-instanced sorted batches
     batches: Vec<RenderBatch>,
@@ -175,13 +177,13 @@ impl MeshPass {
         }
     }
 
-    pub(crate) fn add(&mut self, id: ObjectId) {
-        self.added_objects.push(id);
+    pub(crate) fn add(&mut self, uid: UID) {
+        self.added_objects.push(uid);
         self.out_of_date = true;
     }
 
-    pub(crate) fn remove(&mut self, id: ObjectId) {
-        self.removed_objects.push(id);
+    pub(crate) fn remove(&mut self, uid: UID) {
+        self.removed_objects.push(uid);
         self.out_of_date = true;
     }
 
@@ -191,8 +193,8 @@ impl MeshPass {
 
     pub(crate) fn build(
         &mut self,
-        objects: &SlotMap<ObjectId, Object>,
-        submeshes: &SlotMap<SubMeshId, VertexBufferDescriptor>,
+        objects: &HashMap<UID, Object>,
+        submeshes: &HashMap<UID, VertexBufferDescriptor>,
     ) {
         // Add new objects
         for object in self.added_objects.drain(..) {
@@ -203,7 +205,7 @@ impl MeshPass {
 
         // Remove objects
         for object in self.removed_objects.drain(..) {
-            self.pass_objects.remove(object);
+            self.pass_objects.remove(&object);
         }
 
         // Create sorted batches from object pass
@@ -268,7 +270,7 @@ impl MeshPass {
         for (batch_id, batch) in self.instanced_batches.iter_mut().enumerate() {
             self.indirect_commands[batch_id].base_instance  = batch.first_instance as u32;
             self.indirect_commands[batch_id].instance_count = batch.instance_count as u32;
-            let descriptor = submeshes.get(batch.submesh).unwrap();
+            let descriptor = submeshes.get(&batch.submesh).unwrap();
             self.indirect_commands[batch_id].base_vertex = descriptor.base_index;
             self.indirect_commands[batch_id].vertex_count = descriptor.vertex_count;
             batch.triangle_count = descriptor.vertex_count as usize * batch.instance_count;

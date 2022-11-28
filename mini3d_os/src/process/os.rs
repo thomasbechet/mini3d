@@ -1,13 +1,13 @@
 use std::{fs::File, io::Read};
 
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, ecs::ECS, gui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, scene::Scene, ui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct OSProcess {
-    ecs: UID,
+    scene: UID,
     navigation_layout: NavigationLayout,
     control_profile: UID,
     layout_active: bool,
@@ -240,8 +240,8 @@ impl OSProcess {
     }
 
     fn setup_world(&mut self, ctx: &mut ProcessContext) -> Result<()> {
-        self.ecs = ctx.ecs.add("main").with_context(|| "Failed to create ECS")?;
-        let world = ctx.ecs.world(self.ecs)?;
+        self.scene = ctx.scene.add("main").with_context(|| "Failed to create ECS")?;
+        let world = ctx.scene.world(self.scene)?;
         world.spawn((
             LifecycleComponent::default(),
             TransformComponent {
@@ -310,7 +310,7 @@ impl Process for OSProcess {
 
         // Register default bundle
         {
-            // self.setup_assets(ctx)?;
+            self.setup_assets(ctx)?;
         
             // let file = File::create("assets/dump.json").unwrap();
             // let mut json_serializer = serde_json::Serializer::new(file);
@@ -325,13 +325,13 @@ impl Process for OSProcess {
             // file.write_all(&bytes).unwrap();
 
 
-            let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
-            let mut bytes: Vec<u8> = Default::default();
-            file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
-            let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
-            let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
-            ctx.asset.import_bundle(import)?;
+            // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
+            // let mut bytes: Vec<u8> = Default::default();
+            // file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
+            // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
+            // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
+            // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
+            // ctx.asset.import_bundle(import)?;
 
             // let file = File::open("assets/dump.json").unwrap();
             // let mut json_deserializer = serde_json::Deserializer::from_reader(file);
@@ -365,26 +365,26 @@ impl Process for OSProcess {
 
             // let file = File::create("assets/world.json")?;
             // let mut serializer = serde_json::Serializer::new(file);
-            // self.ecs.serialize(ctx.ecs, &mut serializer)?;
+            // self.scene.serialize(ctx.scene, &mut serializer)?;
 
             // let file = File::create("assets/world.bin")?;
             // let mut serializer = bincode::Serializer::new(file, bincode::options());
-            // self.ecs.serialize(ctx.ecs, &mut serializer)?;
+            // self.scene.serialize(ctx.scene, &mut serializer)?;
 
             // let file = File::open("assets/world.json")?;
             // let mut deserializer = serde_json::Deserializer::from_reader(file);
-            // self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
+            // self.scene.deserialize(ctx.scene, &mut deserializer)?;
 
             // let mut file = File::open("assets/world.bin")?;
             // let mut bytes: Vec<u8> = Default::default();
             // file.read_to_end(&mut bytes).unwrap();
             // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            // self.ecs.deserialize(ctx.ecs, &mut deserializer)?;
+            // self.scene.deserialize(ctx.scene, &mut deserializer)?;
         }
 
         // Configure schedule
         let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
-        ctx.ecs.set_schedule(self.ecs, schedule)?;
+        ctx.scene.schedule(self.scene, schedule)?;
 
         // Run profiler
         ctx.process.start("profiler", ProfilerProcess::new(UID::new(CommonAction::TOGGLE_PROFILER)))?;
@@ -394,12 +394,12 @@ impl Process for OSProcess {
     fn update(&mut self, ctx: &mut ProcessContext) -> Result<()> {
 
         // Progress ECS
-        ECS::progress(self.ecs, ctx)?;
+        Scene::progress(self.scene, ctx)?;
 
         // // Toggle control mode
         if ctx.input.action(CommonAction::CHANGE_CONTROL_MODE.into())?.is_just_pressed() {
             self.layout_active = !self.layout_active;
-            for (_, free_fly) in ctx.ecs.world(self.ecs)?.query_mut::<&mut FreeFlyComponent>() {
+            for (_, free_fly) in ctx.scene.world(self.scene)?.query_mut::<&mut FreeFlyComponent>() {
                 free_fly.active = !self.layout_active;
             } 
         }

@@ -6,5 +6,8 @@ pub mod material;
 pub mod mesh;
 pub mod model;
 pub mod rhai_script;
+pub mod scene;
 pub mod system_schedule;
 pub mod texture;
+pub mod tilemap;
+pub mod tileset;

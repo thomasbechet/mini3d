@@ -9,6 +9,12 @@ impl UID {
     pub fn new(name: &str) -> Self {
         Self(const_fnv1a_hash::fnv1a_hash_str_64(name))
     }
+    pub fn null() -> Self {
+        Self(0)
+    }
+    pub fn is_null(&self) -> bool {
+        self.0 == 0
+    }
 }
 
 impl From<&str> for UID {

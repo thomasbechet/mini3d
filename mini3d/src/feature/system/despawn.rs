@@ -1,7 +1,7 @@
 use anyhow::Result;
 use hecs::{CommandBuffer, World};
 
-use crate::{ecs::SystemContext, feature::component::lifecycle::LifecycleComponent};
+use crate::{scene::SystemContext, feature::component::lifecycle::LifecycleComponent};
 
 pub fn run(_ctx: &mut SystemContext, world: &mut World) -> Result<()> {
     let mut cb = CommandBuffer::default();

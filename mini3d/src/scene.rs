@@ -14,6 +14,7 @@ pub struct SystemContext<'a> {
     pub renderer: &'a mut dyn RendererBackend,
     pub delta_time: f64,
     pub time: f64,
+    pub scene_uid: UID,
 }
 
 pub type SystemRunCallback = fn(&mut SystemContext, &mut World) -> Result<()>;
@@ -110,38 +111,38 @@ struct SystemScheduler {
     systems: Vec<SystemScheduleType>,
 }
 
-struct ECSInstance {
+struct SceneInstance {
     name: String,
     world: World,
     scheduler: SystemScheduler,
 }
 
 #[derive(Default)]
-pub struct ECSManager {
+pub struct SceneManager {
     systems: HashMap<UID, SystemEntry>,
     components: HashMap<UID, ComponentEntry>,
     component_type_to_uid: HashMap<TypeId, UID>,
-    instances: HashMap<UID, ECSInstance>,
+    instances: HashMap<UID, SceneInstance>,
 }
 
-impl ECSManager {
+impl SceneManager {
 
     pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         struct ECSSerialize<'a> {
-            manager: &'a ECSManager,
-            instance: &'a ECSInstance,
+            manager: &'a SceneManager,
+            instance: &'a SceneInstance,
         }
         impl<'a> Serialize for ECSSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer {
                 struct WorldSerialize<'a> {
-                    manager:  &'a ECSManager,
+                    manager:  &'a SceneManager,
                     world: &'a World,
                 }
                 impl<'a> Serialize for WorldSerialize<'a> {
                     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                         where S: Serializer {
-                        hecs::serialize::column::serialize(self.world, &mut ECSSerializeContext { manager: self.manager, components: Default::default() }, serializer)
+                        hecs::serialize::column::serialize(self.world, &mut SceneSerializeContext { manager: self.manager, components: Default::default() }, serializer)
                     }
                 }
                 let mut tuple = serializer.serialize_tuple(3)?;
@@ -160,7 +161,7 @@ impl ECSManager {
 
     pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
         struct ECSVisitor<'a> {
-            manager: &'a mut ECSManager,
+            manager: &'a mut SceneManager,
         }
         impl<'de, 'a> Visitor<'de> for ECSVisitor<'a> {
             type Value = ();
@@ -170,14 +171,14 @@ impl ECSManager {
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: SeqAccess<'de>, {
                 struct ECSDeserializeSeed<'a> {
-                    manager: &'a mut ECSManager,
+                    manager: &'a mut SceneManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for ECSDeserializeSeed<'a> {
                     type Value = ();
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         struct ECSVisitor<'a> {
-                            manager: &'a mut ECSManager,
+                            manager: &'a mut SceneManager,
                         }
                         impl<'de, 'a> Visitor<'de> for ECSVisitor<'a> {
                             type Value = ();
@@ -187,13 +188,13 @@ impl ECSManager {
                             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                                 where A: SeqAccess<'de> {
                                 struct WorldDeserializeSeed<'a> {
-                                    manager: &'a ECSManager,
+                                    manager: &'a SceneManager,
                                 }
                                 impl<'de, 'a> DeserializeSeed<'de> for WorldDeserializeSeed<'a> {
                                     type Value = World;
                                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                                         where D: Deserializer<'de> {
-                                        hecs::serialize::column::deserialize(&mut ECSDeserializeContext { manager: self.manager, components: Default::default() }, deserializer)
+                                        hecs::serialize::column::deserialize(&mut SceneDeserializeContext { manager: self.manager, components: Default::default() }, deserializer)
                                     }
                                 }
                                 use serde::de::Error;
@@ -202,7 +203,7 @@ impl ECSManager {
                                 let world: World = seq.next_element_seed(WorldDeserializeSeed { manager: self.manager })?.with_context(|| "Expect ECS world").map_err(Error::custom)?;
                                 let uid = UID::new(&name);
                                 if self.manager.instances.contains_key(&uid) { return Err(Error::custom(format!("ECS world '{}' already exists", name))); }
-                                self.manager.instances.insert(uid, ECSInstance { name, world, scheduler });
+                                self.manager.instances.insert(uid, SceneInstance { name, world, scheduler });
                                 Ok(())
                             }
                         }
@@ -248,7 +249,7 @@ impl ECSManager {
     pub fn add(&'_ mut self, name: &str) -> Result<UID> {
         let uid = UID::new(name);
         if self.instances.contains_key(&uid) { return Err(anyhow!("ECS already exists")); }
-        self.instances.insert(uid, ECSInstance { name: name.to_string(), scheduler: Default::default(), world: Default::default() });
+        self.instances.insert(uid, SceneInstance { name: name.to_string(), scheduler: Default::default(), world: Default::default() });
         Ok(uid)
     }
 
@@ -262,16 +263,17 @@ impl ECSManager {
         Ok(&mut self.instances.get_mut(&uid).with_context(|| "ECS not found")?.world)
     }
 
-    pub fn set_schedule(&mut self, uid: UID, schedule: &SystemSchedule) -> Result<()> {
+    pub fn schedule(&mut self, uid: UID, schedule: &SystemSchedule) -> Result<()> {
         let instance = self.instances.get_mut(&uid).with_context(|| "ECS not found")?;
         instance.scheduler.systems = schedule.systems.clone();
         Ok(())
     }
 }
 
-pub struct ECS;
+pub struct Scene;
 
-impl ECS {
+impl Scene {
+    
     pub fn progress(uid: UID, ctx: &mut ProcessContext) -> Result<()> {
         let mut system_context = SystemContext {
             asset: ctx.asset,
@@ -281,8 +283,9 @@ impl ECS {
             renderer: ctx.renderer,
             delta_time: ctx.delta_time,
             time: ctx.time,
+            scene_uid: uid,
         };
-        let manager = &mut ctx.ecs;
+        let manager = &mut ctx.scene;
         let instance = manager.instances.get_mut(&uid).with_context(|| "ECS not found")?;
         for system in &instance.scheduler.systems {
             match system {
@@ -301,12 +304,12 @@ impl ECS {
     }
 }
 
-struct ECSSerializeContext<'a> {
-    manager: &'a ECSManager,
+struct SceneSerializeContext<'a> {
+    manager: &'a SceneManager,
     components: Vec<UID>,
 }
 
-impl<'a> SerializeContext for ECSSerializeContext<'a> {
+impl<'a> SerializeContext for SceneSerializeContext<'a> {
 
     fn component_count(&self, archetype: &Archetype) -> usize {
         archetype.component_types()
@@ -365,12 +368,12 @@ impl<'a> SerializeContext for ECSSerializeContext<'a> {
     }
 }
 
-struct ECSDeserializeContext<'a> {
-    manager: &'a ECSManager,
+struct SceneDeserializeContext<'a> {
+    manager: &'a SceneManager,
     components: Vec<UID>,
 }
 
-impl<'a> DeserializeContext for ECSDeserializeContext<'a> {
+impl<'a> DeserializeContext for SceneDeserializeContext<'a> {
 
     fn deserialize_component_ids<'de, A>(&mut self, mut seq: A) -> Result<ColumnBatchType, A::Error>
         where A: SeqAccess<'de> 

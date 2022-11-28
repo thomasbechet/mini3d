@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, Context};
 use serde::{Deserialize, Serialize, Serializer, ser::{SerializeTuple, SerializeSeq}, Deserializer, de::{Visitor, DeserializeSeed}};
 use std::{collections::HashMap, any::TypeId, marker::PhantomData};
 
-use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, ecs::ECSManager, uid::UID, signal::SignalManager};
+use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, scene::SceneManager, uid::UID, signal::SignalManager};
 
 #[allow(unused_variables)]
 pub trait Process {
@@ -49,7 +49,7 @@ pub(crate) struct ProcessManagerContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
     pub script: &'a mut ScriptManager,
-    pub ecs: &'a mut ECSManager,
+    pub scene: &'a mut SceneManager,
     pub signal: &'a mut SignalManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
@@ -152,7 +152,7 @@ pub struct ProcessContext<'a, 'b> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
     pub script: &'a mut ScriptManager,
-    pub ecs: &'a mut ECSManager,
+    pub scene: &'a mut SceneManager,
     pub signal: &'a mut SignalManager,
     pub renderer: &'a mut dyn RendererBackend,
     pub events: &'a AppEvents,
@@ -195,7 +195,7 @@ impl ProcessManager {
             asset: ctx.asset,
             input: ctx.input,
             script: ctx.script,
-            ecs: ctx.ecs,
+            scene: ctx.scene,
             signal: ctx.signal,
             renderer: ctx.renderer,
             events: ctx.events,

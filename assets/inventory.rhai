@@ -1,4 +1,4 @@
-fn init() {
+fn start() {
     STORAGE.set_int("inventory.itemcount", 0);
     STORAGE.set_string("levels.level0", "");
     STORAGE.set_string("levels.level1", "");

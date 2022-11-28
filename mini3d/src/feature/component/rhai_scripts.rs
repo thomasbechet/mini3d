@@ -6,15 +6,16 @@ use crate::uid::UID;
 pub const MAX_RHAI_SCRIPT_COUNT: usize = 16;
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RhaiScriptState {
-    Init,
-    Update,
+pub enum RhaiScriptStatus {
+    Starting,
+    Updating,
+    Stopping,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RhaiScriptInstance {
     pub uid: UID,
-    pub state: RhaiScriptState,
+    pub status: RhaiScriptStatus,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -32,7 +33,7 @@ impl RhaiScriptsComponent {
             return Err(anyhow!("Trying to add existing rhai script"))
         }
         if let Some(instance) = self.instances.iter_mut().find(|instance| instance.is_none()) {
-            *instance = Some(RhaiScriptInstance { uid, state: RhaiScriptState::Init });
+            *instance = Some(RhaiScriptInstance { uid, status: RhaiScriptStatus::Starting });
             Ok(())
         } else {
             Err(anyhow!("No script slot available"))

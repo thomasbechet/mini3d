@@ -497,7 +497,7 @@ impl AssetManager {
                                                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                                                         where D: Deserializer<'de> {
                                                         let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-                                                        self.registry.deserialize(UID::from(0), &mut deserializer).map_err(Error::custom)
+                                                        self.registry.deserialize(UID::null(), &mut deserializer).map_err(Error::custom)
                                                     }
                                                 }
                                                 let name: String = seq.next_element()?.with_context(|| "Expect asset type name").map_err(Error::custom)?;

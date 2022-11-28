@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{app::App, event::{AppEvents, input::{InputEvent, InputActionEvent, InputAxisEvent}}, slotmap::{new_key_type, SlotMap, Key}, anyhow::{Result, Context, anyhow}, uid::UID, feature::asset::{input_action::InputAction, input_axis::InputAxis}};
+use mini3d::{app::App, event::{AppEvents, input::{InputEvent, InputActionEvent, InputAxisEvent}}, anyhow::{Result, Context, anyhow}, uid::UID, feature::asset::{input_action::InputAction, input_axis::InputAxis}};
 use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
@@ -69,8 +69,6 @@ pub(crate) struct MapAxisInput {
     pub(crate) axis: Option<(Axis, f32)>,
 }
 
-new_key_type! { pub(crate) struct InputProfileId; }
-
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct InputProfile {
     pub(crate) name: String,
@@ -82,8 +80,8 @@ pub(crate) struct InputProfile {
 #[derive(Default)]
 pub(crate) struct InputMapper {
     
-    pub(crate) profiles: SlotMap<InputProfileId, InputProfile>,
-    pub(crate) default_profile: InputProfileId,
+    pub(crate) profiles: HashMap<UID, InputProfile>,
+    pub(crate) default_profile: UID,
 
     key_to_action: HashMap<VirtualKeyCode, Vec<KeyToAction>>,
     key_to_axis: HashMap<VirtualKeyCode, Vec<KeyToAxis>>,
@@ -103,7 +101,8 @@ impl InputMapper {
     pub(crate) fn new() -> Self {
         let mut mapper: InputMapper = Default::default();
         // Default inputs
-        mapper.default_profile = mapper.profiles.insert(InputProfile { 
+        mapper.default_profile = UID::from("Default");
+        mapper.profiles.insert(mapper.default_profile, InputProfile { 
             name: "Default".to_string(), 
             active: true,
             actions: HashMap::from([
@@ -135,32 +134,34 @@ impl InputMapper {
         mapper
     }
 
-    pub(crate) fn new_profile(&mut self, app: &App) -> InputProfileId {
+    pub(crate) fn new_profile(&mut self, app: &App) -> UID {
         let mut next_index = self.profiles.len() + 1;
         let mut name = format!("Profile {}", next_index);
+        let uid = UID::from(&name);
         while self.profiles.iter().any(|(_, p)| p.name == name) {
             next_index += 1;
             name = format!("Profile {}", next_index); 
         }
-        let id = self.profiles.insert(InputProfile { name, active: true, actions: Default::default(), axis: Default::default() });
+        self.profiles.insert(uid, InputProfile { name, active: true, actions: Default::default(), axis: Default::default() });
         self.refresh(app);
-        id
+        uid
     }
 
-    pub(crate) fn duplicate(&mut self, from: InputProfileId, app: &App) -> InputProfileId {
-        if let Some(from) = self.profiles.get(from) {
+    pub(crate) fn duplicate(&mut self, from: UID, app: &App) -> UID {
+        if let Some(from) = self.profiles.get(&from) {
             let mut name = format!("{} Copy", from.name);
             let mut next_index = 1;
             while self.profiles.iter().any(|(_, p)| p.name == name) {
                 next_index += 1;
                 name = format!("{} Copy {}", from.name, next_index);
             }
+            let uid = UID::from(&name);
             let profile = InputProfile { name, active: true, actions: from.actions.clone(), axis: from.axis.clone() };
-            let id = self.profiles.insert(profile);
+            self.profiles.insert(uid, profile);
             self.refresh(app);
-            id
+            uid
         } else {
-            InputProfileId::null()
+            UID::null()
         }
     }
 
@@ -181,7 +182,8 @@ impl InputMapper {
                 if let Some((_, current)) = self.profiles.iter_mut().find(|(_, p)| p.name == profile.name) {
                     *current = profile;
                 } else {
-                    self.profiles.insert(profile);
+                    let uid = UID::from(&profile.name);
+                    self.profiles.insert(uid, profile);
                 }
             }
             Ok(())

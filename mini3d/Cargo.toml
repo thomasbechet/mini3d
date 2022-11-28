@@ -8,7 +8,6 @@ edition = "2021"
 bitvec = { version = "1.0.1", features = ["serde"] }
 const-fnv1a-hash = "1.1.0"
 glam = { version = "0.21.3", features = ["serde"] }
-slotmap = { version = "1.0.6", features = ["serde"] }
 hecs = { version = "0.9.0", features = ["serde", "column-serialize"] }
 serde = "1.0.144"
 erased-serde = "0.3.23"

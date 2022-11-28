@@ -6,7 +6,7 @@ use serde::{Serializer, Deserializer, Serialize};
 use crate::asset::AssetManager;
 use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
 use crate::feature::{asset, component, system, signal, process};
-use crate::ecs::ECSManager;
+use crate::scene::SceneManager;
 use crate::event::AppEvents;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
@@ -23,7 +23,7 @@ pub struct App {
     pub input: InputManager,
     pub process: ProcessManager,
     pub script: ScriptManager,
-    pub ecs: ECSManager,
+    pub scene: SceneManager,
     pub signal: SignalManager,
 
     default_backend: DefaultBackend,
@@ -45,30 +45,34 @@ impl App {
         self.asset.register::<asset::mesh::Mesh>("mesh")?;
         self.asset.register::<asset::model::Model>("model")?;
         self.asset.register::<asset::rhai_script::RhaiScript>("rhai_script")?;
+        self.asset.register::<asset::scene::Scene>("scene")?;
         self.asset.register::<asset::system_schedule::SystemSchedule>("system_schedule")?;
         self.asset.register::<asset::texture::Texture>("texture")?;
+        self.asset.register::<asset::tilemap::Tilemap>("tilemap")?;
+        self.asset.register::<asset::tileset::Tileset>("tileset")?;
 
         // Components
-        self.ecs.register_component::<component::camera::CameraComponent>("camera")?;
-        self.ecs.register_component::<component::free_fly::FreeFlyComponent>("free_fly")?;
-        self.ecs.register_component::<component::lifecycle::LifecycleComponent>("lifecycle")?;
-        self.ecs.register_component::<component::model::ModelComponent>("model")?;
-        self.ecs.register_component::<component::rhai_scripts::RhaiScriptsComponent>("rhai_scripts")?;
-        self.ecs.register_component::<component::rotator::RotatorComponent>("rotator")?;
-        self.ecs.register_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
-        self.ecs.register_component::<component::transform::TransformComponent>("transform")?;
+        self.scene.register_component::<component::camera::CameraComponent>("camera")?;
+        self.scene.register_component::<component::free_fly::FreeFlyComponent>("free_fly")?;
+        self.scene.register_component::<component::lifecycle::LifecycleComponent>("lifecycle")?;
+        self.scene.register_component::<component::model::ModelComponent>("model")?;
+        self.scene.register_component::<component::rhai_scripts::RhaiScriptsComponent>("rhai_scripts")?;
+        self.scene.register_component::<component::rotator::RotatorComponent>("rotator")?;
+        self.scene.register_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
+        self.scene.register_component::<component::transform::TransformComponent>("transform")?;
+        self.scene.register_component::<component::ui::UIComponent>("ui")?;
 
         // Processes
         self.process.register::<process::profiler::ProfilerProcess>("profiler")?;
 
         // Systems
-        self.ecs.register_system("despawn_entities", system::despawn::run)?;
-        self.ecs.register_system("free_fly", system::free_fly::run)?;
-        self.ecs.register_system("renderer_check_lifecycle", system::renderer::check_lifecycle)?;
-        self.ecs.register_system("renderer_transfer_transforms", system::renderer::transfer_transforms)?;
-        self.ecs.register_system("renderer_update_camera", system::renderer::update_camera)?;
-        self.ecs.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
-        self.ecs.register_system("rotator", system::rotator::run)?;
+        self.scene.register_system("despawn_entities", system::despawn::run)?;
+        self.scene.register_system("free_fly", system::free_fly::run)?;
+        self.scene.register_system("renderer_check_lifecycle", system::renderer::check_lifecycle)?;
+        self.scene.register_system("renderer_transfer_transforms", system::renderer::transfer_transforms)?;
+        self.scene.register_system("renderer_update_camera", system::renderer::update_camera)?;
+        self.scene.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
+        self.scene.register_system("rotator", system::rotator::run)?;
 
         // Signals
         self.signal.register::<signal::command::CommandSignal>("command")?;
@@ -82,7 +86,7 @@ impl App {
             input: Default::default(), 
             process: Default::default(),
             script: Default::default(),
-            ecs: Default::default(),
+            scene: Default::default(),
             signal: Default::default(),
             default_backend: Default::default(),
             accumulator: 0.0,
@@ -112,7 +116,7 @@ impl App {
             }
         }
         struct ECSManagerSerialize<'a> {
-            manager: &'a ECSManager,
+            manager: &'a SceneManager,
         }
         impl<'a> Serialize for ECSManagerSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -141,7 +145,7 @@ impl App {
         let mut tuple = serializer.serialize_tuple(7)?;
         tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
         tuple.serialize_element(&ProcessManagerSerialize { manager: &self.process })?;
-        tuple.serialize_element(&ECSManagerSerialize { manager: &self.ecs })?;
+        tuple.serialize_element(&ECSManagerSerialize { manager: &self.scene })?;
         tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
         tuple.serialize_element(&SignalManagerSerialize { manager: &self.signal })?;
         tuple.serialize_element(&self.accumulator)?;
@@ -182,7 +186,7 @@ impl App {
                     }
                 }
                 struct ECSManagerDeserializeSeed<'a> {
-                    manager: &'a mut ECSManager,
+                    manager: &'a mut SceneManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
                     type Value = ();
@@ -213,7 +217,7 @@ impl App {
                 }
                 seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.app.asset })?;
                 seq.next_element_seed(ProcessManagerDeserializeSeed { manager: &mut self.app.process })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.app.ecs })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.app.scene })?;
                 seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.app.input })?;
                 seq.next_element_seed(SignalManagerDeserializeSeed { manager: &mut self.app.signal })?;
                 self.app.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
@@ -273,7 +277,7 @@ impl App {
             asset: &mut self.asset,
             input: &mut self.input,
             script: &mut self.script,
-            ecs: &mut self.ecs,
+            scene: &mut self.scene,
             signal: &mut self.signal,
             renderer: backend.renderer,
             events,

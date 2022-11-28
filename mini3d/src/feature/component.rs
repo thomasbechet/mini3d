@@ -6,3 +6,4 @@ pub mod rhai_scripts;
 pub mod rotator;
 pub mod script_storage;
 pub mod transform;
+pub mod ui;

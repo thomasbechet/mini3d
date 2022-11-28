@@ -27,9 +27,6 @@ impl Texture {
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage,
         }, texture.data.as_slice());
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        Self {
-            view,
-        }
+        Self { view: texture.create_view(&wgpu::TextureViewDescriptor::default()) }
     }
 }

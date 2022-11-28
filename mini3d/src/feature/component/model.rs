@@ -1,17 +1,16 @@
 use serde::{Serialize, Deserialize};
-use slotmap::Key;
 
-use crate::{backend::renderer::RendererModelId, uid::UID};
+use crate::uid::UID;
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelComponent {
-    pub uid: UID,
+    pub model: UID,
     #[serde(skip)]
-    pub id: RendererModelId,
+    pub handle: UID,
 }
 
 impl ModelComponent {
-    pub fn new(uid: UID) -> Self {
-        Self { uid, id: RendererModelId::null() }
+    pub fn new(model: UID) -> Self {
+        Self { model, handle: UID::null() }
     }
 }

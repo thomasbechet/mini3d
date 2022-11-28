@@ -120,6 +120,9 @@ impl SurfaceBuffer {
                 mini3d::graphics::command_buffer::Command::FillRect { rect } => {
                     rasterizer::fill_rect(self, *rect);
                 }
+                mini3d::graphics::command_buffer::Command::RenderScene { handle: _ } => {
+                    
+                }
             }
         }
     }

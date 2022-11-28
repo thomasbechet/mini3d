@@ -1,10 +1,10 @@
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use mini3d::{glam::Vec4, app::App, slotmap::Key, uid::UID, feature::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
+use mini3d::{glam::Vec4, app::App, uid::UID, feature::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::ControlFlow};
 
-use crate::{window::Window, mapper::{InputMapper, InputProfileId, Button, Axis, InputProfile}, DisplayMode, set_display_mode};
+use crate::{window::Window, mapper::{InputMapper, Button, Axis, InputProfile}, DisplayMode, set_display_mode};
 
 #[derive(PartialEq, Eq)]
 enum Page {
@@ -19,7 +19,7 @@ enum RecordSource {
 }
 
 struct RecordRequest {
-    profile_id: InputProfileId,
+    profile: UID,
     source: RecordSource,
 }
 
@@ -32,7 +32,7 @@ pub(crate) struct WindowGUI {
     show_uid: bool,
     show_internal_name: bool,
     show_min_max: bool,
-    active_profile: InputProfileId,
+    active_profile: UID,
     profile_rename_placeholder: String,
     elspased_time: f64,
     record_request: Option<RecordRequest>,
@@ -108,15 +108,15 @@ impl WindowGUI {
                             // Cancel recording
                             match request.source {
                                 RecordSource::ActionButton { uid, previous } => {
-                                    mapper.profiles.get_mut(request.profile_id).unwrap()
+                                    mapper.profiles.get_mut(&request.profile).unwrap()
                                         .actions.get_mut(&uid).unwrap().button = previous;
                                 },
                                 RecordSource::AxisButton { uid, previous } => {
-                                    mapper.profiles.get_mut(request.profile_id).unwrap()
+                                    mapper.profiles.get_mut(&request.profile).unwrap()
                                         .axis.get_mut(&uid).unwrap().button = previous;
                                 },
                                 RecordSource::AxisAxis { uid, previous } => {
-                                    mapper.profiles.get_mut(request.profile_id).unwrap()
+                                    mapper.profiles.get_mut(&request.profile).unwrap()
                                         .axis.get_mut(&uid).unwrap().axis = previous;
                                 },
                             }
@@ -125,11 +125,11 @@ impl WindowGUI {
                         } else if *state == ElementState::Pressed {
                             match request.source {
                                 RecordSource::ActionButton { uid, .. } => {
-                                    let action = &mut mapper.profiles.get_mut(request.profile_id).unwrap().actions.get_mut(&uid).unwrap();
+                                    let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid).unwrap();
                                     action.button = Some(Button::Keyboard { code: *keycode });
                                 },
                                 RecordSource::AxisButton { uid, .. } => {
-                                    let axis = mapper.profiles.get_mut(request.profile_id).unwrap().axis.get_mut(&uid).unwrap();
+                                    let axis = mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
                                     axis.button = Some((Button::Keyboard { code: *keycode }, 1.0));
                                 },
                                 _ => {}
@@ -142,11 +142,11 @@ impl WindowGUI {
                         if *state == ElementState::Pressed {
                             match request.source {
                                 RecordSource::ActionButton { uid, .. } => {
-                                    let action = &mut mapper.profiles.get_mut(request.profile_id).unwrap().actions.get_mut(&uid).unwrap();
+                                    let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid).unwrap();
                                     action.button = Some(Button::Mouse { button: *button });
                                 },
                                 RecordSource::AxisButton { uid, .. } => {
-                                    let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().axis.get_mut(&uid).unwrap();
+                                    let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
                                     axis.button = Some((Button::Mouse { button: *button }, 1.0));
                                 },
                                 _ => {}
@@ -176,11 +176,11 @@ impl WindowGUI {
                 gilrs::EventType::ButtonPressed(button, _) => {
                     match request.source {
                         RecordSource::ActionButton { uid, .. } => {
-                            let action = &mut mapper.profiles.get_mut(request.profile_id).unwrap().actions.get_mut(&uid).unwrap();
+                            let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid).unwrap();
                             action.button = Some(Button::Controller { id, button: *button });
                         },
                         RecordSource::AxisButton { uid, .. } => {
-                            let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().axis.get_mut(&uid).unwrap();
+                            let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
                             axis.button = Some((Button::Controller { id, button: *button }, 1.0));
                         },
                         _ => {}
@@ -191,7 +191,7 @@ impl WindowGUI {
                 gilrs::EventType::AxisChanged(ax, value, _) => {
                     if f32::abs(*value) > 0.6 {
                         if let RecordSource::AxisAxis { uid, .. } = request.source {
-                            let axis = &mut mapper.profiles.get_mut(request.profile_id).unwrap().axis.get_mut(&uid).unwrap();
+                            let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
                             let scale: f32 = if *value > 0.0 { 1.0 } else { -1.0 };
                             axis.axis = Some((Axis::Controller { id, axis: *ax }, scale));
                         }
@@ -283,7 +283,7 @@ impl WindowGUI {
                                         .clicked() {
                                             // Record button
                                             self.record_request = Some(RecordRequest {
-                                                profile_id: self.active_profile,
+                                                profile: self.active_profile,
                                                 source: RecordSource::ActionButton { uid: *uid, previous: map_action.button }, 
                                             });
                                             map_action.button = None;
@@ -374,7 +374,7 @@ impl WindowGUI {
                                         })
                                         .clicked() {
                                             self.record_request = Some(RecordRequest { 
-                                                profile_id: self.active_profile,
+                                                profile: self.active_profile,
                                                 source: RecordSource::AxisButton { uid: *uid, previous: map_axis.button },
                                             });
                                             map_axis.button = None;
@@ -421,7 +421,7 @@ impl WindowGUI {
                                         })
                                         .clicked() {
                                             self.record_request = Some(RecordRequest { 
-                                                profile_id: self.active_profile,
+                                                profile: self.active_profile,
                                                 source: RecordSource::AxisAxis { uid: *uid, previous: map_axis.axis },
                                             });
                                             map_axis.axis = None;
@@ -546,14 +546,14 @@ impl WindowGUI {
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            for (profile_id, profile) in &mut mapper.profiles {
-                                if self.active_profile == profile_id {
+                            for (profile_uid, profile) in &mut mapper.profiles {
+                                if self.active_profile == *profile_uid {
                                     ui.add(egui::SelectableLabel::new(true, format!("   {}   ", profile.name)));
                                 } else if ui.button(format!("   {}   ", profile.name)).clicked() {
-                                    self.active_profile = if self.active_profile == profile_id {
-                                        InputProfileId::null()
+                                    self.active_profile = if self.active_profile == *profile_uid {
+                                        UID::null()
                                     } else {
-                                        profile_id
+                                        *profile_uid
                                     };
                                 }
                             }
@@ -562,15 +562,15 @@ impl WindowGUI {
                                 self.active_profile = mapper.new_profile(app);
                             }
                             if ui.button("Remove").clicked() && !self.active_profile.is_null() {
-                                mapper.profiles.remove(self.active_profile);
-                                self.active_profile = InputProfileId::null();
+                                mapper.profiles.remove(&self.active_profile);
+                                self.active_profile = UID::null();
                             }
                             if ui.button("Duplicate").clicked() {
                                 self.active_profile = mapper.duplicate(self.active_profile, app);
                             }
                             ui.add(egui::TextEdit::singleline(&mut self.profile_rename_placeholder).desired_width(100.0));
                             if ui.button("Rename").clicked() && !mapper.profiles.iter().any(|(_, p)| p.name == self.profile_rename_placeholder) {
-                                if let Some(profile) = mapper.profiles.get_mut(self.active_profile) {
+                                if let Some(profile) = mapper.profiles.get_mut(&self.active_profile) {
                                     if !self.profile_rename_placeholder.is_empty() {
                                         profile.name = self.profile_rename_placeholder.clone();
                                         self.profile_rename_placeholder.clear();
@@ -581,7 +581,7 @@ impl WindowGUI {
                         ui.separator();
 
                         // Get the active input profile
-                        if let Some(profile) = mapper.profiles.get_mut(self.active_profile) {
+                        if let Some(profile) = mapper.profiles.get_mut(&self.active_profile) {
 
                             // Profile section
                             ui.checkbox(&mut profile.active, "Active");
