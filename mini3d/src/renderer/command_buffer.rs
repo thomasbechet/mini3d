@@ -10,7 +10,7 @@ pub enum Command {
     DrawHLine { y: i32, x0: i32, x1: i32 },
     DrawRect { rect: IRect },
     FillRect { rect: IRect },
-    RenderScene { handle: UID },
+    DrawScene { camera: UID, viewport: IRect },
 }
 
 #[derive(Clone)]

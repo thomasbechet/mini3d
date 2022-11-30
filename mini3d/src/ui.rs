@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::graphics::command_buffer::CommandBuffer;
+use crate::renderer::command_buffer::CommandBuffer;
 
 use self::{navigation_layout::NavigationLayout, button::ButtonUI, label::LabelUI, viewport::ViewportUI};
 

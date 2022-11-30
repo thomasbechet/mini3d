@@ -4,35 +4,34 @@ use serde::ser::SerializeTuple;
 use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::AssetManager;
-use crate::backend::{BackendDescriptor, Backend, DefaultBackend};
 use crate::feature::{asset, component, system, signal, process};
+use crate::renderer::RendererManager;
+use crate::renderer::backend::RendererBackend;
 use crate::scene::SceneManager;
-use crate::event::AppEvents;
+use crate::event::Events;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
 use crate::process::{ProcessManager, ProcessManagerContext};
-use crate::request::AppRequests;
+use crate::request::Requests;
 use crate::script::ScriptManager;
 use crate::signal::SignalManager;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
-pub struct App {
+pub struct Engine {
     pub asset: AssetManager,
     pub input: InputManager,
     pub process: ProcessManager,
     pub script: ScriptManager,
     pub scene: SceneManager,
     pub signal: SignalManager,
-
-    default_backend: DefaultBackend,
-
+    pub renderer: RendererManager,
     accumulator: f64,
     time: f64,
 }
 
-impl App {
+impl Engine {
 
     fn register_feature(&mut self) -> Result<()> {
 
@@ -68,9 +67,7 @@ impl App {
         // Systems
         self.scene.register_system("despawn_entities", system::despawn::run)?;
         self.scene.register_system("free_fly", system::free_fly::run)?;
-        self.scene.register_system("renderer_check_lifecycle", system::renderer::check_lifecycle)?;
-        self.scene.register_system("renderer_transfer_transforms", system::renderer::transfer_transforms)?;
-        self.scene.register_system("renderer_update_camera", system::renderer::update_camera)?;
+        self.scene.register_system("renderer", system::renderer::synchronize_renderer)?;
         self.scene.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
         self.scene.register_system("rotator", system::rotator::run)?;
 
@@ -81,19 +78,19 @@ impl App {
     }
 
     pub fn new() -> Result<Self> {
-        let mut app = Self {
+        let mut engine = Self {
             asset: Default::default(), 
             input: Default::default(), 
             process: Default::default(),
             script: Default::default(),
             scene: Default::default(),
             signal: Default::default(),
-            default_backend: Default::default(),
+            renderer: Default::default(),
             accumulator: 0.0,
             time: 0.0,
         };
-        app.register_feature()?;
-        Ok(app)
+        engine.register_feature()?;
+        Ok(engine)
     }
 
     pub fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -154,10 +151,10 @@ impl App {
     }
 
     pub fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
-        struct AppVisitor<'a> {
-            app: &'a mut App,
+        struct EngineVisitor<'a> {
+            engine: &'a mut Engine,
         }
-        impl<'de, 'a> Visitor<'de> for AppVisitor<'a> {
+        impl<'de, 'a> Visitor<'de> for EngineVisitor<'a> {
             type Value = ();
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("App")
@@ -215,30 +212,29 @@ impl App {
                         self.manager.load_state(deserializer)
                     }
                 }
-                seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.app.asset })?;
-                seq.next_element_seed(ProcessManagerDeserializeSeed { manager: &mut self.app.process })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.app.scene })?;
-                seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.app.input })?;
-                seq.next_element_seed(SignalManagerDeserializeSeed { manager: &mut self.app.signal })?;
-                self.app.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
-                self.app.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
+                seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.engine.asset })?;
+                seq.next_element_seed(ProcessManagerDeserializeSeed { manager: &mut self.engine.process })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.engine.scene })?;
+                seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.engine.input })?;
+                seq.next_element_seed(SignalManagerDeserializeSeed { manager: &mut self.engine.signal })?;
+                self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
+                self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
                 Ok(())
             }
         }
-        deserializer.deserialize_tuple(7, AppVisitor { app: self })?;
+        deserializer.deserialize_tuple(7, EngineVisitor { engine: self })?;
         Ok(())
     }
 
-    pub fn progress<'a>(
-        &'a mut self, 
-        backend_descriptor: BackendDescriptor<'a>, 
-        events: &AppEvents,
-        requests: &mut AppRequests,
+    pub fn progress(
+        &mut self,
+        events: &Events,
+        requests: &mut Requests,
         mut delta_time: f64,
     ) -> Result<()> {
 
-        // Build the backend
-        let backend = Backend::build(backend_descriptor, &mut self.default_backend);
+        // ================= PREPARE STEP ================= //
+        self.renderer.prepare()?;
 
         // ================= DISPATCH STEP ================= //
 
@@ -269,9 +265,6 @@ impl App {
         self.accumulator += delta_time;
         self.time += delta_time;
 
-        // Prepare resources for drawing
-        backend.renderer.reset_command_buffers();
-
         // Update processes
         let mut ctx = ProcessManagerContext {
             asset: &mut self.asset,
@@ -279,7 +272,7 @@ impl App {
             script: &mut self.script,
             scene: &mut self.scene,
             signal: &mut self.signal,
-            renderer: backend.renderer,
+            renderer: &mut self.renderer,
             events,
             delta_time,
             time: self.time,
@@ -307,5 +300,12 @@ impl App {
         self.signal.cleanup();
 
         Ok(())
+    }
+
+    pub fn update_renderer(
+        &mut self,
+        backend: &mut impl RendererBackend,
+    ) -> Result<()> {
+        self.renderer.update_backend(backend, &self.asset, &mut self.scene)
     }
 }

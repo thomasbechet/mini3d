@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::{graphics::{SCREEN_HEIGHT, command_buffer::{CommandBuffer, Command}}, math::rect::IRect, process::{ProcessContext, Process}, uid::UID};
+use crate::{renderer::{SCREEN_HEIGHT, command_buffer::{CommandBuffer, Command}}, math::rect::IRect, process::{ProcessContext, Process}, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 struct TimeGraph {
@@ -102,8 +102,8 @@ impl Process for ProfilerProcess {
             cb1.push(Command::Print { p: (8, 26).into(), text: format!("dc   : {}", ctx.renderer.statistics().draw_count), font });
             cb1.push(Command::Print { p: (8, 35).into(), text: format!("tc   : {}", ctx.renderer.statistics().triangle_count), font });
             cb1.push(Command::Print { p: (8, 44).into(), text: format!("vp   : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1), font });
-            ctx.renderer.push_command_buffer(cb1);
-            ctx.renderer.push_command_buffer(self.time_graph.render());
+            ctx.renderer.submit_command_buffer(cb1)?;
+            ctx.renderer.submit_command_buffer(self.time_graph.render())?;
         }
 
         Ok(())

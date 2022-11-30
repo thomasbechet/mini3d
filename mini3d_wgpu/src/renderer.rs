@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use mini3d::anyhow::{Result, Context};
-use mini3d::app::App;
+use mini3d::engine::Engine;
 use mini3d::asset::AssetManager;
 use mini3d::backend::renderer::{RendererBackend, RendererStatistics, RendererModelDescriptor};
 use mini3d::feature;
 use mini3d::glam::{Vec4, Mat4, Vec3};
-use mini3d::graphics::color::srgb_to_linear;
-use mini3d::graphics::command_buffer::CommandBuffer;
+use mini3d::renderer::color::srgb_to_linear;
+use mini3d::renderer::command_buffer::CommandBuffer;
 use mini3d::uid::UID;
 use wgpu::SurfaceError;
 
@@ -308,15 +308,15 @@ impl WGPURenderer {
 
     pub fn render<F: FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView)>(
         &mut self,
-        app: &App,
-        app_viewport: Vec4,
+        engine: &Engine,
+        engine_viewport: Vec4,
         egui_pass: F,
     ) -> Result<(), SurfaceError> {
         
         // Process immediate commands
         self.surface_buffer.clear(Color::from_color_alpha(Color::BLACK, 0));
         for command in &self.command_buffers {
-            self.surface_buffer.draw_command_buffer(app, command);
+            self.surface_buffer.draw_command_buffer(engine, command);
         }
 
         // Acquire next surface texture
@@ -454,10 +454,10 @@ impl WGPURenderer {
 
             // Compute viewport        
             post_process_render_pass.set_viewport(
-                app_viewport.x, 
-                app_viewport.y, 
-                app_viewport.z, 
-                app_viewport.w, 
+                engine_viewport.x, 
+                engine_viewport.y, 
+                engine_viewport.z, 
+                engine_viewport.w, 
                 0.0, 1.0
             );
         
@@ -481,10 +481,10 @@ impl WGPURenderer {
             });
 
             surface_render_pass.set_viewport(
-                app_viewport.x, 
-                app_viewport.y, 
-                app_viewport.z,
-                app_viewport.w,
+                engine_viewport.x, 
+                engine_viewport.y, 
+                engine_viewport.z,
+                engine_viewport.w,
                 0.0, 1.0
             );
 
@@ -501,6 +501,9 @@ impl WGPURenderer {
         // Submit queue and present
         self.context.queue.submit(Some(encoder.finish()));
         output.present();
+
+        // Clear resources
+        self.command_buffers.clear();
 
         Ok(())
     }
@@ -605,11 +608,8 @@ impl RendererBackend for WGPURenderer {
         Ok(())
     }
 
-    fn push_command_buffer(&mut self, command: CommandBuffer) {
+    fn submit_command_buffer(&mut self, command: CommandBuffer) {
         self.command_buffers.push(command);
-    }
-    fn reset_command_buffers(&mut self) {
-        self.command_buffers.clear();
     }
 
     fn statistics(&self) -> RendererStatistics {

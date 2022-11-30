@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, Context};
 use serde::{Deserialize, Serialize, Serializer, ser::{SerializeTuple, SerializeSeq}, Deserializer, de::{Visitor, DeserializeSeed}};
 use std::{collections::HashMap, any::TypeId, marker::PhantomData};
 
-use crate::{backend::renderer::RendererBackend, asset::AssetManager, input::InputManager, event::AppEvents, script::ScriptManager, scene::SceneManager, uid::UID, signal::SignalManager};
+use crate::{asset::AssetManager, input::InputManager, event::Events, script::ScriptManager, scene::SceneManager, uid::UID, signal::SignalManager, renderer::RendererManager};
 
 #[allow(unused_variables)]
 pub trait Process {
@@ -51,8 +51,8 @@ pub(crate) struct ProcessManagerContext<'a> {
     pub script: &'a mut ScriptManager,
     pub scene: &'a mut SceneManager,
     pub signal: &'a mut SignalManager,
-    pub renderer: &'a mut dyn RendererBackend,
-    pub events: &'a AppEvents,
+    pub renderer: &'a mut RendererManager,
+    pub events: &'a Events,
     pub delta_time: f64,
     pub time: f64,
 }
@@ -154,8 +154,8 @@ pub struct ProcessContext<'a, 'b> {
     pub script: &'a mut ScriptManager,
     pub scene: &'a mut SceneManager,
     pub signal: &'a mut SignalManager,
-    pub renderer: &'a mut dyn RendererBackend,
-    pub events: &'a AppEvents,
+    pub renderer: &'a mut RendererManager,
+    pub events: &'a Events,
     pub delta_time: f64,
     pub time: f64,
     pub process_uid: UID,

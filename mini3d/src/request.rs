@@ -1,10 +1,10 @@
 #[derive(Default)]
-pub struct AppRequests {
+pub struct Requests {
     pub(crate) shutdown: bool,
     pub(crate) reload_input_mapping: bool,
 }
 
-impl AppRequests {
+impl Requests {
 
     pub fn new() -> Self {
         Self::default()

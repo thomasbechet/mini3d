@@ -3,7 +3,7 @@ use glam::{Vec2, IVec2};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
-use crate::{math::rect::IRect, graphics::{SCREEN_RESOLUTION, command_buffer::{CommandBuffer, Command}}, uid::UID, input::InputManager};
+use crate::{math::rect::IRect, renderer::{SCREEN_RESOLUTION, command_buffer::{CommandBuffer, Command}}, uid::UID, input::InputManager};
 
 #[derive(Clone, Copy)]
 enum Direction {
