@@ -2,12 +2,11 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{AppEvents, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::AppRequests, app::App, glam::Vec2, graphics::SCREEN_RESOLUTION, backend::BackendDescriptor, feature::asset::rhai_script::RhaiScript};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript};
 use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::compute_fixed_viewport;
-use wgpu::SurfaceError;
 use window::Window;
 use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, DeviceEvent, WindowEvent, ElementState, VirtualKeyCode, MouseButton}};
 
@@ -54,12 +53,12 @@ fn main() {
     let mut renderer = WGPURenderer::new(&window.handle);
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &mapper);
 
-    // Application
-    let mut app = App::new().expect("Failed to create application");
-    app.process.register::<OSProcess>("os").expect("Failed to register os process");
-    app.process.start("root", OSProcess::default()).expect("Failed to start os process");
-    let mut events = AppEvents::new();
-    let mut requests = AppRequests::new();
+    // Engine
+    let mut engine = Engine::new().expect("Failed to create engine");
+    engine.process.register::<OSProcess>("os").expect("Failed to register os process");
+    engine.process.start("root", OSProcess::default()).expect("Failed to start os process");
+    let mut events = Events::new();
+    let mut requests = Requests::new();
 
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
@@ -235,10 +234,6 @@ fn main() {
                         }
                     }
                 }
-
-                // Build backend descriptor
-                let desc = BackendDescriptor::new()
-                    .with_renderer(&mut renderer);
                 
                 // Update last click
                 if let Some(time) = last_click {
@@ -255,7 +250,7 @@ fn main() {
                 // Update GUI
                 gui.ui(
                     &mut window,
-                    &app,
+                    &engine,
                     &mut mapper,
                     &mut WindowControl {
                         control_flow,
@@ -266,53 +261,52 @@ fn main() {
                     delta_time
                 );
 
-                // Progress application
-                app.progress(desc, &events, &mut requests, delta_time)
-                    .expect("Failed to progress application");
-
+                // Progress engine
+                engine.progress(&events, &mut requests, delta_time).expect("Failed to progress engine");
+                engine.update_renderer(&mut renderer, false).expect("Failed to render");
+                
                 // Save/Load state
                 if save_state {
 
                     // {
                     //     let file = File::create("assets/state.json").expect("Failed to create file");
                     //     let mut serializer = serde_json::Serializer::new(file);
-                    //     app.save_state(&mut serializer).expect("Failed to serialize");
+                    //     engine.save_state(&mut serializer).expect("Failed to serialize");
                     // }
 
                     {
                         let mut file = File::create("assets/state.bin").unwrap();
                         let mut bytes: Vec<u8> = Default::default();
                         let mut bincode_serializer = bincode::Serializer::new(&mut bytes, bincode::options());
-                        app.save_state(&mut bincode_serializer).expect("Failed to serialize");
+                        engine.save_state(&mut bincode_serializer).expect("Failed to serialize");
                         bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
                         file.write_all(&bytes).unwrap();
                     }
                     
                     // {
                     //     let mut file = File::create("assets/state_postcard.bin").unwrap();
-                    //     struct AppSerialize<'a> {
-                    //         app: &'a App,
+                    //     struct EngineSerialize<'a> {
+                    //         engine: &'a Engine,
                     //     }
                     //     use serde::Serialize;
-                    //     impl<'a> Serialize for AppSerialize<'a> {
+                    //     impl<'a> Serialize for EngineSerialize<'a> {
                     //         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                     //             where S: serde::Serializer {
-                    //             self.app.save_state(serializer)
+                    //             self.engine.save_state(serializer)
                     //         }
                     //     }
-                    //     let mut bytes = postcard::to_allocvec(&AppSerialize { app: &app }).unwrap();
+                    //     let mut bytes = postcard::to_allocvec(&EngineSerialize { engine: &engine }).unwrap();
                     //     bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
                     //     file.write_all(&bytes).unwrap();
                     // }
 
                     save_state = false;
                 } else if load_state {
-                    renderer.reset().expect("Failed to reset renderer");
                     
                     // {
                     //     let file = File::open("assets/state.json").expect("Failed to open file");
                     //     let mut deserializer = serde_json::Deserializer::from_reader(file);
-                    //     app.load_state(&mut deserializer).expect("Failed to deserialize");
+                    //     engine.load_state(&mut deserializer).expect("Failed to deserialize");
                     // }
                     
                     {
@@ -321,7 +315,7 @@ fn main() {
                         file.read_to_end(&mut bytes).expect("Failed to read to end");
                         let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
                         let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-                        app.load_state(&mut deserializer).expect("Failed to load state");
+                        engine.load_state(&mut deserializer).expect("Failed to load state");
                     }
 
                     // {
@@ -330,20 +324,19 @@ fn main() {
                     //     file.read_to_end(&mut bytes).expect("Failed to read to end");
                     //     let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
                     //     let mut deserializer = postcard::Deserializer::from_bytes(&bytes);
-                    //     app.load_state(&mut deserializer).expect("Failed to load state");
+                    //     engine.load_state(&mut deserializer).expect("Failed to load state");
                     // }
+
+                    engine.update_renderer(&mut renderer, true).expect("Failed to reset renderer");
 
                     load_state = false;
                 }
-
+                
                 // Invoke WGPU Renderer
                 let viewport = compute_fixed_viewport(gui.central_viewport());
-                renderer.render(&app, viewport, |device, queue, encoder, output| {
+                renderer.render(&engine, viewport, |device, queue, encoder, output| {
                     gui.render(&window.handle, device, queue, encoder, output);
-                })
-                .map_err(|e| 
-                    if e == SurfaceError::OutOfMemory { *control_flow = ControlFlow::Exit }
-                ).expect("Error");
+                }).expect("Failed to render");
 
                 // Check shutdown
                 if requests.shutdown() {
@@ -353,7 +346,7 @@ fn main() {
 
                 // Check input reloading
                 if requests.reload_input_mapping() {
-                    mapper.refresh(&app);
+                    mapper.refresh(&engine);
                 }
 
                 // Reset requests and events

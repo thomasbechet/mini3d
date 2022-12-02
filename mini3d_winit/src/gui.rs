@@ -1,6 +1,6 @@
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use mini3d::{glam::Vec4, app::App, uid::UID, feature::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
+use mini3d::{glam::Vec4, engine::Engine, uid::UID, feature::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::ControlFlow};
 
@@ -213,7 +213,7 @@ impl WindowGUI {
         input_table: &InputTable,
         profile: &mut InputProfile,
         ui: &mut egui::Ui,
-        app: &App,
+        engine: &Engine,
         window: &mut Window,
     ) {
         ui.collapsing(input_table.display_name.clone(), |ui| {
@@ -251,7 +251,7 @@ impl WindowGUI {
                     })
                     .body(|mut body| {
                         input_table.actions.iter().for_each(|uid| {
-                            let action = app.asset.entry::<InputAction>(*uid).expect("Action UID not found");
+                            let action = engine.asset.entry::<InputAction>(*uid).expect("Action UID not found");
                             if let Some(map_action) = profile.actions.get_mut(uid) {
                                 body.row(20.0, |mut row| {
                                     if self.show_uid {
@@ -344,7 +344,7 @@ impl WindowGUI {
                     })
                     .body(|mut body| {
                         input_table.axis.iter().for_each(|uid| {
-                            let axis = app.asset.entry::<InputAxis>(*uid).expect("Axis UID not found");
+                            let axis = engine.asset.entry::<InputAxis>(*uid).expect("Axis UID not found");
                             if let Some(map_axis) = profile.axis.get_mut(uid) {
                                 body.row(20.0, |mut row| {
                                     if self.show_uid {
@@ -467,7 +467,7 @@ impl WindowGUI {
     pub(crate) fn ui(
         &mut self, 
         window: &mut Window,
-        app: &App,
+        engine: &Engine,
         mapper: &mut InputMapper,
         control: &mut WindowControl,
         delta_time: f64
@@ -532,12 +532,12 @@ impl WindowGUI {
                             }
                             if ui.button("   Cancel   ").clicked() {
                                 mapper.load().ok();
-                                mapper.refresh(app); // Update IDs
+                                mapper.refresh(engine); // Update IDs
                                 mapper.rebuild_cache();
                                 self.page = Page::None;
                             }
                             if ui.button("   Refresh   ").clicked() {
-                                mapper.refresh(app);
+                                mapper.refresh(engine);
                             }
                             ui.separator();
                             ui.checkbox(&mut self.show_uid, "Show UID");
@@ -559,14 +559,14 @@ impl WindowGUI {
                             }
                             ui.separator();
                             if ui.button("Add").clicked() {
-                                self.active_profile = mapper.new_profile(app);
+                                self.active_profile = mapper.new_profile(engine);
                             }
                             if ui.button("Remove").clicked() && !self.active_profile.is_null() {
                                 mapper.profiles.remove(&self.active_profile);
                                 self.active_profile = UID::null();
                             }
                             if ui.button("Duplicate").clicked() {
-                                self.active_profile = mapper.duplicate(self.active_profile, app);
+                                self.active_profile = mapper.duplicate(self.active_profile, engine);
                             }
                             ui.add(egui::TextEdit::singleline(&mut self.profile_rename_placeholder).desired_width(100.0));
                             if ui.button("Rename").clicked() && !mapper.profiles.iter().any(|(_, p)| p.name == self.profile_rename_placeholder) {
@@ -596,8 +596,8 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for (_, entry) in app.asset.iter::<InputTable>().unwrap() {
-                                        self.ui_input_table(&entry.asset, profile, ui, app, window);
+                                    for (_, entry) in engine.asset.iter::<InputTable>().unwrap() {
+                                        self.ui_input_table(&entry.asset, profile, ui, engine, window);
                                     }
                                 });
                         }

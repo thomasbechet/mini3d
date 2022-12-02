@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{app::App, event::{AppEvents, input::{InputEvent, InputActionEvent, InputAxisEvent}}, anyhow::{Result, Context, anyhow}, uid::UID, feature::asset::{input_action::InputAction, input_axis::InputAxis}};
+use mini3d::{engine::Engine, event::{Events, input::{InputEvent, InputActionEvent, InputAxisEvent}}, anyhow::{Result, Context, anyhow}, uid::UID, feature::asset::{input_action::InputAction, input_axis::InputAxis}};
 use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
@@ -99,9 +99,8 @@ pub(crate) struct InputMapper {
 impl InputMapper {
 
     pub(crate) fn new() -> Self {
-        let mut mapper: InputMapper = Default::default();
+        let mut mapper: InputMapper = InputMapper { default_profile: UID::from("Default"), ..Default::default() };
         // Default inputs
-        mapper.default_profile = UID::from("Default");
         mapper.profiles.insert(mapper.default_profile, InputProfile { 
             name: "Default".to_string(), 
             active: true,
@@ -134,7 +133,7 @@ impl InputMapper {
         mapper
     }
 
-    pub(crate) fn new_profile(&mut self, app: &App) -> UID {
+    pub(crate) fn new_profile(&mut self, engine: &Engine) -> UID {
         let mut next_index = self.profiles.len() + 1;
         let mut name = format!("Profile {}", next_index);
         let uid = UID::from(&name);
@@ -143,11 +142,11 @@ impl InputMapper {
             name = format!("Profile {}", next_index); 
         }
         self.profiles.insert(uid, InputProfile { name, active: true, actions: Default::default(), axis: Default::default() });
-        self.refresh(app);
+        self.refresh(engine);
         uid
     }
 
-    pub(crate) fn duplicate(&mut self, from: UID, app: &App) -> UID {
+    pub(crate) fn duplicate(&mut self, from: UID, engine: &Engine) -> UID {
         if let Some(from) = self.profiles.get(&from) {
             let mut name = format!("{} Copy", from.name);
             let mut next_index = 1;
@@ -158,7 +157,7 @@ impl InputMapper {
             let uid = UID::from(&name);
             let profile = InputProfile { name, active: true, actions: from.actions.clone(), axis: from.axis.clone() };
             self.profiles.insert(uid, profile);
-            self.refresh(app);
+            self.refresh(engine);
             uid
         } else {
             UID::null()
@@ -192,18 +191,18 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn refresh(&mut self, app: &App) {
+    pub(crate) fn refresh(&mut self, engine: &Engine) {
 
         // Update profiles
-        for (_, profile) in &mut self.profiles {
+        for profile in self.profiles.values_mut() {
 
             // Update actions
-            app.asset.iter::<InputAction>().expect("InputAction asset not found").for_each(|(uid, _)| {
+            engine.asset.iter::<InputAction>().expect("InputAction asset not found").for_each(|(uid, _)| {
                 profile.actions.entry(*uid).or_insert_with(Default::default);
             });
             
             // Update axis
-            app.asset.iter::<InputAxis>().expect("InputAxis asset not found").for_each(|(uid, _)| {
+            engine.asset.iter::<InputAxis>().expect("InputAxis asset not found").for_each(|(uid, _)| {
                 profile.axis.entry(*uid).or_insert_with(Default::default);
             });
         }
@@ -228,7 +227,7 @@ impl InputMapper {
         self.controllers_axis_to_axis.clear();
 
         // Update caches
-        for (_, profile) in &self.profiles {
+        for profile in self.profiles.values() {
             if profile.active {
                 for (uid, action) in &profile.actions {
                     if let Some(button) = &action.button {
@@ -286,7 +285,7 @@ impl InputMapper {
         }   
     }
 
-    pub(crate) fn dispatch_keyboard(&self, keycode: VirtualKeyCode, state: ElementState, events: &mut AppEvents) {
+    pub(crate) fn dispatch_keyboard(&self, keycode: VirtualKeyCode, state: ElementState, events: &mut Events) {
         if let Some(actions) = self.key_to_action.get(&keycode) {
             let pressed = state == ElementState::Pressed;
             for action in actions {
@@ -304,7 +303,7 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_mouse_button(&self, button: MouseButton, state: ElementState, events: &mut AppEvents) {
+    pub(crate) fn dispatch_mouse_button(&self, button: MouseButton, state: ElementState, events: &mut Events) {
         let pressed = state == ElementState::Pressed;
         if let Some(actions) = self.mouse_button_to_action.get(&button) {
             for action in actions {
@@ -318,7 +317,7 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_mouse_motion(&self, delta: (f64, f64), events: &mut AppEvents) {
+    pub(crate) fn dispatch_mouse_motion(&self, delta: (f64, f64), events: &mut Events) {
         for axis in &self.mouse_motion_x_to_axis {
             events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.0 as f32 * axis.scale }));
         }
@@ -327,7 +326,7 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_mouse_cursor(&self, cursor: (f32, f32), events: &mut AppEvents) {
+    pub(crate) fn dispatch_mouse_cursor(&self, cursor: (f32, f32), events: &mut Events) {
         for axis in &self.mouse_position_x_to_axis {
             events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: cursor.0 }));
         }
@@ -336,7 +335,7 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_controller_button(&self, id: GamepadId, button: gilrs::Button, pressed: bool, events: &mut AppEvents) {
+    pub(crate) fn dispatch_controller_button(&self, id: GamepadId, button: gilrs::Button, pressed: bool, events: &mut Events) {
         if let Some(buttons) = &self.controllers_button_to_action.get(&id) {
             if let Some(actions) = buttons.get(&button) {
                 for action in actions {
@@ -354,7 +353,7 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_controller_axis(&self, id: GamepadId, controller_axis: gilrs::Axis, value: f32, events: &mut AppEvents) {
+    pub(crate) fn dispatch_controller_axis(&self, id: GamepadId, controller_axis: gilrs::Axis, value: f32, events: &mut Events) {
 
         // Compute value with deadzone
         let value = if f32::abs(value) <= 0.15 { 0.0 } else { value };

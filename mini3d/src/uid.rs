@@ -35,8 +35,30 @@ impl From<u64> for UID {
     }
 }
 
+impl From<UID> for u64 {
+    fn from(uid: UID) -> Self {
+        uid.0
+    }
+}
+
 impl Display for UID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:016X}", self.0)
+    }
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct SequentialGenerator {
+    next: u64,
+}
+
+impl SequentialGenerator {
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> UID {
+        self.next += 1;
+        if self.next == 0 { // Prevent generating null uid
+            self.next += 1;
+        }
+        UID::from(self.next)
     }
 }

@@ -1,6 +1,6 @@
 use std::{path::Path, ffi::CStr};
 
-use mini3d::event::AppEvents;
+use mini3d::event::Events;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 
 use crate::event::mini3d_app_events;
@@ -17,7 +17,7 @@ pub unsafe extern "C" fn mini3d_utils_import_image(
     info: *const mini3d_utils_import_image_info,
     events: *mut mini3d_app_events,
 ) -> libc::c_int {
-    let events = (events as *mut AppEvents).as_mut().unwrap();
+    let events = (events as *mut Events).as_mut().unwrap();
     let c_source = CStr::from_ptr((*info).source).to_str().unwrap();
     let c_name = CStr::from_ptr((*info).name).to_str().unwrap();
     ImageImporter::new()
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn mini3d_utils_import_model(
     info: *const mini3d_utils_import_model_info,
     events: *mut mini3d_app_events,
 ) -> libc::c_int {
-    let events = (events as *mut AppEvents).as_mut().unwrap();
+    let events = (events as *mut Events).as_mut().unwrap();
     let c_obj_source = CStr::from_ptr((*info).obj_source).to_str().unwrap();
     let c_name = CStr::from_ptr((*info).name).to_str().unwrap();
     ModelImporter::new()

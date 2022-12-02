@@ -1,16 +1,18 @@
 use serde::{Serialize, Deserialize};
 
-use crate::uid::UID;
+use crate::{uid::UID, renderer::backend::ModelHandle};
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelComponent {
     pub model: UID,
     #[serde(skip)]
-    pub handle: UID,
+    pub changed: bool,
+    #[serde(skip)]
+    pub(crate) handle: Option<ModelHandle>,
 }
 
 impl ModelComponent {
     pub fn new(model: UID) -> Self {
-        Self { model, handle: UID::null() }
+        Self { model, changed: false, handle: None }
     }
 }

@@ -1,4 +1,4 @@
-use mini3d::{graphics::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_ASPECT_RATIO}, glam::{Vec4, Vec4Swizzles}};
+use mini3d::{renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_ASPECT_RATIO}, glam::{Vec4, Vec4Swizzles}};
 
 pub fn compute_fixed_viewport(viewport: Vec4) -> Vec4 {
     let pos = viewport.xy();

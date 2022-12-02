@@ -4,14 +4,14 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, backend::renderer::RendererBackend, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemSchedule}, signal::SignalManager};
+use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemSchedule}, signal::SignalManager, renderer::RendererManager};
 
 pub struct SystemContext<'a> {
     pub asset: &'a mut AssetManager,
     pub input: &'a mut InputManager,
     pub signal: &'a mut SignalManager,
     pub script: &'a mut ScriptManager,
-    pub renderer: &'a mut dyn RendererBackend,
+    pub renderer: &'a mut RendererManager,
     pub delta_time: f64,
     pub time: f64,
     pub scene_uid: UID,
@@ -217,6 +217,10 @@ impl SceneManager {
         self.instances.clear();
         deserializer.deserialize_seq(ECSVisitor { manager: self })?;
         Ok(())
+    }
+
+    pub(crate) fn iter_world(&'_ mut self) -> impl Iterator<Item = &'_ mut hecs::World> {
+        self.instances.values_mut().map(|instance| &mut instance.world)
     }
 
     pub fn register_system(&mut self, name: &str, run: SystemRunCallback) -> Result<()> {

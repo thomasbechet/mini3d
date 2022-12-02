@@ -4,6 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::context::WGPUContext;
 
 pub(crate) struct Texture {
+    pub(crate) texture: wgpu::Texture,
     pub(crate) view: wgpu::TextureView,
 }
 
@@ -27,6 +28,13 @@ impl Texture {
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage,
         }, texture.data.as_slice());
-        Self { view: texture.create_view(&wgpu::TextureViewDescriptor::default()) }
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        Self { texture, view }
+    }
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        self.texture.destroy();
     }
 }

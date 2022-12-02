@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 
-use mini3d::anyhow::{Result, Context};
-use mini3d::app::App;
-use mini3d::asset::AssetManager;
-use mini3d::backend::renderer::{RendererBackend, RendererStatistics, RendererModelDescriptor};
-use mini3d::feature;
+use mini3d::anyhow::{Result, Context, anyhow};
+use mini3d::engine::Engine;
+use mini3d::feature::asset::{mesh, texture, font};
 use mini3d::glam::{Vec4, Mat4, Vec3};
-use mini3d::graphics::color::srgb_to_linear;
-use mini3d::graphics::command_buffer::CommandBuffer;
-use mini3d::uid::UID;
-use wgpu::SurfaceError;
+use mini3d::renderer::RendererStatistics;
+use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, ModelHandle, FontHandle, CameraHandle};
+use mini3d::renderer::color::srgb_to_linear;
+use mini3d::renderer::command_buffer::CommandBuffer;
+use mini3d::uid::{UID, SequentialGenerator};
 
 use crate::blit_bind_group::{create_blit_bind_group_layout, create_blit_bind_group};
 use crate::blit_pipeline::{create_blit_pipeline_layout, create_blit_pipeline, create_blit_shader_module};
@@ -24,14 +23,13 @@ use crate::render_target::RenderTarget;
 use crate::flat_pipeline::create_flat_pipeline;
 use crate::surface_buffer::{SurfaceBuffer, Color};
 use crate::texture::Texture;
-use crate::vertex_buffer::{VertexBuffer, VertexBufferDescriptor};
+use crate::vertex_allocator::{VertexAllocator, VertexBufferDescriptor};
 
 struct Mesh {
     submeshes: Vec<UID>,
 }
 
 pub(crate) struct Material {
-    pub(crate) texture: UID,
     pub(crate) bind_group: wgpu::BindGroup,
 }
 
@@ -39,7 +37,7 @@ pub(crate) struct Material {
 /// Multiple object can have a single model
 pub(crate) struct Object {
     pub(crate) submesh: UID,
-    pub(crate) material: UID,
+    pub(crate) material: MaterialHandle,
     pub(crate) model_index: ModelIndex,
     pub(crate) draw_forward_pass: bool,
     pub(crate) draw_shadow_pass: bool,
@@ -47,30 +45,17 @@ pub(crate) struct Object {
 
 /// API model representation
 /// Model has a single transform matrix
-pub(crate) struct ModelInstance {
-    mesh: UID,
-    materials: Vec<UID>,
+pub(crate) struct Model {
+    mesh: MeshHandle,
     model_index: ModelIndex,
-    objects: Vec<UID>,
-}
-
-#[derive(Default)]
-struct UIDGenerator {
-    next: u64,
-}
-
-impl UIDGenerator {
-    fn next(&mut self) -> UID {
-        self.next += 1;
-        UID::from(self.next)
-    }
+    objects: Vec<Option<UID>>,
 }
 
 pub struct WGPURenderer {
 
     // Context
     context: WGPUContext,
-    uid_generator: UIDGenerator,
+    generator: SequentialGenerator,
     
     // Scene Render Pass
     global_uniform_buffer: GlobalBuffer,
@@ -92,14 +77,14 @@ pub struct WGPURenderer {
     command_buffers: Vec<CommandBuffer>,
     
     // Assets
-    vertex_buffer: VertexBuffer,
-    meshes: HashMap<UID, Mesh>,
+    vertex_allocator: VertexAllocator,
+    meshes: HashMap<MeshHandle, Mesh>,
     submeshes: HashMap<UID, VertexBufferDescriptor>,
-    textures: HashMap<UID, Texture>,
-    materials: HashMap<UID, Material>,
+    textures: HashMap<TextureHandle, Texture>,
+    materials: HashMap<MaterialHandle, Material>,
     
     // Scene resources
-    models: HashMap<UID, ModelInstance>,
+    models: HashMap<ModelHandle, Model>,
     model_buffer: ModelBuffer,
     objects: HashMap<UID, Object>,
     camera: Camera,
@@ -152,7 +137,7 @@ impl WGPURenderer {
             &mesh_pass_bind_group_layout,
             &flat_material_bind_group_layout,
         );
-        let vertex_buffer = VertexBuffer::new(&context, 125000);
+        let vertex_buffer = VertexAllocator::new(&context, 125000);
 
         //////// Surface Render Pass ////////
          
@@ -202,7 +187,7 @@ impl WGPURenderer {
 
         Self {
             context,
-            uid_generator: Default::default(),
+            generator: Default::default(),
 
             global_uniform_buffer: global_buffer,
             global_bind_group,
@@ -219,7 +204,7 @@ impl WGPURenderer {
             
             command_buffers: Default::default(),
             
-            vertex_buffer,
+            vertex_allocator: vertex_buffer,
             meshes: Default::default(),
             submeshes: Default::default(),
             textures: Default::default(),
@@ -251,72 +236,17 @@ impl WGPURenderer {
         }
     }
 
-    pub fn reset(&mut self) -> Result<()> {
-        // Remove all models
-        let handles = self.models.keys().copied().collect::<Vec<_>>();
-        for handle in handles {
-            self.remove_model(handle)?;
-        }
-        Ok(())
-    }
-
-    fn create_texture(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
-        let texture = asset.entry::<feature::asset::texture::Texture>(uid)
-            .with_context(|| "Texture not found")?;
-        self.textures.insert(uid, Texture::from_asset(
-            &self.context, 
-            &texture.asset,
-            wgpu::TextureUsages::TEXTURE_BINDING,
-            Some(&texture.name),
-        ));
-        Ok(())
-    }
-
-    fn create_mesh(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
-        let mesh = asset.get::<feature::asset::mesh::Mesh>(uid)
-            .with_context(|| "Mesh asset not found")?;
-        let mut submeshes: Vec<UID> = Default::default();
-        for submesh in mesh.submeshes.iter() {
-            let descriptor = self.vertex_buffer.add(&self.context, &submesh.vertices)
-                .with_context(|| "Failed to create submesh")?;
-            let submesh_uid = self.uid_generator.next();
-            self.submeshes.insert(submesh_uid, descriptor);
-            submeshes.push(submesh_uid);
-        }
-        self.meshes.insert(uid, Mesh { submeshes });
-        Ok(())
-    }
-
-    fn create_material(&mut self, uid: UID, asset: &AssetManager) -> Result<()> {
-        let material = asset.entry::<feature::asset::material::Material>(uid)
-            .with_context(|| "Material asset not found")?;
-        if !self.textures.contains_key(&material.asset.diffuse) {
-            self.create_texture(material.asset.diffuse, asset)?;
-        }
-        let diffuse = self.textures.get(&material.asset.diffuse).expect("Texture not found");
-        self.materials.insert(uid, Material { 
-            texture: material.asset.diffuse,
-            bind_group: create_flat_material_bind_group(
-                &self.context, 
-                &self.flat_material_bind_group_layout, 
-                &diffuse.view,
-                &material.name,
-            )
-        });
-        Ok(())
-    }
-
     pub fn render<F: FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView)>(
         &mut self,
-        app: &App,
-        app_viewport: Vec4,
+        engine: &Engine,
+        engine_viewport: Vec4,
         egui_pass: F,
-    ) -> Result<(), SurfaceError> {
+    ) -> Result<()> {
         
         // Process immediate commands
         self.surface_buffer.clear(Color::from_color_alpha(Color::BLACK, 0));
         for command in &self.command_buffers {
-            self.surface_buffer.draw_command_buffer(app, command);
+            self.surface_buffer.draw_command_buffer(engine, command);
         }
 
         // Acquire next surface texture
@@ -348,7 +278,7 @@ impl WGPURenderer {
         {
             if self.forward_mesh_pass.out_of_date() {
                 println!("rebuild forward mesh pass");
-                self.forward_mesh_pass.build(&self.objects, &self.submeshes);
+                self.forward_mesh_pass.build(&self.objects, &self.submeshes)?;
                 self.forward_mesh_pass.write_buffers(&self.context);
             }
         }
@@ -379,9 +309,9 @@ impl WGPURenderer {
             forward_render_pass.set_bind_group(0, &self.global_bind_group, &[]);
             forward_render_pass.set_bind_group(1, &self.forward_mesh_pass.bind_group, &[]);
 
-            forward_render_pass.set_vertex_buffer(0, self.vertex_buffer.position_buffer.slice(..));
-            forward_render_pass.set_vertex_buffer(1, self.vertex_buffer.normal_buffer.slice(..));
-            forward_render_pass.set_vertex_buffer(2, self.vertex_buffer.uv_buffer.slice(..));
+            forward_render_pass.set_vertex_buffer(0, self.vertex_allocator.position_buffer.slice(..));
+            forward_render_pass.set_vertex_buffer(1, self.vertex_allocator.normal_buffer.slice(..));
+            forward_render_pass.set_vertex_buffer(2, self.vertex_allocator.uv_buffer.slice(..));
 
             let mut triangle_count = 0;
             for batch in &self.forward_mesh_pass.multi_instanced_batches {
@@ -403,19 +333,19 @@ impl WGPURenderer {
             self.statistics.triangle_count = triangle_count;
             self.statistics.viewport = (RenderTarget::extent().width, RenderTarget::extent().height);
 
-            // let mut previous_material: MaterialId = Default::default();
+            // let mut previous_material: MaterialHandle = Default::default();
             // for batch in &self.forward_mesh_pass.instanced_batches {
                 
             //     // Check change in material
             //     if batch.material != previous_material {
             //         previous_material = batch.material;
-            //         let material = self.materials.get(batch.material)
+            //         let material = self.materials.get(&batch.material)
             //             .expect("Failed to get material during forward pass");
             //         forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
             //     }
 
             //     // Draw instanced
-            //     let descriptor = self.submeshes.get(batch.submesh)
+            //     let descriptor = self.submeshes.get(&batch.submesh)
             //         .expect("Failed to get submesh descriptor");
             //     let vertex_start = descriptor.base_index;
             //     let vertex_stop = vertex_start + descriptor.vertex_count;
@@ -454,10 +384,10 @@ impl WGPURenderer {
 
             // Compute viewport        
             post_process_render_pass.set_viewport(
-                app_viewport.x, 
-                app_viewport.y, 
-                app_viewport.z, 
-                app_viewport.w, 
+                engine_viewport.x, 
+                engine_viewport.y, 
+                engine_viewport.z, 
+                engine_viewport.w, 
                 0.0, 1.0
             );
         
@@ -481,10 +411,10 @@ impl WGPURenderer {
             });
 
             surface_render_pass.set_viewport(
-                app_viewport.x, 
-                app_viewport.y, 
-                app_viewport.z,
-                app_viewport.w,
+                engine_viewport.x, 
+                engine_viewport.y, 
+                engine_viewport.z,
+                engine_viewport.w,
                 0.0, 1.0
             );
 
@@ -502,117 +432,166 @@ impl WGPURenderer {
         self.context.queue.submit(Some(encoder.finish()));
         output.present();
 
+        // Clear resources
+        self.command_buffers.clear();
+
+        Ok(())
+    }
+
+    fn add_object(&mut self, submesh: UID, material: MaterialHandle, model_index: usize) -> Result<UID> {
+        let uid = self.generator.next();
+        self.objects.insert(uid, Object { 
+            submesh,
+            material,
+            model_index, 
+            draw_forward_pass: true,
+            draw_shadow_pass: false,
+        });
+        self.forward_mesh_pass.add(uid)?;
+        Ok(uid)
+    }
+    fn remove_object(&mut self, uid: UID) -> Result<()> {
+        let object = self.objects.remove(&uid).unwrap();
+        if object.draw_forward_pass {
+            self.forward_mesh_pass.remove(uid)?;
+        }
+        if object.draw_shadow_pass {
+            // TODO: remove from pass
+        }
         Ok(())
     }
 }
 
 impl RendererBackend for WGPURenderer {
 
-    fn add_camera(&mut self) -> Result<UID> {
-        Ok(Default::default())
-    }
-    fn remove_camera(&mut self, _handle: UID) -> Result<()> { 
+    fn reset(&mut self) -> Result<()> {
+        // Remove all models (and objects)
+        let handles = self.models.keys().copied().collect::<Vec<_>>();
+        for handle in handles {
+            self.model_remove(handle)?;
+        }
+        // Remove all meshes
+        self.meshes.clear();
+        self.vertex_allocator.clear();
+        self.submeshes.clear();
+        // Remove all textures
+        self.textures.clear();
+        // Remove all materials
+        self.materials.clear();
         Ok(())
     }
-    fn update_camera(&mut self, _handle: UID, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { 
+
+    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshHandle> {
+        let mut submeshes: Vec<UID> = Default::default();
+        for submesh in mesh.submeshes.iter() {
+            let descriptor = self.vertex_allocator.add(&self.context, &submesh.vertices)
+                .with_context(|| "Failed to create submesh")?;
+            let submesh_uid = self.generator.next();
+            self.submeshes.insert(submesh_uid, descriptor);
+            submeshes.push(submesh_uid);
+        }
+        let handle: MeshHandle = self.generator.next().into();
+        self.meshes.insert(handle, Mesh { submeshes });
+        Ok(handle)
+    }
+    fn mesh_remove(&mut self, _handle: MeshHandle) -> Result<()> {
+        Ok(())
+    }
+
+    fn texture_add(&mut self, texture: &texture::Texture) -> Result<TextureHandle> {
+        let handle: TextureHandle = self.generator.next().into();
+        self.textures.insert(handle, Texture::from_asset(&self.context, texture, 
+            wgpu::TextureUsages::TEXTURE_BINDING, None));
+        Ok(handle)
+    }
+    fn texture_remove(&mut self, _handle: TextureHandle) -> Result<()> {
+        Ok(())
+    }
+
+    fn material_add(&mut self, desc: BackendMaterialDescriptor) -> Result<MaterialHandle> {
+        let diffuse = self.textures.get(&desc.diffuse).expect("Texture not found");
+        let handle: MaterialHandle = self.generator.next().into();
+        self.materials.insert(handle, Material { 
+            bind_group: create_flat_material_bind_group(
+                &self.context, 
+                &self.flat_material_bind_group_layout, 
+                &diffuse.view,
+                desc.name,
+            )
+        });
+        Ok(handle)
+    }
+    fn material_remove(&mut self, _handle: MaterialHandle) -> Result<()> {
+        Ok(())
+    }
+
+    fn font_add(&mut self, _font: &font::Font) -> Result<FontHandle> { 
+        Ok(0.into()) 
+    }
+    fn font_remove(&mut self, _handle: FontHandle) -> Result<()> { 
+        Ok(()) 
+    }
+
+    fn camera_add(&mut self) -> Result<CameraHandle> {
+        Ok(0.into())
+    }
+    fn camera_remove(&mut self, _handle: CameraHandle) -> Result<()> {
+        Ok(())
+    }
+    fn camera_update(&mut self, _handle: CameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> {
         self.camera.update(eye, forward, up, fov);
         Ok(())
     }
 
-    fn add_model(&mut self, desc: &RendererModelDescriptor, asset: &AssetManager) -> Result<UID> { 
-        match desc {
-            RendererModelDescriptor::FromAsset(uid) => {
-
-                // Find the model asset
-                let model = asset.get::<feature::asset::model::Model>(*uid)
-                    .with_context(|| "Model asset not found")?;
-
-                // Create the model index
-                let model_index = self.model_buffer.add();
-
-                // Create missing meshes
-                if !self.meshes.contains_key(&model.mesh) {
-                    self.create_mesh(model.mesh, asset)?;
-                }
-
-                // Create missing materials
-                model.materials.iter()
-                    .map(|material| {
-                        if !self.materials.contains_key(material) {
-                            self.create_material(*material, asset)?;
-                        }
-                        Ok(())
-                    }).collect::<Result<Vec<_>>>()?;
-
-                // Create objects and collect ids
-                let objects = self.meshes.get(&model.mesh).expect("Mesh was not created")
-                    .submeshes.iter().enumerate()
-                    .map(|(i, submesh)| {
-                        let material = model.materials.get(i)
-                            .with_context(|| format!("Missing material in model at index {}", i))?;
-                        let object_uid = self.uid_generator.next();
-                        self.objects.insert(object_uid, Object {
-                            submesh: *submesh, 
-                            material: *material,
-                            model_index,
-                            draw_forward_pass: true, 
-                            draw_shadow_pass: false
-                        });
-                        // Insert in the corresponding pass
-                        // TODO: check valid passes
-                        self.forward_mesh_pass.add(object_uid);
-                        Ok(object_uid)
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-
-                // Add model
-                let model_uid = self.uid_generator.next();
-                self.models.insert(model_uid, ModelInstance { 
-                    mesh: model.mesh,
-                    materials: model.materials.clone(),
-                    model_index,
-                    objects,
-                });
-                Ok(model_uid)
-            },
-        }
+    fn model_add(&mut self, mesh_handle: MeshHandle) -> Result<ModelHandle> {
+        // Reserve the model index
+        let model_index = self.model_buffer.add();
+        // Generate the handle
+        let handle: ModelHandle = self.generator.next().into();
+        // Insert model (empty by default)
+        let mesh = self.meshes.get(&mesh_handle).with_context(|| "Mesh not found")?;
+        self.models.insert(handle, Model { mesh: mesh_handle, model_index, objects: vec![None; mesh.submeshes.len()] });
+        // Return handle
+        Ok(handle)
     }
-    fn remove_model(&mut self, handle: UID) -> Result<()> { 
-
-        // Remove model
+    fn model_remove(&mut self, handle: ModelHandle) -> Result<()> {
         let model = self.models.remove(&handle).with_context(|| "Model not found")?;
-        for object_uid in &model.objects {
-
-            // Remove objects
-            let object = self.objects.remove(object_uid).with_context(|| "Object not found")?;
-            if object.draw_forward_pass {
-                self.forward_mesh_pass.remove(*object_uid);
-            }
-            if object.draw_shadow_pass {
-                // TODO: remove from pass
-            }
+        for object in model.objects.iter().flatten() {
+            self.remove_object(*object)?;
         }
-
-        // Remove index
         self.model_buffer.remove(model.model_index);
-
         Ok(())
     }
-    fn update_model_transform(&mut self, handle: UID, mat: Mat4) -> Result<()> { 
-        let model = self.models.get(&handle)
-            .with_context(|| "Model id not found")?;
+    fn model_set_material(&mut self, handle: ModelHandle, index: usize, material: MaterialHandle) -> Result<()> {
+        // Check input
+        let model = self.models.get(&handle).with_context(|| "Model not found")?;
+        let mesh = self.meshes.get(&model.mesh).with_context(|| "Mesh not found")?;
+        if index >= model.objects.len() { return Err(anyhow!("Invalid index")); }
+        // Get model info
+        let submesh = *mesh.submeshes.get(index).unwrap();
+        let model_index = model.model_index;
+        let previous_object = *model.objects.get(index).unwrap();
+        // Remove previous object
+        if let Some(previous_uid) = previous_object {
+            self.remove_object(previous_uid)?;
+        }
+        // Add object
+        let object_uid = self.add_object(submesh, material, model_index)?;
+        *self.models.get_mut(&handle).unwrap().objects.get_mut(index).unwrap() = Some(object_uid);
+        Ok(())
+    }
+    fn model_transfer_matrix(&mut self, handle: ModelHandle, mat: Mat4) -> Result<()> {
+        let model = self.models.get(&handle).with_context(|| "Model not found")?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())
     }
 
-    fn push_command_buffer(&mut self, command: CommandBuffer) {
+    fn submit_command_buffer(&mut self, command: CommandBuffer) -> Result<()> {
         self.command_buffers.push(command);
-    }
-    fn reset_command_buffers(&mut self) {
-        self.command_buffers.clear();
+        Ok(())
     }
 
-    fn statistics(&self) -> RendererStatistics {
-        self.statistics
+    fn statistics(&self) -> Result<RendererStatistics> { 
+        Ok(self.statistics)
     }
 }

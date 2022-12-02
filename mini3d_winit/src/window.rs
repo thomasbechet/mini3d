@@ -1,4 +1,4 @@
-use mini3d::graphics::{SCREEN_WIDTH, SCREEN_HEIGHT};
+use mini3d::renderer::{SCREEN_WIDTH, SCREEN_HEIGHT};
 use winit::{event_loop::EventLoop, dpi::PhysicalSize, window::{WindowBuilder, CursorGrabMode, Fullscreen}};
 
 pub(crate) struct Window {

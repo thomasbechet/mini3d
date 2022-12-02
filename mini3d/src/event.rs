@@ -5,13 +5,13 @@ pub mod input;
 pub mod system;
 
 #[derive(Default)]
-pub struct AppEvents {
+pub struct Events {
     pub asset: Vec<ImportAssetEvent>,
     pub input: Vec<InputEvent>,
     pub system: Vec<SystemEvent>,
 }
 
-impl AppEvents {
+impl Events {
 
     pub fn new() -> Self {
         Self {
