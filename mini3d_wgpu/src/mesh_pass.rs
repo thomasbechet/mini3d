@@ -265,7 +265,7 @@ impl MeshPass {
             let descriptor = submeshes.get(&batch.submesh).unwrap();
             self.indirect_commands[batch_id].base_vertex = descriptor.base_index;
             self.indirect_commands[batch_id].vertex_count = descriptor.vertex_count;
-            batch.triangle_count = descriptor.vertex_count as usize * batch.instance_count;
+            batch.triangle_count = (descriptor.vertex_count / 3) as usize * batch.instance_count;
         }
 
         // Build multi instanced batches

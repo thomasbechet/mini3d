@@ -239,7 +239,7 @@ impl OSProcess {
         self.scene = ctx.scene.add("main").with_context(|| "Failed to create ECS")?;
         let world = ctx.scene.world(self.scene)?;
         world.spawn((
-            LifecycleComponent::default(),
+            LifecycleComponent::alive(),
             TransformComponent {
                 translation: Vec3::new(0.0, -7.0, 0.0),    
                 rotation: Quat::IDENTITY,    
@@ -249,28 +249,36 @@ impl OSProcess {
             ModelComponent::new("alfred".into()),
         ));
         world.spawn((
-            LifecycleComponent::default(),
+            LifecycleComponent::alive(),
             TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
             ModelComponent::new("alfred".into()),
         ));
         for i in 0..100 {
             world.spawn((
-                LifecycleComponent::default(),
+                LifecycleComponent::alive(),
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
                 )),
                 ModelComponent::new("car".into()),
                 RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
+            world.spawn((
+                LifecycleComponent::alive(),
+                TransformComponent::from_translation(
+                    Vec3::new(((i / 10) * 5) as f32, 10.0,  -((i % 10) * 8) as f32
+                )),
+                ModelComponent::new("alfred".into()),
+                RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
+            ));
         }
         world.spawn((
-            LifecycleComponent::default(),
+            LifecycleComponent::alive(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
             ModelComponent::new("car".into()),
             RotatorComponent { speed: 30.0 }
         ));
         let e = world.spawn((
-            LifecycleComponent::default(),
+            LifecycleComponent::alive(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
             FreeFlyComponent {
                 active: true,

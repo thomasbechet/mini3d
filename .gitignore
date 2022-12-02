@@ -3,3 +3,4 @@ Cargo.lock
 .vscode
 fleet.toml
 .cargo/**
+assets/state.bin

@@ -5,8 +5,8 @@ pub struct LifecycleComponent {
     pub alive: bool,
 }
 
-impl Default for LifecycleComponent {
-    fn default() -> Self {
+impl LifecycleComponent {
+    pub fn alive() -> Self {
         Self { alive: true }
     }
 }

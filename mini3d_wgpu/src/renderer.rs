@@ -25,6 +25,10 @@ use crate::surface_buffer::{SurfaceBuffer, Color};
 use crate::texture::Texture;
 use crate::vertex_allocator::{VertexAllocator, VertexBufferDescriptor};
 
+pub const MAX_MODEL_COUNT: usize = 256;
+pub const MAX_OBJECT_COUNT: usize = 512;
+pub const MAX_VERTEX_COUNT: usize = 125000;
+
 struct Mesh {
     submeshes: Vec<UID>,
 }
@@ -120,7 +124,7 @@ impl WGPURenderer {
         //////// Scene Render Pass ////////
 
         let mesh_pass_bind_group_layout = create_mesh_pass_bind_group_layout(&context);
-        let model_buffer = ModelBuffer::new(&context, 256);
+        let model_buffer = ModelBuffer::new(&context, MAX_MODEL_COUNT);
         let global_bind_group_layout = create_global_bind_group_layout(&context);
         let flat_material_bind_group_layout = create_flat_material_bind_group_layout(&context);
         let global_buffer = GlobalBuffer::new(&context);
@@ -137,7 +141,7 @@ impl WGPURenderer {
             &mesh_pass_bind_group_layout,
             &flat_material_bind_group_layout,
         );
-        let vertex_buffer = VertexAllocator::new(&context, 125000);
+        let vertex_buffer = VertexAllocator::new(&context, MAX_VERTEX_COUNT);
 
         //////// Surface Render Pass ////////
          
@@ -183,7 +187,11 @@ impl WGPURenderer {
         );
 
         /////// Mesh Pass ///////
-        let forward_mesh_pass = MeshPass::new(&context, &mesh_pass_bind_group_layout, 256, 256);
+        let forward_mesh_pass = MeshPass::new(
+            &context, &mesh_pass_bind_group_layout, 
+            MAX_OBJECT_COUNT, 
+            MAX_OBJECT_COUNT,
+        );
 
         Self {
             context,
@@ -313,48 +321,57 @@ impl WGPURenderer {
             forward_render_pass.set_vertex_buffer(1, self.vertex_allocator.normal_buffer.slice(..));
             forward_render_pass.set_vertex_buffer(2, self.vertex_allocator.uv_buffer.slice(..));
 
-            let mut triangle_count = 0;
-            for batch in &self.forward_mesh_pass.multi_instanced_batches {
+            // Multi draw indirect
+            {
+                let mut triangle_count = 0;
+                for batch in &self.forward_mesh_pass.multi_instanced_batches {
 
-                // Bind materials
-                let material = self.materials.get(&batch.material)
-                    .expect("Failed to get material during forward pass");
-                forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-            
-                // Indirect draw
-                forward_render_pass.multi_draw_indirect(
-                    &self.forward_mesh_pass.indirect_command_buffer, 
-                    (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
-                    batch.count as u32,
-                );
-                triangle_count += batch.triangle_count;
-            }
-            self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
-            self.statistics.triangle_count = triangle_count;
-            self.statistics.viewport = (RenderTarget::extent().width, RenderTarget::extent().height);
-
-            // let mut previous_material: MaterialHandle = Default::default();
-            // for batch in &self.forward_mesh_pass.instanced_batches {
+                    // Bind materials
+                    let material = self.materials.get(&batch.material)
+                        .expect("Failed to get material during forward pass");
+                    forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
                 
-            //     // Check change in material
-            //     if batch.material != previous_material {
-            //         previous_material = batch.material;
-            //         let material = self.materials.get(&batch.material)
-            //             .expect("Failed to get material during forward pass");
-            //         forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-            //     }
+                    // Indirect draw
+                    forward_render_pass.multi_draw_indirect(
+                        &self.forward_mesh_pass.indirect_command_buffer, 
+                        (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
+                        batch.count as u32,
+                    );
+                    triangle_count += batch.triangle_count;
+                }
+                self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
+                self.statistics.triangle_count = triangle_count;
+            }
+            
+            // Classic draw
+            // {
+            //     self.statistics.triangle_count = 0;
+            //     let mut previous_material: MaterialHandle = Default::default();
+            //     for batch in &self.forward_mesh_pass.instanced_batches {
+                    
+            //         // Check change in material
+            //         if batch.material != previous_material {
+            //             previous_material = batch.material;
+            //             let material = self.materials.get(&batch.material)
+            //                 .expect("Failed to get material during forward pass");
+            //             forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
+            //         }
 
-            //     // Draw instanced
-            //     let descriptor = self.submeshes.get(&batch.submesh)
-            //         .expect("Failed to get submesh descriptor");
-            //     let vertex_start = descriptor.base_index;
-            //     let vertex_stop = vertex_start + descriptor.vertex_count;
-            //     let instance_start = batch.first_instance as u32;
-            //     let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
-            //     forward_render_pass.draw(
-            //         vertex_start..vertex_stop, 
-            //         instance_start..instance_stop,
-            //     );
+            //         // Draw instanced
+            //         let descriptor = self.submeshes.get(&batch.submesh)
+            //             .expect("Failed to get submesh descriptor");
+            //         let vertex_start = descriptor.base_index;
+            //         let vertex_stop = vertex_start + descriptor.vertex_count;
+            //         let instance_start = batch.first_instance as u32;
+            //         let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
+            //         forward_render_pass.draw(
+            //             vertex_start..vertex_stop, 
+            //             instance_start..instance_stop,
+            //         );
+
+            //         self.statistics.triangle_count += batch.triangle_count;
+            //     }
+            //     self.statistics.draw_count = self.forward_mesh_pass.instanced_batches.len();
             // }
         }
 
@@ -417,6 +434,7 @@ impl WGPURenderer {
                 engine_viewport.w,
                 0.0, 1.0
             );
+            self.statistics.viewport = (RenderTarget::extent().width, RenderTarget::extent().height);
 
             surface_render_pass.set_pipeline(&self.surface_pipeline);
             surface_render_pass.set_bind_group(0, &self.surface_bind_group, &[]);
@@ -494,18 +512,12 @@ impl RendererBackend for WGPURenderer {
         self.meshes.insert(handle, Mesh { submeshes });
         Ok(handle)
     }
-    fn mesh_remove(&mut self, _handle: MeshHandle) -> Result<()> {
-        Ok(())
-    }
 
     fn texture_add(&mut self, texture: &texture::Texture) -> Result<TextureHandle> {
         let handle: TextureHandle = self.generator.next().into();
         self.textures.insert(handle, Texture::from_asset(&self.context, texture, 
             wgpu::TextureUsages::TEXTURE_BINDING, None));
         Ok(handle)
-    }
-    fn texture_remove(&mut self, _handle: TextureHandle) -> Result<()> {
-        Ok(())
     }
 
     fn material_add(&mut self, desc: BackendMaterialDescriptor) -> Result<MaterialHandle> {
@@ -521,15 +533,9 @@ impl RendererBackend for WGPURenderer {
         });
         Ok(handle)
     }
-    fn material_remove(&mut self, _handle: MaterialHandle) -> Result<()> {
-        Ok(())
-    }
 
     fn font_add(&mut self, _font: &font::Font) -> Result<FontHandle> { 
         Ok(0.into()) 
-    }
-    fn font_remove(&mut self, _handle: FontHandle) -> Result<()> { 
-        Ok(()) 
     }
 
     fn camera_add(&mut self) -> Result<CameraHandle> {
