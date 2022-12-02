@@ -140,6 +140,16 @@ impl OSProcess {
             description: "".to_string(), 
             default_pressed: false,
         })?;
+        ctx.asset.add("move_fast", default_bundle, InputAction { 
+            display_name: "Move Fast".to_string(), 
+            description: "".to_string(), 
+            default_pressed: false,
+        })?;
+        ctx.asset.add("move_slow", default_bundle, InputAction { 
+            display_name: "Move Slow".to_string(), 
+            description: "".to_string(), 
+            default_pressed: false,
+        })?;
 
         // Register input tables
         ctx.asset.add::<InputTable>("common", default_bundle, InputTable { 
@@ -175,6 +185,8 @@ impl OSProcess {
                 "roll_left".into(),
                 "roll_right".into(),
                 "switch_mode".into(),
+                "move_fast".into(),
+                "move_slow".into(),
             ]),
             axis: Vec::from([]),
         })?;
@@ -293,6 +305,8 @@ impl OSProcess {
                 move_down: CommonAxis::MOVE_DOWN.into(),
                 move_left: CommonAxis::MOVE_LEFT.into(),
                 move_right: CommonAxis::MOVE_RIGHT.into(),
+                move_fast: "move_fast".into(),
+                move_slow: "move_slow".into(),
                 free_mode: false,
                 yaw: 0.0,
                 pitch: 0.0,

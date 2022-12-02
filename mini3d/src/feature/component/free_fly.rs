@@ -20,6 +20,8 @@ pub struct FreeFlyComponent {
     pub move_down: UID,
     pub move_left: UID,
     pub move_right: UID,
+    pub move_fast: UID,
+    pub move_slow: UID,
     
     // View data
     pub free_mode: bool,
@@ -29,8 +31,8 @@ pub struct FreeFlyComponent {
 
 impl FreeFlyComponent {
     pub const NORMAL_SPEED: f32 = 10.0;
-    pub const SLOW_SPEED: f32 = 10.0;
-    pub const FAST_SPEED: f32 = 10.0;
+    pub const FAST_SPEED: f32 = 25.0;
+    pub const SLOW_SPEED: f32 = 3.0;
     pub const ROLL_SPEED: f32 = 60.0;
     pub const ROTATION_SENSIBILITY: f32 = 180.0;
     pub const ZOOM_SPEED: f32 = 10.0;

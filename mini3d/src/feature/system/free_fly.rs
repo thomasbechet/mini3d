@@ -32,8 +32,12 @@ pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
         direction = direction.normalize_or_zero();
 
         // Camera speed
-        let speed = FreeFlyComponent::NORMAL_SPEED;
-        //TODO: fast, slow input modes
+        let mut speed = FreeFlyComponent::NORMAL_SPEED;
+        if ctx.input.action(free_fly.move_fast)?.is_pressed() {
+            speed = FreeFlyComponent::FAST_SPEED;
+        } else if ctx.input.action(free_fly.move_slow)?.is_pressed() {
+            speed = FreeFlyComponent::SLOW_SPEED;
+        }
 
         // Apply transformation
         transform.translation += direction * direction_length * ctx.delta_time as f32 * speed;
