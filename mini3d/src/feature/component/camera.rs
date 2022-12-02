@@ -1,12 +1,12 @@
 use serde::{Serialize, Deserialize};
 
-use crate::renderer::RendererHandle;
+use crate::renderer::backend::CameraHandle;
 
 #[derive(Serialize, Deserialize)]
 pub struct CameraComponent {
     pub fov: f32,
     #[serde(skip)]
-    pub handle: Option<RendererHandle>,
+    pub(crate) handle: Option<CameraHandle>,
 }
 
 impl Default for CameraComponent {

@@ -7,6 +7,7 @@ pub mod renderer;
 pub mod ui;
 pub mod input;
 pub mod math;
+pub mod prng;
 pub mod process;
 pub mod request;
 pub mod rhai;

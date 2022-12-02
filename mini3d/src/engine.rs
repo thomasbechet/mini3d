@@ -67,7 +67,7 @@ impl Engine {
         // Systems
         self.scene.register_system("despawn_entities", system::despawn::run)?;
         self.scene.register_system("free_fly", system::free_fly::run)?;
-        self.scene.register_system("renderer", system::renderer::synchronize_renderer)?;
+        self.scene.register_system("renderer", system::renderer::despawn_renderer_entities)?;
         self.scene.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
         self.scene.register_system("rotator", system::rotator::run)?;
 
@@ -219,6 +219,7 @@ impl Engine {
                 seq.next_element_seed(SignalManagerDeserializeSeed { manager: &mut self.engine.signal })?;
                 self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
                 self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
+                self.engine.renderer.reset(&mut self.engine.scene).map_err(Error::custom)?;
                 Ok(())
             }
         }
@@ -234,6 +235,7 @@ impl Engine {
     ) -> Result<()> {
 
         // ================= PREPARE STEP ================= //
+
         self.renderer.prepare()?;
 
         // ================= DISPATCH STEP ================= //
@@ -305,7 +307,13 @@ impl Engine {
     pub fn update_renderer(
         &mut self,
         backend: &mut impl RendererBackend,
+        reset: bool,
     ) -> Result<()> {
-        self.renderer.update_backend(backend, &self.asset, &mut self.scene)
+        if reset {
+            backend.reset()?;
+            self.renderer.reset(&mut self.scene)?;
+        }
+        self.renderer.update_backend(backend, &self.asset, &mut self.scene)?;
+        Ok(())
     }
 }

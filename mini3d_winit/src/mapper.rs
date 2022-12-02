@@ -99,9 +99,8 @@ pub(crate) struct InputMapper {
 impl InputMapper {
 
     pub(crate) fn new() -> Self {
-        let mut mapper: InputMapper = Default::default();
+        let mut mapper: InputMapper = InputMapper { default_profile: UID::from("Default"), ..Default::default() };
         // Default inputs
-        mapper.default_profile = UID::from("Default");
         mapper.profiles.insert(mapper.default_profile, InputProfile { 
             name: "Default".to_string(), 
             active: true,
@@ -195,7 +194,7 @@ impl InputMapper {
     pub(crate) fn refresh(&mut self, engine: &Engine) {
 
         // Update profiles
-        for (_, profile) in &mut self.profiles {
+        for profile in self.profiles.values_mut() {
 
             // Update actions
             engine.asset.iter::<InputAction>().expect("InputAction asset not found").for_each(|(uid, _)| {
@@ -228,7 +227,7 @@ impl InputMapper {
         self.controllers_axis_to_axis.clear();
 
         // Update caches
-        for (_, profile) in &self.profiles {
+        for profile in self.profiles.values() {
             if profile.active {
                 for (uid, action) in &profile.actions {
                     if let Some(button) = &action.button {

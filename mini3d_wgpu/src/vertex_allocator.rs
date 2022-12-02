@@ -8,7 +8,7 @@ pub(crate) struct VertexBufferDescriptor {
     pub(crate) base_index: u32,
 }
 
-pub(crate) struct VertexBuffer {
+pub(crate) struct VertexAllocator {
     pub(crate) position_buffer: wgpu::Buffer,
     pub(crate) normal_buffer: wgpu::Buffer,
     pub(crate) uv_buffer: wgpu::Buffer,
@@ -16,7 +16,8 @@ pub(crate) struct VertexBuffer {
     vertex_count: usize,
 }
 
-impl VertexBuffer {
+impl VertexAllocator {
+
     pub fn new(
         context: &WGPUContext,
         max_vertex_count: usize,
@@ -94,5 +95,9 @@ impl VertexBuffer {
 
         // Return descriptor
         Ok(descriptor)
+    }
+
+    pub fn clear(&mut self) {
+        self.vertex_count = 0;
     }
 }

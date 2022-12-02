@@ -2,12 +2,11 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, backend::BackendDescriptor, feature::asset::rhai_script::RhaiScript};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript};
 use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::compute_fixed_viewport;
-use wgpu::SurfaceError;
 use window::Window;
 use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, DeviceEvent, WindowEvent, ElementState, VirtualKeyCode, MouseButton}};
 
@@ -235,10 +234,6 @@ fn main() {
                         }
                     }
                 }
-
-                // Build backend descriptor
-                let desc = BackendDescriptor::new()
-                    .with_renderer(&mut renderer);
                 
                 // Update last click
                 if let Some(time) = last_click {
@@ -267,9 +262,9 @@ fn main() {
                 );
 
                 // Progress engine
-                engine.progress(desc, &events, &mut requests, delta_time)
-                    .expect("Failed to progress engine");
-
+                engine.progress(&events, &mut requests, delta_time).expect("Failed to progress engine");
+                engine.update_renderer(&mut renderer, false).expect("Failed to render");
+                
                 // Save/Load state
                 if save_state {
 
@@ -307,7 +302,6 @@ fn main() {
 
                     save_state = false;
                 } else if load_state {
-                    renderer.reset().expect("Failed to reset renderer");
                     
                     // {
                     //     let file = File::open("assets/state.json").expect("Failed to open file");
@@ -333,17 +327,16 @@ fn main() {
                     //     engine.load_state(&mut deserializer).expect("Failed to load state");
                     // }
 
+                    engine.update_renderer(&mut renderer, true).expect("Failed to reset renderer");
+
                     load_state = false;
                 }
-
+                
                 // Invoke WGPU Renderer
                 let viewport = compute_fixed_viewport(gui.central_viewport());
                 renderer.render(&engine, viewport, |device, queue, encoder, output| {
                     gui.render(&window.handle, device, queue, encoder, output);
-                })
-                .map_err(|e| 
-                    if e == SurfaceError::OutOfMemory { *control_flow = ControlFlow::Exit }
-                ).expect("Error");
+                }).expect("Failed to render");
 
                 // Check shutdown
                 if requests.shutdown() {

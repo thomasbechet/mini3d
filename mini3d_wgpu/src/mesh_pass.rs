@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use mini3d::uid::UID;
+use mini3d::{uid::UID, renderer::backend::MaterialHandle, anyhow::{anyhow, Result}};
 
-use crate::{Object, model_buffer::ModelIndex, context::WGPUContext, vertex_buffer::VertexBufferDescriptor};
+use crate::{Object, model_buffer::ModelIndex, context::WGPUContext, vertex_allocator::VertexBufferDescriptor};
 
 pub(crate) fn create_mesh_pass_bind_group_layout(
     context: &WGPUContext
@@ -58,26 +58,26 @@ pub(crate) struct GPUDrawIndirect {
 }
 
 struct PassObject {
-    // instance_id: usize,    
+    // instance_id: usize,
     sort_key: u32,
 }
 
 pub(crate) struct RenderBatch {
     pub(crate) submesh: UID,
-    pub(crate) material: UID,
+    pub(crate) material: MaterialHandle,
     pub(crate) model_index: ModelIndex,
 }
 
 pub(crate) struct InstancedRenderBatch {
     pub(crate) submesh: UID,
-    pub(crate) material: UID,
+    pub(crate) material: MaterialHandle,
     pub(crate) first_instance: usize,
     pub(crate) instance_count: usize,
     pub(crate) triangle_count: usize,
 }
 
 pub(crate) struct MultiInstancedRenderBatch {
-    pub(crate) material: UID,
+    pub(crate) material: MaterialHandle,
     pub(crate) first: usize,
     pub(crate) count: usize,
     pub(crate) triangle_count: usize,
@@ -87,9 +87,6 @@ pub(crate) struct MeshPass {
 
     max_pass_object_count: usize,
     max_pass_command_count: usize,
-
-    added_objects: Vec<UID>,
-    removed_objects: Vec<UID>,
 
     pass_objects: HashMap<UID, PassObject>,
 
@@ -155,9 +152,6 @@ impl MeshPass {
         Self { 
             max_pass_object_count,
             max_pass_command_count,
-            
-            added_objects: Default::default(), 
-            removed_objects: Default::default(),
 
             pass_objects: Default::default(),
 
@@ -177,14 +171,23 @@ impl MeshPass {
         }
     }
 
-    pub(crate) fn add(&mut self, uid: UID) {
-        self.added_objects.push(uid);
+    pub(crate) fn add(&mut self, uid: UID) -> Result<()> {
+        if self.pass_objects.len() >= self.max_pass_object_count {
+            return Err(anyhow!("Maximum pass object count reached"));
+        }
+        self.pass_objects.insert(uid, PassObject { 
+            sort_key: 0
+        });
         self.out_of_date = true;
+        Ok(())
     }
 
-    pub(crate) fn remove(&mut self, uid: UID) {
-        self.removed_objects.push(uid);
+    pub(crate) fn remove(&mut self, uid: UID) -> Result<()> {
+        if self.pass_objects.remove(&uid).is_none() {
+            return Err(anyhow!("Pass object with UID {} not found", uid));
+        }
         self.out_of_date = true;
+        Ok(())
     }
 
     pub(crate) fn out_of_date(&self) -> bool {
@@ -195,18 +198,7 @@ impl MeshPass {
         &mut self,
         objects: &HashMap<UID, Object>,
         submeshes: &HashMap<UID, VertexBufferDescriptor>,
-    ) {
-        // Add new objects
-        for object in self.added_objects.drain(..) {
-            self.pass_objects.insert(object, PassObject { 
-                sort_key: 0 
-            });
-        }
-
-        // Remove objects
-        for object in self.removed_objects.drain(..) {
-            self.pass_objects.remove(&object);
-        }
+    ) -> Result<()> {
 
         // Create sorted batches from object pass
         {
@@ -308,7 +300,10 @@ impl MeshPass {
             }
         }
 
+        // Reset flag
         self.out_of_date = false;
+
+        Ok(())
     }
 
     pub(crate) fn write_buffers(&self, context: &WGPUContext) {

@@ -1,5 +1,3 @@
-use std::{fs::File, io::Read};
-
 use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, scene::Scene, ui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
 use serde::{Serialize, Deserialize};
 
@@ -228,9 +226,7 @@ impl OSProcess {
             systems: Vec::from([
                 SystemScheduleType::Builtin("rotator".into()),
                 SystemScheduleType::Builtin("rhai_update_scripts".into()),
-                SystemScheduleType::Builtin("renderer_check_lifecycle".into()),
-                SystemScheduleType::Builtin("renderer_transfer_transforms".into()),
-                SystemScheduleType::Builtin("renderer_update_camera".into()),
+                SystemScheduleType::Builtin("renderer".into()),
                 SystemScheduleType::Builtin("despawn_entities".into()),
                 SystemScheduleType::Builtin("free_fly".into()),
             ]),
@@ -408,13 +404,13 @@ impl Process for OSProcess {
         if self.layout_active {
             self.navigation_layout.update(ctx.input, ctx.time)?;
             let cb0 = self.navigation_layout.render(ctx.time);
-            ctx.renderer.submit_command_buffer(cb0);
+            ctx.renderer.submit_command_buffer(cb0)?;
         }
 
         // Render center cross
         let mut cb = CommandBuffer::empty();
         cb.push(Command::FillRect { rect: IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2) });
-        ctx.renderer.submit_command_buffer(cb);
+        ctx.renderer.submit_command_buffer(cb)?;
 
         Ok(())
     }

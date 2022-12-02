@@ -8,7 +8,7 @@ pub mod model_buffer;
 pub mod global_bind_group;
 pub mod flat_pipeline;
 pub mod blit_pipeline;
-pub mod vertex_buffer;
+pub mod vertex_allocator;
 pub mod blit_bind_group;
 pub mod texture;
 pub mod render_target;
