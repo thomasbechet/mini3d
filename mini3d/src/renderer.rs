@@ -4,9 +4,9 @@ use anyhow::Result;
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::Font}}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, ui::{UIComponent, SceneUIComponent}}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::Font}}, ui::viewport::Viewport};
 
-use self::{backend::{RendererBackend, BackendMaterialDescriptor, FontHandle, TextureHandle, MeshHandle, MaterialHandle, CameraHandle, ModelHandle}, command_buffer::CommandBuffer};
+use self::{backend::{RendererBackend, BackendMaterialDescriptor, FontHandle, TextureHandle, MeshHandle, MaterialHandle, CameraHandle, ModelHandle, CanvasHandle, SurfaceCanvasHandle, SceneCanvasHandle}};
 
 pub mod backend;
 pub mod color;
@@ -22,10 +22,12 @@ pub mod rasterizer;
 // // 16:10 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 320;
 // pub const SCREEN_HEIGHT: u32 = 200;
-pub const SCREEN_WIDTH: u32 = 512;
-pub const SCREEN_HEIGHT: u32 = 320;
-// pub const SCREEN_WIDTH: u32 = 640;
-// pub const SCREEN_HEIGHT: u32 = 400;
+// pub const SCREEN_WIDTH: u32 = 512;
+// pub const SCREEN_HEIGHT: u32 = 320;
+pub const SCREEN_WIDTH: u32 = 640;
+pub const SCREEN_HEIGHT: u32 = 400;
+// pub const SCREEN_WIDTH: u32 = 768;
+// pub const SCREEN_HEIGHT: u32 = 480;
 // // 16:9 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 384;
 // pub const SCREEN_HEIGHT: u32 = 216;
@@ -49,11 +51,10 @@ pub enum RendererModelDescriptor {
 pub struct RendererStatistics {
     pub triangle_count: usize,
     pub draw_count: usize,
-    pub viewport: (u32, u32),
 }
 
 struct RendererFont {
-    _handle: FontHandle,
+    handle: FontHandle,
 }
 
 struct RendererTexture {
@@ -69,10 +70,7 @@ struct RendererMaterial {
 }
 
 #[derive(Default)]
-pub struct RendererManager {
-
-    // Resources
-
+pub(crate) struct RendererResourceManager {
     fonts: HashMap<UID, RendererFont>,
     textures: HashMap<UID, RendererTexture>,
     meshes: HashMap<UID, RendererMesh>,
@@ -81,25 +79,11 @@ pub struct RendererManager {
     requested_textures: HashSet<UID>,
     requested_meshes: HashSet<UID>,
     requested_materials: HashSet<UID>,
-
-    // Entities
-
-    pub(crate) cameras_removed: HashSet<CameraHandle>,
-    pub(crate) models_removed: HashSet<ModelHandle>,
-
-    command_buffers: Vec<CommandBuffer>,
-    statistics: RendererStatistics,
 }
 
-impl RendererManager {
-
-    pub(crate) fn prepare(&mut self) -> Result<()> {
-        self.command_buffers.clear();
-        Ok(())
-    }
-
-    pub(crate) fn reset(&mut self, scene: &mut SceneManager) -> Result<()> {
-
+impl RendererResourceManager {
+    
+    fn reset(&mut self) {
         self.fonts.clear();
         self.textures.clear();
         self.meshes.clear();
@@ -108,29 +92,13 @@ impl RendererManager {
         self.requested_textures.clear();
         self.requested_meshes.clear();
         self.requested_materials.clear();
-
-        self.cameras_removed.clear();
-        self.models_removed.clear();
-        
-        self.command_buffers.clear();
-
-        for world in scene.iter_world() {
-            for (_, camera) in world.query_mut::<&mut CameraComponent>() {
-                camera.handle = None;
-            }
-            for (_, model) in world.query_mut::<&mut ModelComponent>() {
-                model.handle = None;
-            }
-        }
-        
-        Ok(())
     }
 
     fn flush_requested_resources(&mut self, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<()> {
         for font_uid in self.requested_fonts.drain() {
             let font = asset.get::<Font>(font_uid)?;
             let handle = backend.font_add(font)?;
-            self.fonts.insert(font_uid, RendererFont { _handle: handle });
+            self.fonts.insert(font_uid, RendererFont { handle });
         }
         for mesh_uid in self.requested_meshes.drain() {
             let mesh = asset.get::<Mesh>(mesh_uid)?;
@@ -151,16 +119,16 @@ impl RendererManager {
         Ok(())
     }
 
-    fn _request_font(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<FontHandle> {
+    pub(crate) fn request_font(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<FontHandle> {
         if let Some(font) = self.fonts.get(uid) {
-            return Ok(font._handle);
+            return Ok(font.handle);
         }
         self.requested_fonts.insert(*uid);
         self.flush_requested_resources(backend, asset)?;
-        Ok(self.fonts.get(uid).unwrap()._handle)
+        Ok(self.fonts.get(uid).unwrap().handle)
     }
 
-    fn request_mesh(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<MeshHandle> {
+    pub(crate) fn request_mesh(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<MeshHandle> {
         if let Some(mesh) = self.meshes.get(uid) {
             return Ok(mesh.handle);
         }
@@ -169,7 +137,7 @@ impl RendererManager {
         Ok(self.meshes.get(uid).unwrap().handle)
     }
 
-    fn _request_texture(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<TextureHandle> {
+    pub(crate) fn request_texture(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<TextureHandle> {
         if let Some(texture) = self.textures.get(uid) {
             return Ok(texture.handle);
         }
@@ -178,7 +146,7 @@ impl RendererManager {
         Ok(self.textures.get(uid).unwrap().handle)
     }
 
-    fn request_material(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<MaterialHandle> {
+    pub(crate) fn request_material(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<MaterialHandle> {
         if let Some(material) = self.materials.get(uid) {
             return Ok(material.handle);
         }
@@ -188,7 +156,48 @@ impl RendererManager {
         self.flush_requested_resources(backend, asset)?;
         Ok(self.materials.get(uid).unwrap().handle)
     }
- 
+}
+
+#[derive(Default)]
+pub struct RendererManager {
+
+    // Resources
+    resources: RendererResourceManager,
+
+    // Entities
+    pub(crate) cameras_removed: HashSet<CameraHandle>,
+    pub(crate) models_removed: HashSet<ModelHandle>,
+    pub(crate) surface_canvases_removed: HashSet<SurfaceCanvasHandle>,
+    pub(crate) scene_canvases_removed: HashSet<SceneCanvasHandle>,
+    pub(crate) canvases_removed: HashSet<CanvasHandle>,
+
+    statistics: RendererStatistics,
+}
+
+impl RendererManager {
+
+    pub(crate) fn reset(&mut self, scene: &mut SceneManager) -> Result<()> {
+
+        self.resources.reset();
+
+        self.cameras_removed.clear();
+        self.models_removed.clear();
+        self.scene_canvases_removed.clear();
+        self.surface_canvases_removed.clear();
+        self.canvases_removed.clear();
+
+        for world in scene.iter_world() {
+            for (_, camera) in world.query_mut::<&mut CameraComponent>() {
+                camera.camera_handle = None;
+            }
+            for (_, model) in world.query_mut::<&mut ModelComponent>() {
+                model.handle = None;
+            }
+        }
+        
+        Ok(())
+    }
+
     pub(crate) fn update_backend(
         &mut self, 
         backend: &mut impl RendererBackend,
@@ -198,10 +207,19 @@ impl RendererManager {
 
         // Remove entities
         for handle in self.cameras_removed.drain() {
-            backend.camera_remove(handle)?;
+            backend.scene_camera_remove(handle)?;
         }
         for handle in self.models_removed.drain() {
-            backend.model_remove(handle)?;
+            backend.scene_model_remove(handle)?;
+        }
+        for handle in self.surface_canvases_removed.drain() {
+            backend.surface_canvas_remove(handle)?;
+        }
+        for handle in self.scene_canvases_removed.drain() {
+            backend.scene_canvas_remove(handle)?;
+        }
+        for handle in self.canvases_removed.drain() {
+            backend.canvas_remove(handle)?;
         }
 
         // Update scene components
@@ -209,41 +227,60 @@ impl RendererManager {
 
             // Update cameras
             for (_, (c, t)) in world.query_mut::<(&mut CameraComponent, &TransformComponent)>() {
-                if c.handle.is_none() {
-                    c.handle = Some(backend.camera_add()?);
+                if c.camera_handle.is_none() {
+                    c.camera_handle = Some(backend.scene_camera_add()?);
                 }
-                backend.camera_update(c.handle.unwrap(), t.translation, t.forward(), t.up(), c.fov)?;
+                if c.viewport_handle.is_none() {
+                    c.viewport_handle = Some(backend.viewport_add(100, 100)?);
+                    backend.viewport_set_camera(c.viewport_handle.unwrap(), Some(c.camera_handle.unwrap()))?;
+                }
+                backend.scene_camera_update(c.camera_handle.unwrap(), t.translation, t.forward(), t.up(), c.fov)?;
             }
             
             // Update models
             for (_, (m, t)) in world.query_mut::<(&mut ModelComponent, &TransformComponent)>() {
                 if m.handle.is_none() {
                     let model = asset.get::<Model>(m.model)?;
-                    let mesh_handle = self.request_mesh(&model.mesh, backend, asset)?;
-                    let handle = backend.model_add(mesh_handle)?;
+                    let mesh_handle = self.resources.request_mesh(&model.mesh, backend, asset)?;
+                    let handle = backend.scene_model_add(mesh_handle)?;
                     for (index, material) in model.materials.iter().enumerate() {
-                        let material_handle = self.request_material(material, backend, asset)?;
-                        backend.model_set_material(handle, index, material_handle)?;
+                        let material_handle = self.resources.request_material(material, backend, asset)?;
+                        backend.scene_model_set_material(handle, index, material_handle)?;
                     }
                     m.handle = Some(handle);
                 }
-                backend.model_transfer_matrix(m.handle.unwrap(), t.matrix())?;
+                backend.scene_model_transfer_matrix(m.handle.unwrap(), t.matrix())?;
             }
-        }
 
-        // Send commands
-        for command_buffer in self.command_buffers.drain(..) {
-            backend.submit_command_buffer(command_buffer)?;
+            // Update Surface Canvas
+            for (_, c) in world.query_mut::<&mut UIComponent>() {
+
+                // Update UI
+                c.ui.update_renderer(backend, &mut self.resources, asset)?;
+
+                // Update surface
+                if c.handle.is_none() && c.ui.handle.is_some() {
+                    c.handle = Some(backend.surface_canvas_add(c.ui.handle.unwrap(), c.position, 0)?);
+                }
+            }
+
+            // Update Scene Canvas
+            for (_, (c, t)) in world.query_mut::<(&mut SceneUIComponent, &TransformComponent)>() {
+
+                // Update UI
+                c.ui.update_renderer(backend, &mut self.resources, asset)?;
+
+                // Update scene object
+                if c.handle.is_none() && c.ui.handle.is_some() {
+                    c.handle = Some(backend.scene_canvas_add(c.ui.handle.unwrap())?);
+                }
+                backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix())?;
+            }
         }
 
         // Recover statistics of previous frame
         self.statistics = backend.statistics()?;
 
-        Ok(())
-    }
-
-    pub fn submit_command_buffer(&mut self, buffer: CommandBuffer) -> Result<()> {
-        self.command_buffers.push(buffer);
         Ok(())
     }
 

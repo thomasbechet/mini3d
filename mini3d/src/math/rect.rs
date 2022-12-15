@@ -111,4 +111,16 @@ impl IRect {
             br: self.br.as_vec2().lerp(rect.br.as_vec2(), a).as_ivec2(),
         }
     }
+
+    #[inline]
+    pub fn translate(&mut self, translation: IVec2) {
+        self.tl += translation;
+        self.br += translation;
+    }
+}
+
+impl From<(i32, i32, u32, u32)> for IRect {
+    fn from(rect: (i32, i32, u32, u32)) -> Self {
+        Self::new(rect.0, rect.1, rect.2, rect.3)
+    }
 }

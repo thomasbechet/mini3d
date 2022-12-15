@@ -1,29 +1,226 @@
 [
   {
-    "name": "Default",
+    "name": "Controller",
     "active": true,
     "actions": {
-      "631693652521310592": {
+      "16578605155271007452": {
         "button": {
-          "Keyboard": {
-            "code": "Z"
+          "Controller": {
+            "id": 0,
+            "button": "East"
           }
         }
       },
-      "15853816823481594965": {
+      "12617707621421071051": {
         "button": {
-          "Keyboard": {
-            "code": "S"
+          "Controller": {
+            "id": 0,
+            "button": "North"
+          }
+        }
+      },
+      "18050436896050143167": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "LeftThumb"
+          }
+        }
+      },
+      "8365312451284481393": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "West"
+          }
+        }
+      },
+      "9031382910651871530": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "LeftTrigger"
+          }
+        }
+      },
+      "7937203962207026163": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "Select"
+          }
+        }
+      },
+      "7122133755919934103": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "RightTrigger"
+          }
+        }
+      },
+      "631693652521310592": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "DPadUp"
+          }
+        }
+      },
+      "10118785259804131855": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "South"
           }
         }
       },
       "2643736872316312752": {
         "button": {
-          "Keyboard": {
-            "code": "Q"
+          "Controller": {
+            "id": 0,
+            "button": "DPadLeft"
           }
         }
       },
+      "8550834117436299269": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "DPadRight"
+          }
+        }
+      },
+      "15853816823481594965": {
+        "button": {
+          "Controller": {
+            "id": 0,
+            "button": "DPadDown"
+          }
+        }
+      }
+    },
+    "axis": {
+      "8586950713622950849": {
+        "button": [
+          {
+            "Controller": {
+              "id": 0,
+              "button": "LeftTrigger2"
+            }
+          },
+          1.0
+        ]
+      },
+      "3924556973228298695": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "RightStickX"
+            }
+          },
+          1.0
+        ]
+      },
+      "3924555873716670484": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "RightStickY"
+            }
+          },
+          -1.0
+        ]
+      },
+      "11735791768874187868": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "LeftStickX"
+            }
+          },
+          -1.0
+        ]
+      },
+      "49163615014517427": {},
+      "145337507051371715": {},
+      "3588069618618887709": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "LeftStickX"
+            }
+          },
+          1.5
+        ]
+      },
+      "7580563999753889131": {},
+      "7580562900242260920": {},
+      "3560386037893974558": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "LeftStickY"
+            }
+          },
+          1.0
+        ]
+      },
+      "2211778712401880640": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "LeftStickY"
+            }
+          },
+          -1.0
+        ]
+      },
+      "3588068519107259498": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "LeftStickY"
+            }
+          },
+          -1.5
+        ]
+      },
+      "1980789514876115721": {
+        "axis": [
+          {
+            "Controller": {
+              "id": 0,
+              "axis": "LeftStickX"
+            }
+          },
+          1.0
+        ]
+      },
+      "1607539583033235284": {
+        "button": [
+          {
+            "Controller": {
+              "id": 0,
+              "button": "RightTrigger2"
+            }
+          },
+          1.0
+        ]
+      }
+    }
+  },
+  {
+    "name": "Default",
+    "active": true,
+    "actions": {
       "7937203962207026163": {
         "button": {
           "Keyboard": {
@@ -31,24 +228,10 @@
           }
         }
       },
-      "16578605155271007452": {
+      "10118785259804131855": {
         "button": {
-          "Keyboard": {
-            "code": "LControl"
-          }
-        }
-      },
-      "18050436896050143167": {
-        "button": {
-          "Keyboard": {
-            "code": "F"
-          }
-        }
-      },
-      "9031382910651871530": {
-        "button": {
-          "Keyboard": {
-            "code": "A"
+          "Mouse": {
+            "button": "Left"
           }
         }
       },
@@ -59,10 +242,45 @@
           }
         }
       },
-      "7122133755919934103": {
+      "9031382910651871530": {
         "button": {
           "Keyboard": {
-            "code": "E"
+            "code": "A"
+          }
+        }
+      },
+      "8365312451284481393": {
+        "button": {
+          "Keyboard": {
+            "code": "C"
+          }
+        }
+      },
+      "16578605155271007452": {
+        "button": {
+          "Keyboard": {
+            "code": "LControl"
+          }
+        }
+      },
+      "2643736872316312752": {
+        "button": {
+          "Keyboard": {
+            "code": "Q"
+          }
+        }
+      },
+      "15853816823481594965": {
+        "button": {
+          "Keyboard": {
+            "code": "S"
+          }
+        }
+      },
+      "631693652521310592": {
+        "button": {
+          "Keyboard": {
+            "code": "Z"
           }
         }
       },
@@ -73,20 +291,27 @@
           }
         }
       },
-      "8365312451284481393": {
+      "18050436896050143167": {
         "button": {
           "Keyboard": {
-            "code": "C"
+            "code": "F"
+          }
+        }
+      },
+      "7122133755919934103": {
+        "button": {
+          "Keyboard": {
+            "code": "E"
           }
         }
       }
     },
     "axis": {
-      "2211778712401880640": {
+      "8586950713622950849": {
         "button": [
           {
             "Keyboard": {
-              "code": "S"
+              "code": "W"
             }
           },
           1.0
@@ -102,17 +327,22 @@
           1.0
         ]
       },
-      "7580562900242260920": {
-        "axis": [
-          "MousePositionX",
-          0.0
-        ]
-      },
+      "3588069618618887709": {},
       "3560386037893974558": {
         "button": [
           {
             "Keyboard": {
               "code": "Z"
+            }
+          },
+          1.0
+        ]
+      },
+      "2211778712401880640": {
+        "button": [
+          {
+            "Keyboard": {
+              "code": "S"
             }
           },
           1.0
@@ -126,12 +356,6 @@
             }
           },
           1.0
-        ]
-      },
-      "7580563999753889131": {
-        "axis": [
-          "MousePositionY",
-          0.0
         ]
       },
       "3924555873716670484": {
@@ -151,229 +375,34 @@
         ]
       },
       "3588068519107259498": {},
+      "49163615014517427": {
+        "axis": [
+          "MouseWheelY",
+          1.0
+        ]
+      },
+      "7580563999753889131": {
+        "axis": [
+          "MousePositionY",
+          0.0
+        ]
+      },
       "3924556973228298695": {
         "axis": [
           "MouseMotionX",
           0.025
         ]
       },
-      "8586950713622950849": {
-        "button": [
-          {
-            "Keyboard": {
-              "code": "W"
-            }
-          },
+      "7580562900242260920": {
+        "axis": [
+          "MousePositionX",
+          0.0
+        ]
+      },
+      "145337507051371715": {
+        "axis": [
+          "MouseWheelY",
           1.0
-        ]
-      },
-      "3588069618618887709": {}
-    }
-  },
-  {
-    "name": "Controller",
-    "active": true,
-    "actions": {
-      "7937203962207026163": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "Select"
-          }
-        }
-      },
-      "9031382910651871530": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "LeftTrigger"
-          }
-        }
-      },
-      "8550834117436299269": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "DPadRight"
-          }
-        }
-      },
-      "631693652521310592": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "DPadUp"
-          }
-        }
-      },
-      "8365312451284481393": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "West"
-          }
-        }
-      },
-      "18050436896050143167": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "LeftThumb"
-          }
-        }
-      },
-      "15853816823481594965": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "DPadDown"
-          }
-        }
-      },
-      "16578605155271007452": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "East"
-          }
-        }
-      },
-      "2643736872316312752": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "DPadLeft"
-          }
-        }
-      },
-      "7122133755919934103": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "RightTrigger"
-          }
-        }
-      },
-      "12617707621421071051": {
-        "button": {
-          "Controller": {
-            "id": 0,
-            "button": "South"
-          }
-        }
-      }
-    },
-    "axis": {
-      "1607539583033235284": {
-        "button": [
-          {
-            "Controller": {
-              "id": 0,
-              "button": "RightTrigger2"
-            }
-          },
-          1.0
-        ]
-      },
-      "3924556973228298695": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "RightStickX"
-            }
-          },
-          1.0
-        ]
-      },
-      "2211778712401880640": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "LeftStickY"
-            }
-          },
-          -1.0
-        ]
-      },
-      "3588069618618887709": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "RightStickX"
-            }
-          },
-          1.5
-        ]
-      },
-      "7580563999753889131": {},
-      "7580562900242260920": {},
-      "11735791768874187868": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "LeftStickX"
-            }
-          },
-          -1.0
-        ]
-      },
-      "3560386037893974558": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "LeftStickY"
-            }
-          },
-          1.0
-        ]
-      },
-      "1980789514876115721": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "LeftStickX"
-            }
-          },
-          1.0
-        ]
-      },
-      "8586950713622950849": {
-        "button": [
-          {
-            "Controller": {
-              "id": 0,
-              "button": "LeftTrigger2"
-            }
-          },
-          1.0
-        ]
-      },
-      "3588068519107259498": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "RightStickY"
-            }
-          },
-          -1.5
-        ]
-      },
-      "3924555873716670484": {
-        "axis": [
-          {
-            "Controller": {
-              "id": 0,
-              "axis": "RightStickY"
-            }
-          },
-          -1.0
         ]
       }
     }

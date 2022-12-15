@@ -1,4 +1,4 @@
-use mini3d::{glam::{Mat4, Vec3}, renderer::SCREEN_ASPECT_RATIO};
+use mini3d::glam::{Mat4, Vec3};
 
 pub(crate) struct Camera {
     eye: Vec3,
@@ -22,11 +22,11 @@ impl Camera {
         self.fov = fov;
     }
 
-    pub(crate) fn projection(&self) -> Mat4 {
+    pub(crate) fn projection(&self, aspect_ratio: f32) -> Mat4 {
         let fov_x = f32::to_radians(self.fov);
-        let inv_aspect_ration = 1.0 / SCREEN_ASPECT_RATIO as f32;
+        let inv_aspect_ration = 1.0 / aspect_ratio as f32;
         let fov_y = 2.0 * f32::atan(inv_aspect_ration * f32::tan(fov_x * 0.5));
-        Mat4::perspective_rh(fov_y, SCREEN_ASPECT_RATIO, 0.5, 300.0)
+        Mat4::perspective_rh(fov_y, aspect_ratio, 0.5, 300.0)
     }
 
     pub(crate) fn view(&self) -> Mat4 {

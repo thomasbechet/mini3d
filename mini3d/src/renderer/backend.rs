@@ -1,13 +1,13 @@
 use anyhow::Result;
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec3, IVec2, UVec2};
 
-use crate::{uid::UID, feature::asset::{texture::Texture, mesh::Mesh, font::Font}};
+use crate::{uid::UID, feature::asset::{texture::Texture, mesh::Mesh, font::Font}, math::rect::IRect};
 
-use super::{command_buffer::CommandBuffer, RendererStatistics};
+use super::{RendererStatistics, color::Color};
 
 macro_rules! define_handle {
     ($name:ident) => {
-        #[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(u64);
         impl From<u64> for $name {
             fn from(value: u64) -> Self { Self(value) }
@@ -29,12 +29,32 @@ define_handle!(TextureHandle);
 define_handle!(MaterialHandle);
 define_handle!(FontHandle);
 
+define_handle!(CanvasHandle);
+define_handle!(CanvasViewportHandle);
+define_handle!(CanvasSpriteHandle);
+define_handle!(CanvasPrimitiveHandle);
+define_handle!(CanvasScissorHandle);
+
+define_handle!(ViewportHandle);
 define_handle!(CameraHandle);
 define_handle!(ModelHandle);
+define_handle!(SceneCanvasHandle);
+
+define_handle!(SurfaceHandle);
+define_handle!(SurfaceCanvasHandle);
+define_handle!(SurfaceViewportHandle);
 
 pub struct BackendMaterialDescriptor<'a> {
     pub diffuse: TextureHandle,
     pub name: &'a str,
+}
+
+pub enum BackendCanvasPrimitive {
+    Rectangle { extent: IRect, color: Color },
+    Box { extent: IRect, color: Color },
+    Line { x0: IVec2, x1: IVec2, color: Color },
+    VerticalLine { x: i32, y0: i32, y1: i32, color: Color },
+    HorizontalLine { y: i32, x0: i32, x1: i32, color: Color },
 }
 
 #[allow(unused_variables)]
@@ -44,7 +64,7 @@ pub trait RendererBackend {
 
     fn reset(&mut self) -> Result<()> { Ok(()) }
 
-    /// Resources API
+    /// Assets API
     
     fn mesh_add(&mut self, mesh: &Mesh) -> Result<MeshHandle> { Ok(0.into()) }
     fn mesh_remove(&mut self, handle: MeshHandle) -> Result<()> { Ok(()) }
@@ -58,24 +78,66 @@ pub trait RendererBackend {
     fn font_add(&mut self, font: &Font) -> Result<FontHandle> { Ok(0.into()) }
     fn font_remove(&mut self, handle: FontHandle) -> Result<()> { Ok(()) }
 
-    /// Objects API
-
-    fn camera_add(&mut self) -> Result<CameraHandle> { Ok(0.into()) }
-    fn camera_remove(&mut self, handle: CameraHandle) -> Result<()> { Ok(()) }
-    fn camera_update(&mut self, handle: CameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { Ok(()) }
-
-    fn model_add(&mut self, mesh: MeshHandle) -> Result<ModelHandle> { Ok(0.into()) }
-    fn model_remove(&mut self, handle: ModelHandle) -> Result<()> { Ok(()) }
-    fn model_set_material(&mut self, handle: ModelHandle, index: usize, material: MaterialHandle) -> Result<()> { Ok(()) }
-    fn model_transfer_matrix(&mut self, handle: ModelHandle, mat: Mat4) -> Result<()> { Ok(()) }
+    /// Canvas API
     
-    /// Commands API
+    fn canvas_add(&mut self, width: u32, height: u32) -> Result<CanvasHandle> { Ok(0.into()) }
+    fn canvas_remove(&mut self, handle: CanvasHandle) -> Result<()> { Ok(()) }
+    fn canvas_set_clear_color(&mut self, handle: CanvasHandle, color: Color) -> Result<()> { Ok(()) }
 
-    fn submit_command_buffer(&mut self, command: CommandBuffer) -> Result<()> { Ok(()) }
+    fn canvas_viewport_add(&mut self, canvas: CanvasHandle, viewport: ViewportHandle, position: IVec2) -> Result<CanvasViewportHandle> { Ok(0.into()) }
+    fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> { Ok(()) }
+    fn canvas_viewport_set_z_index(&mut self, handle: CanvasViewportHandle, z_index: i32) -> Result<()> { Ok(()) }
+    fn canvas_viewport_set_position(&mut self, handle: CanvasViewportHandle, position: IVec2) -> Result<()> { Ok(()) }
+
+    fn canvas_sprite_add(&mut self, canvas: CanvasHandle, texture: TextureHandle, position: IVec2, extent: IRect) -> Result<CanvasSpriteHandle> { Ok(0.into()) }
+    fn canvas_sprite_remove(&mut self, handle: CanvasSpriteHandle) -> Result<()> { Ok(()) }
+    fn canvas_sprite_set_position(&mut self, handle: CanvasSpriteHandle, position: IVec2) -> Result<()> { Ok(()) }
+    fn canvas_sprite_set_extent(&mut self, handle: CanvasSpriteHandle, extent: IRect) -> Result<()> { Ok(()) }
+    fn canvas_sprite_set_z_index(&mut self, handle: CanvasSpriteHandle, z_index: i32) -> Result<()> { Ok(()) }
+    fn canvas_sprite_set_texture(&mut self, handle: CanvasSpriteHandle, texture: TextureHandle) -> Result<()> { Ok(()) }
+    fn canvas_sprite_set_color(&mut self, handle: CanvasSpriteHandle, color: Color) -> Result<()> { Ok(()) }
+
+    fn canvas_primitive_add(&mut self, canvas: CanvasHandle) -> Result<CanvasPrimitiveHandle> { Ok(0.into()) }
+    fn canvas_primitive_remove(&mut self, handle: CanvasPrimitiveHandle) -> Result<()> { Ok(()) }
+    fn canvas_primitive_set_z_index(&mut self, handle: CanvasPrimitiveHandle, z_index: i32) -> Result<()> { Ok(()) }
+    fn canvas_primitive_update(&mut self, handle: CanvasPrimitiveHandle, primitive: BackendCanvasPrimitive) -> Result<()> { Ok(()) }
+
+    fn canvas_scissor_add(&mut self, canvas: CanvasHandle) -> Result<CanvasScissorHandle> { Ok(0.into()) }
+    fn canvas_scissor_remove(&mut self, handle: CanvasScissorHandle) -> Result<()> { Ok(()) }
+    fn canvas_scissor_set_z_index(&mut self, handle: CanvasScissorHandle, z_index: i32) -> Result<()> { Ok(()) }
+    fn canvas_scissor_set_view(&mut self, handle: CanvasScissorHandle, canvas: CanvasHandle, extent: IRect) -> Result<()> { Ok(()) }
+    fn canvas_scissor_extent(&mut self, handle: CanvasScissorHandle, extent: IRect) -> Result<()> { Ok(()) }
+
+    /// Viewport API
+        
+    fn viewport_add(&mut self, width: u32, height: u32) -> Result<ViewportHandle> { Ok(0.into()) }
+    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<()> { Ok(()) }
+    fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<CameraHandle>) -> Result<()> { Ok(()) }
+    fn viewport_set_resolution(&mut self, handle: ViewportHandle, width: u32, height: u32) -> Result<()> { Ok(()) }
+
+    /// Scene API
+
+    fn scene_camera_add(&mut self) -> Result<CameraHandle> { Ok(0.into()) }
+    fn scene_camera_remove(&mut self, handle: CameraHandle) -> Result<()> { Ok(()) }
+    fn scene_camera_update(&mut self, handle: CameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { Ok(()) }
+
+    fn scene_model_add(&mut self, mesh: MeshHandle) -> Result<ModelHandle> { Ok(0.into()) }
+    fn scene_model_remove(&mut self, handle: ModelHandle) -> Result<()> { Ok(()) }
+    fn scene_model_set_material(&mut self, handle: ModelHandle, index: usize, material: MaterialHandle) -> Result<()> { Ok(()) }
+    fn scene_model_transfer_matrix(&mut self, handle: ModelHandle, mat: Mat4) -> Result<()> { Ok(()) }
+
+    fn scene_canvas_add(&mut self, canvas: CanvasHandle) -> Result<SceneCanvasHandle> { Ok(0.into()) }
+    fn scene_canvas_remove(&mut self, handle: SceneCanvasHandle) -> Result<()> { Ok(()) }
+    fn scene_canvas_transfer_matrix(&mut self, handle: SceneCanvasHandle, mat: Mat4) -> Result<()> { Ok(()) }
+
+    /// Surface API
+
+    fn surface_canvas_add(&mut self, canvas: CanvasHandle, position: IVec2, z_index: i32) -> Result<SurfaceCanvasHandle> { Ok(0.into()) }
+    fn surface_canvas_remove(&mut self, handle: SurfaceCanvasHandle) -> Result<()> { Ok(()) }
 
     /// Statistics API
 
-    fn statistics(&self) -> Result<RendererStatistics> { Ok(RendererStatistics { triangle_count: 0, draw_count: 0, viewport: (0, 0) }) }
+    fn statistics(&self) -> Result<RendererStatistics> { Ok(RendererStatistics { triangle_count: 0, draw_count: 0 }) }
 
 }
 

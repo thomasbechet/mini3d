@@ -27,6 +27,10 @@ struct MouseMotionToAxis {
 struct MousePositionToAxis {
     uid: UID,
 }
+struct MouseWheelToAxis {
+    uid: UID,
+    scale: f32,
+}
 struct ControllerButtonToAction {
     uid: UID,
 }
@@ -45,6 +49,8 @@ pub(crate) enum Axis {
     MousePositionY, 
     MouseMotionX,
     MouseMotionY,
+    MouseWheelX,
+    MouseWheelY,
     Controller { id: GamepadId, axis: gilrs::Axis }
 }
 
@@ -91,6 +97,8 @@ pub(crate) struct InputMapper {
     mouse_motion_y_to_axis: Vec<MouseMotionToAxis>,
     mouse_position_x_to_axis: Vec<MousePositionToAxis>,
     mouse_position_y_to_axis: Vec<MousePositionToAxis>,
+    mouse_wheel_x_to_axis: Vec<MouseWheelToAxis>,
+    mouse_wheel_y_to_axis: Vec<MouseWheelToAxis>,
     controllers_button_to_action: HashMap<gilrs::GamepadId, HashMap<gilrs::Button, Vec<ControllerButtonToAction>>>,
     controllers_button_to_axis: HashMap<gilrs::GamepadId, HashMap<gilrs::Button, Vec<ControllerButtonToAxis>>>,
     controllers_axis_to_axis: HashMap<gilrs::GamepadId, HashMap<gilrs::Axis, Vec<ControllerAxisToAxis>>>,
@@ -222,6 +230,8 @@ impl InputMapper {
         self.mouse_position_y_to_axis.clear();
         self.mouse_motion_x_to_axis.clear();
         self.mouse_motion_y_to_axis.clear();
+        self.mouse_wheel_x_to_axis.clear();
+        self.mouse_wheel_y_to_axis.clear();
         self.controllers_button_to_action.clear();
         self.controllers_button_to_axis.clear();
         self.controllers_axis_to_axis.clear();
@@ -273,6 +283,12 @@ impl InputMapper {
                             },
                             Axis::MouseMotionY => {
                                 self.mouse_motion_y_to_axis.push(MouseMotionToAxis { uid: *uid, scale: *scale });
+                            },
+                            Axis::MouseWheelX => {
+                                self.mouse_wheel_x_to_axis.push(MouseWheelToAxis { uid: *uid, scale: *scale });
+                            },
+                            Axis::MouseWheelY => {
+                                self.mouse_wheel_y_to_axis.push(MouseWheelToAxis { uid: *uid, scale: *scale });
                             },
                             Axis::Controller { id, axis: ax } => {
                                 self.controllers_axis_to_axis.entry(*id).or_insert_with(Default::default).entry(*ax).or_insert_with(Default::default)
@@ -332,6 +348,15 @@ impl InputMapper {
         }
         for axis in &self.mouse_position_y_to_axis {
             events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: cursor.1 }));
+        }
+    }
+
+    pub(crate) fn dispatch_mouse_wheel(&self, delta: (f32, f32), events: &mut Events) {
+        for axis in &self.mouse_wheel_x_to_axis {
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.0 as f32 * axis.scale }));
+        }
+        for axis in &self.mouse_wheel_y_to_axis {
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.1 as f32 * axis.scale }));
         }
     }
 

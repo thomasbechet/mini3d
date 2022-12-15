@@ -31,14 +31,14 @@ pub(crate) fn create_blit_pipeline(
     // Create pipeline
     context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some(label),
-        layout: Some(&blit_pipeline_layout),
+        layout: Some(blit_pipeline_layout),
         vertex: wgpu::VertexState {
-            module: &blit_shader_module,
+            module: blit_shader_module,
             entry_point: "vs_main",
             buffers: &[],
         },
         fragment: Some(wgpu::FragmentState {
-            module: &blit_shader_module,
+            module: blit_shader_module,
             entry_point: "fs_main",
             targets: &[Some(wgpu::ColorTargetState {
                 format: target_format,

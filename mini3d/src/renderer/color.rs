@@ -1,19 +1,38 @@
+use std::fmt::Debug;
+
+use serde::{Serialize, Deserialize};
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Color(u32);
+
+impl Debug for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let r = self.r();
+        let g = self.g();
+        let b = self.b();
+        let a = self.a();
+        f.debug_tuple("Color").field(&r).field(&g).field(&b).field(&a).finish()
+    }
+}
 
 impl Color {
 
+    pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
+    pub const BLACK: Color = Color::rgba(0, 0, 0, 255);
     pub const RED: Color = Color::rgba(255, 0, 0, 255);
+    pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
+    pub const TRANSPARENT: Color = Color::rgba(0, 0, 0, 0);
     
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self((a as u32) << 24 | (r as u32) << 16 | (g as u32) << 8 | (b as u32))
     }
 
     pub fn r(&self) -> u8 {
-        (self.0 & 0x00FF0000 >> 16) as u8
+        ((self.0 & 0x00FF0000) >> 16) as u8
     }
 
     pub fn g(&self) -> u8 {
-        (self.0 & 0x0000FF00 >> 8) as u8
+        ((self.0 & 0x0000FF00) >> 8) as u8
     }
 
     pub fn b(&self) -> u8 {
@@ -21,7 +40,26 @@ impl Color {
     }
 
     pub fn a(&self) -> u8 {
-        (self.0 & 0xFF000000 >> 24) as u8
+        ((self.0 & 0xFF000000) >> 24) as u8
+    }
+}
+
+impl From<Color> for [f32; 4] {
+    fn from(color: Color) -> Self {
+        let r = color.r() as f32 / 255.0;
+        let g = color.g() as f32 / 255.0;
+        let b = color.b() as f32 / 255.0;
+        let a = color.a() as f32 / 255.0;
+        [r, g, b, a]
+    }
+}
+
+impl From<Color> for [f32; 3] {
+    fn from(color: Color) -> Self {
+        let r = color.r() as f32 / 255.0;
+        let g = color.g() as f32 / 255.0;
+        let b = color.b() as f32 / 255.0;
+        [r, g, b]
     }
 }
 

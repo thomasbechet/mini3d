@@ -9,7 +9,7 @@ pub struct WGPUContext {
 }
 
 impl WGPUContext {
-    pub(crate) fn new<W: raw_window_handle::HasRawWindowHandle>(window: &W) -> Self {
+    pub(crate) fn new<W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle>(window: &W) -> Self {
         
         let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
 
@@ -65,6 +65,7 @@ impl WGPUContext {
             height: 900,
             present_mode: wgpu::PresentMode::Fifo,
             // present_mode: wgpu::PresentMode::Mailbox,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         surface.configure(&device, &config);
 

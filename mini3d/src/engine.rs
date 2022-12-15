@@ -49,6 +49,7 @@ impl Engine {
         self.asset.register::<asset::texture::Texture>("texture")?;
         self.asset.register::<asset::tilemap::Tilemap>("tilemap")?;
         self.asset.register::<asset::tileset::Tileset>("tileset")?;
+        self.asset.register::<asset::ui::UI>("ui")?;
 
         // Components
         self.scene.register_component::<component::camera::CameraComponent>("camera")?;
@@ -233,10 +234,6 @@ impl Engine {
         requests: &mut Requests,
         mut delta_time: f64,
     ) -> Result<()> {
-
-        // ================= PREPARE STEP ================= //
-
-        self.renderer.prepare()?;
 
         // ================= DISPATCH STEP ================= //
 

@@ -5,6 +5,7 @@ use hecs::World;
 use crate::{scene::SystemContext, feature::component::{transform::TransformComponent, free_fly::FreeFlyComponent}};
 
 pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
+
     for (_, (transform, free_fly)) in world.query_mut::<(&mut TransformComponent, &mut FreeFlyComponent)>() {
 
         // Check active

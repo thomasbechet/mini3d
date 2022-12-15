@@ -7,6 +7,7 @@ impl CommonInput {
 pub struct CommonAction;
 
 impl CommonAction {
+    pub const CLICK: &'static str = "click";
     pub const UP: &'static str = "up";
     pub const LEFT: &'static str = "left"; 
     pub const DOWN: &'static str = "down"; 
@@ -20,6 +21,7 @@ pub struct CommonAxis;
 impl CommonAxis {
     pub const CURSOR_X: &'static str = "cursor_x";
     pub const CURSOR_Y: &'static str = "cursor_y";
+    pub const SCROLL_MOTION: &'static str = "scroll_motion";
     pub const CURSOR_MOTION_X: &'static str = "cursor_motion_x";
     pub const CURSOR_MOTION_Y: &'static str = "cursor_motion_y";
     pub const VIEW_X: &'static str = "view_x";

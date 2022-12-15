@@ -1,6 +1,6 @@
 use wgpu::{include_wgsl, vertex_attr_array};
 
-use crate::{context::WGPUContext, render_target::RenderTarget};
+use crate::{context::WGPUContext, viewport::VIEWPORT_COLOR_FORMAT};
 
 pub(crate) fn create_flat_pipeline(
     context: &WGPUContext,
@@ -53,7 +53,7 @@ pub(crate) fn create_flat_pipeline(
             module: &module,
             entry_point: "fs_main",
             targets: &[Some(wgpu::ColorTargetState {
-                format: RenderTarget::format(),
+                format: VIEWPORT_COLOR_FORMAT,
                 blend: Some(wgpu::BlendState::REPLACE),
                 write_mask: wgpu::ColorWrites::ALL,
             })],

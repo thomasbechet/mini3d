@@ -95,15 +95,14 @@ impl Process for ProfilerProcess {
                 self.dt_record.clear();
             }
 
-            let mut cb1 = CommandBuffer::empty();
-            let font = UID::new("default");
-            cb1.push(Command::Print { p: (8, 8).into(), text: format!("dt   : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt), font });
-            cb1.push(Command::Print { p: (8, 17).into(), text: format!("time : {:.2}", ctx.time), font });
-            cb1.push(Command::Print { p: (8, 26).into(), text: format!("dc   : {}", ctx.renderer.statistics().draw_count), font });
-            cb1.push(Command::Print { p: (8, 35).into(), text: format!("tc   : {}", ctx.renderer.statistics().triangle_count), font });
-            cb1.push(Command::Print { p: (8, 44).into(), text: format!("vp   : {}x{}", ctx.renderer.statistics().viewport.0, ctx.renderer.statistics().viewport.1), font });
-            ctx.renderer.submit_command_buffer(cb1)?;
-            ctx.renderer.submit_command_buffer(self.time_graph.render())?;
+            // let mut cb1 = CommandBuffer::empty();
+            // let font = UID::new("default");
+            // cb1.push(Command::Print { p: (8, 8).into(), text: format!("dt   : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt), font });
+            // cb1.push(Command::Print { p: (8, 17).into(), text: format!("time : {:.2}", ctx.time), font });
+            // cb1.push(Command::Print { p: (8, 26).into(), text: format!("dc   : {}", ctx.renderer.statistics().draw_count), font });
+            // cb1.push(Command::Print { p: (8, 35).into(), text: format!("tc   : {}", ctx.renderer.statistics().triangle_count), font });
+            // ctx.renderer.submit_command_buffer(cb1)?;
+            // ctx.renderer.submit_command_buffer(self.time_graph.render())?;
         }
 
         Ok(())

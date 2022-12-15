@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 use bitvec::prelude::*;
+use glam::IVec2;
 use serde::{Serialize, Deserialize};
+
+use crate::math::rect::IRect;
+
+use super::texture::{Texture, TextureFormat};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Font {
@@ -23,5 +28,45 @@ impl Default for Font {
             data,
             glyph_locations,
         }
+    }
+}
+
+pub struct FontAtlas {
+    pub texture: Texture,
+    pub extents: HashMap<char, IRect>,
+}
+
+impl FontAtlas {
+    pub fn new(font: &Font) -> FontAtlas {
+        let glyph_count = font.glyph_locations.len();
+        let width = font.glyph_width as u32 * glyph_count as u32;
+        let height = font.glyph_height as u32;
+        let mut texture = Texture {
+            data: Vec::with_capacity((width * height) as usize),
+            format: TextureFormat::R,
+            width,
+            height,
+        };
+
+        let mut extents: HashMap<char, IRect> = Default::default();
+        let mut extent = IRect::new(0, 0, font.glyph_width as u32, height);
+        for (c, location) in &font.glyph_locations {
+
+            // Write glyph pixels
+            let start = *location;
+            let end = start + (font.glyph_width as usize * font.glyph_height as usize);
+            for (i, b) in font.data.as_bitslice()[start..end].iter().enumerate() {
+                let px = (extent.left() + (i as i32 % font.glyph_width as i32)) as usize;
+                let py = (extent.top() + (i as i32 / font.glyph_width as i32)) as usize;
+                let pi = py * texture.width as usize + px;
+                texture.data[pi] = if *b { 0xFF } else { 0x0 };
+            }
+
+            // Save extent and move to next glyph
+            extents.insert(*c, extent);
+            extent.translate(IVec2::new(font.glyph_width as i32, 0));
+        }
+
+        Self { texture, extents }
     }
 }

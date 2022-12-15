@@ -4,7 +4,6 @@ pub mod scene;
 pub mod event;
 pub mod feature;
 pub mod renderer;
-pub mod ui;
 pub mod input;
 pub mod math;
 pub mod prng;
@@ -13,6 +12,7 @@ pub mod request;
 pub mod rhai;
 pub mod script;
 pub mod signal;
+pub mod ui;
 pub mod uid;
 
 pub use glam;

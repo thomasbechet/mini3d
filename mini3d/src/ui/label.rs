@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 use crate::uid::UID;
 
 #[derive(Serialize, Deserialize)]
-pub struct LabelUI {
+pub struct Label {
     text: String,
     font: UID,
 }

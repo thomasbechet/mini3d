@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use serde::{Serialize, Deserialize};
 
-#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct UID(u64);
 
 impl UID {

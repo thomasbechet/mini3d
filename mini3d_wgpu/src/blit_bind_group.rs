@@ -31,19 +31,19 @@ pub(crate) fn create_blit_bind_group(
     blit_bind_group_layout: &wgpu::BindGroupLayout,
     texture_view: &wgpu::TextureView,
     sampler: &wgpu::Sampler,
-    label: &str,
+    label: Option<&str>,
 ) -> wgpu::BindGroup {
     context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some(label),
-        layout: &blit_bind_group_layout,
+        label,
+        layout: blit_bind_group_layout,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture_view),
+                resource: wgpu::BindingResource::TextureView(texture_view),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler),
+                resource: wgpu::BindingResource::Sampler(sampler),
             },
         ],
     })

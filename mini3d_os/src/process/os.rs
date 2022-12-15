@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat}, rand, math::rect::IRect, scene::Scene, ui::navigation_layout::{NavigationLayout, NavigationLayoutInputs}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::UIComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, self, UI}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -6,7 +6,8 @@ use crate::{input::{CommonAxis, CommonAction}};
 #[derive(Default, Serialize, Deserialize)]
 pub struct OSProcess {
     scene: UID,
-    navigation_layout: NavigationLayout,
+    navigation_layout: InteractionLayout,
+    ui: UI,
     control_profile: UID,
     layout_active: bool,
 }
@@ -21,24 +22,29 @@ impl OSProcess {
         ctx.asset.add("default", default_bundle, Font::default())?;
 
         // Register common inputs
+        ctx.asset.add(CommonAction::CLICK, default_bundle, InputAction {
+            display_name: "Click".to_string(),
+            description: "UI interaction layout (click).".to_string(),
+            default_pressed: false,
+        })?;
         ctx.asset.add(CommonAction::UP, default_bundle, InputAction {
             display_name: "Up".to_string(),
-            description: "Layout navigation control (go up).".to_string(),
+            description: "UI interaction layout (go up).".to_string(),
             default_pressed: false,
         })?;
         ctx.asset.add(CommonAction::LEFT, default_bundle, InputAction {
             display_name: "Left".to_string(),
-            description: "Layout navigation control (go left).".to_string(),
+            description: "UI interaction layout (go left).".to_string(),
             default_pressed: false,
         })?;
         ctx.asset.add(CommonAction::DOWN, default_bundle, InputAction {
             display_name: "Down".to_string(),
-            description: "Layout navigation control (go down).".to_string(),
+            description: "UI interaction layout (go down).".to_string(),
             default_pressed: false,
         })?;
         ctx.asset.add(CommonAction::RIGHT, default_bundle, InputAction {
             display_name: "Right".to_string(),
-            description: "Layout navigation control (go right).".to_string(),
+            description: "UI interaction layout (go right).".to_string(),
             default_pressed: false,
         })?;
         ctx.asset.add(CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputAction {
@@ -61,6 +67,12 @@ impl OSProcess {
             display_name: "Cursor Y".to_string(),
             description: "Vertical position of the mouse cursor relative to the screen.".to_string(),
             range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 },
+            default_value: 0.0,
+        })?;
+        ctx.asset.add(CommonAxis::SCROLL_MOTION, default_bundle, InputAxis {
+            display_name: "Scroll Motion".to_string(),
+            description: "Delta scrolling value.".to_string(),
+            range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
         ctx.asset.add(CommonAxis::CURSOR_MOTION_X, default_bundle, InputAxis {
@@ -156,6 +168,7 @@ impl OSProcess {
             display_name: "Common Inputs".to_string(),
             description: "".to_string(), 
             actions: Vec::from([
+                CommonAction::CLICK.into(),
                 CommonAction::UP.into(),
                 CommonAction::LEFT.into(),
                 CommonAction::DOWN.into(),
@@ -166,6 +179,7 @@ impl OSProcess {
             axis: Vec::from([
                 CommonAxis::CURSOR_X.into(),
                 CommonAxis::CURSOR_Y.into(),
+                CommonAxis::SCROLL_MOTION.into(),
                 CommonAxis::CURSOR_MOTION_X.into(),
                 CommonAxis::CURSOR_MOTION_Y.into(),
                 CommonAxis::VIEW_X.into(),
@@ -318,6 +332,11 @@ impl OSProcess {
                 
         world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
 
+        world.spawn((
+            LifecycleComponent::alive(),
+            UIComponent::new(UI::default(), IVec2::new(10, 10)),
+        ));
+
         Ok(())
     }
 }
@@ -359,24 +378,6 @@ impl Process for OSProcess {
 
         ctx.input.reload_input_tables(ctx.asset)?;
 
-        // Add initial control profile
-        self.control_profile = self.navigation_layout.add_profile("main", NavigationLayoutInputs {
-            up: CommonAction::UP.into(),
-            down: CommonAction::DOWN.into(),
-            left: CommonAction::LEFT.into(),
-            right: CommonAction::RIGHT.into(),
-            cursor_x: CommonAxis::CURSOR_X.into(), 
-            cursor_y: CommonAxis::CURSOR_Y.into(),
-            cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
-            cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
-        })?;
-
-        self.navigation_layout.add_area("area1", IRect::new(5, 5, 100, 50))?;
-        self.navigation_layout.add_area("area2", IRect::new(5, 200, 100, 50))?;
-        self.navigation_layout.add_area("area3", IRect::new(150, 5, 100, 50))?;
-        self.navigation_layout.add_area("area4", IRect::new(150, 200, 50, 50))?;
-        self.navigation_layout.add_area("area5", IRect::new(400, 50, 100, 200))?;
-
         {
             // Initialize world
             self.setup_world(ctx)?;
@@ -406,6 +407,24 @@ impl Process for OSProcess {
 
         // Run profiler
         ctx.process.start("profiler", ProfilerProcess::new(UID::new(CommonAction::TOGGLE_PROFILER)))?;
+
+        // Setup UI
+        self.ui.add_profile("main", InteractionInputs {
+            click: CommonAction::CLICK.into(),
+            up: CommonAction::UP.into(),
+            down: CommonAction::DOWN.into(),
+            left: CommonAction::LEFT.into(),
+            right: CommonAction::RIGHT.into(),
+            cursor_x: CommonAxis::CURSOR_X.into(), 
+            cursor_y: CommonAxis::CURSOR_Y.into(),
+            cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
+            cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
+            scroll: CommonAxis::SCROLL_MOTION.into(),
+        })?;
+
+        // Create default viewport
+        
+
         Ok(())
     }
 
@@ -424,15 +443,15 @@ impl Process for OSProcess {
 
         // Toggle control layout
         if self.layout_active {
-            self.navigation_layout.update(ctx.input, ctx.time)?;
-            let cb0 = self.navigation_layout.render(ctx.time);
-            ctx.renderer.submit_command_buffer(cb0)?;
+            self.ui.update(ctx.input, ctx.time)?;
+            // let cb0 = self.ui.render(ctx.time);
+            // ctx.renderer.submit_command_buffer(cb0)?;
         }
 
         // Render center cross
         let mut cb = CommandBuffer::empty();
         cb.push(Command::FillRect { rect: IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2) });
-        ctx.renderer.submit_command_buffer(cb)?;
+        // ctx.renderer.submit_command_buffer(cb)?;
 
         Ok(())
     }

@@ -8,14 +8,14 @@ use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::compute_fixed_viewport;
 use window::Window;
-use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, DeviceEvent, WindowEvent, ElementState, VirtualKeyCode, MouseButton}};
+use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, DeviceEvent, WindowEvent, ElementState, VirtualKeyCode, MouseButton, MouseScrollDelta}};
 
 pub mod gui;
 pub mod mapper;
 pub mod utils;
 pub mod window;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum DisplayMode {
     FullscreenFocus,
     WindowedFocus,
@@ -51,7 +51,7 @@ fn main() {
 
     // Renderer
     let mut renderer = WGPURenderer::new(&window.handle);
-    let mut gui = WindowGUI::new(renderer.context(), &window.handle, &mapper);
+    let mut gui = WindowGUI::new(renderer.context(), &window.handle, &event_loop, &mapper);
 
     // Engine
     let mut engine = Engine::new().expect("Failed to create engine");
@@ -63,7 +63,9 @@ fn main() {
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
     let mut mouse_motion = (0.0, 0.0);
+    let mut wheel_motion = (0.0, 0.0);
     let mut last_mouse_motion = mouse_motion;
+    let mut last_wheel_motion = wheel_motion;
 
     // Controllers
     let mut gilrs = gilrs::Gilrs::new().unwrap();
@@ -113,9 +115,18 @@ fn main() {
 
         // Match window events
         match event {
-            Event::DeviceEvent { device_id: _, event: DeviceEvent::MouseMotion { delta } } => {
-                mouse_motion.0 += delta.0;
-                mouse_motion.1 += delta.1;
+            Event::DeviceEvent { device_id: _, event } => {
+                match event {
+                    DeviceEvent::MouseMotion { delta } => {
+                        mouse_motion.0 += delta.0;
+                        mouse_motion.1 += delta.1;
+                    },
+                    DeviceEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(x, y) } => {
+                        wheel_motion.0 += x;
+                        wheel_motion.1 += y;
+                    },
+                    _ => {}
+                }
             }
             Event::WindowEvent { window_id, event } => {
                 if window_id == window.handle.id() {
@@ -199,6 +210,13 @@ fn main() {
                                 mapper.dispatch_mouse_cursor((final_position.x, final_position.y), &mut events);
                             }
                         }
+                        // WindowEvent::MouseWheel { device_id: _, delta, .. } => {
+                        //     if window.is_focus() {
+                        //         if let MouseScrollDelta::LineDelta(x, y) = delta {
+                        //             mapper.dispatch_mouse_wheel((x, y), &mut events);
+                        //         }
+                        //     }
+                        // }
                         _ => {}
                     }
                 }
@@ -209,11 +227,18 @@ fn main() {
             Event::MainEventsCleared => {
 
                 // Dispatch mouse motion and reset
-                if window.is_focus() && (mouse_motion.0 != last_mouse_motion.0 || mouse_motion.1 != last_mouse_motion.1) {
-                    mapper.dispatch_mouse_motion(mouse_motion, &mut events);
-                    last_mouse_motion = mouse_motion;
-                }
+                if window.is_focus() {
+                    if mouse_motion.0 != last_mouse_motion.0 || mouse_motion.1 != last_mouse_motion.1 {
+                        mapper.dispatch_mouse_motion(mouse_motion, &mut events);
+                        last_mouse_motion = mouse_motion;
+                    }
+                    if wheel_motion.0 != last_wheel_motion.0 || wheel_motion.1 != last_wheel_motion.1 {
+                        mapper.dispatch_mouse_wheel(wheel_motion, &mut events);
+                        last_wheel_motion = wheel_motion;
+                    }
+                } 
                 mouse_motion = (0.0, 0.0);
+                wheel_motion = (0.0, 0.0);
 
                 // Dispatch controller events
                 while let Some(gilrs::Event { id, event, .. }) = &gilrs.next_event() {
@@ -248,6 +273,7 @@ fn main() {
                 last_time = now;
 
                 // Update GUI
+                let last_display_mode = display_mode;
                 gui.ui(
                     &mut window,
                     &engine,
@@ -258,8 +284,12 @@ fn main() {
                         request_save: &mut save_state,
                         request_load: &mut load_state,
                     },
-                    delta_time
                 );
+
+                // Update display mode
+                if display_mode != last_display_mode {
+                    set_display_mode(&mut window, &mut gui, display_mode);
+                }
 
                 // Progress engine
                 engine.progress(&events, &mut requests, delta_time).expect("Failed to progress engine");
