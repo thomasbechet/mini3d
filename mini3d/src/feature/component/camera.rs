@@ -1,18 +1,16 @@
 use serde::{Serialize, Deserialize};
 
-use crate::renderer::backend::{CameraHandle, ViewportHandle};
+use crate::renderer::backend::SceneCameraHandle;
 
 #[derive(Serialize, Deserialize)]
 pub struct CameraComponent {
     pub fov: f32,
     #[serde(skip)]
-    pub(crate) camera_handle: Option<CameraHandle>,
-    #[serde(skip)]
-    pub(crate) viewport_handle: Option<ViewportHandle>,
+    pub(crate) handle: Option<SceneCameraHandle>,
 }
 
 impl Default for CameraComponent {
     fn default() -> Self {
-        Self { fov: 110.0, camera_handle: None, viewport_handle: None }
+        Self { fov: 110.0, handle: None }
     }
 }

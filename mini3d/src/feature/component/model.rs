@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::backend::ModelHandle};
+use crate::{uid::UID, renderer::backend::SceneModelHandle};
 
 #[derive(Serialize, Deserialize)]
 pub struct ModelComponent {
@@ -8,7 +8,7 @@ pub struct ModelComponent {
     #[serde(skip)]
     pub changed: bool,
     #[serde(skip)]
-    pub(crate) handle: Option<ModelHandle>,
+    pub(crate) handle: Option<SceneModelHandle>,
 }
 
 impl ModelComponent {

@@ -57,7 +57,7 @@ pub(crate) fn create_global_bind_group(
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::Sampler(&sampler),
+                resource: wgpu::BindingResource::Sampler(sampler),
             },
         ],
     })

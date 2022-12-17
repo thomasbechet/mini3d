@@ -35,14 +35,11 @@ define_handle!(CanvasSpriteHandle);
 define_handle!(CanvasPrimitiveHandle);
 define_handle!(CanvasScissorHandle);
 
-define_handle!(ViewportHandle);
-define_handle!(CameraHandle);
-define_handle!(ModelHandle);
+define_handle!(SceneCameraHandle);
+define_handle!(SceneModelHandle);
 define_handle!(SceneCanvasHandle);
 
-define_handle!(SurfaceHandle);
 define_handle!(SurfaceCanvasHandle);
-define_handle!(SurfaceViewportHandle);
 
 pub struct BackendMaterialDescriptor<'a> {
     pub diffuse: TextureHandle,
@@ -84,11 +81,6 @@ pub trait RendererBackend {
     fn canvas_remove(&mut self, handle: CanvasHandle) -> Result<()> { Ok(()) }
     fn canvas_set_clear_color(&mut self, handle: CanvasHandle, color: Color) -> Result<()> { Ok(()) }
 
-    fn canvas_viewport_add(&mut self, canvas: CanvasHandle, viewport: ViewportHandle, position: IVec2) -> Result<CanvasViewportHandle> { Ok(0.into()) }
-    fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> { Ok(()) }
-    fn canvas_viewport_set_z_index(&mut self, handle: CanvasViewportHandle, z_index: i32) -> Result<()> { Ok(()) }
-    fn canvas_viewport_set_position(&mut self, handle: CanvasViewportHandle, position: IVec2) -> Result<()> { Ok(()) }
-
     fn canvas_sprite_add(&mut self, canvas: CanvasHandle, texture: TextureHandle, position: IVec2, extent: IRect) -> Result<CanvasSpriteHandle> { Ok(0.into()) }
     fn canvas_sprite_remove(&mut self, handle: CanvasSpriteHandle) -> Result<()> { Ok(()) }
     fn canvas_sprite_set_position(&mut self, handle: CanvasSpriteHandle, position: IVec2) -> Result<()> { Ok(()) }
@@ -108,23 +100,22 @@ pub trait RendererBackend {
     fn canvas_scissor_set_view(&mut self, handle: CanvasScissorHandle, canvas: CanvasHandle, extent: IRect) -> Result<()> { Ok(()) }
     fn canvas_scissor_extent(&mut self, handle: CanvasScissorHandle, extent: IRect) -> Result<()> { Ok(()) }
 
-    /// Viewport API
-        
-    fn viewport_add(&mut self, width: u32, height: u32) -> Result<ViewportHandle> { Ok(0.into()) }
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<()> { Ok(()) }
-    fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<CameraHandle>) -> Result<()> { Ok(()) }
-    fn viewport_set_resolution(&mut self, handle: ViewportHandle, width: u32, height: u32) -> Result<()> { Ok(()) }
+    fn canvas_viewport_add(&mut self, canvas: CanvasHandle, position: IVec2, resolution: UVec2) -> Result<CanvasViewportHandle> { Ok(0.into()) }
+    fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> { Ok(()) }
+    fn canvas_viewport_set_z_index(&mut self, handle: CanvasViewportHandle, z_index: i32) -> Result<()> { Ok(()) }
+    fn canvas_viewport_set_position(&mut self, handle: CanvasViewportHandle, position: IVec2) -> Result<()> { Ok(()) }
+    fn canvas_viewport_set_camera(&mut self, handle: CanvasViewportHandle, camera: Option<SceneCameraHandle>) -> Result<()> { Ok(()) }
 
     /// Scene API
 
-    fn scene_camera_add(&mut self) -> Result<CameraHandle> { Ok(0.into()) }
-    fn scene_camera_remove(&mut self, handle: CameraHandle) -> Result<()> { Ok(()) }
-    fn scene_camera_update(&mut self, handle: CameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { Ok(()) }
+    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle> { Ok(0.into()) }
+    fn scene_camera_remove(&mut self, handle: SceneCameraHandle) -> Result<()> { Ok(()) }
+    fn scene_camera_update(&mut self, handle: SceneCameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> { Ok(()) }
 
-    fn scene_model_add(&mut self, mesh: MeshHandle) -> Result<ModelHandle> { Ok(0.into()) }
-    fn scene_model_remove(&mut self, handle: ModelHandle) -> Result<()> { Ok(()) }
-    fn scene_model_set_material(&mut self, handle: ModelHandle, index: usize, material: MaterialHandle) -> Result<()> { Ok(()) }
-    fn scene_model_transfer_matrix(&mut self, handle: ModelHandle, mat: Mat4) -> Result<()> { Ok(()) }
+    fn scene_model_add(&mut self, mesh: MeshHandle) -> Result<SceneModelHandle> { Ok(0.into()) }
+    fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<()> { Ok(()) }
+    fn scene_model_set_material(&mut self, handle: SceneModelHandle, index: usize, material: MaterialHandle) -> Result<()> { Ok(()) }
+    fn scene_model_transfer_matrix(&mut self, handle: SceneModelHandle, mat: Mat4) -> Result<()> { Ok(()) }
 
     fn scene_canvas_add(&mut self, canvas: CanvasHandle) -> Result<SceneCanvasHandle> { Ok(0.into()) }
     fn scene_canvas_remove(&mut self, handle: SceneCanvasHandle) -> Result<()> { Ok(()) }

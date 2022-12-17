@@ -70,7 +70,6 @@ fn fs_main(
     let filter_color = blits[in.instance_index].color;
     
     // Sample texture
-    let color = textureSample(t_texture, s_texture, vec2<f32>(in.uv.x, in.uv.y));
-    
+    var color = textureSample(t_texture, s_texture, vec2<f32>(in.uv.x, in.uv.y));
     return color * vec4<f32>(filter_color, 1.0);
 }

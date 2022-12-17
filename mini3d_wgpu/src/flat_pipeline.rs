@@ -1,6 +1,6 @@
 use wgpu::{include_wgsl, vertex_attr_array};
 
-use crate::{context::WGPUContext, viewport::VIEWPORT_COLOR_FORMAT};
+use crate::{context::WGPUContext, canvas::VIEWPORT_COLOR_FORMAT};
 
 pub(crate) fn create_flat_pipeline(
     context: &WGPUContext,

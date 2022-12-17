@@ -4,9 +4,9 @@ use anyhow::Result;
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, ui::{UIComponent, SceneUIComponent}}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::Font}}, ui::viewport::Viewport};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, ui::{UIComponent, SceneUIComponent}}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::Font}}};
 
-use self::{backend::{RendererBackend, BackendMaterialDescriptor, FontHandle, TextureHandle, MeshHandle, MaterialHandle, CameraHandle, ModelHandle, CanvasHandle, SurfaceCanvasHandle, SceneCanvasHandle}};
+use self::{backend::{RendererBackend, BackendMaterialDescriptor, FontHandle, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, CanvasHandle, SurfaceCanvasHandle, SceneCanvasHandle}};
 
 pub mod backend;
 pub mod color;
@@ -164,12 +164,15 @@ pub struct RendererManager {
     // Resources
     resources: RendererResourceManager,
 
-    // Entities
-    pub(crate) cameras_removed: HashSet<CameraHandle>,
-    pub(crate) models_removed: HashSet<ModelHandle>,
-    pub(crate) surface_canvases_removed: HashSet<SurfaceCanvasHandle>,
+    // Destroyed handles
+    pub(crate) scene_cameras_removed: HashSet<SceneCameraHandle>,
+    pub(crate) scene_models_removed: HashSet<SceneModelHandle>,
     pub(crate) scene_canvases_removed: HashSet<SceneCanvasHandle>,
     pub(crate) canvases_removed: HashSet<CanvasHandle>,
+    pub(crate) surface_canvases_removed: HashSet<SurfaceCanvasHandle>,
+
+    // Cached entities
+    cameras: HashMap<hecs::Entity, SceneCameraHandle>,
 
     statistics: RendererStatistics,
 }
@@ -180,20 +183,22 @@ impl RendererManager {
 
         self.resources.reset();
 
-        self.cameras_removed.clear();
-        self.models_removed.clear();
+        self.scene_cameras_removed.clear();
+        self.scene_models_removed.clear();
         self.scene_canvases_removed.clear();
-        self.surface_canvases_removed.clear();
         self.canvases_removed.clear();
+        self.surface_canvases_removed.clear();
 
         for world in scene.iter_world() {
             for (_, camera) in world.query_mut::<&mut CameraComponent>() {
-                camera.camera_handle = None;
+                camera.handle = None;
             }
             for (_, model) in world.query_mut::<&mut ModelComponent>() {
                 model.handle = None;
             }
         }
+
+        self.cameras.clear();
         
         Ok(())
     }
@@ -206,14 +211,11 @@ impl RendererManager {
     ) -> Result<()> {
 
         // Remove entities
-        for handle in self.cameras_removed.drain() {
+        for handle in self.scene_cameras_removed.drain() {
             backend.scene_camera_remove(handle)?;
         }
-        for handle in self.models_removed.drain() {
+        for handle in self.scene_models_removed.drain() {
             backend.scene_model_remove(handle)?;
-        }
-        for handle in self.surface_canvases_removed.drain() {
-            backend.surface_canvas_remove(handle)?;
         }
         for handle in self.scene_canvases_removed.drain() {
             backend.scene_canvas_remove(handle)?;
@@ -221,20 +223,21 @@ impl RendererManager {
         for handle in self.canvases_removed.drain() {
             backend.canvas_remove(handle)?;
         }
+        for handle in self.surface_canvases_removed.drain() {
+            backend.surface_canvas_remove(handle)?;
+        }
 
         // Update scene components
         for world in scene.iter_world() {
 
             // Update cameras
-            for (_, (c, t)) in world.query_mut::<(&mut CameraComponent, &TransformComponent)>() {
-                if c.camera_handle.is_none() {
-                    c.camera_handle = Some(backend.scene_camera_add()?);
+            for (entity, (c, t)) in world.query_mut::<(&mut CameraComponent, &TransformComponent)>() {
+                if c.handle.is_none() {
+                    let handle = backend.scene_camera_add()?; 
+                    self.cameras.insert(entity, handle);
+                    c.handle = Some(handle);
                 }
-                if c.viewport_handle.is_none() {
-                    c.viewport_handle = Some(backend.viewport_add(100, 100)?);
-                    backend.viewport_set_camera(c.viewport_handle.unwrap(), Some(c.camera_handle.unwrap()))?;
-                }
-                backend.scene_camera_update(c.camera_handle.unwrap(), t.translation, t.forward(), t.up(), c.fov)?;
+                backend.scene_camera_update(c.handle.unwrap(), t.translation, t.forward(), t.up(), c.fov)?;
             }
             
             // Update models
@@ -256,11 +259,11 @@ impl RendererManager {
             for (_, c) in world.query_mut::<&mut UIComponent>() {
 
                 // Update UI
-                c.ui.update_renderer(backend, &mut self.resources, asset)?;
+                c.ui.update_renderer(backend, &mut self.resources, &self.cameras, asset)?;
 
                 // Update surface
                 if c.handle.is_none() && c.ui.handle.is_some() {
-                    c.handle = Some(backend.surface_canvas_add(c.ui.handle.unwrap(), c.position, 0)?);
+                    c.handle = Some(backend.surface_canvas_add(c.ui.handle.unwrap(), c.position, c.z_index)?);
                 }
             }
 
@@ -268,7 +271,7 @@ impl RendererManager {
             for (_, (c, t)) in world.query_mut::<(&mut SceneUIComponent, &TransformComponent)>() {
 
                 // Update UI
-                c.ui.update_renderer(backend, &mut self.resources, asset)?;
+                c.ui.update_renderer(backend, &mut self.resources, &self.cameras, asset)?;
 
                 // Update scene object
                 if c.handle.is_none() && c.ui.handle.is_some() {

@@ -32,7 +32,7 @@ pub(crate) fn create_flat_material_bind_group(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture_view),
+                resource: wgpu::BindingResource::TextureView(texture_view),
             },
         ],
     })

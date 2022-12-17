@@ -28,13 +28,13 @@ impl Sprite {
         if self.handle.is_none() {
             let texture_handle = resources.request_texture(&self.texture, backend, asset)?;
             self.handle = Some(backend.canvas_sprite_add(canvas, texture_handle, self.position, self.extent)?);
-            backend.canvas_sprite_set_color(self.handle.unwrap(), self.color)?;
         }
         if self.out_of_date {
             backend.canvas_sprite_set_position(self.handle.unwrap(), self.position)?;
             backend.canvas_sprite_set_extent(self.handle.unwrap(), self.extent)?;
             backend.canvas_sprite_set_color(self.handle.unwrap(), self.color)?;
             backend.canvas_sprite_set_z_index(self.handle.unwrap(), self.z_index)?;
+            self.out_of_date = false;
         }
         Ok(())
     }

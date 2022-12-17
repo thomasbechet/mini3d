@@ -1,14 +1,15 @@
 use std::collections::{HashMap, hash_map};
 
-use mini3d::renderer::{backend::{TextureHandle, CanvasHandle, ViewportHandle}, color::Color};
+use mini3d::renderer::{backend::{TextureHandle, CanvasHandle, CanvasViewportHandle}, color::Color};
 use wgpu::include_wgsl;
 
-use crate::{context::WGPUContext, texture::Texture, canvas::{Canvas, CanvasSprite, CANVAS_COLOR_FORMAT, CanvasViewport}, viewport::Viewport};
+use crate::{context::WGPUContext, texture::Texture, canvas::{Canvas, CanvasSprite, CANVAS_COLOR_FORMAT}};
 
 #[repr(C)]
 #[derive(Default, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct GPUCanvasData {
     resolution: [u32; 2],
+    _pad: [u64; 31],
 }
 
 #[repr(C)]
@@ -29,11 +30,9 @@ struct CanvasSpriteBatch {
     blit_count: usize,
 }
 
-#[derive(Debug)]
 struct CanvasViewportBatch {
-    viewport: ViewportHandle,
+    viewport: CanvasViewportHandle,
     blit_start: usize,
-    blit_count: usize,
 }
 
 const MAX_CANVAS_COUNT: usize = 32;
@@ -73,6 +72,7 @@ pub(crate) struct CanvasRenderer {
     canvas_bind_group: wgpu::BindGroup,
     canvas_buffer: wgpu::Buffer,
     canvas_transfer: [GPUCanvasData; MAX_CANVAS_COUNT],
+    canvas_offsets: HashMap<CanvasHandle, u32>, 
 
     blit_pipeline: wgpu::RenderPipeline,
     blit_bind_group_layout: wgpu::BindGroupLayout,
@@ -82,7 +82,7 @@ pub(crate) struct CanvasRenderer {
 
     sprite_bind_groups: HashMap<TextureHandle, wgpu::BindGroup>,
     sprite_batches: HashMap<CanvasHandle, Vec<CanvasSpriteBatch>>,
-    viewport_bind_groups: HashMap<ViewportHandle, wgpu::BindGroup>,
+    viewport_bind_groups: HashMap<CanvasViewportHandle, wgpu::BindGroup>,
     viewport_batches: HashMap<CanvasHandle, Vec<CanvasViewportBatch>>,
 }
 
@@ -117,7 +117,7 @@ impl CanvasRenderer {
                 ty: wgpu::BindingType::Buffer { 
                     ty: wgpu::BufferBindingType::Uniform, 
                     has_dynamic_offset: true, 
-                    min_binding_size: wgpu::BufferSize::new(64), 
+                    min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<GPUCanvasData>() as u64),
                 },
                 count: None,
             }],
@@ -130,7 +130,7 @@ impl CanvasRenderer {
                     visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer { 
                         ty: wgpu::BufferBindingType::Uniform, 
-                        has_dynamic_offset: true, 
+                        has_dynamic_offset: false, 
                         min_binding_size: wgpu::BufferSize::new(64), 
                     },
                     count: None,
@@ -176,6 +176,7 @@ impl CanvasRenderer {
                 targets: &[Some(wgpu::ColorTargetState {
                     format: CANVAS_COLOR_FORMAT,
                     blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    // blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -210,7 +211,12 @@ impl CanvasRenderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: canvas_buffer.as_entire_binding(),
+                    // resource: canvas_buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &canvas_buffer,
+                        offset: 0,
+                        size: wgpu::BufferSize::new(std::mem::size_of::<GPUCanvasData>() as u64),
+                    })
                 },
             ],
         });
@@ -219,6 +225,7 @@ impl CanvasRenderer {
             canvas_bind_group, 
             canvas_buffer, 
             canvas_transfer: [GPUCanvasData::default(); MAX_CANVAS_COUNT],
+            canvas_offsets: Default::default(),
             
             blit_pipeline, 
             blit_bind_group_layout,
@@ -238,15 +245,14 @@ impl CanvasRenderer {
         context: &WGPUContext,
         sampler: &wgpu::Sampler,
         textures: &HashMap<TextureHandle, Texture>,
-        viewports: &HashMap<ViewportHandle, Viewport>,
-        canvas_list: &HashMap<CanvasHandle, Canvas>,
+        canvases: &HashMap<CanvasHandle, Canvas>,
     ) {
 
         // Initialize buffer pointer
         let mut current_blit_index = 0;
-        
+
         // Build canvas batches
-        for (canvas_index, (handle, canvas)) in canvas_list.iter().enumerate() {
+        for (canvas_index, (handle, canvas)) in canvases.iter().enumerate() {
 
             // Create and clear the canvas blit batches
             let sprite_batches = self.sprite_batches.entry(*handle).or_default();
@@ -257,8 +263,6 @@ impl CanvasRenderer {
             // Obtain list of items reference and sort by texture
             let mut sprite_items: Vec<&CanvasSprite> = canvas.sprites.values().collect();
             sprite_items.sort_by(|a, b| a.texture.cmp(&b.texture));
-            let mut viewport_items: Vec<&CanvasViewport> = canvas.viewports.values().collect();
-            viewport_items.sort_by(|a, b| a.viewport.cmp(&b.viewport));
             
             // Build blit batches
             for sprite in sprite_items {
@@ -299,10 +303,10 @@ impl CanvasRenderer {
             }
 
             // Build viewport batches
-            for viewport in viewport_items {
-
+            for (handle, viewport) in &canvas.viewports {
+                
                 // Append the blit to the transfer buffer
-                let extent = viewports.get(&viewport.viewport).unwrap().extent;
+                let extent = viewport.extent;
                 self.blit_transfer[current_blit_index] = GPUBlitData {
                     color: Color::WHITE.into(),
                     depth: ((viewport.z_index as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
@@ -312,27 +316,7 @@ impl CanvasRenderer {
                     _pad: 0,
                 };
 
-                // Insert first batch
-                if viewport_batches.is_empty() {
-                    viewport_batches.push(CanvasViewportBatch {
-                        viewport: viewport.viewport,
-                        blit_start: current_blit_index,
-                        blit_count: 0,
-                    });
-                }
-
-                // Check if we need to create a new batch
-                if let Some(batch) = viewport_batches.last_mut() {
-                    if batch.viewport == viewport.viewport {
-                        batch.blit_count += 1;
-                    } else {
-                        viewport_batches.push(CanvasViewportBatch { 
-                            viewport: viewport.viewport, 
-                            blit_start: current_blit_index, 
-                            blit_count: 1
-                        });
-                    }
-                }
+                viewport_batches.push(CanvasViewportBatch { viewport: *handle, blit_start: current_blit_index });
 
                 current_blit_index += 1;
             }
@@ -347,9 +331,8 @@ impl CanvasRenderer {
             }
             
             // Build viewport bind groups
-            for batch in viewport_batches {
-                if let hash_map::Entry::Vacant(e) = self.viewport_bind_groups.entry(batch.viewport) {
-                    let viewport = viewports.get(&batch.viewport).unwrap();
+            for (handle, viewport) in &canvas.viewports {
+                if let hash_map::Entry::Vacant(e) = self.viewport_bind_groups.entry(*handle) {
                     let bind_group = create_blit_bind_group(context, &self.blit_bind_group_layout, &self.blit_buffer, &viewport.color_view, sampler);
                     e.insert(bind_group);
                 }
@@ -358,75 +341,74 @@ impl CanvasRenderer {
             // Write canvas buffer
             self.canvas_transfer[canvas_index] = GPUCanvasData {
                 resolution: [canvas.extent.width as u32, canvas.extent.height as u32],
+                _pad: [0; 31],
             };
+
+            // Save canvas buffer offset
+            let offset = std::mem::size_of::<GPUCanvasData>() * canvas_index;
+            self.canvas_offsets.insert(*handle, offset as u32);
         }
 
         // Write buffer
-        context.queue.write_buffer(&self.canvas_buffer, 0, bytemuck::cast_slice(&self.canvas_transfer[0..canvas_list.len()]));
+        context.queue.write_buffer(&self.canvas_buffer, 0, bytemuck::cast_slice(&self.canvas_transfer[0..canvases.len()]));
         context.queue.write_buffer(&self.blit_buffer,0, bytemuck::cast_slice(&self.blit_transfer[0..current_blit_index]));
 
     }
 
     pub(crate) fn render(
         &mut self, 
-        context: &WGPUContext,
-        canvas_list: &HashMap<CanvasHandle, Canvas>,
+        canvases: &HashMap<CanvasHandle, Canvas>,
         encoder: &mut wgpu::CommandEncoder,
-        textures: &HashMap<TextureHandle, Texture>,
     ) {
 
         // Iterate over all canvases
-        for (canvas_handle, canvas) in canvas_list {
+        for (canvas_handle, canvas) in canvases.iter() {
 
-            // Render blits
-            {
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("canvas_blit_render_pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &canvas.color_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(canvas.clear_color),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &canvas.depth_view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(0.0),
-                            store: true,
-                        }),
-                        stencil_ops: None,
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("canvas_blit_render_pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &canvas.color_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(canvas.clear_color),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &canvas.depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0.0),
+                        store: true,
                     }),
-                });
+                    stencil_ops: None,
+                }),
+            });
 
-                // Set pipeline and bind group
-                render_pass.set_pipeline(&self.blit_pipeline);
-                render_pass.set_bind_group(0, &self.canvas_bind_group, &[0]);
+            // Set pipeline and bind group
+            render_pass.set_pipeline(&self.blit_pipeline);
+            let offset = self.canvas_offsets.get(canvas_handle).unwrap();
+            render_pass.set_bind_group(0, &self.canvas_bind_group, &[*offset]);
+            
+            // Render sprites
+            for batch in self.sprite_batches.get(canvas_handle).unwrap() {
+
+                // Bind group
+                let bind_group = self.sprite_bind_groups.get(&batch.texture).unwrap();
+                render_pass.set_bind_group(1, bind_group, &[]);
                 
-                // Render sprites
-                for batch in self.sprite_batches.get(canvas_handle).unwrap() {
+                // Draw
+                render_pass.draw(0..6, batch.blit_start as u32..(batch.blit_start + batch.blit_count) as u32);
+            }
 
-                    // Bind group
-                    let bind_group = self.sprite_bind_groups.get(&batch.texture).unwrap();
-                    let offset = batch.blit_start * std::mem::size_of::<GPUBlitData>();
-                    render_pass.set_bind_group(1, bind_group, &[offset as u32]);
-                    
-                    // Draw
-                    render_pass.draw(0..6, 0..batch.blit_count as u32);
-                }
+            // Render viewports
+            for batch in self.viewport_batches.get(canvas_handle).unwrap() {
 
-                // Render viewports
-                for batch in self.viewport_batches.get(canvas_handle).unwrap() {
-
-                    // Bind group
-                    let bind_group = self.viewport_bind_groups.get(&batch.viewport).unwrap();
-                    let offset = batch.blit_start * std::mem::size_of::<GPUBlitData>();
-                    render_pass.set_bind_group(1, bind_group, &[offset as u32]);
-                    
-                    // Draw
-                    render_pass.draw(0..6, 0..batch.blit_count as u32);
-                }
+                // Bind group
+                let bind_group = self.viewport_bind_groups.get(&batch.viewport).unwrap();
+                render_pass.set_bind_group(1, bind_group, &[]);
+                
+                // Draw
+                render_pass.draw(0..6, batch.blit_start as u32..(batch.blit_start + 1) as u32);
             }
         }
     }

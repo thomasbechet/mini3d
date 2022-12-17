@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::UIComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, self, UI}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::UIComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, self, UI, Widget, viewport::Viewport}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -332,11 +332,29 @@ impl OSProcess {
                 
         world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
 
-        world.spawn((
-            LifecycleComponent::alive(),
-            UIComponent::new(UI::default(), IVec2::new(10, 10)),
-        ));
+        
+        {
+            let mut ui = UI::default();
+            if let Widget::Viewport(viewport) = ui.get_mut("main_viewport".into())? {
+                viewport.set_camera(Some(e));
+            }
+            world.spawn((
+                LifecycleComponent::alive(),
+                UIComponent::new(ui, IVec2::ZERO, 0),
+            ));
+        }
 
+        {
+            let mut ui = UI::new(200, 200);
+            let mut viewport = Viewport::new((0, 0).into(), (200, 200).into());
+            viewport.set_camera(Some(e));
+            ui.add("main_widget", Widget::Viewport(viewport))?;
+            world.spawn((
+                LifecycleComponent::alive(),
+                UIComponent::new(ui, IVec2::new(300, 0), 1),
+            ));
+        }
+        
         Ok(())
     }
 }

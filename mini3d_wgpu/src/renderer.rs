@@ -5,8 +5,8 @@ use mini3d::engine::Engine;
 use mini3d::feature::asset::{mesh, texture, font};
 use mini3d::glam::{Vec4, Mat4, Vec3, UVec2, IVec2};
 use mini3d::math::rect::IRect;
-use mini3d::renderer::{RendererStatistics, SCREEN_RESOLUTION, SCREEN_WIDTH, SCREEN_HEIGHT};
-use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, ModelHandle, FontHandle, CameraHandle, CanvasHandle, ViewportHandle, CanvasSpriteHandle, CanvasViewportHandle, CanvasPrimitiveHandle, SurfaceCanvasHandle};
+use mini3d::renderer::{RendererStatistics, SCREEN_WIDTH, SCREEN_HEIGHT};
+use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, SceneModelHandle, FontHandle, SceneCameraHandle, CanvasHandle, CanvasSpriteHandle, CanvasViewportHandle, SurfaceCanvasHandle};
 use mini3d::renderer::color::{srgb_to_linear, Color};
 use mini3d::uid::{UID, SequentialGenerator};
 
@@ -24,7 +24,6 @@ use crate::material_bind_group::{create_flat_material_bind_group_layout, create_
 use crate::flat_pipeline::create_flat_pipeline;
 use crate::texture::Texture;
 use crate::vertex_allocator::{VertexAllocator, VertexBufferDescriptor};
-use crate::viewport::Viewport;
 
 pub const MAX_MODEL_COUNT: usize = 256;
 pub const MAX_OBJECT_COUNT: usize = 512;
@@ -96,9 +95,8 @@ pub struct WGPURenderer {
     fonts: HashMap<FontHandle, Font>,
     
     // Scene resources
-    viewports: HashMap<ViewportHandle, Viewport>,
-    cameras: HashMap<CameraHandle, Camera>,
-    models: HashMap<ModelHandle, Model>,
+    cameras: HashMap<SceneCameraHandle, Camera>,
+    models: HashMap<SceneModelHandle, Model>,
     model_buffer: ModelBuffer,
     objects: HashMap<UID, Object>,
 
@@ -109,7 +107,7 @@ pub struct WGPURenderer {
     // Canvas resources
     sampler: wgpu::Sampler,
     canvas_renderer: CanvasRenderer,
-    canvas: HashMap<CanvasHandle, Canvas>,
+    canvases: HashMap<CanvasHandle, Canvas>,
     item_to_canvas: HashMap<UID, CanvasHandle>,
 
     // Surface resources
@@ -205,7 +203,6 @@ impl WGPURenderer {
             materials: Default::default(),
             fonts: Default::default(),
             
-            viewports: Default::default(),
             cameras: Default::default(),
             models: Default::default(),
             model_buffer,
@@ -216,7 +213,7 @@ impl WGPURenderer {
 
             sampler: nearest_sampler,
             canvas_renderer: canvas_pipeline,
-            canvas: Default::default(),
+            canvases: Default::default(),
             item_to_canvas: Default::default(),
 
             surface_canvas: Default::default(),
@@ -272,106 +269,108 @@ impl WGPURenderer {
         }
 
         // Render viewports
-        for viewport in self.viewports.values() {
-            
-            // Retrieve the camera
-            if viewport.camera.is_none() { continue; }
-            let camera = self.cameras.get(&viewport.camera.unwrap()).with_context(|| "Camera not found")?;
+        for canvas in self.canvases.values_mut() {
+            for viewport in canvas.viewports.values_mut() {
 
-            // Compute camera matrices
-            let projection = camera.projection(viewport.aspect_ratio());
-            let view = camera.view();
-            self.global_uniform_buffer.set_world_to_clip(&(projection * view));
-            self.global_uniform_buffer.write_buffer(&self.context);
+                // Retrieve the camera
+                if viewport.camera.is_none() { continue; }
+                let camera = self.cameras.get(&viewport.camera.unwrap()).with_context(|| "Camera not found")?;
 
-            // Forward Render Pass
-            {
-                let mut forward_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("forward_render_pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &viewport.color_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &viewport.depth_view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
-                            store: true,
-                        }),
-                        stencil_ops: None,
-                    }),
-                });
+                // Compute camera matrices
+                let projection = camera.projection(viewport.aspect_ratio());
+                let view = camera.view();
+                self.global_uniform_buffer.set_world_to_clip(&(projection * view));
+                self.global_uniform_buffer.write_buffer(&self.context);
 
-                forward_render_pass.set_pipeline(&self.flat_pipeline);
-                forward_render_pass.set_bind_group(0, &self.global_bind_group, &[]);
-                forward_render_pass.set_bind_group(1, &self.forward_mesh_pass.bind_group, &[]);
-
-                forward_render_pass.set_vertex_buffer(0, self.vertex_allocator.position_buffer.slice(..));
-                forward_render_pass.set_vertex_buffer(1, self.vertex_allocator.normal_buffer.slice(..));
-                forward_render_pass.set_vertex_buffer(2, self.vertex_allocator.uv_buffer.slice(..));
-
-                // Multi draw indirect
+                // Forward Render Pass
                 {
-                    let mut triangle_count = 0;
-                    for batch in &self.forward_mesh_pass.multi_instanced_batches {
+                    let mut forward_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("forward_render_pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &viewport.color_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                                store: true,
+                            },
+                        })],
+                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                            view: &viewport.depth_view,
+                            depth_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: true,
+                            }),
+                            stencil_ops: None,
+                        }),
+                    });
 
-                        // Bind materials
-                        let material = self.materials.get(&batch.material)
-                            .expect("Failed to get material during forward pass");
-                        forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-                    
-                        // Indirect draw
-                        forward_render_pass.multi_draw_indirect(
-                            &self.forward_mesh_pass.indirect_command_buffer, 
-                            (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
-                            batch.count as u32,
-                        );
-                        triangle_count += batch.triangle_count;
-                    }
-                    self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
-                    self.statistics.triangle_count = triangle_count;
-                }
-                
-                // Classic draw
-                // {
-                //     self.statistics.triangle_count = 0;
-                //     let mut previous_material: MaterialHandle = Default::default();
-                //     for batch in &self.forward_mesh_pass.instanced_batches {
+                    forward_render_pass.set_pipeline(&self.flat_pipeline);
+                    forward_render_pass.set_bind_group(0, &self.global_bind_group, &[]);
+                    forward_render_pass.set_bind_group(1, &self.forward_mesh_pass.bind_group, &[]);
+
+                    forward_render_pass.set_vertex_buffer(0, self.vertex_allocator.position_buffer.slice(..));
+                    forward_render_pass.set_vertex_buffer(1, self.vertex_allocator.normal_buffer.slice(..));
+                    forward_render_pass.set_vertex_buffer(2, self.vertex_allocator.uv_buffer.slice(..));
+
+                    // Multi draw indirect
+                    {
+                        let mut triangle_count = 0;
+                        for batch in &self.forward_mesh_pass.multi_instanced_batches {
+
+                            // Bind materials
+                            let material = self.materials.get(&batch.material)
+                                .expect("Failed to get material during forward pass");
+                            forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
                         
-                //         // Check change in material
-                //         if batch.material != previous_material {
-                //             previous_material = batch.material;
-                //             let material = self.materials.get(&batch.material)
-                //                 .expect("Failed to get material during forward pass");
-                //             forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-                //         }
+                            // Indirect draw
+                            forward_render_pass.multi_draw_indirect(
+                                &self.forward_mesh_pass.indirect_command_buffer, 
+                                (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
+                                batch.count as u32,
+                            );
+                            triangle_count += batch.triangle_count;
+                        }
+                        self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
+                        self.statistics.triangle_count = triangle_count;
+                    }
+                    
+                    // Classic draw
+                    // {
+                    //     self.statistics.triangle_count = 0;
+                    //     let mut previous_material: MaterialHandle = Default::default();
+                    //     for batch in &self.forward_mesh_pass.instanced_batches {
+                            
+                    //         // Check change in material
+                    //         if batch.material != previous_material {
+                    //             previous_material = batch.material;
+                    //             let material = self.materials.get(&batch.material)
+                    //                 .expect("Failed to get material during forward pass");
+                    //             forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
+                    //         }
 
-                //         // Draw instanced
-                //         let descriptor = self.submeshes.get(&batch.submesh)
-                //             .expect("Failed to get submesh descriptor");
-                //         let vertex_start = descriptor.base_index;
-                //         let vertex_stop = vertex_start + descriptor.vertex_count;
-                //         let instance_start = batch.first_instance as u32;
-                //         let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
-                //         forward_render_pass.draw(
-                //             vertex_start..vertex_stop, 
-                //             instance_start..instance_stop,
-                //         );
+                    //         // Draw instanced
+                    //         let descriptor = self.submeshes.get(&batch.submesh)
+                    //             .expect("Failed to get submesh descriptor");
+                    //         let vertex_start = descriptor.base_index;
+                    //         let vertex_stop = vertex_start + descriptor.vertex_count;
+                    //         let instance_start = batch.first_instance as u32;
+                    //         let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
+                    //         forward_render_pass.draw(
+                    //             vertex_start..vertex_stop, 
+                    //             instance_start..instance_stop,
+                    //         );
 
-                //         self.statistics.triangle_count += batch.triangle_count;
-                //     }
-                //     self.statistics.draw_count = self.forward_mesh_pass.instanced_batches.len();
-                // }
+                    //         self.statistics.triangle_count += batch.triangle_count;
+                    //     }
+                    //     self.statistics.draw_count = self.forward_mesh_pass.instanced_batches.len();
+                    // }
+                }
             }
         }
 
         // Render canvas
-        self.canvas_renderer.write_buffer(&self.context, &self.sampler, &self.textures, &self.viewports, &self.canvas);
-        self.canvas_renderer.render(&self.context, &self.canvas, &mut encoder, &self.textures);
+        self.canvas_renderer.write_buffer(&self.context, &self.sampler, &self.textures, &self.canvases);
+        self.canvas_renderer.render(&self.canvases, &mut encoder);
 
         // Show canvas on screen
         {
@@ -406,17 +405,17 @@ impl WGPURenderer {
             );
 
             // Render each canvas
-            for surface_canvas in self.surface_canvas.values() {
-                let canvas = self.canvas.get(&surface_canvas.canvas).expect("Failed to get canvas");
+            let mut surfaces: Vec<&SurfaceCanvas> = self.surface_canvas.values().collect();
+            surfaces.sort_by(|a, b| a.z_index.cmp(&b.z_index));
+            for surface_canvas in surfaces {
+                let canvas = self.canvases.get(&surface_canvas.canvas).expect("Failed to get canvas");
 
                 // Compute viewport
-                blit_canvas_render_pass.set_viewport(
-                    engine_viewport.x + surface_canvas.position.x as f32,
-                    engine_viewport.y + surface_canvas.position.y as f32,
-                    (canvas.extent.width as f32 / SCREEN_WIDTH as f32) * engine_viewport.z,
-                    (canvas.extent.height as f32 / SCREEN_HEIGHT as f32) * engine_viewport.w,
-                    0.0, 1.0
-                );
+                let x = engine_viewport.x + surface_canvas.position.x as f32;
+                let y = engine_viewport.y + surface_canvas.position.y as f32;
+                let w = (canvas.extent.width as f32 / SCREEN_WIDTH as f32) * engine_viewport.z;
+                let h = (canvas.extent.height as f32 / SCREEN_HEIGHT as f32) * engine_viewport.w;
+                blit_canvas_render_pass.set_viewport(x, y, w, h, 0.0, 1.0);
             
                 blit_canvas_render_pass.set_pipeline(&self.blit_canvas_pipeline);
                 blit_canvas_render_pass.set_bind_group(0, &surface_canvas.bind_group, &[]);
@@ -525,55 +524,23 @@ impl RendererBackend for WGPURenderer {
 
     fn canvas_add(&mut self, width: u32, height: u32) -> Result<CanvasHandle> {
         let handle: CanvasHandle = self.generator.next().into();
-        self.canvas.insert(handle, Canvas::new(&self.context, UVec2::new(width, height)));
+        self.canvases.insert(handle, Canvas::new(&self.context, UVec2::new(width, height)));
         Ok(handle)
     }
     fn canvas_remove(&mut self, handle: CanvasHandle) -> Result<()> {
-        self.canvas.remove(&handle);
+        self.canvases.remove(&handle);
         Ok(())
     }
     fn canvas_set_clear_color(&mut self, handle: CanvasHandle, color: Color) -> Result<()> { 
-        let canvas = self.canvas.get_mut(&handle).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(&handle).with_context(|| "Canvas not found")?;
         canvas.clear_color = convert_clear_color(color);
-        Ok(())
-    }
-
-    fn canvas_viewport_add(&mut self, canvas: CanvasHandle, viewport: ViewportHandle, position: IVec2) -> Result<CanvasViewportHandle> {
-        let handle: CanvasViewportHandle = self.generator.next().into();
-        self.item_to_canvas.insert(handle.into(), canvas);
-        let canvas = self.canvas.get_mut(&canvas).with_context(|| "Canvas not found")?;
-        canvas.viewports.insert(handle, CanvasViewport {
-            viewport,
-            position,
-            z_index: 0,
-        });
-        Ok(handle)
-    }
-    fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
-        canvas.viewports.remove(&handle).with_context(|| "Viewport not found")?;
-        Ok(())
-    }
-    fn canvas_viewport_set_z_index(&mut self, handle: CanvasViewportHandle, z_index: i32) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
-        viewport.z_index = z_index;
-        Ok(())
-    }
-    fn canvas_viewport_set_position(&mut self, handle: CanvasViewportHandle, position: IVec2) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
-        viewport.position = position;
         Ok(())
     }
     
     fn canvas_sprite_add(&mut self, canvas: CanvasHandle, texture: TextureHandle, position: IVec2, extent: IRect) -> Result<CanvasSpriteHandle> {
         let handle: CanvasSpriteHandle = self.generator.next().into();
         self.item_to_canvas.insert(handle.into(), canvas);
-        let canvas = self.canvas.get_mut(&canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
         canvas.sprites.insert(handle, CanvasSprite {
             texture,
             z_index: 0,
@@ -585,99 +552,112 @@ impl RendererBackend for WGPURenderer {
     }
     fn canvas_sprite_remove(&mut self, handle: CanvasSpriteHandle) -> Result<()> {
         let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
         canvas.sprites.remove(&handle).with_context(|| "Blit not found")?;
         Ok(())
     }
     fn canvas_sprite_set_position(&mut self, handle: CanvasSpriteHandle, position: IVec2) -> Result<()> {
         let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
         let sprite = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
         sprite.position = position;
         Ok(())
     }
     fn canvas_sprite_set_extent(&mut self, handle: CanvasSpriteHandle, extent: IRect) -> Result<()> {
         let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
         let sprite = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
         sprite.extent = extent;
         Ok(())
     }
     fn canvas_sprite_set_z_index(&mut self, handle: CanvasSpriteHandle, z_index: i32) -> Result<()> {
         let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
         let blit = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
         blit.z_index = z_index;
         Ok(())
     }
     fn canvas_sprite_set_texture(&mut self, handle: CanvasSpriteHandle, texture: TextureHandle) -> Result<()> {
         let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
         let blit = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
         blit.texture = texture;
         Ok(())
     }
     fn canvas_sprite_set_color(&mut self, handle: CanvasSpriteHandle, color: Color) -> Result<()> {
         let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvas.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
         let blit = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
         blit.color = color;
         Ok(())
     }
 
-    // TODO: complete canvas API
-    
-    /// Viewport API
-
-    fn viewport_add(&mut self, width: u32, height: u32) -> Result<ViewportHandle> {
-        let handle: ViewportHandle = self.generator.next().into();
-        self.viewports.insert(handle, Viewport::new(&self.context, UVec2::new(width, height)));
+    fn canvas_viewport_add(&mut self, canvas: CanvasHandle, position: IVec2, resolution: UVec2) -> Result<CanvasViewportHandle> {
+        let handle: CanvasViewportHandle = self.generator.next().into();
+        self.item_to_canvas.insert(handle.into(), canvas);
+        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
+        canvas.viewports.insert(handle, CanvasViewport::new(&self.context, position, resolution));
         Ok(handle)
     }
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<()> {
-        self.viewports.remove(&handle).with_context(|| "Viewport not found")?;
+    fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> {
+        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
+        canvas.viewports.remove(&handle).with_context(|| "Viewport not found")?;
         Ok(())
     }
-    fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<CameraHandle>) -> Result<()> {
-        let viewport = self.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+    fn canvas_viewport_set_z_index(&mut self, handle: CanvasViewportHandle, z_index: i32) -> Result<()> {
+        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+        viewport.z_index = z_index;
+        Ok(())
+    }
+    fn canvas_viewport_set_position(&mut self, handle: CanvasViewportHandle, position: IVec2) -> Result<()> {
+        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+        viewport.position = position;
+        Ok(())
+    }
+    fn canvas_viewport_set_camera(&mut self, handle: CanvasViewportHandle, camera: Option<SceneCameraHandle>) -> Result<()> {
+        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
         viewport.camera = camera;
         Ok(())
     }
-    fn viewport_set_resolution(&mut self, handle: ViewportHandle, width: u32, height: u32) -> Result<()> {
-        let viewport = self.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
-        viewport.resize(&self.context, UVec2::new(width, height));
-        Ok(())
-    }
+
+    // TODO: complete canvas API
 
     /// Scene API
 
-    fn scene_camera_add(&mut self) -> Result<CameraHandle> {
-        let handle: CameraHandle = self.generator.next().into();
+    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle> {
+        let handle: SceneCameraHandle = self.generator.next().into();
         self.cameras.insert(handle, Camera::default());
         Ok(handle)
     }
-    fn scene_camera_remove(&mut self, handle: CameraHandle) -> Result<()> {
+    fn scene_camera_remove(&mut self, handle: SceneCameraHandle) -> Result<()> {
         self.cameras.remove(&handle).with_context(|| "Camera not found")?;
         Ok(())
     }
-    fn scene_camera_update(&mut self, handle: CameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> {
+    fn scene_camera_update(&mut self, handle: SceneCameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> {
         let camera = self.cameras.get_mut(&handle).with_context(|| "Camera not found")?;
         camera.update(eye, forward, up, fov);
         Ok(())
     }
 
-    fn scene_model_add(&mut self, mesh_handle: MeshHandle) -> Result<ModelHandle> {
+    fn scene_model_add(&mut self, mesh_handle: MeshHandle) -> Result<SceneModelHandle> {
         // Reserve the model index
         let model_index = self.model_buffer.add();
         // Generate the handle
-        let handle: ModelHandle = self.generator.next().into();
+        let handle: SceneModelHandle = self.generator.next().into();
         // Insert model (empty by default)
         let mesh = self.meshes.get(&mesh_handle).with_context(|| "Mesh not found")?;
         self.models.insert(handle, Model { mesh: mesh_handle, model_index, objects: vec![None; mesh.submeshes.len()] });
         // Return handle
         Ok(handle)
     }
-    fn scene_model_remove(&mut self, handle: ModelHandle) -> Result<()> {
+    fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<()> {
         let model = self.models.remove(&handle).with_context(|| "Model not found")?;
         for object in model.objects.iter().flatten() {
             self.remove_object(*object)?;
@@ -685,7 +665,7 @@ impl RendererBackend for WGPURenderer {
         self.model_buffer.remove(model.model_index);
         Ok(())
     }
-    fn scene_model_set_material(&mut self, handle: ModelHandle, index: usize, material: MaterialHandle) -> Result<()> {
+    fn scene_model_set_material(&mut self, handle: SceneModelHandle, index: usize, material: MaterialHandle) -> Result<()> {
         // Check input
         let model = self.models.get(&handle).with_context(|| "Model not found")?;
         let mesh = self.meshes.get(&model.mesh).with_context(|| "Mesh not found")?;
@@ -703,7 +683,7 @@ impl RendererBackend for WGPURenderer {
         *self.models.get_mut(&handle).unwrap().objects.get_mut(index).unwrap() = Some(object_uid);
         Ok(())
     }
-    fn scene_model_transfer_matrix(&mut self, handle: ModelHandle, mat: Mat4) -> Result<()> {
+    fn scene_model_transfer_matrix(&mut self, handle: SceneModelHandle, mat: Mat4) -> Result<()> {
         let model = self.models.get(&handle).with_context(|| "Model not found")?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())
@@ -713,7 +693,7 @@ impl RendererBackend for WGPURenderer {
 
     fn surface_canvas_add(&mut self, canvas_handle: CanvasHandle, position: IVec2, z_index: i32) -> Result<SurfaceCanvasHandle> {
         let handle = self.generator.next().into();
-        let canvas = self.canvas.get(&canvas_handle).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get(&canvas_handle).with_context(|| "Canvas not found")?;
         let surface_canvas = SurfaceCanvas::new(
             &self.context, 
             position, 

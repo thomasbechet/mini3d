@@ -7,13 +7,14 @@ use crate::{ui::UI, renderer::backend::{SurfaceCanvasHandle, SceneCanvasHandle}}
 pub struct UIComponent {
     pub ui: UI,
     pub position: IVec2,
+    pub z_index: i32,
     #[serde(skip)]
     pub handle: Option<SurfaceCanvasHandle>,
 }
 
 impl UIComponent {
-    pub fn new(ui: UI, position: IVec2) -> Self {
-        Self { ui, position, handle: None }
+    pub fn new(ui: UI, position: IVec2, z_index: i32) -> Self {
+        Self { ui, position, z_index, handle: None }
     }
 }
 
