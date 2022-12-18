@@ -1,14 +1,14 @@
 // Vertex Shader
 
-// group0 -> Global Bind Group
+// group0 -> Viewport Bind Group
 // group1 -> Mesh-Pass Bind Group
 // group2 -> Flat-Material Bind Group
 
-struct GlobalData {
+struct ViewportData {
     world_to_clip: mat4x4<f32>,
 };
 @group(0) @binding(0)
-var<uniform> global: GlobalData;
+var<uniform> viewport: ViewportData;
 
 struct ModelData {
     transform: mat4x4<f32>,
@@ -40,7 +40,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     let model = models[instances[instance_index].model_id].transform;
-    out.clip_position = global.world_to_clip * model * vec4<f32>(position, 1.0);
+    out.clip_position = viewport.world_to_clip * model * vec4<f32>(position, 1.0);
     out.world_normal = (model * vec4<f32>(normal, 0.0)).xyz;
     out.uv = uv;
     return out;

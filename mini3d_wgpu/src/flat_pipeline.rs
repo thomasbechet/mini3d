@@ -4,7 +4,7 @@ use crate::{context::WGPUContext, canvas::VIEWPORT_COLOR_FORMAT};
 
 pub(crate) fn create_flat_pipeline(
     context: &WGPUContext,
-    global_bind_group_layout: &wgpu::BindGroupLayout,
+    viewport_bind_group_layout: &wgpu::BindGroupLayout,
     mesh_pass_bind_group_layout: &wgpu::BindGroupLayout,
     flat_material_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
@@ -13,7 +13,7 @@ pub(crate) fn create_flat_pipeline(
     let pipeline_layout = context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("flat_pipeline_layout"),
         bind_group_layouts: &[
-            global_bind_group_layout,
+            viewport_bind_group_layout,
             mesh_pass_bind_group_layout, 
             flat_material_bind_group_layout
         ],

@@ -1,10 +1,10 @@
-use crate::{context::WGPUContext, global_buffer::GlobalBuffer, model_buffer::ModelBuffer};
+use crate::{context::WGPUContext, viewport_buffer::ViewportBuffer, model_buffer::ModelBuffer};
 
-pub(crate) fn create_global_bind_group_layout(
+pub(crate) fn create_viewport_bind_group_layout(
     context: &WGPUContext
 ) -> wgpu::BindGroupLayout {
     context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("global_bind_group_layout"),
+        label: Some("viewport_bind_group_layout"),
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -36,20 +36,20 @@ pub(crate) fn create_global_bind_group_layout(
     })
 }
 
-pub(crate) fn create_global_bind_group(
+pub(crate) fn create_viewport_bind_group(
     context: &WGPUContext, 
     layout: &wgpu::BindGroupLayout, 
-    global_buffer: &GlobalBuffer,
+    viewport_buffer: &ViewportBuffer,
     model_buffer: &ModelBuffer,
     sampler: &wgpu::Sampler
 ) -> wgpu::BindGroup {
     context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("global_bind_group"),
+        label: Some("viewport_bind_group"),
         layout,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: global_buffer.buffer.as_entire_binding(),
+                resource: viewport_buffer.buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,

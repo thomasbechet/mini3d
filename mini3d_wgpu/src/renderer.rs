@@ -15,8 +15,8 @@ use crate::blit_pipeline::{create_blit_pipeline_layout, create_blit_pipeline, cr
 use crate::camera::Camera;
 use crate::canvas::{Canvas, SurfaceCanvas, CanvasViewport, CanvasSprite};
 use crate::canvas_renderer::CanvasRenderer;
-use crate::global_bind_group::{create_global_bind_group, create_global_bind_group_layout};
-use crate::global_buffer::GlobalBuffer;
+use crate::viewport_bind_group::{create_viewport_bind_group, create_viewport_bind_group_layout};
+use crate::viewport_buffer::ViewportBuffer;
 use crate::mesh_pass::{MeshPass, create_mesh_pass_bind_group_layout, GPUDrawIndirect};
 use crate::model_buffer::{ModelBuffer, ModelIndex};
 use crate::context::WGPUContext;
@@ -76,8 +76,8 @@ pub struct WGPURenderer {
     generator: SequentialGenerator,
     
     // Scene Render Pass
-    global_uniform_buffer: GlobalBuffer,
-    global_bind_group: wgpu::BindGroup,
+    viewport_uniform_buffer: ViewportBuffer,
+    viewport_bind_group: wgpu::BindGroup,
     flat_pipeline: wgpu::RenderPipeline,
     flat_material_bind_group_layout: wgpu::BindGroupLayout,
     
@@ -141,19 +141,19 @@ impl WGPURenderer {
 
         let mesh_pass_bind_group_layout = create_mesh_pass_bind_group_layout(&context);
         let model_buffer = ModelBuffer::new(&context, MAX_MODEL_COUNT);
-        let global_bind_group_layout = create_global_bind_group_layout(&context);
+        let viewport_bind_group_layout = create_viewport_bind_group_layout(&context);
         let flat_material_bind_group_layout = create_flat_material_bind_group_layout(&context);
-        let global_buffer = GlobalBuffer::new(&context);
-        let global_bind_group = create_global_bind_group(
+        let viewport_buffer = ViewportBuffer::new(&context);
+        let viewport_bind_group = create_viewport_bind_group(
             &context, 
-            &global_bind_group_layout, 
-            &global_buffer,
+            &viewport_bind_group_layout, 
+            &viewport_buffer,
             &model_buffer,
             &nearest_sampler,
         );
         let flat_pipeline = create_flat_pipeline(
             &context, 
-            &global_bind_group_layout,
+            &viewport_bind_group_layout,
             &mesh_pass_bind_group_layout,
             &flat_material_bind_group_layout,
         );
@@ -187,8 +187,8 @@ impl WGPURenderer {
             context,
             generator: Default::default(),
 
-            global_uniform_buffer: global_buffer,
-            global_bind_group,
+            viewport_uniform_buffer: viewport_buffer,
+            viewport_bind_group,
             flat_pipeline,
             flat_material_bind_group_layout,
             
@@ -279,8 +279,8 @@ impl WGPURenderer {
                 // Compute camera matrices
                 let projection = camera.projection(viewport.aspect_ratio());
                 let view = camera.view();
-                self.global_uniform_buffer.set_world_to_clip(&(projection * view));
-                self.global_uniform_buffer.write_buffer(&self.context);
+                self.viewport_uniform_buffer.set_world_to_clip(&(projection * view));
+                self.viewport_uniform_buffer.write_buffer(&self.context);
 
                 // Forward Render Pass
                 {
@@ -305,7 +305,7 @@ impl WGPURenderer {
                     });
 
                     forward_render_pass.set_pipeline(&self.flat_pipeline);
-                    forward_render_pass.set_bind_group(0, &self.global_bind_group, &[]);
+                    forward_render_pass.set_bind_group(0, &self.viewport_bind_group, &[]);
                     forward_render_pass.set_bind_group(1, &self.forward_mesh_pass.bind_group, &[]);
 
                     forward_render_pass.set_vertex_buffer(0, self.vertex_allocator.position_buffer.slice(..));
@@ -369,7 +369,7 @@ impl WGPURenderer {
         }
 
         // Render canvas
-        self.canvas_renderer.write_buffer(&self.context, &self.sampler, &self.textures, &self.canvases);
+        self.canvas_renderer.write_buffers(&self.context, &self.sampler, &self.textures, &self.canvases);
         self.canvas_renderer.render(&self.canvases, &mut encoder);
 
         // Show canvas on screen

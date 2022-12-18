@@ -240,7 +240,7 @@ impl CanvasRenderer {
         }
     }
 
-    pub(crate) fn write_buffer(
+    pub(crate) fn write_buffers(
         &mut self,
         context: &WGPUContext,
         sampler: &wgpu::Sampler,
