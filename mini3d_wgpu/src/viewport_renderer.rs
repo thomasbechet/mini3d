@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use mini3d::renderer::backend::{CanvasViewportHandle, CanvasHandle};
+use mini3d::{renderer::{backend::{CanvasHandle, MaterialHandle, SceneCameraHandle}, RendererStatistics}, anyhow::{Result, Context}};
 
-use crate::{context::WGPUContext, model_buffer::ModelBuffer, canvas::Canvas, camera::Camera};
+use crate::{context::WGPUContext, model_buffer::ModelBuffer, canvas::Canvas, camera::Camera, mesh_pass::{MeshPass, GPUDrawIndirect}, Material, vertex_allocator::VertexAllocator};
 
 #[repr(C)]
 #[derive(Default, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -16,10 +16,9 @@ pub(crate) const MAX_VIEWPORT_COUNT: usize = 32;
 pub(crate) struct ViewportRenderer {
 
     viewport_buffer: wgpu::Buffer,
-    viewport_bind_group_layout: wgpu::BindGroupLayout,
+    pub(crate) viewport_bind_group_layout: wgpu::BindGroupLayout,
     viewport_bind_group: wgpu::BindGroup,
     viewport_transfer: [GPUViewportData; MAX_VIEWPORT_COUNT],
-    viewport_offsets: HashMap<CanvasViewportHandle, u32>,
 }
 
 impl ViewportRenderer {
@@ -75,7 +74,11 @@ impl ViewportRenderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: viewport_buffer.as_entire_binding(),
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &viewport_buffer,
+                        offset: 0,
+                        size: wgpu::BufferSize::new(std::mem::size_of::<GPUViewportData>() as u64),
+                    })
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
@@ -93,47 +96,36 @@ impl ViewportRenderer {
             viewport_bind_group,
             viewport_buffer,
             viewport_transfer: [GPUViewportData::default(); MAX_VIEWPORT_COUNT], 
-            viewport_offsets: Default::default(), 
         }
-    }
-
-    pub(crate) fn write_buffer(
-        &mut self,
-        context: &WGPUContext,
-        canvases: &HashMap<CanvasHandle, Canvas>,
-        cameras: &HashMap<CanvasViewportHandle, Camera>,
-    ) {
-        let mut current_viewport_index = 0;
-        for canvas in canvases.values() {
-            for (handle, viewport) in &canvas.viewports {
-                
-                // Fill buffer
-                let camera = cameras.get(handle).unwrap();
-                let projection = camera.projection(viewport.aspect_ratio());
-                let view = camera.view();
-                self.viewport_transfer[current_viewport_index].world_to_clip = (projection * view).to_cols_array();
-                
-                // Save offset
-                let offset = std::mem::size_of::<GPUViewportData>() * current_viewport_index;
-                self.viewport_offsets.insert(*handle, offset as u32);
-
-                current_viewport_index += 1;
-            }
-        }
-
-        // Write buffers
-        context.queue.write_buffer(&self.viewport_buffer, 0, bytemuck::cast_slice(&self.viewport_transfer[0..current_viewport_index]));
     }
 
     pub(crate) fn render(
         &mut self,
+        context: &WGPUContext,
         canvases: &HashMap<CanvasHandle, Canvas>,
+        cameras: &HashMap<SceneCameraHandle, Camera>,
+        materials: &HashMap<MaterialHandle, Material>,
+        vertex_allocator: &VertexAllocator,
         flat_pipeline: &wgpu::RenderPipeline,
+        forward_mesh_pass: &MeshPass,
+        statistics: &mut RendererStatistics,
         encoder: &mut wgpu::CommandEncoder,
-    ) {
+    ) -> Result<()> {
+
+        // Initialize buffer pointer
+        let mut current_viewport_index = 0;
 
         for canvas in canvases.values() {
             for (handle, viewport) in &canvas.viewports {
+
+                // Retrieve the camera
+                if viewport.camera.is_none() { continue; }
+                let camera = cameras.get(&viewport.camera.unwrap()).with_context(|| "Camera not found")?;
+
+                // Fill viewport data
+                let projection = camera.projection(viewport.aspect_ratio());
+                let view = camera.view();
+                self.viewport_transfer[current_viewport_index].world_to_clip = (projection * view).to_cols_array();
 
                 // Forward Render Pass
                 {
@@ -158,35 +150,35 @@ impl ViewportRenderer {
                     });
 
                     forward_render_pass.set_pipeline(flat_pipeline);
-                    let offset = self.viewport_offsets.get(handle).unwrap();
-                    forward_render_pass.set_bind_group(0, &self.viewport_bind_group, &[*offset]);
-                    // forward_render_pass.set_bind_group(1, &self.forward_mesh_pass.bind_group, &[]);
+                    let offset = std::mem::size_of::<GPUViewportData>() * current_viewport_index;
+                    forward_render_pass.set_bind_group(0, &self.viewport_bind_group, &[offset as u32]);
+                    forward_render_pass.set_bind_group(1, &forward_mesh_pass.bind_group, &[]);
 
-                    // forward_render_pass.set_vertex_buffer(0, self.vertex_allocator.position_buffer.slice(..));
-                    // forward_render_pass.set_vertex_buffer(1, self.vertex_allocator.normal_buffer.slice(..));
-                    // forward_render_pass.set_vertex_buffer(2, self.vertex_allocator.uv_buffer.slice(..));
+                    forward_render_pass.set_vertex_buffer(0, vertex_allocator.position_buffer.slice(..));
+                    forward_render_pass.set_vertex_buffer(1, vertex_allocator.normal_buffer.slice(..));
+                    forward_render_pass.set_vertex_buffer(2, vertex_allocator.uv_buffer.slice(..));
 
-                    // // Multi draw indirect
-                    // {
-                    //     let mut triangle_count = 0;
-                    //     for batch in &self.forward_mesh_pass.multi_instanced_batches {
+                    // Multi draw indirect
+                    {
+                        let mut triangle_count = 0;
+                        for batch in &forward_mesh_pass.multi_instanced_batches {
 
-                    //         // Bind materials
-                    //         let material = self.materials.get(&batch.material)
-                    //             .expect("Failed to get material during forward pass");
-                    //         forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
+                            // Bind materials
+                            let material = materials.get(&batch.material)
+                                .expect("Failed to get material during forward pass");
+                            forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
                         
-                    //         // Indirect draw
-                    //         forward_render_pass.multi_draw_indirect(
-                    //             &self.forward_mesh_pass.indirect_command_buffer, 
-                    //             (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
-                    //             batch.count as u32,
-                    //         );
-                    //         triangle_count += batch.triangle_count;
-                    //     }
-                    //     self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
-                    //     self.statistics.triangle_count = triangle_count;
-                    // }
+                            // Indirect draw
+                            forward_render_pass.multi_draw_indirect(
+                                &forward_mesh_pass.indirect_command_buffer, 
+                                (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
+                                batch.count as u32,
+                            );
+                            triangle_count += batch.triangle_count;
+                        }
+                        statistics.draw_count = forward_mesh_pass.multi_instanced_batches.len();
+                        statistics.triangle_count = triangle_count;
+                    }
                     
                     // Classic draw
                     // {
@@ -218,9 +210,15 @@ impl ViewportRenderer {
                     //     }
                     //     self.statistics.draw_count = self.forward_mesh_pass.instanced_batches.len();
                     // }
-                }                
+                }
+                
+                current_viewport_index += 1;
             }
         }
 
+        // Write buffers
+        context.queue.write_buffer(&self.viewport_buffer, 0, bytemuck::cast_slice(&self.viewport_transfer[0..current_viewport_index]));
+
+        Ok(())
     }
 }

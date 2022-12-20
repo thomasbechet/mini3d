@@ -15,15 +15,14 @@ use crate::blit_pipeline::{create_blit_pipeline_layout, create_blit_pipeline, cr
 use crate::camera::Camera;
 use crate::canvas::{Canvas, SurfaceCanvas, CanvasViewport, CanvasSprite};
 use crate::canvas_renderer::CanvasRenderer;
-use crate::viewport_bind_group::{create_viewport_bind_group, create_viewport_bind_group_layout};
-use crate::viewport_buffer::ViewportBuffer;
-use crate::mesh_pass::{MeshPass, create_mesh_pass_bind_group_layout, GPUDrawIndirect};
+use crate::mesh_pass::{MeshPass, create_mesh_pass_bind_group_layout};
 use crate::model_buffer::{ModelBuffer, ModelIndex};
 use crate::context::WGPUContext;
 use crate::material_bind_group::{create_flat_material_bind_group_layout, create_flat_material_bind_group};
 use crate::flat_pipeline::create_flat_pipeline;
 use crate::texture::Texture;
 use crate::vertex_allocator::{VertexAllocator, VertexBufferDescriptor};
+use crate::viewport_renderer::ViewportRenderer;
 
 pub const MAX_MODEL_COUNT: usize = 256;
 pub const MAX_OBJECT_COUNT: usize = 512;
@@ -76,8 +75,7 @@ pub struct WGPURenderer {
     generator: SequentialGenerator,
     
     // Scene Render Pass
-    viewport_uniform_buffer: ViewportBuffer,
-    viewport_bind_group: wgpu::BindGroup,
+    viewport_renderer: ViewportRenderer,
     flat_pipeline: wgpu::RenderPipeline,
     flat_material_bind_group_layout: wgpu::BindGroupLayout,
     
@@ -111,7 +109,7 @@ pub struct WGPURenderer {
     item_to_canvas: HashMap<UID, CanvasHandle>,
 
     // Surface resources
-    surface_canvas: HashMap<SurfaceCanvasHandle, SurfaceCanvas>,
+    surface_canvases: HashMap<SurfaceCanvasHandle, SurfaceCanvas>,
 
     // Statistics
     statistics: RendererStatistics,
@@ -141,19 +139,11 @@ impl WGPURenderer {
 
         let mesh_pass_bind_group_layout = create_mesh_pass_bind_group_layout(&context);
         let model_buffer = ModelBuffer::new(&context, MAX_MODEL_COUNT);
-        let viewport_bind_group_layout = create_viewport_bind_group_layout(&context);
         let flat_material_bind_group_layout = create_flat_material_bind_group_layout(&context);
-        let viewport_buffer = ViewportBuffer::new(&context);
-        let viewport_bind_group = create_viewport_bind_group(
-            &context, 
-            &viewport_bind_group_layout, 
-            &viewport_buffer,
-            &model_buffer,
-            &nearest_sampler,
-        );
+        let viewport_renderer = ViewportRenderer::new(&context, &model_buffer, &nearest_sampler);
         let flat_pipeline = create_flat_pipeline(
             &context, 
-            &viewport_bind_group_layout,
+            &viewport_renderer.viewport_bind_group_layout,
             &mesh_pass_bind_group_layout,
             &flat_material_bind_group_layout,
         );
@@ -187,8 +177,7 @@ impl WGPURenderer {
             context,
             generator: Default::default(),
 
-            viewport_uniform_buffer: viewport_buffer,
-            viewport_bind_group,
+            viewport_renderer,
             flat_pipeline,
             flat_material_bind_group_layout,
             
@@ -216,7 +205,7 @@ impl WGPURenderer {
             canvases: Default::default(),
             item_to_canvas: Default::default(),
 
-            surface_canvas: Default::default(),
+            surface_canvases: Default::default(),
 
             statistics: RendererStatistics::default(),
         }
@@ -238,7 +227,6 @@ impl WGPURenderer {
 
     pub fn render<F: FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView)>(
         &mut self,
-        engine: &Engine,
         engine_viewport: Vec4,
         egui_pass: F,
     ) -> Result<()> {
@@ -269,108 +257,20 @@ impl WGPURenderer {
         }
 
         // Render viewports
-        for canvas in self.canvases.values_mut() {
-            for viewport in canvas.viewports.values_mut() {
+        self.viewport_renderer.render(
+            &self.context, 
+            &self.canvases, 
+            &self.cameras, 
+            &self.materials,
+            &self.vertex_allocator, 
+            &self.flat_pipeline, 
+            &self.forward_mesh_pass, 
+            &mut self.statistics, 
+            &mut encoder
+        );
 
-                // Retrieve the camera
-                if viewport.camera.is_none() { continue; }
-                let camera = self.cameras.get(&viewport.camera.unwrap()).with_context(|| "Camera not found")?;
-
-                // Compute camera matrices
-                let projection = camera.projection(viewport.aspect_ratio());
-                let view = camera.view();
-                self.viewport_uniform_buffer.set_world_to_clip(&(projection * view));
-                self.viewport_uniform_buffer.write_buffer(&self.context);
-
-                // Forward Render Pass
-                {
-                    let mut forward_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("forward_render_pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &viewport.color_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                                store: true,
-                            },
-                        })],
-                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                            view: &viewport.depth_view,
-                            depth_ops: Some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(1.0),
-                                store: true,
-                            }),
-                            stencil_ops: None,
-                        }),
-                    });
-
-                    forward_render_pass.set_pipeline(&self.flat_pipeline);
-                    forward_render_pass.set_bind_group(0, &self.viewport_bind_group, &[]);
-                    forward_render_pass.set_bind_group(1, &self.forward_mesh_pass.bind_group, &[]);
-
-                    forward_render_pass.set_vertex_buffer(0, self.vertex_allocator.position_buffer.slice(..));
-                    forward_render_pass.set_vertex_buffer(1, self.vertex_allocator.normal_buffer.slice(..));
-                    forward_render_pass.set_vertex_buffer(2, self.vertex_allocator.uv_buffer.slice(..));
-
-                    // Multi draw indirect
-                    {
-                        let mut triangle_count = 0;
-                        for batch in &self.forward_mesh_pass.multi_instanced_batches {
-
-                            // Bind materials
-                            let material = self.materials.get(&batch.material)
-                                .expect("Failed to get material during forward pass");
-                            forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-                        
-                            // Indirect draw
-                            forward_render_pass.multi_draw_indirect(
-                                &self.forward_mesh_pass.indirect_command_buffer, 
-                                (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
-                                batch.count as u32,
-                            );
-                            triangle_count += batch.triangle_count;
-                        }
-                        self.statistics.draw_count = self.forward_mesh_pass.multi_instanced_batches.len();
-                        self.statistics.triangle_count = triangle_count;
-                    }
-                    
-                    // Classic draw
-                    // {
-                    //     self.statistics.triangle_count = 0;
-                    //     let mut previous_material: MaterialHandle = Default::default();
-                    //     for batch in &self.forward_mesh_pass.instanced_batches {
-                            
-                    //         // Check change in material
-                    //         if batch.material != previous_material {
-                    //             previous_material = batch.material;
-                    //             let material = self.materials.get(&batch.material)
-                    //                 .expect("Failed to get material during forward pass");
-                    //             forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-                    //         }
-
-                    //         // Draw instanced
-                    //         let descriptor = self.submeshes.get(&batch.submesh)
-                    //             .expect("Failed to get submesh descriptor");
-                    //         let vertex_start = descriptor.base_index;
-                    //         let vertex_stop = vertex_start + descriptor.vertex_count;
-                    //         let instance_start = batch.first_instance as u32;
-                    //         let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
-                    //         forward_render_pass.draw(
-                    //             vertex_start..vertex_stop, 
-                    //             instance_start..instance_stop,
-                    //         );
-
-                    //         self.statistics.triangle_count += batch.triangle_count;
-                    //     }
-                    //     self.statistics.draw_count = self.forward_mesh_pass.instanced_batches.len();
-                    // }
-                }
-            }
-        }
-
-        // Render canvas
-        self.canvas_renderer.write_buffers(&self.context, &self.sampler, &self.textures, &self.canvases);
-        self.canvas_renderer.render(&self.canvases, &mut encoder);
+        // Render canvases
+        self.canvas_renderer.render(&self.context, &self.textures, &self.sampler, &self.canvases, &mut encoder);
 
         // Show canvas on screen
         {
@@ -405,14 +305,14 @@ impl WGPURenderer {
             );
 
             // Render each canvas
-            let mut surfaces: Vec<&SurfaceCanvas> = self.surface_canvas.values().collect();
+            let mut surfaces: Vec<&SurfaceCanvas> = self.surface_canvases.values().collect();
             surfaces.sort_by(|a, b| a.z_index.cmp(&b.z_index));
             for surface_canvas in surfaces {
                 let canvas = self.canvases.get(&surface_canvas.canvas).expect("Failed to get canvas");
 
                 // Compute viewport
-                let x = engine_viewport.x + surface_canvas.position.x as f32;
-                let y = engine_viewport.y + surface_canvas.position.y as f32;
+                let x = engine_viewport.x + (surface_canvas.position.x as f32 / SCREEN_WIDTH as f32) * engine_viewport.z;
+                let y = engine_viewport.y + (surface_canvas.position.y as f32 / SCREEN_HEIGHT as f32) * engine_viewport.w;
                 let w = (canvas.extent.width as f32 / SCREEN_WIDTH as f32) * engine_viewport.z;
                 let h = (canvas.extent.height as f32 / SCREEN_HEIGHT as f32) * engine_viewport.w;
                 blit_canvas_render_pass.set_viewport(x, y, w, h, 0.0, 1.0);
@@ -467,6 +367,11 @@ impl RendererBackend for WGPURenderer {
         for handle in handles {
             self.scene_model_remove(handle)?;
         }
+        self.cameras.clear();
+        self.surface_canvases.clear();
+        self.item_to_canvas.clear();
+        self.canvas_renderer.reset();
+        self.canvases.clear();
         // Remove resources
         self.meshes.clear();
         self.vertex_allocator.clear();
@@ -551,8 +456,8 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     fn canvas_sprite_remove(&mut self, handle: CanvasSpriteHandle) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.item_to_canvas.remove(&handle.into()).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
         canvas.sprites.remove(&handle).with_context(|| "Blit not found")?;
         Ok(())
     }
@@ -600,8 +505,8 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
+        let canvas = self.item_to_canvas.remove(&handle.into()).with_context(|| "Canvas not found")?;
+        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
         canvas.viewports.remove(&handle).with_context(|| "Viewport not found")?;
         Ok(())
     }
@@ -703,11 +608,11 @@ impl RendererBackend for WGPURenderer {
             canvas,
             z_index,
         );
-        self.surface_canvas.insert(handle, surface_canvas);
+        self.surface_canvases.insert(handle, surface_canvas);
         Ok(handle)
     }
     fn surface_canvas_remove(&mut self, handle: SurfaceCanvasHandle) -> Result<()> {
-        self.surface_canvas.remove(&handle).with_context(|| "Surface canvas not found")?;
+        self.surface_canvases.remove(&handle).with_context(|| "Surface canvas not found")?;
         Ok(())
     }
 

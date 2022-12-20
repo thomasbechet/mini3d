@@ -325,13 +325,18 @@ impl OSProcess {
                 yaw: 0.0,
                 pitch: 0.0,
             },
+            ModelComponent::new("car".into()),
             CameraComponent::default(),
             ScriptStorageComponent::default(),
             RhaiScriptsComponent::default(),
         ));
+        let cam2 = world.spawn((
+            LifecycleComponent::alive(),
+            TransformComponent::from_translation(Vec3::new(10.0, 30.0, -10.0)),
+            CameraComponent::default(),
+        ));
                 
         world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
-
         
         {
             let mut ui = UI::default();
@@ -347,11 +352,11 @@ impl OSProcess {
         {
             let mut ui = UI::new(200, 200);
             let mut viewport = Viewport::new((0, 0).into(), (200, 200).into());
-            viewport.set_camera(Some(e));
+            viewport.set_camera(Some(cam2));
             ui.add("main_widget", Widget::Viewport(viewport))?;
             world.spawn((
                 LifecycleComponent::alive(),
-                UIComponent::new(ui, IVec2::new(300, 0), 1),
+                UIComponent::new(ui, IVec2::new(440, 200), 1),
             ));
         }
         

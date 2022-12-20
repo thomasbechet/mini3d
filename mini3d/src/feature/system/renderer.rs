@@ -17,8 +17,8 @@ pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext, world: &mut Wor
     }
     for (_, (l, ui)) in world.query_mut::<(&LifecycleComponent, &mut UIComponent)>() {
         if !l.alive {
-            ui.ui.release_renderer(ctx.renderer)?;
             if let Some(handle) = ui.handle { ctx.renderer.surface_canvases_removed.insert(handle); }
+            if let Some(handle) = ui.ui.handle { ctx.renderer.canvases_removed.insert(handle); }
         }
     }
 

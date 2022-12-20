@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, ui::{UIComponent, SceneUIComponent}}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::Font}}};
 
-use self::{backend::{RendererBackend, BackendMaterialDescriptor, FontHandle, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, CanvasHandle, SurfaceCanvasHandle, SceneCanvasHandle}};
+use self::{backend::{RendererBackend, BackendMaterialDescriptor, FontHandle, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, CanvasHandle, SurfaceCanvasHandle, SceneCanvasHandle, CanvasSpriteHandle, CanvasViewportHandle, CanvasPrimitiveHandle}};
 
 pub mod backend;
 pub mod color;
@@ -168,8 +168,8 @@ pub struct RendererManager {
     pub(crate) scene_cameras_removed: HashSet<SceneCameraHandle>,
     pub(crate) scene_models_removed: HashSet<SceneModelHandle>,
     pub(crate) scene_canvases_removed: HashSet<SceneCanvasHandle>,
-    pub(crate) canvases_removed: HashSet<CanvasHandle>,
     pub(crate) surface_canvases_removed: HashSet<SurfaceCanvasHandle>,
+    pub(crate) canvases_removed: HashSet<CanvasHandle>,
 
     // Cached entities
     cameras: HashMap<hecs::Entity, SceneCameraHandle>,
@@ -186,8 +186,8 @@ impl RendererManager {
         self.scene_cameras_removed.clear();
         self.scene_models_removed.clear();
         self.scene_canvases_removed.clear();
-        self.canvases_removed.clear();
         self.surface_canvases_removed.clear();
+        self.canvases_removed.clear();
 
         for world in scene.iter_world() {
             for (_, camera) in world.query_mut::<&mut CameraComponent>() {
@@ -195,6 +195,12 @@ impl RendererManager {
             }
             for (_, model) in world.query_mut::<&mut ModelComponent>() {
                 model.handle = None;
+            }
+            for (_, ui) in world.query_mut::<&mut UIComponent>() {
+                ui.handle = None;
+            }
+            for (_, ui) in world.query_mut::<&mut SceneUIComponent>() {
+                ui.handle = None;
             }
         }
 
@@ -220,11 +226,11 @@ impl RendererManager {
         for handle in self.scene_canvases_removed.drain() {
             backend.scene_canvas_remove(handle)?;
         }
-        for handle in self.canvases_removed.drain() {
-            backend.canvas_remove(handle)?;
-        }
         for handle in self.surface_canvases_removed.drain() {
             backend.surface_canvas_remove(handle)?;
+        }
+        for handle in self.canvases_removed.drain() {
+            backend.canvas_remove(handle)?;
         }
 
         // Update scene components

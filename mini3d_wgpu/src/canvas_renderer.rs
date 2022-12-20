@@ -72,11 +72,9 @@ pub(crate) struct CanvasRenderer {
     canvas_bind_group: wgpu::BindGroup,
     canvas_buffer: wgpu::Buffer,
     canvas_transfer: [GPUCanvasData; MAX_CANVAS_COUNT],
-    canvas_offsets: HashMap<CanvasHandle, u32>, 
 
     blit_pipeline: wgpu::RenderPipeline,
     blit_bind_group_layout: wgpu::BindGroupLayout,
-
     blit_buffer: wgpu::Buffer,
     blit_transfer: [GPUBlitData; MAX_BLIT_COUNT],
 
@@ -211,7 +209,6 @@ impl CanvasRenderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    // resource: canvas_buffer.as_entire_binding(),
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                         buffer: &canvas_buffer,
                         offset: 0,
@@ -225,11 +222,9 @@ impl CanvasRenderer {
             canvas_bind_group, 
             canvas_buffer, 
             canvas_transfer: [GPUCanvasData::default(); MAX_CANVAS_COUNT],
-            canvas_offsets: Default::default(),
             
             blit_pipeline, 
             blit_bind_group_layout,
-
             blit_buffer,
             blit_transfer: [GPUBlitData::default(); MAX_BLIT_COUNT],
 
@@ -240,130 +235,27 @@ impl CanvasRenderer {
         }
     }
 
-    pub(crate) fn write_buffers(
+    pub(crate) fn reset(&mut self) {
+        self.sprite_bind_groups.clear();
+        self.viewport_bind_groups.clear();
+    }
+
+    pub(crate) fn render(
         &mut self,
         context: &WGPUContext,
-        sampler: &wgpu::Sampler,
         textures: &HashMap<TextureHandle, Texture>,
+        sampler: &wgpu::Sampler,
         canvases: &HashMap<CanvasHandle, Canvas>,
+        encoder: &mut wgpu::CommandEncoder,
     ) {
 
         // Initialize buffer pointer
         let mut current_blit_index = 0;
 
-        // Build canvas batches
-        for (canvas_index, (handle, canvas)) in canvases.iter().enumerate() {
-
-            // Create and clear the canvas blit batches
-            let sprite_batches = self.sprite_batches.entry(*handle).or_default();
-            sprite_batches.clear();
-            let viewport_batches = self.viewport_batches.entry(*handle).or_default();
-            viewport_batches.clear();
-
-            // Obtain list of items reference and sort by texture
-            let mut sprite_items: Vec<&CanvasSprite> = canvas.sprites.values().collect();
-            sprite_items.sort_by(|a, b| a.texture.cmp(&b.texture));
-            
-            // Build blit batches
-            for sprite in sprite_items {
-
-                // Append the blit to the transfer buffer
-                self.blit_transfer[current_blit_index] = GPUBlitData {
-                    color: sprite.color.into(),
-                    depth: ((sprite.z_index as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
-                    pos: [sprite.position.x as i16, sprite.position.y as i16],
-                    tex: [sprite.extent.left() as u16, sprite.extent.top() as u16],
-                    size: [sprite.extent.width() as u16, sprite.extent.height() as u16],
-                    _pad: 0,
-                };
-
-                // Insert the first batch
-                if sprite_batches.is_empty() {
-                    sprite_batches.push(CanvasSpriteBatch {
-                        texture: sprite.texture,
-                        blit_start: current_blit_index,
-                        blit_count: 0,
-                    });
-                }
-
-                // Check if we need to create a new batch
-                if let Some(batch) = sprite_batches.last_mut() {
-                    if batch.texture == sprite.texture {
-                        batch.blit_count += 1;
-                    } else {
-                        sprite_batches.push(CanvasSpriteBatch {
-                            texture: sprite.texture,
-                            blit_start: current_blit_index,
-                            blit_count: 1,
-                        });
-                    }
-                }
-
-                current_blit_index += 1;
-            }
-
-            // Build viewport batches
-            for (handle, viewport) in &canvas.viewports {
-                
-                // Append the blit to the transfer buffer
-                let extent = viewport.extent;
-                self.blit_transfer[current_blit_index] = GPUBlitData {
-                    color: Color::WHITE.into(),
-                    depth: ((viewport.z_index as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
-                    pos: [viewport.position.x as i16, viewport.position.y as i16],
-                    tex: [0, 0],
-                    size: [extent.width as u16, extent.height as u16],
-                    _pad: 0,
-                };
-
-                viewport_batches.push(CanvasViewportBatch { viewport: *handle, blit_start: current_blit_index });
-
-                current_blit_index += 1;
-            }
-
-            // Build sprite bind groups
-            for batch in sprite_batches {
-                if let hash_map::Entry::Vacant(e) = self.sprite_bind_groups.entry(batch.texture) {
-                    let texture = textures.get(&batch.texture).unwrap();
-                    let bind_group = create_blit_bind_group(context, &self.blit_bind_group_layout, &self.blit_buffer, &texture.view, sampler);
-                    e.insert(bind_group);
-                }
-            }
-            
-            // Build viewport bind groups
-            for (handle, viewport) in &canvas.viewports {
-                if let hash_map::Entry::Vacant(e) = self.viewport_bind_groups.entry(*handle) {
-                    let bind_group = create_blit_bind_group(context, &self.blit_bind_group_layout, &self.blit_buffer, &viewport.color_view, sampler);
-                    e.insert(bind_group);
-                }
-            }
-
-            // Write canvas buffer
-            self.canvas_transfer[canvas_index] = GPUCanvasData {
-                resolution: [canvas.extent.width as u32, canvas.extent.height as u32],
-                _pad: [0; 31],
-            };
-
-            // Save canvas buffer offset
-            let offset = std::mem::size_of::<GPUCanvasData>() * canvas_index;
-            self.canvas_offsets.insert(*handle, offset as u32);
-        }
-
-        // Write buffer
-        context.queue.write_buffer(&self.canvas_buffer, 0, bytemuck::cast_slice(&self.canvas_transfer[0..canvases.len()]));
-        context.queue.write_buffer(&self.blit_buffer,0, bytemuck::cast_slice(&self.blit_transfer[0..current_blit_index]));
-
-    }
-
-    pub(crate) fn render(
-        &mut self, 
-        canvases: &HashMap<CanvasHandle, Canvas>,
-        encoder: &mut wgpu::CommandEncoder,
-    ) {
-
         // Iterate over all canvases
-        for (canvas_handle, canvas) in canvases.iter() {
+        for (canvas_index, (canvas_handle, canvas)) in canvases.iter().enumerate() {
 
+            // Begin pass
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("canvas_blit_render_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -384,32 +276,140 @@ impl CanvasRenderer {
                 }),
             });
 
+            // Write viewport transfer
+            self.canvas_transfer[canvas_index] = GPUCanvasData {
+                resolution: [canvas.extent.width as u32, canvas.extent.height as u32],
+                _pad: [0; 31],
+            };
+
             // Set pipeline and bind group
             render_pass.set_pipeline(&self.blit_pipeline);
-            let offset = self.canvas_offsets.get(canvas_handle).unwrap();
-            render_pass.set_bind_group(0, &self.canvas_bind_group, &[*offset]);
-            
-            // Render sprites
-            for batch in self.sprite_batches.get(canvas_handle).unwrap() {
+            let offset = std::mem::size_of::<GPUCanvasData>() * canvas_index;
+            render_pass.set_bind_group(0, &self.canvas_bind_group, &[offset as u32]);
 
-                // Bind group
-                let bind_group = self.sprite_bind_groups.get(&batch.texture).unwrap();
-                render_pass.set_bind_group(1, bind_group, &[]);
-                
-                // Draw
-                render_pass.draw(0..6, batch.blit_start as u32..(batch.blit_start + batch.blit_count) as u32);
+            // Render sprites
+            {
+                // Clear batches
+                let sprite_batches = self.sprite_batches.entry(*canvas_handle).or_default();
+                sprite_batches.clear();
+
+                // Sort sprites
+                let mut sprite_items: Vec<&CanvasSprite> = canvas.sprites.values().collect();
+                sprite_items.sort_by(|a, b| a.texture.cmp(&b.texture));
+
+                // Build blit batches
+                for sprite in sprite_items {
+
+                    // Append the blit to the transfer buffer
+                    self.blit_transfer[current_blit_index] = GPUBlitData {
+                        color: sprite.color.into(),
+                        depth: ((sprite.z_index as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
+                        pos: [sprite.position.x as i16, sprite.position.y as i16],
+                        tex: [sprite.extent.left() as u16, sprite.extent.top() as u16],
+                        size: [sprite.extent.width() as u16, sprite.extent.height() as u16],
+                        _pad: 0,
+                    };
+
+                    // Insert the first batch
+                    if sprite_batches.is_empty() {
+                        sprite_batches.push(CanvasSpriteBatch {
+                            texture: sprite.texture,
+                            blit_start: current_blit_index,
+                            blit_count: 0,
+                        });
+                    }
+
+                    // Check if we need to create a new batch
+                    if let Some(batch) = sprite_batches.last_mut() {
+                        if batch.texture == sprite.texture {
+
+                            // Using the same texture, simply increment the instance count
+                            batch.blit_count += 1;
+                        } else {
+
+                            // Insert new batch
+                            sprite_batches.push(CanvasSpriteBatch {
+                                texture: sprite.texture,
+                                blit_start: current_blit_index,
+                                blit_count: 1,
+                            });
+                        }
+                    }
+
+                    current_blit_index += 1;
+                }
+
+                // Build missing bind groups
+                for batch in sprite_batches.iter() {
+                    if let hash_map::Entry::Vacant(e) = self.sprite_bind_groups.entry(batch.texture) {
+                        let texture = textures.get(&batch.texture).unwrap();
+                        let bind_group = create_blit_bind_group(context, &self.blit_bind_group_layout, &self.blit_buffer, &texture.view, sampler);
+                        e.insert(bind_group);
+                    }
+                }
+
+                // Render batches
+                for batch in sprite_batches {
+
+                    // Bind group
+                    let bind_group = self.sprite_bind_groups.get(&batch.texture).unwrap();
+                    render_pass.set_bind_group(1, bind_group, &[]);
+                    
+                    // Draw
+                    render_pass.draw(0..6, batch.blit_start as u32..(batch.blit_start + batch.blit_count) as u32);
+                }
             }
 
             // Render viewports
-            for batch in self.viewport_batches.get(canvas_handle).unwrap() {
+            {
+                // Clear batches
+                let viewport_batches = self.viewport_batches.entry(*canvas_handle).or_default();
+                viewport_batches.clear();
 
-                // Bind group
-                let bind_group = self.viewport_bind_groups.get(&batch.viewport).unwrap();
-                render_pass.set_bind_group(1, bind_group, &[]);
-                
-                // Draw
-                render_pass.draw(0..6, batch.blit_start as u32..(batch.blit_start + 1) as u32);
+                // Build batches
+                for (handle, viewport) in &canvas.viewports {
+                    
+                    // Append the blit to the transfer buffer
+                    let extent = viewport.extent;
+                    self.blit_transfer[current_blit_index] = GPUBlitData {
+                        color: Color::WHITE.into(),
+                        depth: ((viewport.z_index as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
+                        pos: [viewport.position.x as i16, viewport.position.y as i16],
+                        tex: [0, 0],
+                        size: [extent.width as u16, extent.height as u16],
+                        _pad: 0,
+                    };
+
+                    // Insert new batch (always switch texture bind group even if two viewports could use the same texture)
+                    viewport_batches.push(CanvasViewportBatch { viewport: *handle, blit_start: current_blit_index });
+
+                    current_blit_index += 1;
+                }
+
+                // Build missing bind groups
+                for (handle, viewport) in &canvas.viewports {
+                    if let hash_map::Entry::Vacant(e) = self.viewport_bind_groups.entry(*handle) {
+                        let bind_group = create_blit_bind_group(context, &self.blit_bind_group_layout, &self.blit_buffer, &viewport.color_view, sampler);
+                        e.insert(bind_group);
+                    }
+                }
+
+                // Render batches
+                for batch in viewport_batches {
+
+                    // Bind group
+                    let bind_group = self.viewport_bind_groups.get(&batch.viewport).unwrap();
+                    render_pass.set_bind_group(1, bind_group, &[]);
+                    
+                    // Draw
+                    render_pass.draw(0..6, batch.blit_start as u32..(batch.blit_start + 1) as u32);
+                }
             }
         }
+
+        // Write buffers
+        context.queue.write_buffer(&self.canvas_buffer, 0, bytemuck::cast_slice(&self.canvas_transfer[0..canvases.len()]));
+        context.queue.write_buffer(&self.blit_buffer,0, bytemuck::cast_slice(&self.blit_transfer[0..current_blit_index]));
+
     }
 }

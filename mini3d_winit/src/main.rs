@@ -364,7 +364,7 @@ fn main() {
                 
                 // Invoke WGPU Renderer
                 let viewport = compute_fixed_viewport(gui.central_viewport());
-                renderer.render(&engine, viewport, |device, queue, encoder, output| {
+                renderer.render(viewport, |device, queue, encoder, output| {
                     gui.render(&window.handle, device, queue, encoder, output);
                 }).expect("Failed to render");
 

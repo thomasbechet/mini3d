@@ -2,7 +2,9 @@ use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{backend::{CanvasSpriteHandle, RendererBackend, CanvasHandle}, RendererResourceManager, color::Color}, asset::AssetManager, math::rect::IRect};
+use crate::{uid::UID, renderer::{backend::{CanvasSpriteHandle, RendererBackend, CanvasHandle}, RendererResourceManager, color::Color, RendererManager}, asset::AssetManager, math::rect::IRect};
+
+fn default_as_true() -> bool { true }
 
 #[derive(Serialize, Deserialize)]
 pub struct Sprite {
@@ -11,6 +13,7 @@ pub struct Sprite {
     z_index: i32,
     position: IVec2,
     extent: IRect,
+    #[serde(skip, default = "default_as_true")]
     out_of_date: bool,
     #[serde(skip)]
     handle: Option<CanvasSpriteHandle>,
@@ -41,7 +44,7 @@ impl Sprite {
 
     pub(crate) fn release_renderer(
         &mut self,
-        backend: &mut impl RendererBackend, 
+        backend: &mut dyn RendererBackend,
     ) -> Result<()> {
         if let Some(handle) = self.handle {
             backend.canvas_sprite_remove(handle)?;

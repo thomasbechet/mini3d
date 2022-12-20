@@ -4,7 +4,9 @@ use anyhow::Result;
 use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::backend::{CanvasViewportHandle, RendererBackend, CanvasHandle, SceneCameraHandle}};
+use crate::{renderer::{backend::{CanvasViewportHandle, RendererBackend, CanvasHandle, SceneCameraHandle}, RendererManager}};
+
+fn default_as_true() -> bool { true }
 
 #[derive(Serialize, Deserialize)]
 pub struct Viewport {
@@ -12,6 +14,7 @@ pub struct Viewport {
     pub(crate) resolution: UVec2,
     pub(crate) z_index: i32,
     pub(crate) camera: Option<hecs::Entity>,
+    #[serde(skip, default = "default_as_true")]
     pub(crate) out_of_date: bool,
     #[serde(skip)]
     pub(crate) handle: Option<CanvasViewportHandle>,
@@ -40,7 +43,7 @@ impl Viewport {
 
     pub(crate) fn release_renderer(
         &mut self,
-        backend: &mut impl RendererBackend,
+        backend: &mut dyn RendererBackend,
     ) -> Result<()> {
         if let Some(handle) = self.handle {
             backend.canvas_viewport_remove(handle)?;

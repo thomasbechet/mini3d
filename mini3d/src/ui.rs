@@ -27,6 +27,7 @@ pub enum Widget {
 }
 
 impl Widget {
+
     fn handle_event(&mut self, event: &AreaEvent, interaction_layout: &mut InteractionLayout) -> Result<()> {
         match self {
             Widget::Button(button) => {},
@@ -38,6 +39,18 @@ impl Widget {
             Widget::Sprite(sprite) => {},
         }
         Ok(())
+    }
+
+    fn release_renderer(&mut self, backend: &mut dyn RendererBackend) -> Result<()> {
+        match self {
+            Widget::Button(_) => todo!(),
+            Widget::Graphics(_) => todo!(),
+            Widget::Label(_) => todo!(),
+            Widget::Checkbox(_) => todo!(),
+            Widget::Textbox => todo!(),
+            Widget::Viewport(viewport) => viewport.release_renderer(backend),
+            Widget::Sprite(sprite) => sprite.release_renderer(backend),
+        }
     }
 }
 
@@ -67,6 +80,8 @@ pub struct UI {
     events: Vec<UIEvent>,
     #[serde(skip)]
     interaction_events: Vec<InteractionEvent>,
+    #[serde(skip)]
+    widget_removed: Vec<Widget>,
 
     width: u32,
     height: u32,
@@ -133,6 +148,10 @@ impl UI {
 
         backend.canvas_set_clear_color(self.handle.unwrap(), self.background_color)?;
 
+        for mut widget in self.widget_removed.drain(..) {
+            widget.release_renderer(backend)?;
+        }
+
         for widget in self.widgets.values_mut() {
             match widget {
                 Widget::Button(button) => {},
@@ -148,22 +167,13 @@ impl UI {
         Ok(())
     }
 
-    pub(crate) fn release_renderer(
-        &mut self,
-        renderer: &mut RendererManager,
-    ) -> Result<()> {
-        if let Some(handle) = self.handle {
-            renderer.canvases_removed.insert(handle);
-        }
-        Ok(())
-    }
-
     pub fn new(width: u32, height: u32) -> Self {
         Self { 
             widgets: Default::default(), 
             interaction_layout: Default::default(), 
             events: Default::default(), 
-            interaction_events: Default::default(), 
+            interaction_events: Default::default(),
+            widget_removed: Default::default(),
             width,
             height, 
             background_color: Color::BLACK, 
@@ -207,16 +217,16 @@ impl UI {
     }
 
     pub fn remove(&mut self, uid: UID) -> Result<()> {
-        self.widgets.remove(&uid).with_context(|| "Widget not found")?;
+        self.widget_removed.push(self.widgets.remove(&uid).with_context(|| "Widget not found")?);
         Ok(())
     }
 
     pub fn get(&self, uid: UID) -> Result<&Widget> {
-        Ok(self.widgets.get(&uid).with_context(|| "Widget not found")?)
+        self.widgets.get(&uid).with_context(|| "Widget not found")
     }
 
     pub fn get_mut(&mut self, uid: UID) -> Result<&mut Widget> {
-        Ok(self.widgets.get_mut(&uid).with_context(|| "Widget not found")?)
+        self.widgets.get_mut(&uid).with_context(|| "Widget not found")
     }
 
     // pub fn events(&self) ->
