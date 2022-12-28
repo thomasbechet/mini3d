@@ -54,6 +54,16 @@ impl From<Color> for [f32; 4] {
     }
 }
 
+impl From<Color> for [f64; 4] {
+    fn from(color: Color) -> Self {
+        let r = color.r() as f64 / 255.0;
+        let g = color.g() as f64 / 255.0;
+        let b = color.b() as f64 / 255.0;
+        let a = color.a() as f64 / 255.0;
+        [r, g, b, a]
+    }
+}
+
 impl From<Color> for [f32; 3] {
     fn from(color: Color) -> Self {
         let r = color.r() as f32 / 255.0;

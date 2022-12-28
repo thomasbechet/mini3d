@@ -1,19 +1,18 @@
 use std::collections::HashMap;
 
 use mini3d::anyhow::{Result, Context, anyhow};
-use mini3d::engine::Engine;
-use mini3d::feature::asset::{mesh, texture, font};
+use mini3d::feature::asset::{mesh, texture};
 use mini3d::glam::{Vec4, Mat4, Vec3, UVec2, IVec2};
 use mini3d::math::rect::IRect;
 use mini3d::renderer::{RendererStatistics, SCREEN_WIDTH, SCREEN_HEIGHT};
-use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, SceneModelHandle, FontHandle, SceneCameraHandle, CanvasHandle, CanvasSpriteHandle, CanvasViewportHandle, SurfaceCanvasHandle};
+use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, SceneModelHandle, SceneCameraHandle, CanvasHandle, SurfaceCanvasHandle, ViewportHandle};
 use mini3d::renderer::color::{srgb_to_linear, Color};
 use mini3d::uid::{UID, SequentialGenerator};
 
 use crate::blit_bind_group::create_blit_bind_group_layout;
 use crate::blit_pipeline::{create_blit_pipeline_layout, create_blit_pipeline, create_blit_shader_module};
 use crate::camera::Camera;
-use crate::canvas::{Canvas, SurfaceCanvas, CanvasViewport, CanvasSprite};
+use crate::canvas::{Canvas, SurfaceCanvas};
 use crate::canvas_renderer::CanvasRenderer;
 use crate::mesh_pass::{MeshPass, create_mesh_pass_bind_group_layout};
 use crate::model_buffer::{ModelBuffer, ModelIndex};
@@ -22,6 +21,7 @@ use crate::material_bind_group::{create_flat_material_bind_group_layout, create_
 use crate::flat_pipeline::create_flat_pipeline;
 use crate::texture::Texture;
 use crate::vertex_allocator::{VertexAllocator, VertexBufferDescriptor};
+use crate::viewport::Viewport;
 use crate::viewport_renderer::ViewportRenderer;
 
 pub const MAX_MODEL_COUNT: usize = 256;
@@ -34,10 +34,6 @@ struct Mesh {
 
 pub(crate) struct Material {
     pub(crate) bind_group: wgpu::BindGroup,
-}
-
-struct Font {
-
 }
 
 /// Concrete submesh object (can be clipped)
@@ -90,7 +86,6 @@ pub struct WGPURenderer {
     submeshes: HashMap<UID, VertexBufferDescriptor>,
     textures: HashMap<TextureHandle, Texture>,
     materials: HashMap<MaterialHandle, Material>,
-    fonts: HashMap<FontHandle, Font>,
     
     // Scene resources
     cameras: HashMap<SceneCameraHandle, Camera>,
@@ -102,11 +97,14 @@ pub struct WGPURenderer {
     mesh_pass_bind_group_layout: wgpu::BindGroupLayout,
     forward_mesh_pass: MeshPass,
 
+    // Viewports
+    viewports: HashMap<ViewportHandle, Viewport>,
+
     // Canvas resources
     sampler: wgpu::Sampler,
     canvas_renderer: CanvasRenderer,
     canvases: HashMap<CanvasHandle, Canvas>,
-    item_to_canvas: HashMap<UID, CanvasHandle>,
+    current_drawing_canvas: Option<CanvasHandle>,
 
     // Surface resources
     surface_canvases: HashMap<SurfaceCanvasHandle, SurfaceCanvas>,
@@ -190,7 +188,6 @@ impl WGPURenderer {
             submeshes: Default::default(),
             textures: Default::default(),
             materials: Default::default(),
-            fonts: Default::default(),
             
             cameras: Default::default(),
             models: Default::default(),
@@ -203,7 +200,9 @@ impl WGPURenderer {
             sampler: nearest_sampler,
             canvas_renderer: canvas_pipeline,
             canvases: Default::default(),
-            item_to_canvas: Default::default(),
+            current_drawing_canvas: None,
+
+            viewports: Default::default(),
 
             surface_canvases: Default::default(),
 
@@ -259,7 +258,7 @@ impl WGPURenderer {
         // Render viewports
         self.viewport_renderer.render(
             &self.context, 
-            &self.canvases, 
+            &self.viewports, 
             &self.cameras, 
             &self.materials,
             &self.vertex_allocator, 
@@ -267,10 +266,17 @@ impl WGPURenderer {
             &self.forward_mesh_pass, 
             &mut self.statistics, 
             &mut encoder
-        );
+        )?;
 
         // Render canvases
-        self.canvas_renderer.render(&self.context, &self.textures, &self.sampler, &self.canvases, &mut encoder);
+        self.canvas_renderer.render(
+            &self.context, 
+            &self.textures, 
+            &self.viewports, 
+            &self.sampler, 
+            &mut self.canvases, 
+            &mut encoder
+        )?;
 
         // Show canvas on screen
         {
@@ -338,7 +344,7 @@ impl WGPURenderer {
         self.objects.insert(uid, Object { 
             submesh,
             material,
-            model_index, 
+            model_index,
             draw_forward_pass: true,
             draw_shadow_pass: false,
         });
@@ -369,16 +375,15 @@ impl RendererBackend for WGPURenderer {
         }
         self.cameras.clear();
         self.surface_canvases.clear();
-        self.item_to_canvas.clear();
         self.canvas_renderer.reset();
         self.canvases.clear();
+        self.viewports.clear();
         // Remove resources
         self.meshes.clear();
         self.vertex_allocator.clear();
         self.submeshes.clear();
         self.textures.clear();
         self.materials.clear();
-        self.fonts.clear();
         Ok(())
     }
     
@@ -418,12 +423,6 @@ impl RendererBackend for WGPURenderer {
         });
         Ok(handle)
     }
-    
-    fn font_add(&mut self, font: &font::Font) -> Result<FontHandle> {
-        let handle: FontHandle = self.generator.next().into();
-        self.fonts.insert(handle, Font {});
-        Ok(handle)
-    }
 
     /// Canvas API
 
@@ -433,106 +432,91 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     fn canvas_remove(&mut self, handle: CanvasHandle) -> Result<()> {
-        self.canvases.remove(&handle);
-        Ok(())
-    }
-    fn canvas_set_clear_color(&mut self, handle: CanvasHandle, color: Color) -> Result<()> { 
-        let canvas = self.canvases.get_mut(&handle).with_context(|| "Canvas not found")?;
-        canvas.clear_color = convert_clear_color(color);
+        self.canvases.remove(&handle).with_context(|| "Canvas not found")?;
         Ok(())
     }
     
-    fn canvas_sprite_add(&mut self, canvas: CanvasHandle, texture: TextureHandle, position: IVec2, extent: IRect) -> Result<CanvasSpriteHandle> {
-        let handle: CanvasSpriteHandle = self.generator.next().into();
-        self.item_to_canvas.insert(handle.into(), canvas);
-        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
-        canvas.sprites.insert(handle, CanvasSprite {
-            texture,
-            z_index: 0,
-            position,
-            extent,
-            color: Color::WHITE,
-        });
-        Ok(handle)
-    }
-    fn canvas_sprite_remove(&mut self, handle: CanvasSpriteHandle) -> Result<()> {
-        let canvas = self.item_to_canvas.remove(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
-        canvas.sprites.remove(&handle).with_context(|| "Blit not found")?;
+    fn canvas_begin(&mut self, handle: CanvasHandle, clear_color: Color) -> Result<()> { 
+        if self.current_drawing_canvas.is_some() {
+            return Err(anyhow!("Another canvas is already being drawed"));
+        }
+        self.current_drawing_canvas = Some(handle);
+        let canvas = self.canvases.get_mut(&handle).with_context(|| "Canvas not found")?;
+        canvas.render_pass.begin(clear_color)?;        
         Ok(())
     }
-    fn canvas_sprite_set_position(&mut self, handle: CanvasSpriteHandle, position: IVec2) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let sprite = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
-        sprite.position = position;
+    fn canvas_end(&mut self) -> Result<()> {
+        if self.current_drawing_canvas.is_none() {
+            return Err(anyhow!("Not drawing canvas"));
+        }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.end()?;
+        self.current_drawing_canvas = None;
         Ok(())
     }
-    fn canvas_sprite_set_extent(&mut self, handle: CanvasSpriteHandle, extent: IRect) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let sprite = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
-        sprite.extent = extent;
-        Ok(())
+    fn canvas_blit_rect(&mut self, texture: TextureHandle, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.blit_rect(texture, extent, position, filtering, alpha_threshold)
     }
-    fn canvas_sprite_set_z_index(&mut self, handle: CanvasSpriteHandle, z_index: i32) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let blit = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
-        blit.z_index = z_index;
-        Ok(())
+    fn canvas_blit_viewport(&mut self, handle: ViewportHandle, position: IVec2) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        let viewport = self.viewports.get(&handle).with_context(|| "Viewport not found")?;
+        canvas.render_pass.blit_viewport(handle, viewport.extent, position)
     }
-    fn canvas_sprite_set_texture(&mut self, handle: CanvasSpriteHandle, texture: TextureHandle) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let blit = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
-        blit.texture = texture;
-        Ok(())
+    fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.fill_rect(extent, color)
     }
-    fn canvas_sprite_set_color(&mut self, handle: CanvasSpriteHandle, color: Color) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let blit = canvas.sprites.get_mut(&handle).with_context(|| "Blit not found")?;
-        blit.color = color;
-        Ok(())
+    fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.draw_rect(extent, color)
+    }
+    fn canvas_draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.draw_line(x0, x1, color)
+    }
+    fn canvas_draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.draw_vline(x, y0, y1, color)
+    }
+    fn canvas_draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.draw_hline(y, x0, x1, color)
+    }
+    fn canvas_scissor(&mut self, extent: IRect) -> Result<()> {
+        if self.current_drawing_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
+        let canvas = self.canvases.get_mut(&self.current_drawing_canvas.unwrap()).with_context(|| "Canvas not found")?;
+        canvas.render_pass.scissor(extent)
     }
 
-    fn canvas_viewport_add(&mut self, canvas: CanvasHandle, position: IVec2, resolution: UVec2) -> Result<CanvasViewportHandle> {
-        let handle: CanvasViewportHandle = self.generator.next().into();
-        self.item_to_canvas.insert(handle.into(), canvas);
-        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
-        canvas.viewports.insert(handle, CanvasViewport::new(&self.context, position, resolution));
+    /// Viewport API
+    
+    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle> {
+        let handle: ViewportHandle = self.generator.next().into();
+        self.viewports.insert(handle, Viewport::new(&self.context, resolution));
         Ok(handle)
     }
-    fn canvas_viewport_remove(&mut self, handle: CanvasViewportHandle) -> Result<()> {
-        let canvas = self.item_to_canvas.remove(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(&canvas).with_context(|| "Canvas not found")?;
-        canvas.viewports.remove(&handle).with_context(|| "Viewport not found")?;
+    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<()> { 
+        self.viewports.remove(&handle).with_context(|| "Viewport not found")?;
+        Ok(()) 
+    }
+    fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<SceneCameraHandle>) -> Result<()> { 
+        let viewport = self.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+        viewport.camera= camera;
         Ok(())
     }
-    fn canvas_viewport_set_z_index(&mut self, handle: CanvasViewportHandle, z_index: i32) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
-        viewport.z_index = z_index;
+    fn viewport_set_resolution(&mut self, handle: ViewportHandle, resolution: UVec2) -> Result<()> { 
+        let viewport = self.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+        viewport.resize(&self.context, resolution);
         Ok(())
     }
-    fn canvas_viewport_set_position(&mut self, handle: CanvasViewportHandle, position: IVec2) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
-        viewport.position = position;
-        Ok(())
-    }
-    fn canvas_viewport_set_camera(&mut self, handle: CanvasViewportHandle, camera: Option<SceneCameraHandle>) -> Result<()> {
-        let canvas = self.item_to_canvas.get(&handle.into()).with_context(|| "Canvas not found")?;
-        let canvas = self.canvases.get_mut(canvas).with_context(|| "Canvas not found")?;
-        let viewport = canvas.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
-        viewport.camera = camera;
-        Ok(())
-    }
-
-    // TODO: complete canvas API
 
     /// Scene API
 

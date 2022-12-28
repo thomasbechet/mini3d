@@ -12,5 +12,6 @@ pub mod blit_bind_group;
 pub mod texture;
 pub mod material_bind_group;
 pub mod viewport_renderer;
+pub mod viewport;
 
 pub use renderer::*;

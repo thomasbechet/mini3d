@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize};
 
-use crate::{input::InputManager, uid::UID, math::rect::IRect, renderer::{backend::{CanvasHandle, RendererBackend, SceneCameraHandle}, RendererManager, RendererResourceManager, color::Color, SCREEN_RESOLUTION, SCREEN_WIDTH, SCREEN_HEIGHT}, asset::AssetManager};
+use crate::{input::InputManager, uid::UID, math::rect::IRect, renderer::{backend::{CanvasHandle, RendererBackend, SceneCameraHandle}, RendererResourceManager, color::Color, SCREEN_RESOLUTION, SCREEN_WIDTH, SCREEN_HEIGHT}, asset::AssetManager};
 
-use self::{interaction_layout::{InteractionLayout, InteractionEvent, InteractionInputs, AreaEvent}, button::Button, graphics::Graphics, label::Label, checkbox::Checkbox, sprite::Sprite, viewport::Viewport};
+use self::{interaction_layout::{InteractionLayout, InteractionEvent, InteractionInputs}, button::Button, label::Label, checkbox::Checkbox, sprite::Sprite, viewport::Viewport};
 
 pub mod button;
 pub mod graphics;
@@ -15,43 +15,78 @@ pub mod label;
 pub mod interaction_layout;
 pub mod viewport;
 
-#[derive(Serialize, Deserialize)]
-pub enum Widget {
-    Button(Button),
-    Graphics(Graphics),
-    Label(Label),
-    Checkbox(Checkbox),
-    Textbox,
-    Viewport(Viewport),
-    Sprite(Sprite),
+macro_rules! define_add {
+    ($name:ident, $fname:ident, $widget:ident) => {
+        pub fn $fname(&mut self, name: &str, z_index: i32, parent: UID, $name: $widget) -> Result<UID> {
+            let uid = UID::new(name);
+            if self.widgets.contains_key(&uid) { return Err(anyhow!("Widget already exists")); }
+            self.widgets.insert(uid, Widget { z_index, parent, variant: WidgetVariant::$widget($name) });
+            Ok(uid)
+        }
+    };
 }
 
-impl Widget {
-
-    fn handle_event(&mut self, event: &AreaEvent, interaction_layout: &mut InteractionLayout) -> Result<()> {
-        match self {
-            Widget::Button(button) => {},
-            Widget::Graphics(paint) => {},
-            Widget::Label(label) => {},
-            Widget::Checkbox(checkbox) => {},
-            Widget::Textbox => {},
-            Widget::Viewport(viewport) => {},
-            Widget::Sprite(sprite) => {},
+macro_rules! define_get {
+    ($name:ident, $fname:ident, $widget:ident) => {
+        pub fn $fname(&self, uid: UID) -> Result<&$widget> {
+            let widget = self.widgets.get(&uid).with_context(|| "Widget not found")?;
+            match &widget.variant {
+                WidgetVariant::$widget(widget) => Ok(widget),
+                _ => { Err(anyhow!("Widget is not a {}", stringify!($widget))) }
+            }
         }
-        Ok(())
-    }
+    };
+}
 
-    fn release_renderer(&mut self, backend: &mut dyn RendererBackend) -> Result<()> {
-        match self {
-            Widget::Button(_) => todo!(),
-            Widget::Graphics(_) => todo!(),
-            Widget::Label(_) => todo!(),
-            Widget::Checkbox(_) => todo!(),
-            Widget::Textbox => todo!(),
-            Widget::Viewport(viewport) => viewport.release_renderer(backend),
-            Widget::Sprite(sprite) => sprite.release_renderer(backend),
+macro_rules! define_get_mut {
+    ($name:ident, $fname:ident, $widget:ident) => {
+        pub fn $fname(&mut self, uid: UID) -> Result<&mut $widget> {
+            let widget = self.widgets.get_mut(&uid).with_context(|| "Widget not found")?;
+            match &mut widget.variant {
+                WidgetVariant::$widget(widget) => Ok(widget),
+                _ => { Err(anyhow!("Widget is not a {}", stringify!($widget))) }
+            }
         }
-    }
+    };
+}
+
+// impl Widget {
+
+//     fn handle_event(&mut self, event: &AreaEvent, interaction_layout: &mut InteractionLayout) -> Result<()> {
+//         match self {
+//             Widget::Button(button) => {},
+//             Widget::Graphics(paint) => {},
+//             Widget::Label(label) => {},
+//             Widget::Checkbox(checkbox) => {},
+//             Widget::Textbox => {},
+//             Widget::Viewport(viewport) => {},
+//             Widget::Sprite(sprite) => {},
+//         }
+//         Ok(())
+//     }
+
+//     fn release_backend(&mut self, backend: &mut dyn RendererBackend) -> Result<()> {
+//         if let Widget::Viewport(viewport) = self {
+//             viewport.release_backend(backend)?;
+//         }
+//         Ok(())
+//     }
+// }
+
+#[derive(Serialize, Deserialize)]
+enum WidgetVariant {
+    Button(Button),
+    Checkbox(Checkbox),
+    Label(Label),
+    Sprite(Sprite),
+    Viewport(Viewport),
+}
+
+#[derive(Serialize, Deserialize)]
+struct Widget {
+    z_index: i32,
+    parent: UID,
+    variant: WidgetVariant,
 }
 
 struct HandleContext {
@@ -74,6 +109,7 @@ pub enum UIEvent {
 pub struct UI {
 
     widgets: HashMap<UID, Widget>,
+
     interaction_layout: InteractionLayout,
 
     #[serde(skip)]
@@ -81,7 +117,7 @@ pub struct UI {
     #[serde(skip)]
     interaction_events: Vec<InteractionEvent>,
     #[serde(skip)]
-    widget_removed: Vec<Widget>,
+    viewports_removed: Vec<Viewport>,
 
     width: u32,
     height: u32,
@@ -98,24 +134,20 @@ impl Default for UI {
 
         let mut image = Sprite::new("alfred".into(), (50, 30).into(), (0, 0, 64, 64).into());
         image.set_color(Color::RED);
-        image.set_z_index(5);
-        ui.widgets.insert(0.into(), Widget::Sprite(image));
+        ui.add_sprite("0", 5, UID::null(), image);
 
         let mut image = Sprite::new("alfred".into(), (60, 50).into(), (0, 0, 64, 64).into());
         image.set_color(Color::WHITE);
-        image.set_z_index(10);
-        ui.widgets.insert(1.into(), Widget::Sprite(image));
+        ui.add_sprite("1", 10, UID::null(), image);
 
         let mut image = Sprite::new("alfred".into(), (70, 60).into(), (0, 0, 64, 64).into());
         image.set_color(Color::GREEN);
-        image.set_z_index(6);
-        ui.widgets.insert(2.into(), Widget::Sprite(image));
+        ui.add_sprite("2", 6, UID::null(), image);
 
         let mut viewport = Viewport::new((0, 0).into(), SCREEN_RESOLUTION);
-        viewport.set_z_index(2);
+        ui.add_viewport("main_viewport", 2, UID::null(), viewport);
         // viewport.set_camera(camera)
-        ui.widgets.insert("main_viewport".into(), Widget::Viewport(viewport));
-
+        
         // ui.interaction_layout.add_area(0.into(), IRect::new(5, 5, 100, 50)).unwrap();
         // ui.interaction_layout.add_area(1.into(), IRect::new(5, 200, 100, 50)).unwrap();
         // ui.interaction_layout.add_area(2.into(), IRect::new(150, 5, 100, 50)).unwrap();
@@ -133,7 +165,7 @@ impl Default for UI {
 
 impl UI {
 
-    pub(crate) fn update_renderer(
+    pub(crate) fn update_backend(
         &mut self, 
         backend: &mut impl RendererBackend,
         resources: &mut RendererResourceManager,
@@ -146,23 +178,27 @@ impl UI {
             self.handle = Some(backend.canvas_add(self.width, self.height)?);
         }
 
-        backend.canvas_set_clear_color(self.handle.unwrap(), self.background_color)?;
-
-        for mut widget in self.widget_removed.drain(..) {
-            widget.release_renderer(backend)?;
+        // Release resources for removed viewports
+        for mut viewport in self.viewports_removed.drain(..) {
+            viewport.release_backend(backend)?;
         }
 
-        for widget in self.widgets.values_mut() {
-            match widget {
-                Widget::Button(button) => {},
-                Widget::Graphics(paint) => {},
-                Widget::Label(label) => {},
-                Widget::Checkbox(checkbox) => {},
-                Widget::Textbox => {},
-                Widget::Viewport(viewport) => viewport.update_renderer(self.handle.unwrap(), cameras, backend)?,
-                Widget::Sprite(sprite) => sprite.update_renderer(self.handle.unwrap(), resources, backend, asset)?,
+        // Sort widgets before drawing
+        let mut widgets = self.widgets.values_mut().collect::<Vec<_>>();
+        widgets.sort_by(|a, b| { a.z_index.cmp(&b.z_index) });
+
+        // Draw widgets
+        backend.canvas_begin(self.handle.unwrap(), self.background_color)?;
+        for widget in widgets {
+            match &mut widget.variant {
+                WidgetVariant::Label(label) => label.draw(resources, backend, asset)?,
+                WidgetVariant::Checkbox(checkbox) => checkbox.draw(backend)?,
+                WidgetVariant::Sprite(sprite) => sprite.draw(resources, backend, asset)?,
+                WidgetVariant::Viewport(viewport) => viewport.draw(cameras, backend)?,
+                _ => {}
             }
         }
+        backend.canvas_end()?;
         
         Ok(())
     }
@@ -173,12 +209,12 @@ impl UI {
             interaction_layout: Default::default(), 
             events: Default::default(), 
             interaction_events: Default::default(),
-            widget_removed: Default::default(),
+            viewports_removed: Default::default(),
             width,
             height, 
-            background_color: Color::BLACK, 
+            background_color: Color::TRANSPARENT, 
             active: true,
-            handle: None 
+            handle: None,
         }
     }
 
@@ -209,24 +245,28 @@ impl UI {
         self.interaction_layout.add_profile(name, inputs)
     }
 
-    pub fn add(&mut self, name: &str, widget: Widget) -> Result<UID> {
-        let uid = UID::new(name);
-        if self.widgets.contains_key(&uid) { return Err(anyhow!("Widget already exists")); }        
-        self.widgets.insert(uid, widget);
-        Ok(uid)
-    }
+    define_add!(label, add_label, Label);
+    define_get!(label, label, Label);
+    define_get_mut!(label, label_mut, Label);
+
+    define_add!(sprite, add_sprite, Sprite);
+    define_get!(sprite, sprite, Sprite);
+    define_get_mut!(sprite, sprite_mut, Sprite);
+
+    define_add!(checkbox, add_checkbox, Checkbox);
+    define_get!(checkbox, checkbox, Checkbox);
+    define_get_mut!(checkbox, checkbox_mut, Checkbox);
+
+    define_add!(viewport, add_viewport, Viewport);
+    define_get!(viewport, viewport, Viewport);
+    define_get_mut!(viewport, viewport_mut, Viewport);
 
     pub fn remove(&mut self, uid: UID) -> Result<()> {
-        self.widget_removed.push(self.widgets.remove(&uid).with_context(|| "Widget not found")?);
+        let widget = self.widgets.remove(&uid).with_context(|| "Widget not found")?;
+        if let WidgetVariant::Viewport(viewport) = widget.variant {
+            self.viewports_removed.push(viewport);
+        }
         Ok(())
-    }
-
-    pub fn get(&self, uid: UID) -> Result<&Widget> {
-        self.widgets.get(&uid).with_context(|| "Widget not found")
-    }
-
-    pub fn get_mut(&mut self, uid: UID) -> Result<&mut Widget> {
-        self.widgets.get_mut(&uid).with_context(|| "Widget not found")
     }
 
     // pub fn events(&self) ->

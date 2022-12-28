@@ -85,12 +85,12 @@ impl IRect {
 
     #[inline]
     pub fn width(&self) -> u32 {
-        self.br.x as u32 - self.tl.x as u32
+        self.br.x as u32 - self.tl.x as u32 + 1
     }
 
     #[inline]
     pub fn height(&self) -> u32 {
-        self.br.y as u32 - self.tl.y as u32
+        self.br.y as u32 - self.tl.y as u32 + 1
     }
 
     #[inline]

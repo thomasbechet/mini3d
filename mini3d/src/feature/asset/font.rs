@@ -42,8 +42,8 @@ impl FontAtlas {
         let width = font.glyph_width as u32 * glyph_count as u32;
         let height = font.glyph_height as u32;
         let mut texture = Texture {
-            data: Vec::with_capacity((width * height) as usize),
-            format: TextureFormat::R,
+            data: vec![0x0; (width * height * 4) as usize],
+            format: TextureFormat::RGBA,
             width,
             height,
         };
@@ -59,7 +59,11 @@ impl FontAtlas {
                 let px = (extent.left() + (i as i32 % font.glyph_width as i32)) as usize;
                 let py = (extent.top() + (i as i32 / font.glyph_width as i32)) as usize;
                 let pi = py * texture.width as usize + px;
-                texture.data[pi] = if *b { 0xFF } else { 0x0 };
+                let byte = if *b { 0xFF } else { 0x0 };
+                texture.data[pi * 4] = byte;
+                texture.data[pi * 4 + 1] = byte;
+                texture.data[pi * 4 + 2] = byte;
+                texture.data[pi * 4 + 3] = byte;
             }
 
             // Save extent and move to next glyph

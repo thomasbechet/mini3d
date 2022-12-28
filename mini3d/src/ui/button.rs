@@ -1,12 +1,10 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::backend::CanvasSpriteHandle};
+use crate::uid::UID;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Button {
     pressed: bool,
-    #[serde(skip)]
-    handle: Option<CanvasSpriteHandle>,
 }
 
 pub struct ButtonEvent {
