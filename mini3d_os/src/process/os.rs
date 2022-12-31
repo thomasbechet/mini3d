@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::UIComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, command_buffer::{Command, CommandBuffer}}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, label::Label, checkbox::Checkbox}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -252,6 +252,7 @@ impl OSProcess {
             systems: Vec::from([
                 SystemScheduleType::Builtin("rotator".into()),
                 SystemScheduleType::Builtin("rhai_update_scripts".into()),
+                SystemScheduleType::Builtin("ui_update_and_render".into()),
                 SystemScheduleType::Builtin("renderer".into()),
                 SystemScheduleType::Builtin("despawn_entities".into()),
                 SystemScheduleType::Builtin("free_fly".into()),
@@ -338,28 +339,26 @@ impl OSProcess {
                 
         world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
         
+        let viewport = world.spawn((
+            ViewportComponent::new(SCREEN_RESOLUTION, Some(e)),
+        ));
+        let viewport2 = world.spawn((
+            ViewportComponent::new((200, 50).into(), Some(cam2)),
+        ));
+
         {
             let mut ui = UI::default();
             for i in 0..30 {
                 // ui.add_label(&format!("test{}", i), 30, UID::null(), Label::new((5, i * 10).into(), "0123456789012345678901234567890123456789", "default".into()))?;
             }
             ui.add_checkbox("checkbox", 50, UID::null(), Checkbox::new((50, 100).into(), true))?;
-            let viewport = ui.viewport_mut("main_viewport".into())?;
-            viewport.set_camera(Some(e));
+            // let viewport = ui.viewport_mut("main_viewport".into())?;
+            // viewport.set_camera(Some(e));
+            ui.add_viewport("main_viewport", 0, UID::null(), Viewport::new(IVec2::ZERO, self.scene, viewport))?;
+            ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
             world.spawn((
                 LifecycleComponent::alive(),
-                UIComponent::new(ui, IVec2::ZERO, 0),
-            ));
-        }
-
-        {
-            let mut ui = UI::new(200, 200);
-            let mut viewport = Viewport::new((0, 0).into(), (200, 50).into());
-            viewport.set_camera(Some(cam2));
-            ui.add_viewport("main_widget", 0, UID::null(), viewport)?;
-            world.spawn((
-                LifecycleComponent::alive(),
-                UIComponent::new(ui, IVec2::new(440, 200), 1),
+                UIComponent::new(ui, UIRenderTarget::Screen { offset: IVec2::ZERO }),
             ));
         }
         
@@ -475,9 +474,7 @@ impl Process for OSProcess {
         }
 
         // Render center cross
-        let mut cb = CommandBuffer::empty();
-        cb.push(Command::FillRect { rect: IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2) });
-        // ctx.renderer.submit_command_buffer(cb)?;
+        ctx.renderer.graphics().fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 4, 4), Color::WHITE);
 
         Ok(())
     }

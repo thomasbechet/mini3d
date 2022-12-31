@@ -1,8 +1,7 @@
-use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{backend::RendererBackend, RendererResourceManager, color::Color}, asset::AssetManager, math::rect::IRect};
+use crate::{uid::UID, renderer::{color::Color, graphics::Graphics}, math::rect::IRect};
 
 #[derive(Serialize, Deserialize)]
 pub struct Sprite {
@@ -14,17 +13,6 @@ pub struct Sprite {
 
 impl Sprite {
 
-    pub(crate) fn draw(
-        &mut self, 
-        resources: &mut RendererResourceManager,
-        backend: &mut impl RendererBackend,
-        asset: &AssetManager
-    ) -> Result<()> {
-        let texture = resources.request_texture(&self.texture, backend, asset)?;
-        backend.canvas_blit_rect(texture.handle, self.extent, self.position, self.color, 0)?;
-        Ok(())
-    }
-
     pub fn new(texture: UID, position: IVec2, extent: IRect) -> Self {
         Self {
             texture,
@@ -32,6 +20,10 @@ impl Sprite {
             position,
             extent,
         }
+    }
+
+    pub fn draw(&self, gfx: &mut Graphics) {
+        gfx.blit_texture(self.texture, self.extent, self.position, self.color, 0);
     }
 
     pub fn set_position(&mut self, position: IVec2) -> &mut Self {

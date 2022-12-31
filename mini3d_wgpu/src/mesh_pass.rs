@@ -43,7 +43,6 @@ pub(crate) struct GPUInstanceData {
     pub(crate) model_id: u32,
     // Use to identify the associated batch
     pub(crate) batch_id: u32,
-
     // Ensure 16 bytes alignment
     _pad0: u64,
 }

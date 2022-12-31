@@ -15,6 +15,10 @@ impl Debug for Color {
     }
 }
 
+impl Default for Color {
+    fn default() -> Self { Self::TRANSPARENT }
+}
+
 impl Color {
 
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);

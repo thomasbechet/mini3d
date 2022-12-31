@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet, hash_map};
 
-use anyhow::Result;
+use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, ui::{UIComponent, SceneUIComponent}}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}}}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, viewport::ViewportComponent, canvas::CanvasComponent}, asset::{model::Model, material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}}}};
 
-use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, CanvasHandle, SurfaceCanvasHandle, SceneCanvasHandle}};
+use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
 
 pub mod backend;
 pub mod color;
-pub mod command_buffer;
 pub mod rasterizer;
+pub mod graphics;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -169,13 +169,16 @@ pub struct RendererManager {
     pub(crate) scene_cameras_removed: HashSet<SceneCameraHandle>,
     pub(crate) scene_models_removed: HashSet<SceneModelHandle>,
     pub(crate) scene_canvases_removed: HashSet<SceneCanvasHandle>,
-    pub(crate) surface_canvases_removed: HashSet<SurfaceCanvasHandle>,
-    pub(crate) canvases_removed: HashSet<CanvasHandle>,
+    pub(crate) viewports_removed: HashSet<ViewportHandle>,
 
     // Cached entities
     cameras: HashMap<hecs::Entity, SceneCameraHandle>,
+    viewports: HashMap<hecs::Entity, ViewportHandle>,
 
+    // Persistent data
     statistics: RendererStatistics,
+    graphics: Graphics,
+    clear_color: Color,
 }
 
 impl RendererManager {
@@ -187,8 +190,6 @@ impl RendererManager {
         self.scene_cameras_removed.clear();
         self.scene_models_removed.clear();
         self.scene_canvases_removed.clear();
-        self.surface_canvases_removed.clear();
-        self.canvases_removed.clear();
 
         for world in scene.iter_world() {
             for (_, camera) in world.query_mut::<&mut CameraComponent>() {
@@ -197,11 +198,8 @@ impl RendererManager {
             for (_, model) in world.query_mut::<&mut ModelComponent>() {
                 model.handle = None;
             }
-            for (_, ui) in world.query_mut::<&mut UIComponent>() {
-                ui.handle = None;
-            }
-            for (_, ui) in world.query_mut::<&mut SceneUIComponent>() {
-                ui.handle = None;
+            for (_, canvas) in world.query_mut::<&mut CanvasComponent>() {
+                canvas.handle = None;
             }
         }
 
@@ -227,11 +225,11 @@ impl RendererManager {
         for handle in self.scene_canvases_removed.drain() {
             backend.scene_canvas_remove(handle)?;
         }
-        for handle in self.surface_canvases_removed.drain() {
-            backend.surface_canvas_remove(handle)?;
+        for handle in self.scene_canvases_removed.drain() {
+            backend.scene_canvas_remove(handle)?;
         }
-        for handle in self.canvases_removed.drain() {
-            backend.canvas_remove(handle)?;
+        for handle in self.viewports_removed.drain() {
+            backend.viewport_remove(handle)?;
         }
 
         // Update scene components
@@ -245,6 +243,21 @@ impl RendererManager {
                     c.handle = Some(handle);
                 }
                 backend.scene_camera_update(c.handle.unwrap(), t.translation, t.forward(), t.up(), c.fov)?;
+            }
+
+            // Update viewports
+            for (e, viewport) in world.query_mut::<&mut ViewportComponent>() {
+                if viewport.handle.is_none() {
+                    viewport.handle = Some(backend.viewport_add(viewport.resolution)?);
+                    viewport.out_of_date = true;
+                    self.viewports.insert(e, viewport.handle.unwrap());
+                }
+                if viewport.out_of_date {
+                    let camera = viewport.camera.map(|entity| *self.cameras.get(&entity).unwrap());
+                    backend.viewport_set_camera(viewport.handle.unwrap(), camera)?;
+                    backend.viewport_set_resolution(viewport.handle.unwrap(), viewport.resolution)?;
+                    viewport.out_of_date = false;
+                }
             }
             
             // Update models
@@ -262,36 +275,68 @@ impl RendererManager {
                 backend.scene_model_transfer_matrix(m.handle.unwrap(), t.matrix())?;
             }
 
-            // Update Surface Canvas
-            for (_, c) in world.query_mut::<&mut UIComponent>() {
-
-                // Update UI
-                c.ui.update_backend(backend, &mut self.resources, &self.cameras, asset)?;
-
-                // Update surface
-                if c.handle.is_none() && c.ui.handle.is_some() {
-                    c.handle = Some(backend.surface_canvas_add(c.ui.handle.unwrap(), c.position, c.z_index)?);
-                }
-            }
-
             // Update Scene Canvas
-            for (_, (c, t)) in world.query_mut::<(&mut SceneUIComponent, &TransformComponent)>() {
+            for (_, (c, t)) in world.query_mut::<(&mut CanvasComponent, &TransformComponent)>() {
 
-                // Update UI
-                c.ui.update_backend(backend, &mut self.resources, &self.cameras, asset)?;
-
-                // Update scene object
-                if c.handle.is_none() && c.ui.handle.is_some() {
-                    c.handle = Some(backend.scene_canvas_add(c.ui.handle.unwrap())?);
+                if c.handle.is_none() {
+                    c.handle = Some(backend.scene_canvas_add(c.resolution)?);
                 }
-                backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix())?;
+                backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix())?;        
             }
+
+            // Render main screen
+            self.graphics.submit_backend(
+                None,
+                Color::TRANSPARENT,
+                &mut self.resources,
+                asset,
+                &self.viewports,
+                backend,
+            )?;
         }
 
         // Recover statistics of previous frame
         self.statistics = backend.statistics()?;
 
         Ok(())
+    }
+
+    pub(crate) fn prepare(&mut self) -> Result<()> {
+        self.graphics.clear();
+        Ok(())
+    }
+
+    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut tuple = serializer.serialize_tuple(1)?;
+        tuple.serialize_element(&self.graphics)?;
+        tuple.end()
+    }
+
+    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+        struct RendererVisitor<'a> {
+            manager: &'a mut RendererManager,
+        }
+        impl<'de, 'a> Visitor<'de> for RendererVisitor<'a> {
+            type Value = ();
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Renderer manager data")
+            }
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where A: serde::de::SeqAccess<'de> {
+                use serde::de::Error;
+                self.manager.graphics = seq.next_element()?.with_context(|| "Expect graphics").map_err(Error::custom)?;
+                Ok(())
+            }
+        }
+        deserializer.deserialize_tuple(1, RendererVisitor { manager: self })
+    }
+
+    pub fn graphics(&mut self) -> &mut Graphics {
+        &mut self.graphics
+    }
+
+    pub fn set_clear_color(&mut self, color: Color) {
+        self.clear_color = color;
     }
 
     pub fn statistics(&self) -> RendererStatistics {

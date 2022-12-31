@@ -1,8 +1,8 @@
-struct CanvasData {
+struct GlobalData {
     resolution: vec2<u32>,
 };
 @group(0) @binding(0)
-var<uniform> canvas: CanvasData;
+var<uniform> global: GlobalData;
 
 @group(1) @binding(0)
 var t_texture: texture_2d<f32>;
@@ -43,7 +43,7 @@ fn vs_main(
     );
 
     // Apply offset and normalize
-    var position = (pos + size * offset) / vec2<f32>(canvas.resolution);
+    var position = (pos + size * offset) / vec2<f32>(global.resolution);
     position.y = 1.0 - position.y;
     let uv = (tex + size * offset) / vec2<f32>(textureDimensions(t_texture, 0));
 

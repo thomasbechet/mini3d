@@ -61,6 +61,8 @@ impl Engine {
         self.scene.register_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
         self.scene.register_component::<component::transform::TransformComponent>("transform")?;
         self.scene.register_component::<component::ui::UIComponent>("ui")?;
+        self.scene.register_component::<component::viewport::ViewportComponent>("viewport")?;
+        self.scene.register_component::<component::canvas::CanvasComponent>("canvas")?;
 
         // Processes
         self.process.register::<process::profiler::ProfilerProcess>("profiler")?;
@@ -71,6 +73,7 @@ impl Engine {
         self.scene.register_system("renderer", system::renderer::despawn_renderer_entities)?;
         self.scene.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
         self.scene.register_system("rotator", system::rotator::run)?;
+        self.scene.register_system("ui_update_and_render", system::ui::update_and_render)?;
 
         // Signals
         self.signal.register::<signal::command::CommandSignal>("command")?;
@@ -99,6 +102,15 @@ impl Engine {
             manager: &'a AssetManager,
         }
         impl<'a> Serialize for AssetManagerSerialize<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer {
+                self.manager.save_state(serializer)
+            }
+        }
+        struct RendererManagerSerialize<'a> {
+            manager: &'a RendererManager,
+        }
+        impl<'a> Serialize for RendererManagerSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer {
                 self.manager.save_state(serializer)
@@ -140,8 +152,9 @@ impl Engine {
                 self.manager.save_state(serializer)
             }
         }
-        let mut tuple = serializer.serialize_tuple(7)?;
+        let mut tuple = serializer.serialize_tuple(8)?;
         tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
+        tuple.serialize_element(&RendererManagerSerialize { manager: &self.renderer })?;
         tuple.serialize_element(&ProcessManagerSerialize { manager: &self.process })?;
         tuple.serialize_element(&ECSManagerSerialize { manager: &self.scene })?;
         tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
@@ -167,6 +180,16 @@ impl Engine {
                     manager: &'a mut AssetManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for AssetManagerDeserializeSeed<'a> {
+                    type Value = ();
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                        where D: Deserializer<'de> {
+                        self.manager.load_state(deserializer)
+                    }
+                }
+                struct RendererManagerDeserializeSeed<'a> {
+                    manager: &'a mut RendererManager,
+                }
+                impl<'de, 'a> DeserializeSeed<'de> for RendererManagerDeserializeSeed<'a> {
                     type Value = ();
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
@@ -214,6 +237,7 @@ impl Engine {
                     }
                 }
                 seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.engine.asset })?;
+                seq.next_element_seed(RendererManagerDeserializeSeed { manager: &mut self.engine.renderer })?;
                 seq.next_element_seed(ProcessManagerDeserializeSeed { manager: &mut self.engine.process })?;
                 seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.engine.scene })?;
                 seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.engine.input })?;
@@ -224,7 +248,7 @@ impl Engine {
                 Ok(())
             }
         }
-        deserializer.deserialize_tuple(7, EngineVisitor { engine: self })?;
+        deserializer.deserialize_tuple(8, EngineVisitor { engine: self })?;
         Ok(())
     }
 
@@ -234,6 +258,9 @@ impl Engine {
         requests: &mut Requests,
         mut delta_time: f64,
     ) -> Result<()> {
+
+        // ================= PREPARE STEP ================== //
+        self.renderer.prepare()?;
 
         // ================= DISPATCH STEP ================= //
 

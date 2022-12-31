@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::{Result, anyhow, Context};
+use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{input::InputManager, uid::UID, math::rect::IRect, renderer::{backend::{CanvasHandle, RendererBackend, SceneCameraHandle}, RendererResourceManager, color::Color, SCREEN_RESOLUTION, SCREEN_WIDTH, SCREEN_HEIGHT}, asset::AssetManager};
+use crate::{uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_RESOLUTION}, math::rect::IRect, input::InputManager};
 
 use self::{interaction_layout::{InteractionLayout, InteractionEvent, InteractionInputs}, button::Button, label::Label, checkbox::Checkbox, sprite::Sprite, viewport::Viewport};
 
@@ -109,28 +110,20 @@ pub enum UIEvent {
 pub struct UI {
 
     widgets: HashMap<UID, Widget>,
-
     interaction_layout: InteractionLayout,
 
     #[serde(skip)]
     events: Vec<UIEvent>,
     #[serde(skip)]
     interaction_events: Vec<InteractionEvent>,
-    #[serde(skip)]
-    viewports_removed: Vec<Viewport>,
 
-    width: u32,
-    height: u32,
-    background_color: Color,
-    active: bool,
-
-    #[serde(skip)]
-    pub(crate) handle: Option<CanvasHandle>,
+    resolution: UVec2,
+    background_color: Option<Color>,
 }
 
 impl Default for UI {
     fn default() -> Self {
-        let mut ui = Self::new(SCREEN_WIDTH, SCREEN_HEIGHT);
+        let mut ui = Self::new(SCREEN_RESOLUTION);
 
         let mut image = Sprite::new("alfred".into(), (50, 30).into(), (0, 0, 64, 64).into());
         image.set_color(Color::RED);
@@ -144,10 +137,6 @@ impl Default for UI {
         image.set_color(Color::GREEN);
         ui.add_sprite("2", 6, UID::null(), image);
 
-        let mut viewport = Viewport::new((0, 0).into(), SCREEN_RESOLUTION);
-        ui.add_viewport("main_viewport", 2, UID::null(), viewport);
-        // viewport.set_camera(camera)
-        
         // ui.interaction_layout.add_area(0.into(), IRect::new(5, 5, 100, 50)).unwrap();
         // ui.interaction_layout.add_area(1.into(), IRect::new(5, 200, 100, 50)).unwrap();
         // ui.interaction_layout.add_area(2.into(), IRect::new(150, 5, 100, 50)).unwrap();
@@ -165,56 +154,14 @@ impl Default for UI {
 
 impl UI {
 
-    pub(crate) fn update_backend(
-        &mut self, 
-        backend: &mut impl RendererBackend,
-        resources: &mut RendererResourceManager,
-        cameras: &HashMap<hecs::Entity, SceneCameraHandle>,
-        asset: &AssetManager,
-    ) -> Result<()> {
-
-        // Create canvas
-        if self.handle.is_none() {
-            self.handle = Some(backend.canvas_add(self.width, self.height)?);
-        }
-
-        // Release resources for removed viewports
-        for mut viewport in self.viewports_removed.drain(..) {
-            viewport.release_backend(backend)?;
-        }
-
-        // Sort widgets before drawing
-        let mut widgets = self.widgets.values_mut().collect::<Vec<_>>();
-        widgets.sort_by(|a, b| { a.z_index.cmp(&b.z_index) });
-
-        // Draw widgets
-        backend.canvas_begin(self.handle.unwrap(), self.background_color)?;
-        for widget in widgets {
-            match &mut widget.variant {
-                WidgetVariant::Label(label) => label.draw(resources, backend, asset)?,
-                WidgetVariant::Checkbox(checkbox) => checkbox.draw(backend)?,
-                WidgetVariant::Sprite(sprite) => sprite.draw(resources, backend, asset)?,
-                WidgetVariant::Viewport(viewport) => viewport.draw(cameras, backend)?,
-                _ => {}
-            }
-        }
-        backend.canvas_end()?;
-        
-        Ok(())
-    }
-
-    pub fn new(width: u32, height: u32) -> Self {
+    pub fn new(resolution: UVec2) -> Self {
         Self { 
             widgets: Default::default(), 
             interaction_layout: Default::default(), 
             events: Default::default(), 
             interaction_events: Default::default(),
-            viewports_removed: Default::default(),
-            width,
-            height, 
-            background_color: Color::TRANSPARENT, 
-            active: true,
-            handle: None,
+            resolution,
+            background_color: Some(Color::BLACK),
         }
     }
 
@@ -241,6 +188,42 @@ impl UI {
         Ok(())
     }
 
+    pub fn render(&self, gfx: &mut Graphics, offset: IVec2) {
+
+        // Compute extent
+        let extent = IRect::new(offset.x, offset.y, self.resolution.x, self.resolution.y);
+        gfx.scissor(Some(extent));
+
+        // Sort widgets before drawing
+        let mut widgets = self.widgets.values().collect::<Vec<_>>();
+        widgets.sort_by(|a, b| { a.z_index.cmp(&b.z_index) });
+
+        // Background color
+        if let Some(color) = self.background_color {
+            gfx.fill_rect(extent, color);
+        }
+
+        // Draw widgets
+        for widget in widgets {
+            match &widget.variant {
+                WidgetVariant::Label(label) => label.draw(gfx),
+                WidgetVariant::Checkbox(checkbox) => checkbox.draw(gfx),
+                WidgetVariant::Sprite(sprite) => sprite.draw(gfx),
+                WidgetVariant::Viewport(viewport) => viewport.draw(gfx),
+                _ => {}
+            }
+        }
+
+        // Reset scissor
+        gfx.scissor(None);
+    }
+
+    pub fn set_background_color(&mut self, color: Option<Color>) {
+        self.background_color = color;
+    }
+
+    /// Widgets API
+
     pub fn add_profile(&mut self, name: &str, inputs: InteractionInputs) -> Result<UID> {
         self.interaction_layout.add_profile(name, inputs)
     }
@@ -263,9 +246,6 @@ impl UI {
 
     pub fn remove(&mut self, uid: UID) -> Result<()> {
         let widget = self.widgets.remove(&uid).with_context(|| "Widget not found")?;
-        if let WidgetVariant::Viewport(viewport) = widget.variant {
-            self.viewports_removed.push(viewport);
-        }
         Ok(())
     }
 

@@ -28,15 +28,11 @@ define_handle!(MeshHandle);
 define_handle!(TextureHandle);
 define_handle!(MaterialHandle);
 
-define_handle!(CanvasHandle);
-
 define_handle!(ViewportHandle);
 
 define_handle!(SceneCameraHandle);
 define_handle!(SceneModelHandle);
 define_handle!(SceneCanvasHandle);
-
-define_handle!(SurfaceCanvasHandle);
 
 pub struct BackendMaterialDescriptor<'a> {
     pub diffuse: TextureHandle,
@@ -63,19 +59,17 @@ pub trait RendererBackend {
 
     /// Canvas API
     
-    fn canvas_add(&mut self, width: u32, height: u32) -> Result<CanvasHandle> { Ok(0.into()) }
-    fn canvas_remove(&mut self, handle: CanvasHandle) -> Result<()> { Ok(()) }
-
-    fn canvas_begin(&mut self, canvas: CanvasHandle, clear_color: Color) -> Result<()> { Ok(()) }
+    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<()> { Ok(()) }
+    fn scene_canvas_begin(&mut self, canvas: SceneCanvasHandle, clear_color: Color) -> Result<()> { Ok(()) }
     fn canvas_end(&mut self) -> Result<()> { Ok(()) }
-    fn canvas_blit_rect(&mut self, texture: TextureHandle, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) -> Result<()> { Ok(()) }
+    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) -> Result<()> { Ok(()) }
     fn canvas_blit_viewport(&mut self, viewport: ViewportHandle, position: IVec2) -> Result<()> { Ok(()) }
     fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<()> { Ok(()) }
     fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<()> { Ok(()) }
     fn canvas_draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) -> Result<()> { Ok(()) }
     fn canvas_draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<()> { Ok(()) }
     fn canvas_draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) -> Result<()> { Ok(()) }
-    fn canvas_scissor(&mut self, extent: IRect) -> Result<()> { Ok(()) }
+    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<()> { Ok(()) }
 
     /// Viewport API
     
@@ -95,14 +89,9 @@ pub trait RendererBackend {
     fn scene_model_set_material(&mut self, handle: SceneModelHandle, index: usize, material: MaterialHandle) -> Result<()> { Ok(()) }
     fn scene_model_transfer_matrix(&mut self, handle: SceneModelHandle, mat: Mat4) -> Result<()> { Ok(()) }
 
-    fn scene_canvas_add(&mut self, canvas: CanvasHandle) -> Result<SceneCanvasHandle> { Ok(0.into()) }
+    fn scene_canvas_add(&mut self, resolution: UVec2) -> Result<SceneCanvasHandle> { Ok(0.into()) }
     fn scene_canvas_remove(&mut self, handle: SceneCanvasHandle) -> Result<()> { Ok(()) }
     fn scene_canvas_transfer_matrix(&mut self, handle: SceneCanvasHandle, mat: Mat4) -> Result<()> { Ok(()) }
-
-    /// Surface API
-
-    fn surface_canvas_add(&mut self, canvas: CanvasHandle, position: IVec2, z_index: i32) -> Result<SurfaceCanvasHandle> { Ok(0.into()) }
-    fn surface_canvas_remove(&mut self, handle: SurfaceCanvasHandle) -> Result<()> { Ok(()) }
 
     /// Statistics API
 

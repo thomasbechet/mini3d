@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use mini3d::{renderer::{backend::{MaterialHandle, SceneCameraHandle, ViewportHandle}, RendererStatistics}, anyhow::{Result, Context}};
+use mini3d::{renderer::{backend::{MaterialHandle, SceneCameraHandle, ViewportHandle}, RendererStatistics}, anyhow::{Result, Context}, uid::UID};
 
-use crate::{context::WGPUContext, model_buffer::ModelBuffer, camera::Camera, mesh_pass::{MeshPass, GPUDrawIndirect}, Material, vertex_allocator::VertexAllocator, viewport::Viewport};
+use crate::{context::WGPUContext, model_buffer::ModelBuffer, camera::Camera, mesh_pass::{MeshPass, GPUDrawIndirect}, Material, vertex_allocator::{VertexAllocator, VertexBufferDescriptor}, viewport::Viewport};
 
 #[repr(C)]
 #[derive(Default, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -106,6 +106,7 @@ impl ViewportRenderer {
         viewports: &HashMap<ViewportHandle, Viewport>,
         cameras: &HashMap<SceneCameraHandle, Camera>,
         materials: &HashMap<MaterialHandle, Material>,
+        submeshes: &HashMap<UID, VertexBufferDescriptor>,
         vertex_allocator: &VertexAllocator,
         flat_pipeline: &wgpu::RenderPipeline,
         forward_mesh_pass: &MeshPass,
@@ -159,57 +160,57 @@ impl ViewportRenderer {
                 forward_render_pass.set_vertex_buffer(2, vertex_allocator.uv_buffer.slice(..));
 
                 // Multi draw indirect
-                {
-                    let mut triangle_count = 0;
-                    for batch in &forward_mesh_pass.multi_instanced_batches {
+                // {
+                //     let mut triangle_count = 0;
+                //     for batch in &forward_mesh_pass.multi_instanced_batches {
 
-                        // Bind materials
-                        let material = materials.get(&batch.material)
-                            .expect("Failed to get material during forward pass");
-                        forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
+                //         // Bind materials
+                //         let material = materials.get(&batch.material)
+                //             .expect("Failed to get material during forward pass");
+                //         forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
                     
-                        // Indirect draw
-                        forward_render_pass.multi_draw_indirect(
-                            &forward_mesh_pass.indirect_command_buffer, 
-                            (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
-                            batch.count as u32,
-                        );
-                        triangle_count += batch.triangle_count;
-                    }
-                    statistics.draw_count = forward_mesh_pass.multi_instanced_batches.len();
-                    statistics.triangle_count = triangle_count;
-                }
+                //         // Indirect draw
+                //         forward_render_pass.multi_draw_indirect(
+                //             &forward_mesh_pass.indirect_command_buffer, 
+                //             (std::mem::size_of::<GPUDrawIndirect>() * batch.first) as u64, 
+                //             batch.count as u32,
+                //         );
+                //         triangle_count += batch.triangle_count;
+                //     }
+                //     statistics.draw_count = forward_mesh_pass.multi_instanced_batches.len();
+                //     statistics.triangle_count = triangle_count;
+                // }
                 
                 // Classic draw
-                // {
-                //     self.statistics.triangle_count = 0;
-                //     let mut previous_material: MaterialHandle = Default::default();
-                //     for batch in &self.forward_mesh_pass.instanced_batches {
+                {
+                    statistics.triangle_count = 0;
+                    let mut previous_material: MaterialHandle = Default::default();
+                    for batch in &forward_mesh_pass.instanced_batches {
                         
-                //         // Check change in material
-                //         if batch.material != previous_material {
-                //             previous_material = batch.material;
-                //             let material = self.materials.get(&batch.material)
-                //                 .expect("Failed to get material during forward pass");
-                //             forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
-                //         }
+                        // Check change in material
+                        if batch.material != previous_material {
+                            previous_material = batch.material;
+                            let material = materials.get(&batch.material)
+                                .expect("Failed to get material during forward pass");
+                            forward_render_pass.set_bind_group(2, &material.bind_group, &[]);
+                        }
 
-                //         // Draw instanced
-                //         let descriptor = self.submeshes.get(&batch.submesh)
-                //             .expect("Failed to get submesh descriptor");
-                //         let vertex_start = descriptor.base_index;
-                //         let vertex_stop = vertex_start + descriptor.vertex_count;
-                //         let instance_start = batch.first_instance as u32;
-                //         let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
-                //         forward_render_pass.draw(
-                //             vertex_start..vertex_stop, 
-                //             instance_start..instance_stop,
-                //         );
+                        // Draw instanced
+                        let descriptor = submeshes.get(&batch.submesh)
+                            .expect("Failed to get submesh descriptor");
+                        let vertex_start = descriptor.base_index;
+                        let vertex_stop = vertex_start + descriptor.vertex_count;
+                        let instance_start = batch.first_instance as u32;
+                        let instance_stop = batch.first_instance as u32 + batch.instance_count as u32;
+                        forward_render_pass.draw(
+                            vertex_start..vertex_stop, 
+                            instance_start..instance_stop,
+                        );
 
-                //         self.statistics.triangle_count += batch.triangle_count;
-                //     }
-                //     self.statistics.draw_count = self.forward_mesh_pass.instanced_batches.len();
-                // }
+                        statistics.triangle_count += batch.triangle_count;
+                    }
+                    statistics.draw_count = forward_mesh_pass.instanced_batches.len();
+                }
             }
             
             current_viewport_index += 1;
