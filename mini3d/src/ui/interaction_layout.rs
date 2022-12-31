@@ -415,7 +415,6 @@ impl InteractionLayout {
         
         // Render profiles
         for (_, (_, profile)) in self.profiles.iter().enumerate() {
-
             // Display selection box or cursor
             // TODO: each profile have an associated color
             // TODO: two selection box on the same extent have special design

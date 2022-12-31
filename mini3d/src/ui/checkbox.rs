@@ -17,7 +17,7 @@ impl Checkbox {
 
     pub fn draw(&self, gfx: &mut Graphics) {
         gfx.draw_rect(IRect::new(self.position.x, self.position.y, 10, 10), Color::WHITE);
-        gfx.draw_line(self.position, self.position + IVec2::new(10, 10), Color::WHITE);
+        gfx.draw_line(self.position, self.position + IVec2::new(9, 9), Color::WHITE);
         gfx.draw_line(self.position + IVec2::new(9, 0), self.position + IVec2::new(0, 9), Color::WHITE);
     }
 }

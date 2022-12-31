@@ -7,7 +7,7 @@ use crate::{input::{CommonAxis, CommonAction}};
 pub struct OSProcess {
     scene: UID,
     navigation_layout: InteractionLayout,
-    ui: UI,
+    // ui: UI,
     control_profile: UID,
     layout_active: bool,
 }
@@ -352,10 +352,20 @@ impl OSProcess {
                 // ui.add_label(&format!("test{}", i), 30, UID::null(), Label::new((5, i * 10).into(), "0123456789012345678901234567890123456789", "default".into()))?;
             }
             ui.add_checkbox("checkbox", 50, UID::null(), Checkbox::new((50, 100).into(), true))?;
-            // let viewport = ui.viewport_mut("main_viewport".into())?;
-            // viewport.set_camera(Some(e));
             ui.add_viewport("main_viewport", 0, UID::null(), Viewport::new(IVec2::ZERO, self.scene, viewport))?;
             ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
+            ui.add_profile("main", InteractionInputs {
+                click: CommonAction::CLICK.into(),
+                up: CommonAction::UP.into(),
+                down: CommonAction::DOWN.into(),
+                left: CommonAction::LEFT.into(),
+                right: CommonAction::RIGHT.into(),
+                cursor_x: CommonAxis::CURSOR_X.into(), 
+                cursor_y: CommonAxis::CURSOR_Y.into(),
+                cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
+                cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
+                scroll: CommonAxis::SCROLL_MOTION.into(),
+            })?;
             world.spawn((
                 LifecycleComponent::alive(),
                 UIComponent::new(ui, UIRenderTarget::Screen { offset: IVec2::ZERO }),
@@ -433,23 +443,6 @@ impl Process for OSProcess {
         // Run profiler
         ctx.process.start("profiler", ProfilerProcess::new(UID::new(CommonAction::TOGGLE_PROFILER)))?;
 
-        // Setup UI
-        self.ui.add_profile("main", InteractionInputs {
-            click: CommonAction::CLICK.into(),
-            up: CommonAction::UP.into(),
-            down: CommonAction::DOWN.into(),
-            left: CommonAction::LEFT.into(),
-            right: CommonAction::RIGHT.into(),
-            cursor_x: CommonAxis::CURSOR_X.into(), 
-            cursor_y: CommonAxis::CURSOR_Y.into(),
-            cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
-            cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
-            scroll: CommonAxis::SCROLL_MOTION.into(),
-        })?;
-
-        // Create default viewport
-        
-
         Ok(())
     }
 
@@ -463,14 +456,12 @@ impl Process for OSProcess {
             self.layout_active = !self.layout_active;
             for (_, free_fly) in ctx.scene.world(self.scene)?.query_mut::<&mut FreeFlyComponent>() {
                 free_fly.active = !self.layout_active;
-            } 
+            }
         }
 
         // Toggle control layout
         if self.layout_active {
-            self.ui.update(ctx.input, ctx.time)?;
-            // let cb0 = self.ui.render(ctx.time);
-            // ctx.renderer.submit_command_buffer(cb0)?;
+
         }
 
         // Render center cross

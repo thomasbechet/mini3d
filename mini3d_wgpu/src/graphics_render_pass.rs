@@ -1,4 +1,4 @@
-use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color}, math::rect::IRect, anyhow::Result, glam::IVec2};
+use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color, rasterizer}, math::rect::IRect, anyhow::Result, glam::IVec2};
 
 use crate::context::WGPUContext;
 
@@ -49,6 +49,7 @@ pub(crate) enum GraphicsCommand {
     Viewport(ViewportBatch),
     Triangles(PrimitiveBatch),
     Lines(PrimitiveBatch),
+    Points(PrimitiveBatch),
     Scissor(IRect),
 }
 
@@ -190,6 +191,19 @@ impl GraphicsRenderPass {
             }));
         }
     }
+    fn add_points_primitive_command(&mut self, vertex_count: u32) {
+        let mut new_command_required = true;
+        if let Some(GraphicsCommand::Points(primitive)) = self.commands.last_mut() {
+            primitive.vertex_count += vertex_count;
+            new_command_required = false;
+        }
+        if new_command_required {
+            self.commands.push(GraphicsCommand::Points(PrimitiveBatch { 
+                vertex_start: self.primitive_transfer.len() as u32 - vertex_count,
+                vertex_count,
+            }));
+        }
+    }
     pub(crate) fn fill_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
         let color: [f32; 4] = color.into();
         let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
@@ -222,9 +236,15 @@ impl GraphicsRenderPass {
         let color: [f32; 4] = color.into();
         let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [x0.x, x0.y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [x1.x, x1.y], depth, color });
-        self.add_lines_primitive_command(2);
+        // self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [x0.x, x0.y], depth, color });
+        // self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [x1.x, x1.y], depth, color });
+        // self.add_lines_primitive_command(2);
+        let mut vertex_count = 0;
+        rasterizer::draw_line(x0, x1, |p| {
+            self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [p.x, p.y], depth, color });
+            vertex_count += 1;
+        });
+        self.add_points_primitive_command(vertex_count);
         Ok(())
     }
     pub(crate) fn draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<()> {

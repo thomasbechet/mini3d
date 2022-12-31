@@ -58,6 +58,7 @@ struct GraphicsPipelines {
     blit: wgpu::RenderPipeline,
     primitive_triangles: wgpu::RenderPipeline,
     primitive_lines: wgpu::RenderPipeline,
+    primitive_points: wgpu::RenderPipeline,
 }
 
 impl GraphicsPipelines {
@@ -212,7 +213,52 @@ impl GraphicsPipelines {
             },
             multiview: None,
         });
-        Self { blit: blit_pipeline, primitive_triangles: primitive_triangles_pipeline, primitive_lines: primitive_lines_pipeline }
+        let primitive_points_pipeline = context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("primitive_points_pipeline"),
+            layout: Some(primitive_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: primitive_shader,
+                entry_point: "vs_main",
+                buffers: &primitive_triangle_vertex_buffer_layout,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: primitive_shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: CANVAS_COLOR_FORMAT,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::PointList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Point,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::GreaterEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        });
+        Self { 
+            blit: blit_pipeline, 
+            primitive_triangles: primitive_triangles_pipeline, 
+            primitive_lines: primitive_lines_pipeline,
+            primitive_points: primitive_points_pipeline,
+        }
     }
 }
 
@@ -427,6 +473,11 @@ impl GraphicsRenderer {
                 },
                 GraphicsCommand::Lines(cmd) => {
                     render_pass.set_pipeline(&self.pipelines.primitive_lines);
+                    render_pass.set_vertex_buffer(0, canvas.render_pass.primitive_buffer.slice(..));
+                    render_pass.draw(cmd.vertex_start..(cmd.vertex_start + cmd.vertex_count), 0..1);
+                },
+                GraphicsCommand::Points(cmd) => {
+                    render_pass.set_pipeline(&self.pipelines.primitive_points);
                     render_pass.set_vertex_buffer(0, canvas.render_pass.primitive_buffer.slice(..));
                     render_pass.draw(cmd.vertex_start..(cmd.vertex_start + cmd.vertex_count), 0..1);
                 },

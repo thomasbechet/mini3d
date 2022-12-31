@@ -188,7 +188,7 @@ impl UI {
         Ok(())
     }
 
-    pub fn render(&self, gfx: &mut Graphics, offset: IVec2) {
+    pub fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
 
         // Compute extent
         let extent = IRect::new(offset.x, offset.y, self.resolution.x, self.resolution.y);
@@ -213,6 +213,9 @@ impl UI {
                 _ => {}
             }
         }
+
+        // Render interation layout
+        self.interaction_layout.render(gfx, time);
 
         // Reset scissor
         gfx.scissor(None);
@@ -245,7 +248,7 @@ impl UI {
     define_get_mut!(viewport, viewport_mut, Viewport);
 
     pub fn remove(&mut self, uid: UID) -> Result<()> {
-        let widget = self.widgets.remove(&uid).with_context(|| "Widget not found")?;
+        self.widgets.remove(&uid).with_context(|| "Widget not found")?;
         Ok(())
     }
 

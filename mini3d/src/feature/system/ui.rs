@@ -19,12 +19,12 @@ pub fn update_and_render(ctx: &mut SystemContext, world: &mut World) -> Result<(
             for render_target in &ui.render_targets {
                 match render_target {
                     UIRenderTarget::Screen { offset } => {
-                        ui.ui.render(ctx.renderer.graphics(), *offset);
+                        ui.ui.render(ctx.renderer.graphics(), *offset, ctx.time);
                     },
                     UIRenderTarget::Canvas { offset, canvas } => {
                         let mut entity = world.query_one::<&mut CanvasComponent>(*canvas).with_context(|| "Canvas entity not found")?;
                         let canvas = entity.get().unwrap();
-                        ui.ui.render(&mut canvas.graphics, *offset);
+                        ui.ui.render(&mut canvas.graphics, *offset, ctx.time);
                     },
                     UIRenderTarget::Texture { offset: _, texture: _ } => {},
                 }

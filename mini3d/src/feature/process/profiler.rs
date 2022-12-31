@@ -43,7 +43,7 @@ impl TimeGraph {
             let vy0 = ((self.records[current] / (2.0 / 60.0)) * height as f64) as u32;
             let x0 = base_x + current as i32;
             let y0 = SCREEN_HEIGHT as i32 - base_y - vy0 as i32;
-            gfx.draw_line((x0, y0).into(), (x0, y0 + 1).into(), Color::WHITE);
+            gfx.draw_line((x0, y0).into(), (x0, y0).into(), Color::WHITE);
             current = (current + 1) % self.records.len();
             if current == self.head {
                 break

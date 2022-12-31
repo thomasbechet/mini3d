@@ -43,7 +43,7 @@ fn vs_main(
     );
 
     // Apply offset and normalize
-    var position = (pos + size * offset) / vec2<f32>(global.resolution);
+    var position = (pos + 0.5 + size * offset) / vec2<f32>(global.resolution);
     position.y = 1.0 - position.y;
     let uv = (tex + size * offset) / vec2<f32>(textureDimensions(t_texture, 0));
 

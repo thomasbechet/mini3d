@@ -11,7 +11,7 @@ pub trait Plotable {
     fn plot(&mut self, p: IVec2);
 }
 
-pub fn draw_line(p: &mut impl Plotable, mut p0: IVec2, p1: IVec2) {
+pub fn draw_line(mut p0: IVec2, p1: IVec2, mut plot: impl FnMut(IVec2)) {
     let dx = p0.x.abs_diff(p1.x) as i32;
     let sx: i32 = if p0.x < p1.x { 1 } else { -1 };
     let dy = -(p0.y.abs_diff(p1.y) as i32);
@@ -19,7 +19,7 @@ pub fn draw_line(p: &mut impl Plotable, mut p0: IVec2, p1: IVec2) {
     let mut error = dx + dy;
 
     loop {
-        p.plot(p0);
+        plot(p0);
         if p0.x == p1.x && p0.y == p1.y {
             break;
         }
