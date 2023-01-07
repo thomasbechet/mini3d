@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScriptAsset};
 use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -102,7 +102,7 @@ fn main() {
     let script = std::fs::read_to_string("assets/inventory.rhai").expect("Failed to load.");
     events.asset.push(ImportAssetEvent::RhaiScript(AssetImportEntry {
         name: "inventory".to_string(), 
-        data: RhaiScript { source: script },
+        data: RhaiScriptAsset { source: script },
     }));
 
     // Enter loop

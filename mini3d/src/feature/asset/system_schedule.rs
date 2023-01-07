@@ -9,6 +9,6 @@ pub enum SystemScheduleType {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-pub struct SystemSchedule {
+pub struct SystemScheduleAsset {
     pub systems: Vec<SystemScheduleType>,
 }

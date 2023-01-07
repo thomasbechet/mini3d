@@ -9,7 +9,7 @@ pub enum TextureFormat {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Texture {
+pub struct TextureAsset {
     pub data: Vec<u8>,
     pub format: TextureFormat,
     pub width: u32,

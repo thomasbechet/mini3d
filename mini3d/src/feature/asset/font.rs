@@ -5,24 +5,24 @@ use serde::{Serialize, Deserialize};
 
 use crate::math::rect::IRect;
 
-use super::texture::{Texture, TextureFormat};
+use super::texture::{TextureAsset, TextureFormat};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Font {
+pub struct FontAsset {
     pub glyph_width: u8,
     pub glyph_height: u8,
     pub data: BitVec<u8, Msb0>,
     pub glyph_locations: HashMap<char, usize>,
 }
 
-impl Default for Font {
+impl Default for FontAsset {
     fn default() -> Self {
         let glyph_width = 8;
         let glyph_height = 8;
         let data = BitVec::from_slice(include_bytes!("../../../../assets/font.bin"));
         let glyph_locations: HashMap<_, _> = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê"
             .chars().enumerate().map(|(i, x)| (x, i * (glyph_height * glyph_width))).collect();
-        Font {
+        FontAsset {
             glyph_width: glyph_width as u8,
             glyph_height: glyph_height as u8,
             data,
@@ -32,16 +32,16 @@ impl Default for Font {
 }
 
 pub struct FontAtlas {
-    pub texture: Texture,
+    pub texture: TextureAsset,
     pub extents: HashMap<char, IRect>,
 }
 
 impl FontAtlas {
-    pub fn new(font: &Font) -> FontAtlas {
+    pub fn new(font: &FontAsset) -> FontAtlas {
         let glyph_count = font.glyph_locations.len();
         let width = font.glyph_width as u32 * glyph_count as u32;
         let height = font.glyph_height as u32;
-        let mut texture = Texture {
+        let mut texture = TextureAsset {
             data: vec![0x0; (width * height * 4) as usize],
             format: TextureFormat::RGBA,
             width,

@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_schedule::{SystemSchedule, SystemScheduleType}, texture::Texture}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::FontAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}, input_table::InputTableAsset, material::MaterialAsset, model::ModelAsset, mesh::MeshAsset, rhai_script::RhaiScriptAsset, system_schedule::{SystemScheduleAsset, SystemScheduleType}, texture::TextureAsset}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -19,117 +19,117 @@ impl OSProcess {
         let default_bundle = UID::new("default");
 
         // Register default font
-        ctx.asset.add("default", default_bundle, Font::default())?;
+        ctx.asset.add("default", default_bundle, FontAsset::default())?;
 
         // Register common inputs
-        ctx.asset.add(CommonAction::CLICK, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::CLICK, default_bundle, InputActionAsset {
             display_name: "Click".to_string(),
             description: "UI interaction layout (click).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAction::UP, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::UP, default_bundle, InputActionAsset {
             display_name: "Up".to_string(),
             description: "UI interaction layout (go up).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAction::LEFT, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::LEFT, default_bundle, InputActionAsset {
             display_name: "Left".to_string(),
             description: "UI interaction layout (go left).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAction::DOWN, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::DOWN, default_bundle, InputActionAsset {
             display_name: "Down".to_string(),
             description: "UI interaction layout (go down).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAction::RIGHT, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::RIGHT, default_bundle, InputActionAsset {
             display_name: "Right".to_string(),
             description: "UI interaction layout (go right).".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputActionAsset {
             display_name: "Change Control Mode".to_string(),
             description: "Switch between selection and cursor control mode.".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAction::TOGGLE_PROFILER, default_bundle, InputAction {
+        ctx.asset.add(CommonAction::TOGGLE_PROFILER, default_bundle, InputActionAsset {
             display_name: "Toggle Profiler".to_string(),
             description: "Show or hide the profiler.".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add(CommonAxis::CURSOR_X, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_X, default_bundle, InputAxisAsset {
             display_name: "Cursor X".to_string(),
             description: "Horizontal position of the mouse cursor relative to the screen.".to_string(),
             range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 },
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::CURSOR_Y, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_Y, default_bundle, InputAxisAsset {
             display_name: "Cursor Y".to_string(),
             description: "Vertical position of the mouse cursor relative to the screen.".to_string(),
             range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 },
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::SCROLL_MOTION, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::SCROLL_MOTION, default_bundle, InputAxisAsset {
             display_name: "Scroll Motion".to_string(),
             description: "Delta scrolling value.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::CURSOR_MOTION_X, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_MOTION_X, default_bundle, InputAxisAsset {
             display_name: "Cursor Motion X".to_string(),
             description: "Delta mouvement of the mouse on the horizontal axis.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::CURSOR_MOTION_Y, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::CURSOR_MOTION_Y, default_bundle, InputAxisAsset {
             display_name: "Cursor Motion Y".to_string(),
             description: "Delta mouvement of the mouse on the vertical axis.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::VIEW_X, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::VIEW_X, default_bundle, InputAxisAsset {
             display_name: "View X".to_string(),
             description: "View horizontal delta movement.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::VIEW_Y, default_bundle, InputAxis {
+        ctx.asset.add(CommonAxis::VIEW_Y, default_bundle, InputAxisAsset {
             display_name: "View Y".to_string(),
             description: "View vertical delta movement.".to_string(),
             range: InputAxisRange::Infinite,
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::MOVE_FORWARD, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_FORWARD, default_bundle, InputAxisAsset { 
             display_name: "Move Forward".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::MOVE_BACKWARD, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_BACKWARD, default_bundle, InputAxisAsset { 
             display_name: "Move Backward".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::MOVE_LEFT, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_LEFT, default_bundle, InputAxisAsset { 
             display_name: "Move Left".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::MOVE_RIGHT, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_RIGHT, default_bundle, InputAxisAsset { 
             display_name: "Move Right".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::MOVE_UP, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_UP, default_bundle, InputAxisAsset { 
             display_name: "Move Up".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
             default_value: 0.0,
         })?;
-        ctx.asset.add(CommonAxis::MOVE_DOWN, default_bundle, InputAxis { 
+        ctx.asset.add(CommonAxis::MOVE_DOWN, default_bundle, InputAxisAsset { 
             display_name: "Move Down".to_string(), 
             description: "".to_string(), 
             range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
@@ -137,34 +137,34 @@ impl OSProcess {
         })?;
                 
         // Register default inputs
-        ctx.asset.add("roll_left", default_bundle, InputAction { 
+        ctx.asset.add("roll_left", default_bundle, InputActionAsset { 
             display_name: "Roll Left".to_string(), 
             description: "".to_string(),
             default_pressed: false,
         })?;
-        ctx.asset.add("roll_right", default_bundle, InputAction { 
+        ctx.asset.add("roll_right", default_bundle, InputActionAsset { 
             display_name: "Roll Right".to_string(), 
             description: "".to_string(), 
             default_pressed: false,
         })?;
-        ctx.asset.add("switch_mode", default_bundle, InputAction { 
+        ctx.asset.add("switch_mode", default_bundle, InputActionAsset { 
             display_name: "Switch Mode".to_string(), 
             description: "".to_string(), 
             default_pressed: false,
         })?;
-        ctx.asset.add("move_fast", default_bundle, InputAction { 
+        ctx.asset.add("move_fast", default_bundle, InputActionAsset { 
             display_name: "Move Fast".to_string(), 
             description: "".to_string(), 
             default_pressed: false,
         })?;
-        ctx.asset.add("move_slow", default_bundle, InputAction { 
+        ctx.asset.add("move_slow", default_bundle, InputActionAsset { 
             display_name: "Move Slow".to_string(), 
             description: "".to_string(), 
             default_pressed: false,
         })?;
 
         // Register input tables
-        ctx.asset.add::<InputTable>("common", default_bundle, InputTable { 
+        ctx.asset.add::<InputTableAsset>("common", default_bundle, InputTableAsset { 
             display_name: "Common Inputs".to_string(),
             description: "".to_string(), 
             actions: Vec::from([
@@ -192,7 +192,7 @@ impl OSProcess {
                 CommonAxis::MOVE_DOWN.into(),
             ]),
         })?;
-        ctx.asset.add::<InputTable>("default", default_bundle, InputTable {
+        ctx.asset.add::<InputTableAsset>("default", default_bundle, InputTableAsset {
             display_name: "Default Inputs".to_string(),
             description: "".to_string(),
             actions: Vec::from([
@@ -206,17 +206,17 @@ impl OSProcess {
         })?;
 
         // Non default assets
-        ctx.asset.add::<Material>("alfred", default_bundle, Material { 
+        ctx.asset.add::<MaterialAsset>("alfred", default_bundle, MaterialAsset { 
             diffuse: "alfred".into(),
         })?;
-        ctx.asset.add::<Material>("car", default_bundle, Material {
+        ctx.asset.add::<MaterialAsset>("car", default_bundle, MaterialAsset {
             diffuse: "car".into(),
         })?;
-        ctx.asset.add::<Model>("car", default_bundle, Model { 
+        ctx.asset.add::<ModelAsset>("car", default_bundle, ModelAsset { 
             mesh: "car".into(),
             materials: Vec::from(["car".into()])
         })?;
-        ctx.asset.add::<Model>("alfred", default_bundle, Model { 
+        ctx.asset.add::<ModelAsset>("alfred", default_bundle, ModelAsset { 
             mesh: "alfred".into(), 
             materials: Vec::from([
                 "alfred".into(),
@@ -229,26 +229,26 @@ impl OSProcess {
         for import in &ctx.events.asset {
             match import {
                 mini3d::event::asset::ImportAssetEvent::Material(material) => {
-                    ctx.asset.add::<Material>(&material.name, default_bundle, material.data.clone())?;
+                    ctx.asset.add::<MaterialAsset>(&material.name, default_bundle, material.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::Mesh(mesh) => {
-                    ctx.asset.add::<Mesh>(&mesh.name, default_bundle, mesh.data.clone())?;
+                    ctx.asset.add::<MeshAsset>(&mesh.name, default_bundle, mesh.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::Model(model) => {
-                    ctx.asset.add::<Model>(&model.name, default_bundle, model.data.clone())?;
+                    ctx.asset.add::<ModelAsset>(&model.name, default_bundle, model.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::RhaiScript(rhai_script) => {
-                    ctx.asset.add::<RhaiScript>(&rhai_script.name, default_bundle, rhai_script.data.clone())?;
+                    ctx.asset.add::<RhaiScriptAsset>(&rhai_script.name, default_bundle, rhai_script.data.clone())?;
                 },
                 mini3d::event::asset::ImportAssetEvent::Texture(texture) => {
-                    ctx.asset.add::<Texture>(&texture.name, default_bundle, texture.data.clone())?;
+                    ctx.asset.add::<TextureAsset>(&texture.name, default_bundle, texture.data.clone())?;
                 },
                 _ => {},
             }
         }
 
         // Scheduler
-        ctx.asset.add("test_scheduler", default_bundle, SystemSchedule {
+        ctx.asset.add("test_scheduler", default_bundle, SystemScheduleAsset {
             systems: Vec::from([
                 SystemScheduleType::Builtin("rotator".into()),
                 SystemScheduleType::Builtin("rhai_update_scripts".into()),
@@ -270,7 +270,8 @@ impl OSProcess {
             TransformComponent {
                 translation: Vec3::new(0.0, -7.0, 0.0),    
                 rotation: Quat::IDENTITY,    
-                scale: Vec3::new(0.5, 0.5, 0.5),    
+                scale: Vec3::new(0.5, 0.5, 0.5),
+                dirty: true, 
             },
             RotatorComponent { speed: 90.0 },
             ModelComponent::new("alfred".into()),
@@ -437,7 +438,7 @@ impl Process for OSProcess {
         }
 
         // Configure schedule
-        let schedule = ctx.asset.get::<SystemSchedule>("test_scheduler".into()).unwrap();
+        let schedule = ctx.asset.get::<SystemScheduleAsset>("test_scheduler".into()).unwrap();
         ctx.scene.schedule(self.scene, schedule)?;
 
         // Run profiler

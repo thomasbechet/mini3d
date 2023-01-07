@@ -1,4 +1,5 @@
 use glam::IVec2;
+use hecs::Entity;
 use serde::{Serialize, Deserialize};
 
 use crate::{renderer::graphics::Graphics, uid::UID};
@@ -7,12 +8,12 @@ use crate::{renderer::graphics::Graphics, uid::UID};
 pub struct Viewport {
     pub position: IVec2,
     pub scene: UID,
-    pub viewport: hecs::Entity,
+    pub viewport: Entity,
 }
 
 impl Viewport {
 
-    pub fn new(position: IVec2, scene: UID, viewport: hecs::Entity) -> Self {
+    pub fn new(position: IVec2, scene: UID, viewport: Entity) -> Self {
         Self { position, scene, viewport }
     }
 

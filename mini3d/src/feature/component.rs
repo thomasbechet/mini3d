@@ -1,6 +1,7 @@
 pub mod camera;
 pub mod canvas;
 pub mod free_fly;
+pub mod hierarchy;
 pub mod lifecycle;
 pub mod model;
 pub mod ui;

@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use crate::{uid::UID, math::rect::IRect};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Tileset {
+pub struct TilesetAsset {
     pub texture: UID,
     pub offset: IVec2,
     pub tile_width: u32,
@@ -14,7 +14,7 @@ pub struct Tileset {
     pub grid_height: u32,
 }
 
-impl Tileset {
+impl TilesetAsset {
     
     pub fn extent(&self, tile: u32) -> Result<IRect> {
         if tile >= self.grid_width * self.grid_height {

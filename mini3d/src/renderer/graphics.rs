@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{Result, Context};
 use glam::IVec2;
+use hecs::Entity;
 use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, math::rect::IRect, asset::AssetManager};
@@ -26,7 +27,7 @@ enum Command {
     BlitViewport {
         position: IVec2,
         scene: UID,
-        viewport: hecs::Entity,
+        viewport: Entity,
     },
     DrawLine { x0: IVec2, x1: IVec2, color: Color },
     DrawVLine { x: i32, y0: i32, y1: i32, color: Color },
@@ -55,7 +56,7 @@ impl Graphics {
         clear_color: Color,
         resources: &mut RendererResourceManager,
         asset: &AssetManager,
-        viewports: &HashMap<hecs::Entity, ViewportHandle>,
+        viewports: &HashMap<Entity, ViewportHandle>,
         backend: &mut impl RendererBackend,
     ) -> Result<()> {
         if let Some(canvas) = canvas {
@@ -117,7 +118,7 @@ impl Graphics {
         self.commands.push(Command::BlitTexture { position, extent, texture, filtering, alpha_threshold });
     }
 
-    pub fn blit_viewport(&mut self, scene: UID, viewport: hecs::Entity, position: IVec2) {
+    pub fn blit_viewport(&mut self, scene: UID, viewport: Entity, position: IVec2) {
         self.commands.push(Command::BlitViewport { position, scene, viewport });
     }
 

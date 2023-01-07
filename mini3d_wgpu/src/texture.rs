@@ -11,7 +11,7 @@ pub(crate) struct Texture {
 impl Texture {
     pub(crate) fn from_asset(
         context: &WGPUContext,
-        texture: &asset::texture::Texture,
+        texture: &asset::texture::TextureAsset,
         usage: wgpu::TextureUsages,
         label: Option<&str>,
     ) -> Self {

@@ -6,6 +6,7 @@ pub struct TransformComponent {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: Vec3,
+    pub dirty: bool,
 }
 
 impl TransformComponent {
@@ -15,6 +16,7 @@ impl TransformComponent {
             translation,
             rotation: Quat::default(),
             scale: Vec3::ONE,
+            dirty: true,
         }
     }
 
@@ -45,4 +47,11 @@ impl TransformComponent {
     pub fn right(&self) -> Vec3 {
         self.rotation * Vec3::NEG_X
     }
+}
+
+pub struct LocalToWorldComponent {
+    pub matrix: Mat4,
+}
+pub struct LocalToParentComponent {
+    pub matrix: Mat4,
 }

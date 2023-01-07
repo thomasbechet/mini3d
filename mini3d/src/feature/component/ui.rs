@@ -1,4 +1,5 @@
 use glam::IVec2;
+use hecs::Entity;
 use serde::{Serialize, Deserialize};
 
 use crate::ui::UI;
@@ -6,8 +7,8 @@ use crate::ui::UI;
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {
     Screen { offset: IVec2 },
-    Canvas { offset: IVec2, canvas: hecs::Entity },
-    Texture { offset: IVec2, texture: hecs::Entity },
+    Canvas { offset: IVec2, canvas: Entity },
+    Texture { offset: IVec2, texture: Entity },
 }
 
 #[derive(Serialize, Deserialize)]

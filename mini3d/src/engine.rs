@@ -36,20 +36,20 @@ impl Engine {
     fn register_feature(&mut self) -> Result<()> {
 
         // Assets
-        self.asset.register::<asset::font::Font>("font")?;
-        self.asset.register::<asset::input_action::InputAction>("input_action")?;
-        self.asset.register::<asset::input_axis::InputAxis>("input_axis")?;
-        self.asset.register::<asset::input_table::InputTable>("input_table")?;
-        self.asset.register::<asset::material::Material>("material")?;
-        self.asset.register::<asset::mesh::Mesh>("mesh")?;
-        self.asset.register::<asset::model::Model>("model")?;
-        self.asset.register::<asset::rhai_script::RhaiScript>("rhai_script")?;
-        self.asset.register::<asset::scene::Scene>("scene")?;
-        self.asset.register::<asset::system_schedule::SystemSchedule>("system_schedule")?;
-        self.asset.register::<asset::texture::Texture>("texture")?;
-        self.asset.register::<asset::tilemap::Tilemap>("tilemap")?;
-        self.asset.register::<asset::tileset::Tileset>("tileset")?;
-        self.asset.register::<asset::ui::UI>("ui")?;
+        self.asset.register::<asset::font::FontAsset>("font")?;
+        self.asset.register::<asset::input_action::InputActionAsset>("input_action")?;
+        self.asset.register::<asset::input_axis::InputAxisAsset>("input_axis")?;
+        self.asset.register::<asset::input_table::InputTableAsset>("input_table")?;
+        self.asset.register::<asset::material::MaterialAsset>("material")?;
+        self.asset.register::<asset::mesh::MeshAsset>("mesh")?;
+        self.asset.register::<asset::model::ModelAsset>("model")?;
+        self.asset.register::<asset::rhai_script::RhaiScriptAsset>("rhai_script")?;
+        self.asset.register::<asset::scene::SceneAsset>("scene")?;
+        self.asset.register::<asset::system_schedule::SystemScheduleAsset>("system_schedule")?;
+        self.asset.register::<asset::texture::TextureAsset>("texture")?;
+        self.asset.register::<asset::tilemap::TilemapAsset>("tilemap")?;
+        self.asset.register::<asset::tileset::TilesetAsset>("tileset")?;
+        self.asset.register::<asset::ui::UIAsset>("ui")?;
 
         // Components
         self.scene.register_component::<component::camera::CameraComponent>("camera")?;

@@ -1,6 +1,6 @@
 use glam::IVec2;
 
-use crate::{feature::asset::font::Font, math::rect::IRect};
+use crate::{feature::asset::font::FontAsset, math::rect::IRect};
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer
@@ -53,7 +53,7 @@ pub fn draw_hline(p: &mut impl Plotable, y: i32, x0: i32, x1: i32) {
     }
 }
 
-pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
+pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &FontAsset) {
     for (ic, c) in text.chars().enumerate() {
         if let Some(glyph) = font.glyph_locations.get(&c) {
             let start = *glyph;

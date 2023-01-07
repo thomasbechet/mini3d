@@ -1,7 +1,7 @@
 use anyhow::Result;
 use glam::{Mat4, Vec3, IVec2, UVec2};
 
-use crate::{uid::UID, feature::asset::{texture::Texture, mesh::Mesh}, math::rect::IRect};
+use crate::{uid::UID, feature::asset::{texture::TextureAsset, mesh::MeshAsset}, math::rect::IRect};
 
 use super::{RendererStatistics, color::Color};
 
@@ -48,10 +48,10 @@ pub trait RendererBackend {
 
     /// Assets API
     
-    fn mesh_add(&mut self, mesh: &Mesh) -> Result<MeshHandle> { Ok(0.into()) }
+    fn mesh_add(&mut self, mesh: &MeshAsset) -> Result<MeshHandle> { Ok(0.into()) }
     fn mesh_remove(&mut self, handle: MeshHandle) -> Result<()> { Ok(()) }
 
-    fn texture_add(&mut self, texture: &Texture) -> Result<TextureHandle> { Ok(0.into()) }
+    fn texture_add(&mut self, texture: &TextureAsset) -> Result<TextureHandle> { Ok(0.into()) }
     fn texture_remove(&mut self, handle: TextureHandle) -> Result<()> { Ok(()) }
 
     fn material_add(&mut self, desc: BackendMaterialDescriptor) -> Result<MaterialHandle> { Ok(0.into()) }

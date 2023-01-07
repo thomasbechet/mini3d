@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
 use serde::{Serialize, Deserialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemSchedule}, signal::SignalManager, renderer::RendererManager};
+use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemScheduleAsset}, signal::SignalManager, renderer::RendererManager};
 
 pub struct SystemContext<'a> {
     pub asset: &'a mut AssetManager,
@@ -267,7 +267,7 @@ impl SceneManager {
         Ok(&mut self.instances.get_mut(&uid).with_context(|| "ECS not found")?.world)
     }
 
-    pub fn schedule(&mut self, uid: UID, schedule: &SystemSchedule) -> Result<()> {
+    pub fn schedule(&mut self, uid: UID, schedule: &SystemScheduleAsset) -> Result<()> {
         let instance = self.instances.get_mut(&uid).with_context(|| "ECS not found")?;
         instance.scheduler.systems = schedule.systems.clone();
         Ok(())
