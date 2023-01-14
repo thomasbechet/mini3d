@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::FontAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}, input_table::InputTableAsset, material::MaterialAsset, model::ModelAsset, mesh::MeshAsset, rhai_script::RhaiScriptAsset, system_schedule::{SystemScheduleAsset, SystemScheduleType}, texture::TextureAsset}, component::{lifecycle::LifecycleComponent, transform::TransformComponent, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::FontAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}, input_table::InputTableAsset, material::MaterialAsset, model::ModelAsset, mesh::MeshAsset, rhai_script::RhaiScriptAsset, system_schedule::{SystemScheduleAsset, SystemScheduleType}, texture::TextureAsset}, component::{lifecycle::LifecycleComponent, transform::{TransformComponent, LocalToWorldComponent}, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent, hierarchy::HierarchyComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -252,7 +252,9 @@ impl OSProcess {
             systems: Vec::from([
                 SystemScheduleType::Builtin("rotator".into()),
                 SystemScheduleType::Builtin("rhai_update_scripts".into()),
-                SystemScheduleType::Builtin("ui_update_and_render".into()),
+                SystemScheduleType::Builtin("transform_propagate".into()),
+                SystemScheduleType::Builtin("ui_update".into()),
+                SystemScheduleType::Builtin("ui_render".into()),
                 SystemScheduleType::Builtin("renderer".into()),
                 SystemScheduleType::Builtin("despawn_entities".into()),
                 SystemScheduleType::Builtin("free_fly".into()),
@@ -271,14 +273,15 @@ impl OSProcess {
                 translation: Vec3::new(0.0, -7.0, 0.0),    
                 rotation: Quat::IDENTITY,    
                 scale: Vec3::new(0.5, 0.5, 0.5),
-                dirty: true, 
             },
+            LocalToWorldComponent::default(),
             RotatorComponent { speed: 90.0 },
             ModelComponent::new("alfred".into()),
         ));
         world.spawn((
             LifecycleComponent::alive(),
             TransformComponent::from_translation(Vec3::new(0.0, -7.0, 9.0)),
+            LocalToWorldComponent::default(),
             ModelComponent::new("alfred".into()),
         ));
         for i in 0..100 {
@@ -287,6 +290,7 @@ impl OSProcess {
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
                 )),
+                LocalToWorldComponent::default(),
                 ModelComponent::new("car".into()),
                 RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
@@ -295,6 +299,7 @@ impl OSProcess {
                 TransformComponent::from_translation(
                     Vec3::new(((i / 10) * 5) as f32, 10.0,  -((i % 10) * 8) as f32
                 )),
+                LocalToWorldComponent::default(),
                 ModelComponent::new("alfred".into()),
                 RotatorComponent { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
             ));
@@ -302,12 +307,14 @@ impl OSProcess {
         world.spawn((
             LifecycleComponent::alive(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, 4.0)),
+            LocalToWorldComponent::default(),
             ModelComponent::new("car".into()),
             RotatorComponent { speed: 30.0 }
         ));
         let e = world.spawn((
             LifecycleComponent::alive(),
             TransformComponent::from_translation(Vec3::new(0.0, 0.0, -10.0)),
+            LocalToWorldComponent::default(),
             FreeFlyComponent {
                 active: true,
                 switch_mode: "switch_mode".into(),
@@ -328,24 +335,33 @@ impl OSProcess {
                 pitch: 0.0,
             },
             ModelComponent::new("car".into()),
-            CameraComponent::default(),
             ScriptStorageComponent::default(),
             RhaiScriptsComponent::default(),
+            HierarchyComponent::default(),
         ));
-        let cam2 = world.spawn((
+        let cam = world.spawn((
             LifecycleComponent::alive(),
-            TransformComponent::from_translation(Vec3::new(10.0, 30.0, -10.0)),
+            TransformComponent::from_translation(Vec3::new(4.0, -1.0, 0.0)),
+            LocalToWorldComponent::default(),
             CameraComponent::default(),
+            HierarchyComponent::default(),
         ));
+        HierarchyComponent::attach(e, cam, world)?;
+        // let cam2 = world.spawn((
+        //     LifecycleComponent::alive(),
+        //     TransformComponent::from_translation(Vec3::new(10.0, 30.0, -10.0)),
+        //     LocalToWorldComponent::default(),
+        //     CameraComponent::default(),
+        // ));
                 
         world.get::<&mut RhaiScriptsComponent>(e).unwrap().add("inventory".into()).unwrap();
-        
+
         let viewport = world.spawn((
-            ViewportComponent::new(SCREEN_RESOLUTION, Some(e)),
+            ViewportComponent::new(SCREEN_RESOLUTION, Some(cam)),
         ));
-        let viewport2 = world.spawn((
-            ViewportComponent::new((200, 50).into(), Some(cam2)),
-        ));
+        // let viewport2 = world.spawn((
+        //     ViewportComponent::new((200, 50).into(), Some(cam2)),
+        // ));
 
         {
             let mut ui = UI::default();
@@ -354,7 +370,7 @@ impl OSProcess {
             }
             ui.add_checkbox("checkbox", 50, UID::null(), Checkbox::new((50, 100).into(), true))?;
             ui.add_viewport("main_viewport", 0, UID::null(), Viewport::new(IVec2::ZERO, self.scene, viewport))?;
-            ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
+            // ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
             ui.add_profile("main", InteractionInputs {
                 click: CommonAction::CLICK.into(),
                 up: CommonAction::UP.into(),

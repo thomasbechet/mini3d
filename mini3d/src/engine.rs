@@ -60,6 +60,8 @@ impl Engine {
         self.scene.register_component::<component::rotator::RotatorComponent>("rotator")?;
         self.scene.register_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
         self.scene.register_component::<component::transform::TransformComponent>("transform")?;
+        self.scene.register_component::<component::transform::LocalToWorldComponent>("local_to_world")?;
+        self.scene.register_component::<component::hierarchy::HierarchyComponent>("hierarchy")?;
         self.scene.register_component::<component::ui::UIComponent>("ui")?;
         self.scene.register_component::<component::viewport::ViewportComponent>("viewport")?;
         self.scene.register_component::<component::canvas::CanvasComponent>("canvas")?;
@@ -73,7 +75,9 @@ impl Engine {
         self.scene.register_system("renderer", system::renderer::despawn_renderer_entities)?;
         self.scene.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
         self.scene.register_system("rotator", system::rotator::run)?;
-        self.scene.register_system("ui_update_and_render", system::ui::update_and_render)?;
+        self.scene.register_system("transform_propagate", system::transform::propagate)?;
+        self.scene.register_system("ui_update", system::ui::update)?;
+        self.scene.register_system("ui_render", system::ui::render)?;
 
         // Signals
         self.signal.register::<signal::command::CommandSignal>("command")?;

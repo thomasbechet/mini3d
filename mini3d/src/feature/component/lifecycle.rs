@@ -6,7 +6,12 @@ pub struct LifecycleComponent {
 }
 
 impl LifecycleComponent {
+    
     pub fn alive() -> Self {
         Self { alive: true }
+    }
+
+    pub fn dead() -> Self {
+        Self { alive: false }
     }
 }

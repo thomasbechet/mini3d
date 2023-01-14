@@ -6,7 +6,7 @@ use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextE
 use mini3d_os::process::os::OSProcess;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
-use utils::compute_fixed_viewport;
+use utils::{compute_fixed_viewport, ViewportMode};
 use window::Window;
 use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, DeviceEvent, WindowEvent, ElementState, VirtualKeyCode, MouseButton, MouseScrollDelta}};
 
@@ -72,6 +72,7 @@ fn main() {
     
     // Set initial display
     let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
+    let viewport_mode = ViewportMode::FixedBestFit;
 
     // Save state
     let mut save_state = false;
@@ -204,7 +205,7 @@ fn main() {
                         WindowEvent::CursorMoved { device_id: _, position, .. } => {
                             if window.is_focus() {
                                 let position = Vec2::new(position.x as f32, position.y as f32);
-                                let viewport = compute_fixed_viewport(gui.central_viewport());
+                                let viewport = compute_fixed_viewport(gui.central_viewport(), viewport_mode);
                                 let relative_position = position - Vec2::new(viewport.x, viewport.y);
                                 let final_position = (relative_position / Vec2::new(viewport.z, viewport.w)) * SCREEN_RESOLUTION.as_vec2();
                                 mapper.dispatch_mouse_cursor((final_position.x, final_position.y), &mut events);
@@ -363,7 +364,7 @@ fn main() {
                 }
                 
                 // Invoke WGPU Renderer
-                let viewport = compute_fixed_viewport(gui.central_viewport());
+                let viewport = compute_fixed_viewport(gui.central_viewport(), viewport_mode);
                 renderer.render(viewport, |device, queue, encoder, output| {
                     gui.render(&window.handle, device, queue, encoder, output);
                 }).expect("Failed to render");

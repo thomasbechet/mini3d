@@ -291,21 +291,10 @@ impl WGPURenderer {
                 depth_stencil_attachment: None,
             });
 
-            // Setup the scissor rect
-            blit_canvas_render_pass.set_scissor_rect(
-                engine_viewport.x as u32,
-                engine_viewport.y as u32,
-                engine_viewport.z as u32,
-                engine_viewport.w as u32,
-            );
+            // Setup viewport
+            blit_canvas_render_pass.set_viewport(engine_viewport.x, engine_viewport.y, engine_viewport.z, engine_viewport.w, 0.0, 1.0);
 
-            let canvas = self.canvases.get(&self.screen_canvas).unwrap();
-
-            // Compute viewport
-            let w = (canvas.extent.width as f32 / SCREEN_WIDTH as f32) * engine_viewport.z;
-            let h = (canvas.extent.height as f32 / SCREEN_HEIGHT as f32) * engine_viewport.w;
-            blit_canvas_render_pass.set_viewport(engine_viewport.x, engine_viewport.y, w, h, 0.0, 1.0);
-        
+            // Blit canvas
             blit_canvas_render_pass.set_pipeline(&self.blit_canvas_pipeline);
             blit_canvas_render_pass.set_bind_group(0, &self.screen_canvas_blit_bind_group, &[]);
             blit_canvas_render_pass.draw(0..3, 0..1);

@@ -5,7 +5,7 @@ use glam::{UVec2, uvec2};
 use hecs::Entity;
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::TransformComponent, camera::CameraComponent, model::ModelComponent, viewport::ViewportComponent, canvas::CanvasComponent}, asset::{model::ModelAsset, material::MaterialAsset, mesh::MeshAsset, texture::TextureAsset, font::{FontAsset, FontAtlas}}}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::LocalToWorldComponent, camera::CameraComponent, model::ModelComponent, viewport::ViewportComponent, canvas::CanvasComponent}, asset::{model::ModelAsset, material::MaterialAsset, mesh::MeshAsset, texture::TextureAsset, font::{FontAsset, FontAtlas}}}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
 
@@ -237,13 +237,13 @@ impl RendererManager {
         for world in scene.iter_world() {
 
             // Update cameras
-            for (entity, (c, t)) in world.query_mut::<(&mut CameraComponent, &TransformComponent)>() {
+            for (entity, (c, t)) in world.query_mut::<(&mut CameraComponent, &LocalToWorldComponent)>() {
                 if c.handle.is_none() {
                     let handle = backend.scene_camera_add()?;
                     self.cameras.insert(entity, handle);
                     c.handle = Some(handle);
                 }
-                backend.scene_camera_update(c.handle.unwrap(), t.translation, t.forward(), t.up(), c.fov)?;
+                backend.scene_camera_update(c.handle.unwrap(), t.translation(), t.forward(), t.up(), c.fov)?;
             }
 
             // Update viewports
@@ -262,7 +262,7 @@ impl RendererManager {
             }
             
             // Update models
-            for (_, (m, t)) in world.query_mut::<(&mut ModelComponent, &TransformComponent)>() {
+            for (_, (m, t)) in world.query_mut::<(&mut ModelComponent, &LocalToWorldComponent)>() {
                 if m.handle.is_none() {
                     let model = asset.get::<ModelAsset>(m.model)?;
                     let mesh_handle = self.resources.request_mesh(&model.mesh, backend, asset)?.handle;
@@ -273,16 +273,16 @@ impl RendererManager {
                     }
                     m.handle = Some(handle);
                 }
-                backend.scene_model_transfer_matrix(m.handle.unwrap(), t.matrix())?;
+                backend.scene_model_transfer_matrix(m.handle.unwrap(), t.matrix)?;
             }
 
             // Update Scene Canvas
-            for (_, (c, t)) in world.query_mut::<(&mut CanvasComponent, &TransformComponent)>() {
+            for (_, (c, t)) in world.query_mut::<(&mut CanvasComponent, &LocalToWorldComponent)>() {
 
                 if c.handle.is_none() {
                     c.handle = Some(backend.scene_canvas_add(c.resolution)?);
                 }
-                backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix())?;        
+                backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix)?;        
             }
 
             // Render main screen

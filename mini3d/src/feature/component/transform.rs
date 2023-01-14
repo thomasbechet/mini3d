@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec3, Quat};
+use glam::{Mat4, Vec3, Quat, Vec4};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
@@ -6,7 +6,6 @@ pub struct TransformComponent {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: Vec3,
-    pub dirty: bool,
 }
 
 impl TransformComponent {
@@ -16,7 +15,6 @@ impl TransformComponent {
             translation,
             rotation: Quat::default(),
             scale: Vec3::ONE,
-            dirty: true,
         }
     }
 
@@ -49,9 +47,24 @@ impl TransformComponent {
     }
 }
 
+#[derive(Default, Serialize, Deserialize)]
 pub struct LocalToWorldComponent {
     pub matrix: Mat4,
+    #[serde(skip)]
+    pub(crate) dirty: bool,
 }
-pub struct LocalToParentComponent {
-    pub matrix: Mat4,
+
+impl LocalToWorldComponent {
+
+    pub fn translation(&self) -> Vec3 {
+        self.matrix.w_axis.truncate()
+    }
+
+    pub fn forward(&self) -> Vec3 {
+        (self.matrix * Vec4::Z).truncate()
+    }
+
+    pub fn up(&self) -> Vec3 {
+        (self.matrix * Vec4::Y).truncate()
+    }
 }

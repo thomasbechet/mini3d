@@ -3,17 +3,17 @@ use hecs::World;
 
 use crate::{scene::SystemContext, feature::component::{ui::{UIComponent, UIRenderTarget}, canvas::CanvasComponent}};
 
-pub fn update_and_render(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
-    
-    // Update UI
+pub fn update(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
     for (_, ui) in world.query_mut::<&mut UIComponent>() {
         if ui.active {
             ui.ui.update(ctx.input, ctx.time)?;
         }
         
     }
+    Ok(())
+}
 
-    // Render UI
+pub fn render(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
     for (_, ui) in world.query::<&UIComponent>().iter() {
         if ui.visible {
             for render_target in &ui.render_targets {
@@ -31,6 +31,5 @@ pub fn update_and_render(ctx: &mut SystemContext, world: &mut World) -> Result<(
             }
         }   
     }
-
     Ok(())
 }
