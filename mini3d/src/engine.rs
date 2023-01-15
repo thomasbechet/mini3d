@@ -5,6 +5,7 @@ use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::AssetManager;
 use crate::feature::{asset, component, system, signal, process};
+use crate::physics::PhysicsManager;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
 use crate::scene::SceneManager;
@@ -27,6 +28,7 @@ pub struct Engine {
     pub scene: SceneManager,
     pub signal: SignalManager,
     pub renderer: RendererManager,
+    pub physics: PhysicsManager,
     accumulator: f64,
     time: f64,
 }
@@ -57,6 +59,7 @@ impl Engine {
         self.scene.register_component::<component::lifecycle::LifecycleComponent>("lifecycle")?;
         self.scene.register_component::<component::model::ModelComponent>("model")?;
         self.scene.register_component::<component::rhai_scripts::RhaiScriptsComponent>("rhai_scripts")?;
+        self.scene.register_component::<component::rigid_body::RigidBodyComponent>("rigid_body")?;
         self.scene.register_component::<component::rotator::RotatorComponent>("rotator")?;
         self.scene.register_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
         self.scene.register_component::<component::transform::TransformComponent>("transform")?;
@@ -65,9 +68,6 @@ impl Engine {
         self.scene.register_component::<component::ui::UIComponent>("ui")?;
         self.scene.register_component::<component::viewport::ViewportComponent>("viewport")?;
         self.scene.register_component::<component::canvas::CanvasComponent>("canvas")?;
-
-        // Processes
-        self.process.register::<process::profiler::ProfilerProcess>("profiler")?;
 
         // Systems
         self.scene.register_system("despawn_entities", system::despawn::run)?;
@@ -78,6 +78,9 @@ impl Engine {
         self.scene.register_system("transform_propagate", system::transform::propagate)?;
         self.scene.register_system("ui_update", system::ui::update)?;
         self.scene.register_system("ui_render", system::ui::render)?;
+
+        // Processes
+        self.process.register::<process::profiler::ProfilerProcess>("profiler")?;
 
         // Signals
         self.signal.register::<signal::command::CommandSignal>("command")?;
@@ -94,6 +97,7 @@ impl Engine {
             scene: Default::default(),
             signal: Default::default(),
             renderer: Default::default(),
+            physics: Default::default(),
             accumulator: 0.0,
             time: 0.0,
         };
@@ -303,6 +307,7 @@ impl Engine {
             scene: &mut self.scene,
             signal: &mut self.signal,
             renderer: &mut self.renderer,
+            physics: &mut self.physics,
             events,
             delta_time,
             time: self.time,

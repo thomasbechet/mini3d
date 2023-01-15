@@ -169,7 +169,8 @@ impl UI {
         
         // Update interaction layout
         self.interaction_events.clear();
-        self.interaction_layout.update(input, time, &mut self.interaction_events)?;
+        let extent = IRect::new(0, 0, self.resolution.x, self.resolution.y);
+        self.interaction_layout.update(input, extent, time, &mut self.interaction_events)?;
 
         // Dispatch events
         for event in &self.interaction_events {

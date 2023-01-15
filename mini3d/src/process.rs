@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, Context};
 use serde::{Deserialize, Serialize, Serializer, ser::{SerializeTuple, SerializeSeq}, Deserializer, de::{Visitor, DeserializeSeed}};
 use std::{collections::HashMap, any::TypeId, marker::PhantomData};
 
-use crate::{asset::AssetManager, input::InputManager, event::Events, script::ScriptManager, scene::SceneManager, uid::UID, signal::SignalManager, renderer::RendererManager};
+use crate::{asset::AssetManager, input::InputManager, event::Events, script::ScriptManager, scene::SceneManager, uid::UID, signal::SignalManager, renderer::RendererManager, physics::PhysicsManager};
 
 #[allow(unused_variables)]
 pub trait Process {
@@ -52,6 +52,7 @@ pub(crate) struct ProcessManagerContext<'a> {
     pub scene: &'a mut SceneManager,
     pub signal: &'a mut SignalManager,
     pub renderer: &'a mut RendererManager,
+    pub physics: &'a mut PhysicsManager,
     pub events: &'a Events,
     pub delta_time: f64,
     pub time: f64,
@@ -155,6 +156,7 @@ pub struct ProcessContext<'a, 'b> {
     pub scene: &'a mut SceneManager,
     pub signal: &'a mut SignalManager,
     pub renderer: &'a mut RendererManager,
+    pub physics: &'a mut PhysicsManager,
     pub events: &'a Events,
     pub delta_time: f64,
     pub time: f64,
@@ -198,6 +200,7 @@ impl ProcessManager {
             scene: ctx.scene,
             signal: ctx.signal,
             renderer: ctx.renderer,
+            physics: ctx.physics,
             events: ctx.events,
             delta_time: ctx.delta_time,
             time: ctx.time,

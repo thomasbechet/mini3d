@@ -269,7 +269,13 @@ impl InteractionLayout {
         Ok(())
     }
 
-    pub(crate) fn update(&mut self, input: &InputManager, time: f64, events: &mut Vec<InteractionEvent>) -> Result<()> {
+    pub(crate) fn update(
+        &mut self, 
+        input: &InputManager,
+        extent: IRect, 
+        time: f64,
+        events: &mut Vec<InteractionEvent>
+    ) -> Result<()> {
 
         // Update per profile
         for (profile_uid, profile) in self.profiles.iter_mut() {
@@ -297,7 +303,7 @@ impl InteractionLayout {
             let cursor_y = input.axis(profile.inputs.cursor_y)?.value;
             let motion_x = input.axis(profile.inputs.cursor_motion_x)?.value;
             let motion_y = input.axis(profile.inputs.cursor_motion_y)?.value;
-            
+
             // Update detection
             let motion_update = motion_x != 0.0 || motion_y != 0.0;
             let cursor_update = cursor_x != profile.previous_cursor_position.x || cursor_y != profile.previous_cursor_position.y;
@@ -347,11 +353,11 @@ impl InteractionLayout {
                     if let Some(target) = profile.target {
                         if motion_update || cursor_update {
                             if cursor_update {
-                                let position = Vec2::new(cursor_x, cursor_y);
+                                let position = Vec2::new(cursor_x, cursor_y).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                                 profile.mode = InteractionMode::Cursor { position };
                                 profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
                             } else {
-                                let position = *position + Vec2::new(motion_x, motion_y);
+                                let position = (*position + Vec2::new(motion_x, motion_y)).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                                 profile.mode = InteractionMode::Cursor { position };
                                 profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
                             }
@@ -362,11 +368,11 @@ impl InteractionLayout {
                         }
                     } else if motion_update || cursor_update {
                         if cursor_update {
-                            let position = Vec2::new(cursor_x, cursor_y);
+                            let position = Vec2::new(cursor_x, cursor_y).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                             profile.mode = InteractionMode::Cursor { position };
                             profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
                         } else {
-                            let position = *position + Vec2::new(motion_x, motion_y);
+                            let position = (*position + Vec2::new(motion_x, motion_y)).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                             profile.mode = InteractionMode::Cursor { position };
                             profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
                         }
@@ -379,7 +385,7 @@ impl InteractionLayout {
                     }
                 },
             }
-        
+
             // Enter / Leave events
             if previous_target != profile.target {
                 if let Some(previous) = previous_target {

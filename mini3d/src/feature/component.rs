@@ -6,6 +6,7 @@ pub mod lifecycle;
 pub mod model;
 pub mod ui;
 pub mod rhai_scripts;
+pub mod rigid_body;
 pub mod rotator;
 pub mod script_storage;
 pub mod transform;

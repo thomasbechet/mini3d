@@ -6,6 +6,7 @@ pub mod feature;
 pub mod renderer;
 pub mod input;
 pub mod math;
+pub mod physics;
 pub mod prng;
 pub mod process;
 pub mod request;
