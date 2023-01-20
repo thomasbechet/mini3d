@@ -54,9 +54,7 @@ fn main() {
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &event_loop, &mapper);
 
     // Engine
-    let mut engine = Engine::new().expect("Failed to create engine");
-    engine.process.register::<OSProcess>("os").expect("Failed to register os process");
-    engine.process.start("root", OSProcess::default()).expect("Failed to start os process");
+    let mut engine = Engine::new(OSProcess::default()).expect("Failed to create engine");
     let mut events = Events::new();
     let mut requests = Requests::new();
 

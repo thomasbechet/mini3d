@@ -1,94 +1,95 @@
 use anyhow::{Result, Context};
 use serde::de::{Visitor, DeserializeSeed};
 use serde::ser::SerializeTuple;
-use serde::{Serializer, Deserializer, Serialize};
+use serde::{Serializer, Deserializer, Serialize, Deserialize};
 
-use crate::asset::AssetManager;
+use crate::asset::{AssetManager, AssetEntry};
 use crate::feature::{asset, component, system, signal, process};
 use crate::physics::PhysicsManager;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
-use crate::scene::SceneManager;
+use crate::scene::{SceneManager, SystemRunCallback};
 use crate::event::Events;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
-use crate::process::{ProcessManager, ProcessManagerContext};
+use crate::process::{ProcessManager, ProcessManagerContext, Process};
 use crate::request::Requests;
 use crate::script::ScriptManager;
 use crate::signal::SignalManager;
+use crate::uid::UID;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 pub struct Engine {
-    pub asset: AssetManager,
-    pub input: InputManager,
-    pub process: ProcessManager,
-    pub script: ScriptManager,
-    pub scene: SceneManager,
-    pub signal: SignalManager,
-    pub renderer: RendererManager,
-    pub physics: PhysicsManager,
+    pub(crate) asset: AssetManager,
+    pub(crate) input: InputManager,
+    pub(crate) process: ProcessManager,
+    pub(crate) script: ScriptManager,
+    pub(crate) scene: SceneManager,
+    pub(crate) signal: SignalManager,
+    pub(crate) renderer: RendererManager,
+    pub(crate) physics: PhysicsManager,
     accumulator: f64,
     time: f64,
 }
 
 impl Engine {
 
-    fn register_feature(&mut self) -> Result<()> {
+    fn define_core_features(&mut self) -> Result<()> {
 
         // Assets
-        self.asset.register::<asset::font::FontAsset>("font")?;
-        self.asset.register::<asset::input_action::InputActionAsset>("input_action")?;
-        self.asset.register::<asset::input_axis::InputAxisAsset>("input_axis")?;
-        self.asset.register::<asset::input_table::InputTableAsset>("input_table")?;
-        self.asset.register::<asset::material::MaterialAsset>("material")?;
-        self.asset.register::<asset::mesh::MeshAsset>("mesh")?;
-        self.asset.register::<asset::model::ModelAsset>("model")?;
-        self.asset.register::<asset::rhai_script::RhaiScriptAsset>("rhai_script")?;
-        self.asset.register::<asset::scene::SceneAsset>("scene")?;
-        self.asset.register::<asset::system_schedule::SystemScheduleAsset>("system_schedule")?;
-        self.asset.register::<asset::texture::TextureAsset>("texture")?;
-        self.asset.register::<asset::tilemap::TilemapAsset>("tilemap")?;
-        self.asset.register::<asset::tileset::TilesetAsset>("tileset")?;
-        self.asset.register::<asset::ui::UIAsset>("ui")?;
+        self.define_asset::<asset::font::FontAsset>("font")?;
+        self.define_asset::<asset::input_action::InputActionAsset>("input_action")?;
+        self.define_asset::<asset::input_axis::InputAxisAsset>("input_axis")?;
+        self.define_asset::<asset::input_table::InputTableAsset>("input_table")?;
+        self.define_asset::<asset::material::MaterialAsset>("material")?;
+        self.define_asset::<asset::mesh::MeshAsset>("mesh")?;
+        self.define_asset::<asset::model::ModelAsset>("model")?;
+        self.define_asset::<asset::rhai_script::RhaiScriptAsset>("rhai_script")?;
+        self.define_asset::<asset::scene::SceneAsset>("scene")?;
+        self.define_asset::<asset::system_schedule::SystemScheduleAsset>("system_schedule")?;
+        self.define_asset::<asset::texture::TextureAsset>("texture")?;
+        self.define_asset::<asset::tilemap::TilemapAsset>("tilemap")?;
+        self.define_asset::<asset::tileset::TilesetAsset>("tileset")?;
+        self.define_asset::<asset::ui::UIAsset>("ui")?;
 
         // Components
-        self.scene.register_component::<component::camera::CameraComponent>("camera")?;
-        self.scene.register_component::<component::free_fly::FreeFlyComponent>("free_fly")?;
-        self.scene.register_component::<component::lifecycle::LifecycleComponent>("lifecycle")?;
-        self.scene.register_component::<component::model::ModelComponent>("model")?;
-        self.scene.register_component::<component::rhai_scripts::RhaiScriptsComponent>("rhai_scripts")?;
-        self.scene.register_component::<component::rigid_body::RigidBodyComponent>("rigid_body")?;
-        self.scene.register_component::<component::rotator::RotatorComponent>("rotator")?;
-        self.scene.register_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
-        self.scene.register_component::<component::transform::TransformComponent>("transform")?;
-        self.scene.register_component::<component::transform::LocalToWorldComponent>("local_to_world")?;
-        self.scene.register_component::<component::hierarchy::HierarchyComponent>("hierarchy")?;
-        self.scene.register_component::<component::ui::UIComponent>("ui")?;
-        self.scene.register_component::<component::viewport::ViewportComponent>("viewport")?;
-        self.scene.register_component::<component::canvas::CanvasComponent>("canvas")?;
+        self.define_component::<component::camera::CameraComponent>("camera")?;
+        self.define_component::<component::free_fly::FreeFlyComponent>("free_fly")?;
+        self.define_component::<component::lifecycle::LifecycleComponent>("lifecycle")?;
+        self.define_component::<component::model::ModelComponent>("model")?;
+        self.define_component::<component::rhai_scripts::RhaiScriptsComponent>("rhai_scripts")?;
+        self.define_component::<component::rigid_body::RigidBodyComponent>("rigid_body")?;
+        self.define_component::<component::rotator::RotatorComponent>("rotator")?;
+        self.define_component::<component::script_storage::ScriptStorageComponent>("script_storage")?;
+        self.define_component::<component::transform::TransformComponent>("transform")?;
+        self.define_component::<component::transform::LocalToWorldComponent>("local_to_world")?;
+        self.define_component::<component::hierarchy::HierarchyComponent>("hierarchy")?;
+        self.define_component::<component::ui::UIComponent>("ui")?;
+        self.define_component::<component::viewport::ViewportComponent>("viewport")?;
+        self.define_component::<component::canvas::CanvasComponent>("canvas")?;
 
         // Systems
-        self.scene.register_system("despawn_entities", system::despawn::run)?;
-        self.scene.register_system("free_fly", system::free_fly::run)?;
-        self.scene.register_system("renderer", system::renderer::despawn_renderer_entities)?;
-        self.scene.register_system("rhai_update_scripts", system::rhai::update_scripts)?;
-        self.scene.register_system("rotator", system::rotator::run)?;
-        self.scene.register_system("transform_propagate", system::transform::propagate)?;
-        self.scene.register_system("ui_update", system::ui::update)?;
-        self.scene.register_system("ui_render", system::ui::render)?;
+        self.define_system("despawn_entities", system::despawn::run)?;
+        self.define_system("renderer", system::renderer::despawn_renderer_entities)?;
+        self.define_system("free_fly", system::free_fly::run)?;
+        self.define_system("rhai_update_scripts", system::rhai::update_scripts)?;
+        self.define_system("rotator", system::rotator::run)?;
+        self.define_system("transform_propagate", system::transform::propagate)?;
+        self.define_system("ui_update", system::ui::update)?;
+        self.define_system("ui_render", system::ui::render)?;
 
         // Processes
-        self.process.register::<process::profiler::ProfilerProcess>("profiler")?;
+        self.define_process::<process::profiler::ProfilerProcess>("profiler")?;
 
         // Signals
-        self.signal.register::<signal::command::CommandSignal>("command")?;
+        self.signal.define::<signal::command::CommandSignal>("command")?;
 
         Ok(())
     }
 
-    pub fn new() -> Result<Self> {
+    pub fn new<P: Process + Serialize + for<'de> Deserialize<'de> + 'static>(process: P) -> Result<Self> {
         let mut engine = Self {
             asset: Default::default(), 
             input: Default::default(), 
@@ -101,8 +102,38 @@ impl Engine {
             accumulator: 0.0,
             time: 0.0,
         };
-        engine.register_feature()?;
+        engine.define_core_features()?;
+        engine.define_process::<P>("boot")?;
+        engine.process.start("root", process)?;
         Ok(engine)
+    }
+
+    pub fn define_asset<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
+        self.asset.define::<A>(name)
+    }
+
+    pub fn define_component<C: hecs::Component + Serialize + for<'de> Deserialize<'de>>(&mut self, name: &str) -> Result<()> {
+        self.scene.define_component::<C>(name)
+    }
+
+    pub fn define_system(&mut self, name: &str, run: SystemRunCallback) -> Result<()> {
+        self.scene.define_system(name, run)
+    }
+
+    pub fn define_signal<S: 'static>(&mut self, name: &str) -> Result<()> {
+        self.signal.define::<S>(name)
+    }
+    
+    pub fn define_process<P: Process + Serialize + for<'de> Deserialize<'de> + 'static>(&mut self, name: &str) -> Result<()> {
+        self.process.define::<P>(name)
+    }
+
+    pub fn iter_asset<A: 'static>(&'_ self) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
+        self.asset.iter::<A>()
+    }
+
+    pub fn asset_entry<A: 'static>(&'_ self, uid: UID) -> Result<&'_ AssetEntry<A>> {
+        self.asset.entry::<A>(uid)
     }
 
     pub fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {

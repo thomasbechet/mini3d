@@ -1,10 +1,14 @@
 use std::{any::{TypeId, type_name}, collections::HashMap, marker::PhantomData};
 
 use anyhow::{Result, anyhow, Context};
-use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn};
+use hecs::{World, serialize::column::{SerializeContext, DeserializeContext}, Archetype, ColumnBatchType, ColumnBatchBuilder, ArchetypeColumn, Entity};
 use serde::{Serialize, Deserialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
 use crate::{asset::AssetManager, input::InputManager, script::ScriptManager, uid::UID, process::ProcessContext, feature::asset::system_schedule::{SystemScheduleType, SystemScheduleAsset}, signal::SignalManager, renderer::RendererManager};
+
+pub mod component;
+pub mod entity;
+pub mod world;
 
 pub struct SystemContext<'a> {
     pub asset: &'a mut AssetManager,
@@ -223,10 +227,10 @@ impl SceneManager {
         self.instances.values_mut().map(|instance| &mut instance.world)
     }
 
-    pub fn register_system(&mut self, name: &str, run: SystemRunCallback) -> Result<()> {
+    pub(crate) fn define_system(&mut self, name: &str, run: SystemRunCallback) -> Result<()> {
         let uid: UID = name.into();
         if self.systems.contains_key(&uid) {
-            return Err(anyhow!("System '{}' already exists", name));
+            return Err(anyhow!("System '{}' already defined", name));
         }
         self.systems.insert(uid, SystemEntry { 
             name: name.to_string(),
@@ -235,15 +239,15 @@ impl SceneManager {
         Ok(())
     }
 
-    pub fn register_component<C: hecs::Component + Serialize + for<'de> Deserialize<'de>>(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn define_component<C: hecs::Component + Serialize + for<'de> Deserialize<'de>>(&mut self, name: &str) -> Result<()> {
         let uid: UID = name.into();
         let type_id = TypeId::of::<C>();
         if self.components.contains_key(&uid) {
-            return Err(anyhow!("Component with name '{}' already registered", name));
+            return Err(anyhow!("Component with name '{}' already defined", name));
         }
         if let Some(uid) = self.component_type_to_uid.get(&type_id) {
             let component = self.components.get(uid).unwrap();
-            return Err(anyhow!("Component '{}' registered with the same type id", component.name));
+            return Err(anyhow!("Component '{}' defined with the same type id", component.name));
         }
         self.components.insert(uid, ComponentEntry { name: name.to_string(), type_id, component: Box::new(Component::<C> { marker: PhantomData }) });
         self.component_type_to_uid.insert(type_id, uid);
@@ -263,22 +267,25 @@ impl SceneManager {
         Ok(())
     }
 
-    pub fn world(&'_ mut self, uid: UID) -> Result<&'_ mut hecs::World> {
-        Ok(&mut self.instances.get_mut(&uid).with_context(|| "ECS not found")?.world)
-    }
-
-    pub fn schedule(&mut self, uid: UID, schedule: &SystemScheduleAsset) -> Result<()> {
+    pub fn set_schedule(&mut self, uid: UID, schedule: &SystemScheduleAsset) -> Result<()> {
         let instance = self.instances.get_mut(&uid).with_context(|| "ECS not found")?;
         instance.scheduler.systems = schedule.systems.clone();
         Ok(())
     }
 }
 
-pub struct Scene;
+pub struct SceneRunner {
+    scenes: Vec<UID>,
+}
 
-impl Scene {
-    
-    pub fn progress(uid: UID, ctx: &mut ProcessContext) -> Result<()> {
+impl SceneRunner {
+
+    pub fn with_scene(mut self, scene: UID) -> Self {
+        self.scenes.push(scene);
+        self
+    }
+
+    pub fn run(self, ctx: &mut ProcessContext) -> Result<()> {
         let mut system_context = SystemContext {
             asset: ctx.asset,
             input: ctx.input,

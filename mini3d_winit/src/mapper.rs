@@ -205,12 +205,12 @@ impl InputMapper {
         for profile in self.profiles.values_mut() {
 
             // Update actions
-            engine.asset.iter::<InputActionAsset>().expect("InputAction asset not found").for_each(|(uid, _)| {
+            engine.iter_asset::<InputActionAsset>().expect("InputAction asset not found").for_each(|(uid, _)| {
                 profile.actions.entry(*uid).or_insert_with(Default::default);
             });
             
             // Update axis
-            engine.asset.iter::<InputAxisAsset>().expect("InputAxis asset not found").for_each(|(uid, _)| {
+            engine.iter_asset::<InputAxisAsset>().expect("InputAxis asset not found").for_each(|(uid, _)| {
                 profile.axis.entry(*uid).or_insert_with(Default::default);
             });
         }

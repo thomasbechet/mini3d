@@ -548,11 +548,11 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn register<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn define<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
         let type_id = TypeId::of::<A>();
         let uid: UID = name.into();
         if self.types.contains_key(&type_id) || self.uid_to_type.contains_key(&uid) {
-            return Err(anyhow!("Asset type already registered"));
+            return Err(anyhow!("Asset type already defined"));
         }
         self.types.insert(type_id, AssetType::new::<A>(name));
         self.uid_to_type.insert(uid, type_id);

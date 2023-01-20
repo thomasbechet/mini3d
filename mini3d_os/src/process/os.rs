@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::FontAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}, input_table::InputTableAsset, material::MaterialAsset, model::ModelAsset, mesh::MeshAsset, rhai_script::RhaiScriptAsset, system_schedule::{SystemScheduleAsset, SystemScheduleType}, texture::TextureAsset}, component::{lifecycle::LifecycleComponent, transform::{TransformComponent, LocalToWorldComponent}, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent, hierarchy::HierarchyComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::Scene, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
+use mini3d::{uid::UID, process::{ProcessContext, Process}, feature::{asset::{font::FontAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}, input_table::InputTableAsset, material::MaterialAsset, model::ModelAsset, mesh::MeshAsset, rhai_script::RhaiScriptAsset, system_schedule::{SystemScheduleAsset, SystemScheduleType}, texture::TextureAsset}, component::{lifecycle::LifecycleComponent, transform::{TransformComponent, LocalToWorldComponent}, rotator::RotatorComponent, model::ModelComponent, free_fly::FreeFlyComponent, camera::CameraComponent, script_storage::ScriptStorageComponent, rhai_scripts::RhaiScriptsComponent, ui::{UIComponent, UIRenderTarget}, viewport::ViewportComponent, hierarchy::HierarchyComponent}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, scene::{Scene, world::World, component::TestComponent}, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -265,6 +265,11 @@ impl OSProcess {
     }
 
     fn setup_world(&mut self, ctx: &mut ProcessContext) -> Result<()> {
+
+        let mut world = World::default();
+        let entity = world.add_entity();
+        world.add_component(entity, TestComponent {})?;
+
         self.scene = ctx.scene.add("main").with_context(|| "Failed to create ECS")?;
         let world = ctx.scene.world(self.scene)?;
         world.spawn((
@@ -455,7 +460,7 @@ impl Process for OSProcess {
 
         // Configure schedule
         let schedule = ctx.asset.get::<SystemScheduleAsset>("test_scheduler".into()).unwrap();
-        ctx.scene.schedule(self.scene, schedule)?;
+        ctx.scene.set_schedule(self.scene, schedule)?;
 
         // Run profiler
         ctx.process.start("profiler", ProfilerProcess::new(UID::new(CommonAction::TOGGLE_PROFILER)))?;

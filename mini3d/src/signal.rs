@@ -50,9 +50,9 @@ impl SignalManager {
         Ok(())
     }
 
-    pub fn register<S: 'static>(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn define<S: 'static>(&mut self, name: &str) -> Result<()> {
         let uid = UID::new(name);
-        if self.queues.contains_key(&uid) { return Err(anyhow!("Signal '{}' already exists", name)); }
+        if self.queues.contains_key(&uid) { return Err(anyhow!("Signal '{}' already defined", name)); }
         self.queues.insert(uid, Box::new(SignalQueue::<S>::new()));
         Ok(())
     }

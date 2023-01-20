@@ -113,11 +113,11 @@ impl ProcessMetaTable {
             .map(|(uid, _)| *uid)
     }
 
-    fn register<P: Process + Serialize + for<'de> Deserialize<'de> + 'static>(&mut self, name: &str) -> Result<()> {
+    fn define<P: Process + Serialize + for<'de> Deserialize<'de> + 'static>(&mut self, name: &str) -> Result<()> {
         let uid = UID::new(name);
-        if self.type_map.contains_key(&uid) { return Err(anyhow!("Process name already exists")); }
+        if self.type_map.contains_key(&uid) { return Err(anyhow!("Process name already defined")); }
         let type_id = TypeId::of::<P>();
-        if self.types.contains_key(&type_id) { return Err(anyhow!("Process type already exists")); }
+        if self.types.contains_key(&type_id) { return Err(anyhow!("Process type already defined")); }
         self.type_map.insert(uid, type_id);
         self.types.insert(type_id, Box::new(ProcessType::<P> { name: name.to_string(), marker: PhantomData }));
         Ok(())
@@ -371,8 +371,8 @@ impl ProcessManager {
         Ok(())
     }
 
-    pub fn register<P: Process + Serialize + for<'de> Deserialize<'de> + 'static>(&mut self, name: &str) -> Result<()> {
-        self.meta.register::<P>(name)?;
+    pub(crate) fn define<P: Process + Serialize + for<'de> Deserialize<'de> + 'static>(&mut self, name: &str) -> Result<()> {
+        self.meta.define::<P>(name)?;
         Ok(())
     }
 
