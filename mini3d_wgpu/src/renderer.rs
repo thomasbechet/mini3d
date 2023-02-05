@@ -365,7 +365,7 @@ impl RendererBackend for WGPURenderer {
     
     /// Assets API
 
-    fn mesh_add(&mut self, mesh: &mesh::MeshAsset) -> Result<MeshHandle> {
+    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshHandle> {
         let mut submeshes: Vec<UID> = Default::default();
         for submesh in mesh.submeshes.iter() {
             let descriptor = self.vertex_allocator.add(&self.context, &submesh.vertices)
@@ -379,7 +379,7 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     
-    fn texture_add(&mut self, texture: &texture::TextureAsset) -> Result<TextureHandle> {
+    fn texture_add(&mut self, texture: &texture::Texture) -> Result<TextureHandle> {
         let handle: TextureHandle = self.generator.next().into();
         self.textures.insert(handle, Texture::from_asset(&self.context, texture, 
             wgpu::TextureUsages::TEXTURE_BINDING, None));

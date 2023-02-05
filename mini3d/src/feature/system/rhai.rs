@@ -1,10 +1,9 @@
 use anyhow::Result;
-use hecs::World;
 
-use crate::{scene::SystemContext, rhai::{input::InputManagerHandle, script_storage::ScriptStorageHandle}, feature::component::{rhai_scripts::{RhaiScriptsComponent, RhaiScriptStatus}, script_storage::ScriptStorageComponent}};
+use crate::{rhai::{input::InputManagerHandle, script_storage::ScriptStorageHandle}, feature::component::{rhai_scripts::{RhaiScripts, RhaiScriptStatus}, script_storage::ScriptStorage}, scene::{context::SystemContext, world::World}};
 
 pub fn update_scripts(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
-    for (_, (scripts, storage)) in world.query_mut::<(&mut RhaiScriptsComponent, Option<&mut ScriptStorageComponent>)>() {
+    for (_, (scripts, storage)) in world.query_mut::<(&mut RhaiScripts, Option<&mut ScriptStorage>)>() {
         let mut scope = rhai::Scope::new();
         scope.push_constant("INPUT", <InputManagerHandle>::from(&mut *ctx));
         if let Some(storage) = storage {

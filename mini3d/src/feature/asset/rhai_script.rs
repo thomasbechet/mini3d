@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct RhaiScriptAsset {
+pub struct RhaiScript {
     pub source: String,
 }

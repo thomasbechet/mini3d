@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::{Result, Context};
 use glam::IVec2;
-use hecs::Entity;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, math::rect::IRect, asset::AssetManager};
+use crate::{uid::UID, math::rect::IRect, asset::AssetManager, scene::entity::Entity};
 
 use super::{color::Color, backend::{RendererBackend, ViewportHandle, SceneCanvasHandle}, RendererResourceManager};
 

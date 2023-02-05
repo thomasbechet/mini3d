@@ -1,8 +1,7 @@
 use glam::IVec2;
-use hecs::Entity;
 use serde::{Serialize, Deserialize};
 
-use crate::ui::UI;
+use crate::{ui::UI, scene::{entity::Entity, component::Component}};
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {
@@ -18,6 +17,8 @@ pub struct UIComponent {
     pub visible: bool,
     pub active: bool,
 }
+
+impl Component for UIComponent {}
 
 impl UIComponent {
 

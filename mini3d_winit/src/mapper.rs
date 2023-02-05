@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{engine::Engine, event::{Events, input::{InputEvent, InputActionEvent, InputAxisEvent}}, anyhow::{Result, Context, anyhow}, uid::UID, feature::asset::{input_action::InputActionAsset, input_axis::InputAxisAsset}};
+use mini3d::{engine::Engine, event::{Events, input::{InputEvent, InputActionEvent, InputAxisEvent}}, anyhow::{Result, Context, anyhow}, uid::UID, feature::asset::{input_action::InputAction, input_axis::InputAxis}};
 use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
@@ -205,12 +205,12 @@ impl InputMapper {
         for profile in self.profiles.values_mut() {
 
             // Update actions
-            engine.iter_asset::<InputActionAsset>().expect("InputAction asset not found").for_each(|(uid, _)| {
+            engine.iter_asset::<InputAction>().expect("InputAction asset not found").for_each(|(uid, _)| {
                 profile.actions.entry(*uid).or_insert_with(Default::default);
             });
             
             // Update axis
-            engine.iter_asset::<InputAxisAsset>().expect("InputAxis asset not found").for_each(|(uid, _)| {
+            engine.iter_asset::<InputAxis>().expect("InputAxis asset not found").for_each(|(uid, _)| {
                 profile.axis.entry(*uid).or_insert_with(Default::default);
             });
         }

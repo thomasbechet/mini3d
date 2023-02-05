@@ -1,11 +1,15 @@
 use serde::{Serialize, Deserialize};
 
+use crate::scene::component::Component;
+
 #[derive(Serialize, Deserialize)]
-pub struct LifecycleComponent {
+pub struct Lifecycle {
     pub alive: bool,
 }
 
-impl LifecycleComponent {
+impl Component for Lifecycle {}
+
+impl Lifecycle {
     
     pub fn alive() -> Self {
         Self { alive: true }

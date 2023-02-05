@@ -10,7 +10,7 @@ pub enum InputAxisRange {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct InputAxisAsset {
+pub struct InputAxis {
     pub display_name: String,
     pub description: String,
     pub range: InputAxisRange,

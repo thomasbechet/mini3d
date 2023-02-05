@@ -2,10 +2,9 @@ use std::collections::{HashMap, HashSet, hash_map};
 
 use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
-use hecs::Entity;
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::LocalToWorldComponent, camera::CameraComponent, model::ModelComponent, viewport::ViewportComponent, canvas::CanvasComponent}, asset::{model::ModelAsset, material::MaterialAsset, mesh::MeshAsset, texture::TextureAsset, font::{FontAsset, FontAtlas}}}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::{SceneManager, entity::Entity}, feature::{component::{transform::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
 
@@ -80,26 +79,26 @@ pub(crate) struct RendererResourceManager {
 }
 
 fn load_font(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererFont> {
-    let font = asset.get::<FontAsset>(uid)?;
+    let font = asset.get::<Font>(uid)?;
     let atlas = FontAtlas::new(font);
     let handle = backend.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMesh> {
-    let mesh = asset.get::<MeshAsset>(uid)?;
+    let mesh = asset.get::<Mesh>(uid)?;
     let handle = backend.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererTexture> {
-    let texture = asset.get::<TextureAsset>(uid)?;
+    let texture = asset.get::<Texture>(uid)?;
     let handle = backend.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(uid: UID, textures: &HashMap<UID, RendererTexture>, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMaterial> {
-    let material = asset.entry::<MaterialAsset>(uid)?;
+    let material = asset.entry::<Material>(uid)?;
     let diffuse = textures.get(&material.asset.diffuse).unwrap().handle;
     let handle = backend.material_add(BackendMaterialDescriptor { diffuse, name: &material.name })?;
     Ok(RendererMaterial { handle })
@@ -148,7 +147,7 @@ impl RendererResourceManager {
         match self.materials.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let material = asset.get::<MaterialAsset>(*uid)?;
+                let material = asset.get::<Material>(*uid)?;
                 if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse) {
                     let diffuse = load_texture(*uid, backend, asset)?;
                     e.insert(diffuse);
@@ -192,14 +191,14 @@ impl RendererManager {
         self.scene_models_removed.clear();
         self.scene_canvases_removed.clear();
 
-        for world in scene.iter_world() {
-            for (_, camera) in world.query_mut::<&mut CameraComponent>() {
+        for world in scene.iter_worlds_mut() {
+            for (_, camera) in world.query_mut::<&mut Camera>() {
                 camera.handle = None;
             }
-            for (_, model) in world.query_mut::<&mut ModelComponent>() {
+            for (_, model) in world.query_mut::<&mut Model>() {
                 model.handle = None;
             }
-            for (_, canvas) in world.query_mut::<&mut CanvasComponent>() {
+            for (_, canvas) in world.query_mut::<&mut Canvas>() {
                 canvas.handle = None;
             }
         }
@@ -234,10 +233,10 @@ impl RendererManager {
         }
 
         // Update scene components
-        for world in scene.iter_world() {
+        for world in scene.iter_worlds_mut() {
 
             // Update cameras
-            for (entity, (c, t)) in world.query_mut::<(&mut CameraComponent, &LocalToWorldComponent)>() {
+            for (entity, (c, t)) in world.query_mut::<(&mut Camera, &LocalToWorld)>() {
                 if c.handle.is_none() {
                     let handle = backend.scene_camera_add()?;
                     self.cameras.insert(entity, handle);
@@ -247,7 +246,7 @@ impl RendererManager {
             }
 
             // Update viewports
-            for (e, viewport) in world.query_mut::<&mut ViewportComponent>() {
+            for (e, viewport) in world.query_mut::<&mut Viewport>() {
                 if viewport.handle.is_none() {
                     viewport.handle = Some(backend.viewport_add(viewport.resolution)?);
                     viewport.out_of_date = true;
@@ -262,9 +261,9 @@ impl RendererManager {
             }
             
             // Update models
-            for (_, (m, t)) in world.query_mut::<(&mut ModelComponent, &LocalToWorldComponent)>() {
+            for (_, (m, t)) in world.query_mut::<(&mut Model, &LocalToWorld)>() {
                 if m.handle.is_none() {
-                    let model = asset.get::<ModelAsset>(m.model)?;
+                    let model = asset.get::<asset::model::Model>(m.model)?;
                     let mesh_handle = self.resources.request_mesh(&model.mesh, backend, asset)?.handle;
                     let handle = backend.scene_model_add(mesh_handle)?;
                     for (index, material) in model.materials.iter().enumerate() {
@@ -277,7 +276,7 @@ impl RendererManager {
             }
 
             // Update Scene Canvas
-            for (_, (c, t)) in world.query_mut::<(&mut CanvasComponent, &LocalToWorldComponent)>() {
+            for (_, (c, t)) in world.query_mut::<(&mut Canvas, &LocalToWorld)>() {
 
                 if c.handle.is_none() {
                     c.handle = Some(backend.scene_canvas_add(c.resolution)?);

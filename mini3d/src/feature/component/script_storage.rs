@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
+use crate::scene::component::Component;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum NodeValue {
     Null,
@@ -13,17 +15,19 @@ enum NodeValue {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ScriptStorageComponent {
+pub struct ScriptStorage {
     root: NodeValue,
 }
 
-impl Default for ScriptStorageComponent {
+impl Component for ScriptStorage {}
+
+impl Default for ScriptStorage {
     fn default() -> Self {
         Self { root: NodeValue::Node(Default::default()) }
     }
 }
 
-impl ScriptStorageComponent {
+impl ScriptStorage {
 
     fn find_node(&self, key: &str) -> Option<&NodeValue> {
         let mut current = &self.root;

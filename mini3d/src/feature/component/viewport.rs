@@ -1,13 +1,12 @@
 use glam::UVec2;
-use hecs::Entity;
 use serde::{Serialize, Deserialize};
 
-use crate::renderer::backend::ViewportHandle;
+use crate::{renderer::backend::ViewportHandle, scene::{component::Component, entity::Entity}};
 
 fn default_as_true() -> bool { true }
 
 #[derive(Serialize, Deserialize)]
-pub struct ViewportComponent {
+pub struct Viewport {
     pub(crate) camera: Option<Entity>,
     pub(crate) resolution: UVec2,
     #[serde(skip)]
@@ -16,7 +15,9 @@ pub struct ViewportComponent {
     pub(crate) out_of_date: bool,
 }
 
-impl ViewportComponent {
+impl Component for Viewport {}
+
+impl Viewport {
 
     pub fn new(resolution: UVec2, camera: Option<Entity>) -> Self {
         Self { camera, resolution, handle: None, out_of_date: true }

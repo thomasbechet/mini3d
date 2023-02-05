@@ -1,14 +1,18 @@
 use glam::{Mat4, Vec3, Quat, Vec4};
 use serde::{Serialize, Deserialize};
 
+use crate::scene::component::Component;
+
 #[derive(Serialize, Deserialize)]
-pub struct TransformComponent {
+pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: Vec3,
 }
 
-impl TransformComponent {
+impl Component for Transform {}
+
+impl Transform {
 
     pub fn from_translation(translation: Vec3) -> Self {
         Self {
@@ -48,13 +52,15 @@ impl TransformComponent {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct LocalToWorldComponent {
+pub struct LocalToWorld {
     pub matrix: Mat4,
     #[serde(skip)]
     pub(crate) dirty: bool,
 }
 
-impl LocalToWorldComponent {
+impl Component for LocalToWorld {}
+
+impl LocalToWorld {
 
     pub fn translation(&self) -> Vec3 {
         self.matrix.w_axis.truncate()

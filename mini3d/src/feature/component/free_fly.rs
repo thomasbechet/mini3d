@@ -1,9 +1,9 @@
 use serde::{Serialize, Deserialize};
 
-use crate::uid::UID;
+use crate::{uid::UID, scene::component::Component};
 
 #[derive(Serialize, Deserialize)]
-pub struct FreeFlyComponent {
+pub struct FreeFly {
 
     // Control if free fly is active
     pub active: bool,
@@ -29,7 +29,9 @@ pub struct FreeFlyComponent {
     pub pitch: f32,
 }
 
-impl FreeFlyComponent {
+impl Component for FreeFly {}
+
+impl FreeFly {
     pub const NORMAL_SPEED: f32 = 10.0;
     pub const FAST_SPEED: f32 = 25.0;
     pub const SLOW_SPEED: f32 = 3.0;

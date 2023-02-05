@@ -3,9 +3,9 @@ use std::collections::{HashMap, hash_map};
 use rhai::exported_module;
 use anyhow::{Result, anyhow, Context};
 
-use crate::{asset::AssetManager, uid::UID, feature::asset::rhai_script::RhaiScriptAsset};
+use crate::{asset::AssetManager, uid::UID, feature::asset::rhai_script::RhaiScript};
 
-use self::{script_storage::rhai_script_storage_api, input::rhai_input_api, world::rhai_world_api};
+use self::{script_storage::rhai_script_storage_api, input::rhai_input_api};
 
 pub mod input;
 pub mod script_storage;
@@ -24,7 +24,6 @@ impl Default for RhaiScriptCache {
         };
         cache.engine.register_global_module(exported_module!(rhai_script_storage_api).into());
         cache.engine.register_global_module(exported_module!(rhai_input_api).into());
-        cache.engine.register_global_module(exported_module!(rhai_world_api).into());
         cache
     }
 }
@@ -33,7 +32,7 @@ impl RhaiScriptCache {
     pub fn call(&mut self, uid: UID, asset: &AssetManager, scope: &mut rhai::Scope, function: &str) -> Result<()> {
         // Lazy script compilation
         if let hash_map::Entry::Vacant(e) = self.scripts.entry(uid) {
-            let script = asset.get::<RhaiScriptAsset>(uid)
+            let script = asset.get::<RhaiScript>(uid)
                 .with_context(|| "Rhai script not found")?;
             let ast = self.engine.compile(script.source.clone())?;
             e.insert(ast);

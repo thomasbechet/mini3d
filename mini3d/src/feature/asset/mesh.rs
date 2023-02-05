@@ -16,6 +16,6 @@ pub struct SubMesh {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-pub struct MeshAsset {
+pub struct Mesh {
     pub submeshes: Vec<SubMesh>,
 }

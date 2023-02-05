@@ -1,26 +1,25 @@
 use anyhow::Result;
-use hecs::World;
 
-use crate::{scene::SystemContext, feature::component::{camera::CameraComponent, model::ModelComponent, lifecycle::LifecycleComponent, viewport::ViewportComponent, canvas::CanvasComponent}};
+use crate::{feature::component::{camera::Camera, model::Model, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, scene::{context::SystemContext, world::World}};
 
 pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
 
-    for (_, (l, v)) in world.query_mut::<(&LifecycleComponent, &mut ViewportComponent)>() {
+    for (_, (l, v)) in world.query_mut::<(&Lifecycle, &mut Viewport)>() {
         if !l.alive {
             if let Some(handle) = v.handle { ctx.renderer.viewports_removed.insert(handle); }
         }
     }
-    for (_, (l, c)) in world.query_mut::<(&LifecycleComponent, &mut CameraComponent)>() {
+    for (_, (l, c)) in world.query_mut::<(&Lifecycle, &mut Camera)>() {
         if !l.alive { 
             if let Some(handle) = c.handle { ctx.renderer.scene_cameras_removed.insert(handle); }
         }
     }
-    for (_, (l, m)) in world.query_mut::<(&LifecycleComponent, &mut ModelComponent)>() {
+    for (_, (l, m)) in world.query_mut::<(&Lifecycle, &mut Model)>() {
         if !l.alive { 
             if let Some(handle) = m.handle { ctx.renderer.scene_models_removed.insert(handle); }
         }
     }
-    for (_, (l, c)) in world.query_mut::<(&LifecycleComponent, &mut CanvasComponent)>() {
+    for (_, (l, c)) in world.query_mut::<(&Lifecycle, &mut Canvas)>() {
         if !l.alive {
             if let Some(handle) = c.handle { ctx.renderer.scene_canvases_removed.insert(handle); }
         }

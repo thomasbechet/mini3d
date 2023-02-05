@@ -1,4 +1,4 @@
-use mini3d::{glam::Vec4, engine::Engine, uid::UID, feature::asset::{input_table::InputTableAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}}};
+use mini3d::{glam::Vec4, engine::Engine, uid::UID, feature::asset::{input_table::InputTable, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::{ControlFlow, EventLoop}};
 
@@ -344,7 +344,7 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for (_, entry) in engine.iter_asset::<InputTableAsset>().unwrap() {
+                                    for (_, entry) in engine.iter_asset::<InputTable>().unwrap() {
                                         ui_input_table(
                                             &entry.asset, 
                                             profile,
@@ -441,7 +441,7 @@ struct UIInputTableDescriptor {
 }
 
 fn ui_input_table(
-    input_table: &InputTableAsset,
+    input_table: &InputTable,
     profile: &mut InputProfile,
     ui: &mut egui::Ui,
     engine: &Engine,
@@ -483,7 +483,7 @@ fn ui_input_table(
                 })
                 .body(|mut body| {
                     input_table.actions.iter().for_each(|uid| {
-                        let action = engine.asset_entry::<InputActionAsset>(*uid).expect("Action UID not found");
+                        let action = engine.asset_entry::<InputAction>(*uid).expect("Action UID not found");
                         if let Some(map_action) = profile.actions.get_mut(uid) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
@@ -575,7 +575,7 @@ fn ui_input_table(
                 })
                 .body(|mut body| {
                     input_table.axis.iter().for_each(|uid| {
-                        let axis = engine.asset_entry::<InputAxisAsset>(*uid).expect("Axis UID not found");
+                        let axis = engine.asset_entry::<InputAxis>(*uid).expect("Axis UID not found");
                         if let Some(map_axis) = profile.axis.get_mut(uid) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
