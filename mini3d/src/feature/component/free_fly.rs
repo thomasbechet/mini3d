@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, scene::component::Component};
+use crate::{uid::UID, scene::container::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct FreeFly {
@@ -38,4 +38,9 @@ impl FreeFly {
     pub const ROLL_SPEED: f32 = 60.0;
     pub const ROTATION_SENSIBILITY: f32 = 180.0;
     pub const ZOOM_SPEED: f32 = 10.0;
+}
+
+impl FreeFly {
+    pub const NAME: &'static str = "free_fly";
+    pub const UID: UID = FreeFly::NAME.into();
 }

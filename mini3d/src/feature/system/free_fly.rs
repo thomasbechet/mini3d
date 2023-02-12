@@ -1,12 +1,17 @@
 use anyhow::Result;
 use glam::{Vec3, Quat};
 
-use crate::{feature::component::{transform::Transform, free_fly::FreeFly}, scene::{context::SystemContext, world::World}};
+use crate::{feature::component::{free_fly::FreeFly, transform::Transform}, scene::{context::SystemContext, world::World}};
 
 pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
 
-    for (_, (transform, free_fly)) in world.query_mut::<(&mut Transform, &mut FreeFly)>() {
+    let transforms = world.view_mut::<Transform>(Transform::UID)?;
+    let free_flies = world.view_mut::<FreeFly>(FreeFly::UID)?;
 
+    for e in &world.query(&[Transform::UID, FreeFly::UID]) {
+        let transform = transforms[e];
+        let free_fly = free_flies[e];
+        
         // Check active
         if !free_fly.active { continue; }
 
@@ -41,7 +46,7 @@ pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
 
         // Apply transformation
         transform.translation += direction * direction_length * ctx.delta_time as f32 * speed;
-    
+
         // Apply rotation
         let motion_x = ctx.input.axis(free_fly.view_x)?.value;
         let motion_y = ctx.input.axis(free_fly.view_y)?.value;
@@ -66,10 +71,10 @@ pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
             if motion_y != 0.0 {
                 free_fly.pitch += motion_y * FreeFly::ROTATION_SENSIBILITY * ctx.delta_time as f32;
             }
-        
+
             if free_fly.pitch < -90.0 { free_fly.pitch = -90.0 };
             if free_fly.pitch > 90.0 { free_fly.pitch = 90.0 };
-        
+
             let mut rotation = Quat::from_axis_angle(Vec3::Y, -f32::to_radians(free_fly.yaw));
             rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(free_fly.pitch));
             transform.rotation = rotation;

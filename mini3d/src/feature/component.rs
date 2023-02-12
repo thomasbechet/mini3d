@@ -9,5 +9,6 @@ pub mod rhai_scripts;
 pub mod rigid_body;
 pub mod rotator;
 pub mod script_storage;
+pub mod local_to_world;
 pub mod transform;
 pub mod viewport;

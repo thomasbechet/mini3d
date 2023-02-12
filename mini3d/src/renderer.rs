@@ -4,7 +4,7 @@ use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::{SceneManager, entity::Entity}, feature::{component::{transform::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::{SceneManager, entity::Entity}, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
 
@@ -192,6 +192,10 @@ impl RendererManager {
         self.scene_canvases_removed.clear();
 
         for world in scene.iter_worlds_mut() {
+
+
+            let cameras = world.view_mut::<Camera>("camera".into())?;
+
             for (_, camera) in world.query_mut::<&mut Camera>() {
                 camera.handle = None;
             }

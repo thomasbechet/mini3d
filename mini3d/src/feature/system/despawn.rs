@@ -3,18 +3,22 @@ use anyhow::Result;
 use crate::{feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}, scene::{context::SystemContext, world::World, entity::Entity}};
 
 pub fn run(_ctx: &mut SystemContext, world: &mut World) -> Result<()> {
+
     let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
-    for (e, (lifecycle, hierarchy)) in world.query_mut::<(&Lifecycle, Option<&Hierarchy>)>() {
-        if !lifecycle.alive {
+    let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
+    let hierarchies = world.view_mut::<Hierarchy>(Hierarchy::UID)?;
+    for e in &world.query(&[Lifecycle::UID, Hierarchy::UID]) {
+        if !lifecycles[e].alive {
             despawn_entities.push(e);
-            if let Some(hierarchy) = hierarchy {
+            if let Some(hierarchy) = hierarchies.get_mut(e) {
                 if let Some(parent) = hierarchy.parent() {
                     detach_entities.push((parent, e));
                 }
             }
         }
     }
+
     // Detach entities
     for (parent, entity) in detach_entities {
         for child in Hierarchy::collect_childs(entity, world)? {
@@ -22,9 +26,14 @@ pub fn run(_ctx: &mut SystemContext, world: &mut World) -> Result<()> {
         }
         Hierarchy::detach(parent, entity, world)?;
     }
+
+    let assets = ctx.service::<AssetService>()?;
+    assets.get::<Texture>();
+
     // Despawn entities
     for entity in despawn_entities {
-        world.remove_entity(entity)?;
+        world.destroy(entity)?;
     }
+
     Ok(())
 }

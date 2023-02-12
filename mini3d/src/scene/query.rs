@@ -1,40 +1,62 @@
-use super::entity::Entity;
 
-pub struct QueryIter<'a, Q: hecs::Query>(pub(crate) hecs::QueryIter<'a, Q>);
+use super::{container::AnyComponentContainer, entity::Entity};
 
-impl<'q, Q: hecs::Query> Iterator for QueryIter<'q, Q> {
-    type Item = (Entity, hecs::QueryItem<'q, Q>);
-
-    #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(e, i)| (Entity(e), i))
-    }
-
-    #[inline(always)]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
+pub struct Query<'a> {
+    containers: Vec<&'a dyn AnyComponentContainer>,
 }
 
-pub struct QueryIterBorrow<'a, Q: hecs::Query> {
-    // pub(crate) query: hecs::QueryBorrow<'a, Q>,
-    pub(crate) iter: hecs::QueryIter<'a, Q>,
-}
+impl<'a> Query<'a> {
 
-impl<'a, Q: hecs::Query + 'a> QueryIterBorrow<'a, Q> {
+    pub(crate) fn new(containers: Vec<&'a dyn AnyComponentContainer>) -> Self {
+        Self { containers }
+    }
 
-    pub(crate) fn new(mut query: hecs::QueryBorrow<'a, Q>) -> Self {
-        Self {
-            // query,
-            iter: query.iter(),
+    pub fn iter(&self) -> QueryIter<'a> {
+        QueryIter {
+            query: self,
+            index: 0,
+            len: self.containers[0].len(),
         }
     }
 }
 
-pub struct QueryView<'a, Q: hecs::Query>(pub(crate) hecs::View<'a, Q>);
+pub struct QueryIter<'a> {
+    query: &'a Query<'a>,
+    index: usize,
+    len: usize,
+}
 
-impl<'a, Q: hecs::Query> QueryView<'a, Q> {
-    pub fn get(&mut self, entity: Entity) -> Option<hecs::QueryItem<'a, Q>> {
-        self.0.get_mut(entity.0)
+impl<'a> Iterator for QueryIter<'a> {
+    type Item = Entity;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < self.len {
+            let entity = self.query.containers[0].entity(self.index);
+            self.index += 1;
+            let mut valid = true;
+            for pool in &self.query.containers[1..] {
+                if !pool.contains(entity) {
+                    valid = false;
+                    break;
+                }
+            }
+            if valid {
+                return Some(entity);
+            }
+        }
+        None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+
+impl<'a> IntoIterator for &'a Query<'a> {
+    type Item = Entity;
+    type IntoIter = QueryIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

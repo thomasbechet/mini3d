@@ -1,3 +1,4 @@
+pub mod runtime_component;
 pub mod font;
 pub mod input_action;
 pub mod input_axis;

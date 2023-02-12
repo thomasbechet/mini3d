@@ -3,18 +3,12 @@ use std::collections::HashMap;
 use anyhow::{Result, Context};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, scene::{context::SystemContext, world::World, system::{BuiltinSystemEntry, BuiltinSystem}, signal::{SIGNAL_UPDATE, SIGNAL_FIXED_UPDATE, SIGNAL_SCENE_CHANGED}}};
-
-#[derive(Serialize, Deserialize)]
-pub enum System {
-    Builtin(UID),
-    Script(UID),
-}
+use crate::{uid::UID, scene::{world::World, signal::{SIGNAL_UPDATE, SIGNAL_FIXED_UPDATE, SIGNAL_SCENE_CHANGED}, context::SystemContext}};
 
 #[derive(Serialize, Deserialize)]
 struct SystemEntry {
     name: String,
-    system: System,
+    system: UID,
     active: bool,
 }
 
@@ -56,30 +50,26 @@ impl Schedule {
     pub(crate) fn invoke(
         &self, 
         signal: UID,
-        builtin_systems: &HashMap<UID, BuiltinSystemEntry>,
-        context: &mut SystemContext, 
+        registry: &SystemRegistry,
+        context: &mut SystemContext,
         world: &mut World,
     ) -> Result<()> {
         if let Some(signal) = self.signals.get(&signal) {
             for system in &signal.pipeline {
                 if let Some(entry) = self.systems.get(system) {
                     if entry.active {
-                        match entry.system {
-                            System::Builtin(uid) => {
-                                if let Some(builtin) = builtin_systems.get(&uid) {
-                                    match &builtin.callback {
-                                        BuiltinSystem::Exclusive(callback) => {
-                                            (callback)(context, world)?;
-                                        }
-                                        BuiltinSystem::Parallel(callback) => {
-                                            callback.run(context, world)?;
-                                        }
-                                    }
-                                }
-                            }
-                            System::Script(_uid) => {
-                                // TODO:
-                            }
+                        let definition = registry.get(entry.system)
+                            .with_context(|| "System not found")?;
+                        match &definition.kind {
+                            SystemKind::Compiled(callback) => {
+                                (callback)(context, world)?;
+                            },
+                            SystemKind::Rhai(_) => { 
+                                unimplemented!("Rhai not implemented yet")
+                            },
+                            SystemKind::Lua(_) => { 
+                                unimplemented!("Lua not implemented yet")
+                            },
                         }
                     }
                 }
@@ -100,7 +90,7 @@ impl Schedule {
         Ok(uid)
     }
 
-    pub fn add(&mut self, name: &str, system: System, signal: UID) -> Result<UID> {
+    pub fn add(&mut self, name: &str, system: UID, signal: UID) -> Result<UID> {
         let uid: UID = name.into();
         if self.systems.contains_key(&uid) {
             return Err(anyhow::anyhow!("System with name '{}' already exists", name));

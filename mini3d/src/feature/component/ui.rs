@@ -1,7 +1,7 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{ui::UI, scene::{entity::Entity, component::Component}};
+use crate::{ui::UI, scene::{entity::Entity, container::Component}, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {
@@ -21,6 +21,10 @@ pub struct UIComponent {
 impl Component for UIComponent {}
 
 impl UIComponent {
+
+    // TODO: find better name
+    pub const NAME: &'static str = "ui_component";
+    pub const UID: UID = UIComponent::NAME.into();
 
     pub fn new(ui: UI, render_target: UIRenderTarget) -> Self {
         Self {

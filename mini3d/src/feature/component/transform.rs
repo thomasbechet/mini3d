@@ -1,7 +1,7 @@
-use glam::{Mat4, Vec3, Quat, Vec4};
+use glam::{Mat4, Vec3, Quat};
 use serde::{Serialize, Deserialize};
 
-use crate::scene::component::Component;
+use crate::{scene::container::Component, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 pub struct Transform {
@@ -13,6 +13,9 @@ pub struct Transform {
 impl Component for Transform {}
 
 impl Transform {
+
+    pub const NAME: &'static str = "transform";
+    pub const UID: UID = Transform::NAME.into();
 
     pub fn from_translation(translation: Vec3) -> Self {
         Self {
@@ -48,29 +51,5 @@ impl Transform {
 
     pub fn right(&self) -> Vec3 {
         self.rotation * Vec3::NEG_X
-    }
-}
-
-#[derive(Default, Serialize, Deserialize)]
-pub struct LocalToWorld {
-    pub matrix: Mat4,
-    #[serde(skip)]
-    pub(crate) dirty: bool,
-}
-
-impl Component for LocalToWorld {}
-
-impl LocalToWorld {
-
-    pub fn translation(&self) -> Vec3 {
-        self.matrix.w_axis.truncate()
-    }
-
-    pub fn forward(&self) -> Vec3 {
-        (self.matrix * Vec4::Z).truncate()
-    }
-
-    pub fn up(&self) -> Vec3 {
-        (self.matrix * Vec4::Y).truncate()
     }
 }

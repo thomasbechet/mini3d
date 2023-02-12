@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::scene::component::Component;
+use crate::{scene::container::Component, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 pub struct Lifecycle {
@@ -18,4 +18,9 @@ impl Lifecycle {
     pub fn dead() -> Self {
         Self { alive: false }
     }
+}
+
+impl Lifecycle {
+    pub const NAME: &'static str = "life_cycle";
+    pub const UID: UID = Lifecycle::NAME.into();
 }

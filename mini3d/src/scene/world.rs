@@ -1,45 +1,79 @@
-use anyhow::Result;
+use std::{collections::HashMap};
 
-use super::{entity::Entity, component::Component, query::{QueryView, QueryIter}};
+use anyhow::{Context, Result};
+
+use crate::{uid::UID, registry::component::{Component, ComponentRegistry}};
+
+use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, query::Query, view::{ComponentView, ComponentViewMut}};
+
+struct EntityEntry {
+    alive: bool,
+}
 
 #[derive(Default)]
 pub struct World {
-    pub(crate) raw_world: hecs::World,
+    containers: HashMap<UID, Box<dyn AnyComponentContainer>>,
+    entities: Vec<EntityEntry>, // TODO: page optimization
+    free_entities: Vec<Entity>,
 }
 
 impl World {
 
-    pub fn add_entity(&mut self) -> Entity {
-        Entity(self.raw_world.spawn(()))
+    pub fn create(&mut self) -> Entity {
+        if let Some(entity) = self.free_entities.pop() {
+            return entity;
+        }
+        Entity::null()
     }
-    pub fn remove_entity(&mut self, entity: Entity) -> Result<()> {
-        self.raw_world.despawn(entity.0);
+
+    pub fn destroy(&mut self, entity: Entity) -> Result<()> {
+        for pool in self.containers.values_mut() {
+            pool.remove(entity);
+        }
+        self.free_entities.push(Entity::new(entity.index(), entity.version() + 1));
         Ok(())
     }
 
-    pub fn add_component<T: Component>(&mut self, entity: Entity, component: T) -> Result<()> {
-        self.raw_world.insert_one(entity.0, component)?;
-        Ok(())
-    }
-    pub fn remove_component<T: Component>(&mut self, entity: Entity) -> Result<()> {
-        self.raw_world.remove_one::<T>(entity.0)?;
+    pub(crate) fn add<C: Component>(&mut self, registry: &ComponentRegistry, entity: Entity, component: UID, data: C) -> Result<()> {
+        if !self.containers.contains_key(&component) {
+            let pool = registry
+                .get(component).with_context(|| "Component not registered")?
+                .reflection.create_container();
+            self.containers.insert(component, pool);
+        }
+        let pool = self.containers.get_mut(&component).unwrap();
+        pool.as_any_mut()
+            .downcast_mut::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?
+            .add(entity, data);
         Ok(())
     }
     
-    pub fn query_mut<Q: hecs::Query>(&mut self) -> QueryIter<'_, Q> {
-        QueryIter(self.raw_world.query_mut::<Q>().into_iter())
+    pub(crate) fn remove(&mut self, registry: ComponentRegistry, entity: Entity, component: UID) -> Result<()> {
+        let pool = self.containers.get_mut(&component).with_context(|| "Component container not found")?;
+        pool.remove(entity);
+        Ok(())
     }
-    pub fn query<Q: hecs::Query>(&self) -> QueryIter<'_, Q> {
-        QueryIter(self.raw_world.query::<Q>().into_iter())
+
+    pub fn view<'a, C: Component>(&'a self, component: UID) -> Result<ComponentView<'a, C>> {
+        let container = self.containers.get(&component).with_context(|| "Component container not found")?;
+        let container = container.as_any()
+            .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
+        Ok(ComponentView::new(container))
     }
-    pub fn query_one_mut<Q: hecs::Query>(&mut self, entity: Entity) -> Result<hecs::QueryItem<'_, Q>> {
-        Ok(self.raw_world.query_one_mut::<Q>(entity.0)?)
+
+    pub fn view_mut<'a, C: Component>(&'a self, component: UID) -> Result<ComponentViewMut<'a, C>> {
+        let container = self.containers.get(&component).with_context(|| "Component container not found")?;
+        let container = container.as_any()
+            .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
+        Ok(ComponentViewMut::new(container))
     }
-    pub fn query_one<'a, Q: hecs::Query + 'a>(&'a self, entity: Entity) -> Result<hecs::QueryItem<'a, Q>> {
-        Ok(self.raw_world.query_one::<Q>(entity.0)?.get().unwrap())
+
+    pub fn query<'a>(&'a self, components: &[UID]) -> Query<'a> {
+        let mut containers = Vec::new();
+        for component in components {
+            containers.push(self.containers.get(component).unwrap().as_ref());
+        }
+        containers.sort_by(|a, b| a.len().cmp(&b.len()));
+        Query::new(containers)
     }
-    pub fn view_mut<Q: hecs::Query>(&mut self) -> QueryView<'_, Q> {
-        QueryView(self.raw_world.query_mut::<Q>().view())
-    }
-    
 }

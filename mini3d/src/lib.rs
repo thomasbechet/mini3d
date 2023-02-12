@@ -6,6 +6,7 @@ pub mod feature;
 pub mod renderer;
 pub mod input;
 pub mod math;
+pub mod registry;
 pub mod physics;
 pub mod prng;
 pub mod request;
@@ -15,6 +16,5 @@ pub mod ui;
 pub mod uid;
 
 pub use glam;
-pub use hecs;
 pub use anyhow;
 pub use rand;

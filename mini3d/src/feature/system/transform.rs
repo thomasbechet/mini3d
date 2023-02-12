@@ -1,10 +1,10 @@
 use anyhow::Result;
 use glam::Mat4;
 
-use crate::{feature::component::{transform::{Transform, LocalToWorld}, hierarchy::Hierarchy}, scene::{entity::Entity, query::QueryView, context::SystemContext, world::World}};
+use crate::{feature::component::{local_to_world::{Transform, LocalToWorld}, hierarchy::Hierarchy}, scene::{entity::Entity, context::SystemContext, world::World}};
 
 fn recursive_propagate(
-    entity: Entity, 
+    entity: Entity,
     view: &mut QueryView<(&Transform, &mut LocalToWorld, Option<&Hierarchy>)>,
 ) -> Result<Mat4> {
     if let Some((transform, global, hierarchy)) = view.get(entity) {
@@ -32,25 +32,25 @@ pub fn propagate(_: &mut SystemContext, world: &mut World) -> Result<()> {
         entities.push(e);
     }
 
-    // Prepare view
-    let mut view = world.view_mut::<(&Transform, &mut LocalToWorld, Option<&Hierarchy>)>();
+    // // Prepare view
+    // let mut view = world.view_mut::<(&Transform, &mut LocalToWorld, Option<&Hierarchy>)>();
     
-    // Propagate
-    for e in entities {
-        let (transform, global, hierarchy) = view.get(e).unwrap();
-        if !global.dirty { continue; }
-        if let Some(hierarchy) = hierarchy {
-            if let Some(parent) = hierarchy.parent() {
-                let parent_matrix = recursive_propagate(parent, &mut view)?;
-                global.matrix = parent_matrix * transform.matrix();
-            } else {
-                global.matrix = transform.matrix();
-            }
-        } else {
-            global.matrix = transform.matrix();
-        }
-        global.dirty = false;
-    }
+    // // Propagate
+    // for e in entities {
+    //     let (transform, global, hierarchy) = view.get(e).unwrap();
+    //     if !global.dirty { continue; }
+    //     if let Some(hierarchy) = hierarchy {
+    //         if let Some(parent) = hierarchy.parent() {
+    //             let parent_matrix = recursive_propagate(parent, &mut view)?;
+    //             global.matrix = parent_matrix * transform.matrix();
+    //         } else {
+    //             global.matrix = transform.matrix();
+    //         }
+    //     } else {
+    //         global.matrix = transform.matrix();
+    //     }
+    //     global.dirty = false;
+    // }
 
     Ok(())
 }

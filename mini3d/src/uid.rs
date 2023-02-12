@@ -29,6 +29,12 @@ impl From<&String> for UID {
     }
 }
 
+impl From<String> for UID {
+    fn from(s: String) -> Self {
+        s.as_str().into()
+    }
+}
+
 impl From<u64> for UID {
     fn from(uid: u64) -> Self {
         Self(uid)

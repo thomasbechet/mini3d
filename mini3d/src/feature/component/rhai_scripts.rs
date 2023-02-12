@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, scene::component::Component};
+use crate::{uid::UID, scene::container::Component};
 
 pub const MAX_RHAI_SCRIPT_COUNT: usize = 16;
 
@@ -26,6 +26,9 @@ pub struct RhaiScripts {
 impl Component for RhaiScripts {}
 
 impl RhaiScripts {
+
+    pub const NAME: &'static str = "rhai_scripts";
+    pub const UID: UID = RhaiScripts::NAME.into();
 
     pub fn add(&mut self, uid: UID) -> Result<()> {
         if self.instances.iter().any(|instance| match instance {

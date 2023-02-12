@@ -1,7 +1,7 @@
 use glam::UVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::backend::ViewportHandle, scene::{component::Component, entity::Entity}};
+use crate::{renderer::backend::ViewportHandle, scene::{container::Component, entity::Entity}, uid::UID};
 
 fn default_as_true() -> bool { true }
 
@@ -18,6 +18,9 @@ pub struct Viewport {
 impl Component for Viewport {}
 
 impl Viewport {
+
+    pub const NAME: &'static str = "viewport";
+    pub const UID: UID = Viewport::NAME.into();
 
     pub fn new(resolution: UVec2, camera: Option<Entity>) -> Self {
         Self { camera, resolution, handle: None, out_of_date: true }

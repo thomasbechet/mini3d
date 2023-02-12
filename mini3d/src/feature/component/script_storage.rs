@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::scene::component::Component;
+use crate::{scene::container::Component, uid::UID};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum NodeValue {
@@ -28,6 +28,9 @@ impl Default for ScriptStorage {
 }
 
 impl ScriptStorage {
+
+    pub const NAME: &'static str = "script_storage";
+    pub const UID: UID = ScriptStorage::NAME.into();
 
     fn find_node(&self, key: &str) -> Option<&NodeValue> {
         let mut current = &self.root;

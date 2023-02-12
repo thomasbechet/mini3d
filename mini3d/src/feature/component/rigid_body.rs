@@ -1,7 +1,7 @@
 use rapier3d::prelude::RigidBodyHandle;
 use serde::{Serialize, Deserialize};
 
-use crate::scene::component::Component;
+use crate::{scene::container::Component, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 pub struct RigidBody {
@@ -12,5 +12,6 @@ pub struct RigidBody {
 impl Component for RigidBody {}
 
 impl RigidBody {
-    
+    pub const NAME: &'static str = "rigid_body";
+    pub const UID: UID = RigidBody::NAME.into();
 }

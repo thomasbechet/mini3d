@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::backend::SceneModelHandle, scene::component::Component};
+use crate::{uid::UID, renderer::backend::SceneModelHandle, scene::container::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct Model {
@@ -17,4 +17,9 @@ impl Model {
     pub fn new(model: UID) -> Self {
         Self { model, changed: false, handle: None }
     }
+}
+
+impl Model {
+    pub const NAME: &'static str = "model";
+    pub const UID: UID = Model::NAME.into();
 }

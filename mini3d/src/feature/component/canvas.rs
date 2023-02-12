@@ -1,7 +1,7 @@
 use glam::UVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, scene::component::Component};
+use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, scene::container::Component, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 pub struct Canvas {
@@ -14,3 +14,8 @@ pub struct Canvas {
 }
 
 impl Component for Canvas {}
+
+impl Canvas {
+    pub const NAME: &'static str = "canvas";
+    pub const UID: UID = Canvas::NAME.into();
+}

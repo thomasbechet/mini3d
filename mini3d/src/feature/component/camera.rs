@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::backend::SceneCameraHandle, scene::component::Component};
+use crate::{renderer::backend::SceneCameraHandle, scene::container::Component, uid::UID};
 
 #[derive(Serialize, Deserialize)]
 pub struct Camera {
@@ -10,6 +10,11 @@ pub struct Camera {
 }
 
 impl Component for Camera {}
+
+impl Camera {
+    pub const NAME: &'static str = "Camera";
+    pub const UID: UID = Camera::NAME.into();
+}
 
 impl Default for Camera {
     fn default() -> Self {

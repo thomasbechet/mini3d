@@ -6,6 +6,9 @@ use serde::{Serializer, Deserializer, Serialize, Deserialize};
 use crate::asset::{AssetManager, AssetEntry};
 use crate::feature::{asset, component, system};
 use crate::physics::PhysicsManager;
+use crate::registry::RegistryManager;
+use crate::registry::component::Component;
+use crate::registry::system::SystemCallback;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
 use crate::scene::{SceneManager, Scene};
@@ -13,8 +16,6 @@ use crate::event::Events;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
 use crate::request::Requests;
-use crate::scene::component::Component;
-use crate::scene::system::BuiltinSystem;
 use crate::script::ScriptManager;
 use crate::uid::UID;
 
@@ -22,6 +23,7 @@ const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 pub struct Engine {
+    pub(crate) registry: RegistryManager,
     pub(crate) asset: AssetManager,
     pub(crate) input: InputManager,
     pub(crate) script: ScriptManager,
@@ -53,36 +55,37 @@ impl Engine {
         self.define_asset::<asset::world_template::WorldTemplate>("world_template")?;
 
         // Components
-        self.define_component::<component::camera::Camera>("camera")?;
-        self.define_component::<component::free_fly::FreeFly>("free_fly")?;
-        self.define_component::<component::lifecycle::Lifecycle>("lifecycle")?;
-        self.define_component::<component::model::Model>("model")?;
-        self.define_component::<component::rhai_scripts::RhaiScripts>("rhai_scripts")?;
-        self.define_component::<component::rigid_body::RigidBody>("rigid_body")?;
-        self.define_component::<component::rotator::Rotator>("rotator")?;
-        self.define_component::<component::script_storage::ScriptStorage>("script_storage")?;
-        self.define_component::<component::transform::Transform>("transform")?;
-        self.define_component::<component::transform::LocalToWorld>("local_to_world")?;
-        self.define_component::<component::hierarchy::Hierarchy>("hierarchy")?;
-        self.define_component::<component::ui::UIComponent>("ui")?;
-        self.define_component::<component::viewport::Viewport>("viewport")?;
-        self.define_component::<component::canvas::Canvas>("canvas")?;
+        self.define_component::<component::camera::Camera>(component::camera::Camera::NAME)?;
+        self.define_component::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
+        self.define_component::<component::lifecycle::Lifecycle>(component::lifecycle::Lifecycle::NAME)?;
+        self.define_component::<component::model::Model>(component::model::Model::NAME)?;
+        self.define_component::<component::rhai_scripts::RhaiScripts>(component::rhai_scripts::RhaiScripts::NAME)?;
+        self.define_component::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
+        self.define_component::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
+        self.define_component::<component::script_storage::ScriptStorage>(component::script_storage::ScriptStorage::NAME)?;
+        self.define_component::<component::transform::Transform>(component::transform::Transform::NAME)?;
+        self.define_component::<component::local_to_world::LocalToWorld>(component::local_to_world::LocalToWorld::NAME)?;
+        self.define_component::<component::hierarchy::Hierarchy>(component::hierarchy::Hierarchy::NAME)?;
+        self.define_component::<component::ui::UIComponent>(component::ui::UIComponent::NAME)?;
+        self.define_component::<component::viewport::Viewport>(component::viewport::Viewport::NAME)?;
+        self.define_component::<component::canvas::Canvas>(component::canvas::Canvas::NAME)?;
 
         // Systems
-        self.define_system("despawn_entities", BuiltinSystem::exclusive(system::despawn::run))?;
-        self.define_system("renderer", BuiltinSystem::exclusive(system::renderer::despawn_renderer_entities))?;
-        self.define_system("free_fly", BuiltinSystem::exclusive(system::free_fly::run))?;
-        self.define_system("rhai_update_scripts", BuiltinSystem::exclusive(system::rhai::update_scripts))?;
-        self.define_system("rotator", BuiltinSystem::exclusive(system::rotator::run))?;
-        self.define_system("transform_propagate", BuiltinSystem::exclusive(system::transform::propagate))?;
-        self.define_system("ui_update", BuiltinSystem::exclusive(system::ui::update))?;
-        self.define_system("ui_render", BuiltinSystem::exclusive(system::ui::render))?;
+        self.define_system("despawn_entities", system::despawn::run)?;
+        self.define_system("renderer", system::renderer::despawn_renderer_entities)?;
+        self.define_system("free_fly", system::free_fly::run)?;
+        self.define_system("rhai_update_scripts", system::rhai::update_scripts)?;
+        self.define_system("rotator", system::rotator::run)?;
+        self.define_system("transform_propagate", system::transform::propagate)?;
+        self.define_system("ui_update", system::ui::update)?;
+        self.define_system("ui_render", system::ui::render)?;
 
         Ok(())
     }
 
     pub fn new(scene: Scene) -> Result<Self> {
         let mut engine = Self {
+            registry: Default::default(),
             asset: Default::default(), 
             input: Default::default(), 
             script: Default::default(),
@@ -97,15 +100,15 @@ impl Engine {
     }
 
     pub fn define_asset<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
-        self.asset.define::<A>(name)
+        self.registry.assets.define_compiled::<A>(name)
     }
 
     pub fn define_component<C: Component>(&mut self, name: &str) -> Result<()> {
-        self.scene.define_component::<C>(name)
+        self.registry.components.define_compiled::<C>(name)
     }
 
-    pub fn define_system(&mut self, name: &str, system: BuiltinSystem) -> Result<()> {
-        self.scene.define_system(name, system)
+    pub fn define_system(&mut self, name: &str, system: SystemCallback) -> Result<()> {
+        self.registry.systems.define_compiled(name, system)
     }
 
     pub fn iter_asset<A: 'static>(&'_ self) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
