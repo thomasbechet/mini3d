@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::{scene::{world::World, entity::Entity, container::Component}, uid::UID};
+use crate::{scene::{world::World, entity::Entity}, uid::UID, registry::component::Component};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Hierarchy {

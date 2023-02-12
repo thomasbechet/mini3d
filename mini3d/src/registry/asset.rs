@@ -1,6 +1,6 @@
 use std::{collections::HashMap, any::TypeId};
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result};
 
 use crate::{uid::UID, asset::AnyAssetContainer};
 
@@ -17,6 +17,7 @@ pub(crate) struct AssetDefinition {
     pub(crate) reflection: Box<dyn AnyAssetDefinitionReflection>,
 }
 
+#[derive(Default)]
 pub struct AssetRegistry {
     assets: HashMap<UID, AssetDefinition>,
     types_to_uid: HashMap<TypeId, UID>,

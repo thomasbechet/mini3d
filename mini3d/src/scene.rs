@@ -1,22 +1,20 @@
 use std::collections::{HashMap, VecDeque};
-
+use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{uid::UID, feature::asset::schedule::Schedule, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager};
+use crate::{uid::UID, feature::asset::schedule::Schedule, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::RegistryManager, context::{SystemContext, scene::SceneCommand}};
 
-use self::{context::{SceneCommand, SystemContext}, world::World, signal::{SIGNAL_UPDATE, SIGNAL_SCENE_CHANGED}};
+use self::{world::World, signal::{SIGNAL_UPDATE, SIGNAL_SCENE_CHANGED}};
 
-pub mod context;
 pub mod query;
 pub mod container;
 pub mod entity;
 pub mod signal;
-pub mod system;
 pub mod view;
 pub mod world;
 
-struct SceneInfo {
+pub(crate) struct SceneInfo {
     name: String,
     index: u32,
 }
@@ -147,46 +145,42 @@ impl SceneManager {
 
     pub fn update(
         &mut self,
-        asset: &mut AssetManager,
-        input: &mut InputManager,
-        script: &mut ScriptManager,
-        renderer: &mut RendererManager,
+        registry: &RefCell<RegistryManager>,
+        asset: &RefCell<AssetManager>,
+        input: &RefCell<InputManager>,
+        script: &RefCell<ScriptManager>,
+        renderer: &RefCell<RendererManager>,
         delta_time: f64,
         time: f64,
     ) -> Result<()> {
 
-        // Extract previous signals
+        // Prepare signals and commands
         let signals = self.signal_queue.drain(..).collect::<Vec<_>>();
+        let mut commands: Vec<SceneCommand> = Default::default();
+        let scene = self.scenes.get_mut(&self.active_scene).unwrap();
 
         // Build context
-        let mut commands = Default::default();
-        let mut scene_proxy = SceneProxy {
-            current: self.active_scene,
-            scene_info: &mut self.scene_info,
-            commands: &mut commands,
-        };
-        let mut signal_proxy = SignalProxy {
-            signal_queue: &mut self.signal_queue,
-        };
         let mut context = SystemContext {
+            registry,
             asset,
             input,
-            script,
             renderer,
-            scene: &mut scene_proxy,
-            signal: &mut signal_proxy,
+            world: &mut scene.world,
             delta_time,
             time,
+            active_scene: self.active_scene,
+            scene_info: &self.scene_info,
+            scene_commands: &mut commands,
+            signal_queue: &mut self.signal_queue,
         };
-        let scene = self.scenes.get_mut(&self.active_scene).unwrap();
-        
+
         // Invoke signals
         for signal in signals {
-            scene.schedule.invoke(signal, &self.system_registry, &mut context, &mut scene.world)?;
+            scene.schedule.invoke(signal, &mut context)?;
         }
 
         // Update
-        scene.schedule.invoke(SIGNAL_UPDATE.into(), &self.system_registry, &mut context, &mut scene.world)?;
+        scene.schedule.invoke(SIGNAL_UPDATE.into(), &mut context)?;
 
         // Process commands
         for command in commands {

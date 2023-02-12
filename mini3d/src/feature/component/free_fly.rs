@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, scene::container::Component};
+use crate::{uid::UID, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct FreeFly {

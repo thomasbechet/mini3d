@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-
 use anyhow::{Result, Context};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, scene::{world::World, signal::{SIGNAL_UPDATE, SIGNAL_FIXED_UPDATE, SIGNAL_SCENE_CHANGED}, context::SystemContext}};
+use crate::{uid::UID, scene::{signal::{SIGNAL_UPDATE, SIGNAL_FIXED_UPDATE, SIGNAL_SCENE_CHANGED}}, registry::system::SystemKind, context::SystemContext};
 
 #[derive(Serialize, Deserialize)]
 struct SystemEntry {
@@ -47,34 +46,38 @@ impl Default for Schedule {
 
 impl Schedule {
 
-    pub(crate) fn invoke(
-        &self, 
-        signal: UID,
-        registry: &SystemRegistry,
-        context: &mut SystemContext,
-        world: &mut World,
-    ) -> Result<()> {
+    pub(crate) fn invoke(&self, signal: UID, context: &mut SystemContext) -> Result<()> {
+        
         if let Some(signal) = self.signals.get(&signal) {
-            for system in &signal.pipeline {
-                if let Some(entry) = self.systems.get(system) {
-                    if entry.active {
-                        let definition = registry.get(entry.system)
-                            .with_context(|| "System not found")?;
-                        match &definition.kind {
-                            SystemKind::Compiled(callback) => {
-                                (callback)(context, world)?;
-                            },
-                            SystemKind::Rhai(_) => { 
-                                unimplemented!("Rhai not implemented yet")
-                            },
-                            SystemKind::Lua(_) => { 
-                                unimplemented!("Lua not implemented yet")
-                            },
-                        }
-                    }
+            let systems = &signal.pipeline;
+                
+            // Collect systems
+            let mut pipeline: Vec<_> = Default::default();
+            let system_registry = &context.registry.borrow().systems;
+            for system in systems {
+                let entry = self.systems.get(system).with_context(|| "System not found")?;
+                if entry.active {
+                    let definition = system_registry.get(entry.system).with_context(|| "System not found")?;
+                    pipeline.push(definition.kind);
+                }
+            }
+
+            // Process pipeline
+            for system in &pipeline {
+                match system {
+                    SystemKind::Compiled(callback) => {
+                        (callback)(context)?;
+                    },
+                    SystemKind::Rhai(_) => { 
+                        unimplemented!("Rhai not implemented yet")
+                    },
+                    SystemKind::Lua(_) => { 
+                        unimplemented!("Lua not implemented yet")
+                    },
                 }
             }
         }
+
         Ok(())
     }
 

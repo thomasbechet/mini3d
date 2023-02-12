@@ -101,15 +101,15 @@ impl Engine {
     }
 
     pub fn define_asset<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
-        self.registry.assets.define_compiled::<A>(name)
+        self.registry.borrow_mut().assets.define_compiled::<A>(name)
     }
 
     pub fn define_component<C: Component>(&mut self, name: &str) -> Result<()> {
-        self.registry.components.define_compiled::<C>(name)
+        self.registry.borrow_mut().components.define_compiled::<C>(name)
     }
 
     pub fn define_system(&mut self, name: &str, system: SystemCallback) -> Result<()> {
-        self.registry.systems.define_compiled(name, system)
+        self.registry.borrow_mut().systems.define_compiled(name, system)
     }
 
     pub fn iter_asset<A: 'static>(&'_ self) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {

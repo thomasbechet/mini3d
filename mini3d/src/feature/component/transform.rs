@@ -1,7 +1,7 @@
 use glam::{Mat4, Vec3, Quat};
 use serde::{Serialize, Deserialize};
 
-use crate::{scene::container::Component, uid::UID};
+use crate::{uid::UID, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct Transform {

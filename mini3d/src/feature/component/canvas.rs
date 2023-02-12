@@ -1,7 +1,7 @@
 use glam::UVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, scene::container::Component, uid::UID};
+use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, uid::UID, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct Canvas {

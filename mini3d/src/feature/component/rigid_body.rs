@@ -1,7 +1,7 @@
 use rapier3d::prelude::RigidBodyHandle;
 use serde::{Serialize, Deserialize};
 
-use crate::{scene::container::Component, uid::UID};
+use crate::{uid::UID, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct RigidBody {

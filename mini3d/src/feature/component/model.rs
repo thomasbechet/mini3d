@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::backend::SceneModelHandle, scene::container::Component};
+use crate::{uid::UID, renderer::backend::SceneModelHandle, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct Model {

@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Result};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, feature::asset::runtime_component::FieldType, scene::{container::{AnyComponentContainer, ComponentContainer, RuntimeComponent1, RuntimeComponent2, RuntimeComponent3, RuntimeComponent4, RuntimeComponent5}, entity::Entity, context::SystemContext}};
+use crate::{uid::UID, feature::asset::runtime_component::FieldType, scene::{container::{AnyComponentContainer, ComponentContainer, RuntimeComponent1, RuntimeComponent2, RuntimeComponent3, RuntimeComponent4, RuntimeComponent5}, entity::Entity}};
 
 struct EntityResolver;
+struct ComponentContext;
 
 pub trait Component: Serialize + for<'de> Deserialize<'de> {
-    fn on_construct(&mut self, entity: Entity, ctx: &mut SystemContext) -> Result<()> { Ok(()) }
-    fn on_destruct(&mut self, entity: Entity, ctx: &mut SystemContext) -> Result<()> { Ok(()) }
+    fn on_construct(&mut self, entity: Entity, ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
+    fn on_destruct(&mut self, entity: Entity, ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<()> { Ok(()) }
 }
 

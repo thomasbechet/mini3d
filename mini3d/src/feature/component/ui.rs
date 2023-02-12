@@ -1,7 +1,7 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{ui::UI, scene::{entity::Entity, container::Component}, uid::UID};
+use crate::{ui::UI, scene::entity::Entity, uid::UID, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {

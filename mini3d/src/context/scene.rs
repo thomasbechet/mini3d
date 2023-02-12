@@ -1,10 +1,25 @@
-use crate::uid::UID;
+use std::collections::HashMap;
+
+use anyhow::Result;
+
+use crate::{uid::UID, feature::asset::{world_template::WorldTemplate, schedule::Schedule}, scene::{SceneInfo, Scene, world::World}};
+
+pub(crate) enum SceneCommand {
+    Load(UID, Box<Scene>),
+    Unload(UID),
+    Change(UID),
+}
 
 pub struct SceneContext<'a> {
-    
+    scene_info: &'a HashMap<UID, SceneInfo>,
+    scene_commands: &'a mut Vec<SceneCommand>,
 }
 
 impl<'a> SceneContext<'a> {
+
+    pub(crate) fn new(scene_info: &'a HashMap<UID, SceneInfo>, scene_commands: &'a mut Vec<SceneCommand>) -> Self {
+        Self { scene_info, scene_commands }
+    }
 
     pub fn load(&mut self, name: &str, world: WorldTemplate, schedule: Schedule) -> Result<()> {
         let uid: UID = name.into();

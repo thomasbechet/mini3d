@@ -144,24 +144,12 @@ impl<A: Serialize + for<'de> Deserialize<'de> + 'static> AnyAssetContainer for A
 
 pub struct ImportAssetBundle {
     name: String,
-    types: HashMap<TypeId, Box<dyn AnyAssetContainer>>,
-}
-
-struct AssetType {
-    name: String,
-    registry: Box<dyn AnyAssetContainer>,
-    default: Option<UID>,
-}
-
-impl AssetType {
-    fn new<A: Serialize + for<'de> Deserialize<'de> + 'static>(name: &str) -> Self {
-        Self { name: name.to_string(), registry: Box::new(AssetContainer::<A>(Default::default())), default: None }
-    }
+    types: HashMap<UID, Box<dyn AnyAssetContainer>>,
 }
 
 struct AssetBundle {
     name: String,
-    types: HashMap<TypeId, HashSet<UID>>,
+    types: HashMap<UID, HashSet<UID>>,
 }
 
 impl AssetBundle {
@@ -364,52 +352,53 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn set_default<A: 'static>(&mut self, uid: UID) -> Result<()> {
+    pub(crate) fn set_default<A: 'static>(&mut self, uid: UID) -> Result<()> {
         self.types.get_mut(&TypeId::of::<A>()).with_context(|| "Asset type not found")?
             .default = Some(uid);
         Ok(())
     }
 
-    pub fn get<A: 'static>(&'_ self, uid: UID) -> Result<&'_ A> {
-        self.container::<A>()?.0.get(&uid).map(|entry| &entry.asset)
+    pub(crate) fn get<A: 'static>(&'_ self, registry: &AssetRegistry, uid: UID) -> Result<&'_ A> {
+        self.container::<A>(registry)?.0.get(&uid).map(|entry| &entry.asset)
             .with_context(|| "Asset not found")
     }
 
-    pub fn get_or_default<A: 'static>(&'_ self, uid: UID) -> Result<&'_ A> {
-        let asset_type = self.types.get(&TypeId::of::<A>()).with_context(|| "Asset type not found")?;
-        let registry: &AssetContainer<A> = asset_type.registry.as_any().downcast_ref().unwrap();
-        registry.0.get(&uid)
-        .or_else(|| {
-            asset_type.default.and_then(|uid| {
-                registry.0.get(&uid)
+    pub(crate) fn get_or_default<A: 'static>(&'_ self, registry: &AssetRegistry, uid: UID) -> Result<&'_ A> {
+        let container = self.container::<A>(registry)?;
+        let uid = registry.uid_from_type::<A>()?;
+        let default = self.defaults.get(&uid);
+        container.0.get(&uid)
+            .or_else(|| {
+                default.and_then(|uid| {
+                    container.0.get(&uid)
+                })
             })
-        })
-        .map(|entry| &entry.asset)
-        .with_context(|| "Asset not found and no default provided")
+            .map(|entry| &entry.asset)
+            .with_context(|| "Asset not found and no default provided")
     }
 
-    pub fn get_mut<A: 'static>(&'_ mut self, uid: UID) -> Result<&'_ mut A> {
-        self.container_mut::<A>()?.0.get_mut(&uid).map(|entry| &mut entry.asset)
+    pub(crate) fn get_mut<A: 'static>(&'_ mut self, registry: &AssetRegistry, uid: UID) -> Result<&'_ mut A> {
+        self.container_mut::<A>(registry)?.0.get_mut(&uid).map(|entry| &mut entry.asset)
             .with_context(|| "Asset not found")
     }
 
-    pub fn entry<A: 'static>(&'_ self, uid: UID) -> Result<&'_ AssetEntry<A>> {
-        self.container::<A>()?.0.get(&uid)
+    pub(crate) fn entry<A: 'static>(&'_ self, registry: &AssetRegistry, uid: UID) -> Result<&'_ AssetEntry<A>> {
+        self.container::<A>(registry)?.0.get(&uid)
             .with_context(|| "Asset not found")
     }
 
-    pub fn iter<A: 'static>(&'_ self) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
-        Ok(self.container::<A>()?.0.iter())
+    pub(crate) fn iter<A: 'static>(&'_ self, registry: &AssetRegistry) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
+        Ok(self.container::<A>(registry)?.0.iter())
     }
 
-    pub fn add_bundle(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn add_bundle(&mut self, name: &str) -> Result<()> {
         let uid = UID::new(name);
         if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle already exists")); }
         self.bundles.insert(uid, AssetBundle::new(name));
         Ok(())
     }
 
-    pub fn serialize_bundle<S: Serializer>(&self, uid: UID, serializer: S) -> Result<S::Ok, S::Error> {
+    pub(crate) fn serialize_bundle<S: Serializer>(&self, uid: UID, serializer: S) -> Result<S::Ok, S::Error> {
         struct AssetTypesSerialize<'a> {
             manager: &'a AssetManager,
             types: &'a HashMap<TypeId, HashSet<UID>>,
@@ -418,7 +407,7 @@ impl AssetManager {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer {
                 struct AssetTypeSerialize<'a> {
-                    asset_type: &'a AssetType,
+                    container: &'a AssetType,
                     set: &'a HashSet<UID>,
                 }
                 impl<'a> Serialize for AssetTypeSerialize<'a> {
@@ -446,7 +435,7 @@ impl AssetManager {
         tuple.end()
     }
 
-    pub fn deserialize_bundle<'a, D: Deserializer<'a>>(&self, deserializer: D) -> Result<ImportAssetBundle, D::Error> {
+    pub(crate) fn deserialize_bundle<'a, D: Deserializer<'a>>(&self, deserializer: D) -> Result<ImportAssetBundle, D::Error> {
         struct ImportAssetBundleVisitor<'a> {
             manager: &'a AssetManager,
         }
@@ -540,23 +529,23 @@ impl AssetManager {
         deserializer.deserialize_tuple(2, ImportAssetBundleVisitor { manager: self })
     }
 
-    pub fn import_bundle(&mut self, mut import: ImportAssetBundle) -> Result<()> {
+    pub(crate) fn import_bundle(&mut self, registry: &AssetRegistry, mut import: ImportAssetBundle) -> Result<()> {
         self.add_bundle(&import.name)?;
         let bundle = self.bundles.get_mut(&UID::new(&import.name)).expect("Bundle not found");
-        for (type_id, assets) in &mut import.types {
-            let asset_type = self.types.get_mut(type_id).with_context(|| "Asset type not found")?;
-            bundle.types.insert(*type_id, assets.collect_uids());
-            asset_type.registry.merge(assets.as_mut())?;
+        for (uid, assets) in &mut import.types {
+            let container = self.containers.get_mut(uid).with_context(|| "Asset type not found")?;
+            bundle.types.insert(*uid, assets.collect_uids());
+            container.merge(assets.as_mut())?;
         }
         Ok(())
     }
 
-    pub fn add<A: 'static>(&mut self, name: &str, bundle: UID, data: A) -> Result<()> {
+    pub(crate) fn add<A: 'static>(&mut self, registry: &AssetRegistry, name: &str, bundle: UID, data: A) -> Result<()> {
         if !self.bundles.contains_key(&bundle) { return Err(anyhow!("Bundle not found")); }
         let uid = UID::new(name);
-        if self.container::<A>()?.0.contains_key(&uid) { return Err(anyhow!("Asset '{}' already exists", name)); }
+        if self.container::<A>(registry)?.0.contains_key(&uid) { return Err(anyhow!("Asset '{}' already exists", name)); }
         let value = AssetEntry { name: name.to_string(), asset: data, bundle };
-        self.container_mut::<A>()?.0.insert(uid, value);
+        self.container_mut::<A>(registry)?.0.insert(uid, value);
         let type_id = TypeId::of::<A>();
         self.bundles.get_mut(&bundle).unwrap().types.entry(type_id)
             .or_insert_with(Default::default)
@@ -564,24 +553,24 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn remove<A: 'static>(&mut self, uid: UID) -> Result<()> {
-        if !self.container_mut::<A>()?.0.contains_key(&uid) { return Err(anyhow!("Asset not found")); }
+    pub(crate) fn remove<A: 'static>(&mut self, registry: &AssetRegistry, uid: UID) -> Result<()> {
+        if !self.container_mut::<A>(registry)?.0.contains_key(&uid) { return Err(anyhow!("Asset not found")); }
         {
             // Remove from bundle
-            let bundle_uid = self.container_mut::<A>()?.0.get(&uid).unwrap().bundle;
+            let bundle_uid = self.container_mut::<A>(registry)?.0.get(&uid).unwrap().bundle;
             let bundle = self.bundles.get_mut(&bundle_uid).with_context(|| "Bundle not found")?;
             let type_id = TypeId::of::<A>();
             bundle.types.get_mut(&type_id).with_context(|| "Typeid in bundle was not found")?.remove(&uid);
         }
         {
             // TODO: check dependencies
-            self.container_mut::<A>()?.0.remove(&uid);
+            self.container_mut::<A>(registry)?.0.remove(&uid);
         }
         Ok(())
     }
 
-    pub fn transfer<A: 'static>(&mut self, uid: UID, dst_bundle: UID) -> Result<()> {
-        let src_bundle = self.container::<A>()?.0.get(&uid)
+    pub(crate) fn transfer<A: 'static>(&mut self, registry: &AssetRegistry, uid: UID, dst_bundle: UID) -> Result<()> {
+        let src_bundle = self.container::<A>(registry)?.0.get(&uid)
             .with_context(|| "Asset not found")?.bundle;
         if !self.bundles.contains_key(&dst_bundle) { return Err(anyhow!("Invalid destination bundle")); }
         if src_bundle == dst_bundle { return Ok(()); }
@@ -591,7 +580,7 @@ impl AssetManager {
             .remove(&uid);
         self.bundles.get_mut(&dst_bundle)
             .unwrap().types.entry(type_id).or_insert_with(Default::default).insert(uid);
-        self.container_mut::<A>()?.0.get_mut(&uid).unwrap().bundle = dst_bundle;
+        self.container_mut::<A>(registry)?.0.get_mut(&uid).unwrap().bundle = dst_bundle;
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::backend::SceneCameraHandle, scene::container::Component, uid::UID};
+use crate::{renderer::backend::SceneCameraHandle, uid::UID, registry::component::Component};
 
 #[derive(Serialize, Deserialize)]
 pub struct Camera {

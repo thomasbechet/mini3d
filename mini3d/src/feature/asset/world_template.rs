@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use anyhow::{Result, Context};
 use serde::{Serialize, Deserialize};
 use serde_json::{Map, Value};
 
-use crate::{scene::{world::World, container::{ComponentDefinition, ComponentRegistry}}, uid::UID};
+use crate::{scene::world::World, uid::UID, registry::component::ComponentRegistry};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WorldTemplate {

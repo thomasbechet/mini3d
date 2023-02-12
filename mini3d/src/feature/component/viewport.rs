@@ -1,7 +1,7 @@
 use glam::UVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::backend::ViewportHandle, scene::{container::Component, entity::Entity}, uid::UID};
+use crate::{renderer::backend::ViewportHandle, scene::entity::Entity, uid::UID, registry::component::Component};
 
 fn default_as_true() -> bool { true }
 

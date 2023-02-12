@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{Result, anyhow};
 
-use crate::{uid::UID, scene::context::SystemContext};
+use crate::{uid::UID, context::SystemContext};
 
 pub type SystemCallback = fn(&mut SystemContext) -> Result<()>;
 
