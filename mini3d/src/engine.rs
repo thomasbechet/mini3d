@@ -18,18 +18,19 @@ use crate::input::InputManager;
 use crate::request::Requests;
 use crate::script::ScriptManager;
 use crate::uid::UID;
+use core::cell::RefCell;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 pub struct Engine {
-    pub(crate) registry: RegistryManager,
-    pub(crate) asset: AssetManager,
-    pub(crate) input: InputManager,
-    pub(crate) script: ScriptManager,
-    pub(crate) scene: SceneManager,
-    pub(crate) renderer: RendererManager,
-    pub(crate) physics: PhysicsManager,
+    pub(crate) registry: RefCell<RegistryManager>,
+    pub(crate) asset: RefCell<AssetManager>,
+    pub(crate) input: RefCell<InputManager>,
+    pub(crate) script: RefCell<ScriptManager>,
+    pub(crate) scene: RefCell<SceneManager>,
+    pub(crate) renderer: RefCell<RendererManager>,
+    pub(crate) physics: RefCell<PhysicsManager>,
     accumulator: f64,
     time: f64,
 }

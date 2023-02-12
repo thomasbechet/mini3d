@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use crate::{feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}, scene::{context::SystemContext, world::World, entity::Entity}};
 
-pub fn run(_ctx: &mut SystemContext, world: &mut World) -> Result<()> {
-
+pub fn run(ctx: &mut SystemContext) -> Result<()> {
+    
     let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
     let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
@@ -26,9 +26,6 @@ pub fn run(_ctx: &mut SystemContext, world: &mut World) -> Result<()> {
         }
         Hierarchy::detach(parent, entity, world)?;
     }
-
-    let assets = ctx.service::<AssetService>()?;
-    assets.get::<Texture>();
 
     // Despawn entities
     for entity in despawn_entities {

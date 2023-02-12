@@ -23,7 +23,7 @@ fn recursive_propagate(
     }
 }
 
-pub fn propagate(_: &mut SystemContext, world: &mut World) -> Result<()> {
+pub fn propagate(ctx: &mut SystemContext) -> Result<()> {
     
     // Reset all flags
     let mut entities = Vec::new();

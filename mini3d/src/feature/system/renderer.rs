@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{feature::component::{camera::Camera, model::Model, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, scene::{context::SystemContext, world::World}};
 
-pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
+pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> Result<()> {
 
     for (_, (l, v)) in world.query_mut::<(&Lifecycle, &mut Viewport)>() {
         if !l.alive {

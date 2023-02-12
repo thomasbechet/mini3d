@@ -3,7 +3,7 @@ use glam::{Vec3, Quat};
 
 use crate::{feature::component::{free_fly::FreeFly, transform::Transform}, scene::{context::SystemContext, world::World}};
 
-pub fn run(ctx: &mut SystemContext, world: &mut World) -> Result<()> {
+pub fn run(ctx: &mut SystemContext) -> Result<()> {
 
     let transforms = world.view_mut::<Transform>(Transform::UID)?;
     let free_flies = world.view_mut::<FreeFly>(FreeFly::UID)?;

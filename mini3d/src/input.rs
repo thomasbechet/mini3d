@@ -133,7 +133,7 @@ impl InputManager {
         deserializer.deserialize_tuple(2, InputVisitor { manager: self })
     }
 
-    pub fn reload_input_tables(&mut self, asset: &AssetManager) -> Result<()> {
+    pub(crate) fn reload_input_tables(&mut self, asset: &AssetManager) -> Result<()> {
         self.actions.clear();
         for (uid, entry) in asset.iter::<InputAction>()? {
             self.actions.insert(*uid, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
@@ -149,15 +149,15 @@ impl InputManager {
         Ok(())
     }
 
-    pub fn text(&self) -> &str {
+    pub(crate) fn text(&self) -> &str {
         &self.text
     }
 
-    pub fn action(&self, uid: UID) -> Result<&InputActionState> {
+    pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState> {
         self.actions.get(&uid).ok_or_else(|| anyhow!("Input action not found"))
     }
 
-    pub fn axis(&self, uid: UID) -> Result<&InputAxisState> {
+    pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState> {
         self.axis.get(&uid).ok_or_else(|| anyhow!("Input axis not found"))
     }
 }
