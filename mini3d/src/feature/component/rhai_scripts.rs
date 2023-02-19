@@ -28,7 +28,7 @@ impl Component for RhaiScripts {}
 impl RhaiScripts {
 
     pub const NAME: &'static str = "rhai_scripts";
-    pub const UID: UID = RhaiScripts::NAME.into();
+    pub const UID: UID = UID::new(RhaiScripts::NAME);
 
     pub fn add(&mut self, uid: UID) -> Result<()> {
         if self.instances.iter().any(|instance| match instance {

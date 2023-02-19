@@ -19,7 +19,7 @@ impl Asset for Tileset {}
 impl Tileset {
 
     pub const NAME: &'static str = "tileset";
-    pub const UID: UID = Tileset::NAME.into();
+    pub const UID: UID = UID::new(Tileset::NAME);
     
     pub fn extent(&self, tile: u32) -> Result<IRect> {
         if tile >= self.grid_width * self.grid_height {

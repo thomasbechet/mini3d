@@ -11,5 +11,5 @@ impl Component for Rotator {}
 
 impl Rotator {
     pub const NAME: &'static str = "rotator";
-    pub const UID: UID = Rotator::NAME.into();
+    pub const UID: UID = UID::new(Rotator::NAME);
 }

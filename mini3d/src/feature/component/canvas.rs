@@ -17,5 +17,5 @@ impl Component for Canvas {}
 
 impl Canvas {
     pub const NAME: &'static str = "canvas";
-    pub const UID: UID = Canvas::NAME.into();
+    pub const UID: UID = UID::new(Canvas::NAME);
 }

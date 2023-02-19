@@ -13,7 +13,7 @@ impl Component for Camera {}
 
 impl Camera {
     pub const NAME: &'static str = "camera";
-    pub const UID: UID = Camera::NAME.into();
+    pub const UID: UID = UID::new(Camera::NAME);
 }
 
 impl Default for Camera {

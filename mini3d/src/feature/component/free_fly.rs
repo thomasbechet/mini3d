@@ -42,5 +42,5 @@ impl FreeFly {
 
 impl FreeFly {
     pub const NAME: &'static str = "free_fly";
-    pub const UID: UID = FreeFly::NAME.into();
+    pub const UID: UID = UID::new(FreeFly::NAME);
 }

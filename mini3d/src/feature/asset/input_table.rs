@@ -14,5 +14,5 @@ impl Asset for InputTable {}
 
 impl InputTable {
     pub const NAME: &'static str = "input_table";
-    pub const UID: UID = InputTable::NAME.into();
+    pub const UID: UID = UID::new(InputTable::NAME);
 }

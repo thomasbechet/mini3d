@@ -26,5 +26,5 @@ impl Asset for Mesh {}
 
 impl Mesh {
     pub const NAME: &'static str = "mesh";
-    pub const UID: UID = Mesh::NAME.into();
+    pub const UID: UID = UID::new(Mesh::NAME);
 }

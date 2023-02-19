@@ -20,7 +20,7 @@ impl Asset for SystemGroup {}
 impl SystemGroup {
 
     pub const NAME: &'static str = "system_group";
-    pub const UID: UID = SystemGroup::NAME.into();
+    pub const UID: UID = UID::new(SystemGroup::NAME);
 
     pub fn empty() -> Self {
         Self { procedures: Default::default() }

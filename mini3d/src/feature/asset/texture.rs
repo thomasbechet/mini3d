@@ -22,5 +22,5 @@ impl Asset for Texture {}
 
 impl Texture {
     pub const NAME: &'static str = "texture";
-    pub const UID: UID = Texture::NAME.into();
+    pub const UID: UID = UID::new(Texture::NAME);
 }

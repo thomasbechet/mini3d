@@ -23,5 +23,5 @@ impl Asset for InputAxis {}
 
 impl InputAxis {
     pub const NAME: &'static str = "input_axis";
-    pub const UID: UID = InputAxis::NAME.into();
+    pub const UID: UID = UID::new(InputAxis::NAME);
 }

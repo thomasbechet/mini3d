@@ -15,7 +15,7 @@ impl Component for Transform {}
 impl Transform {
 
     pub const NAME: &'static str = "transform";
-    pub const UID: UID = Transform::NAME.into();
+    pub const UID: UID = UID::new(Transform::NAME);
 
     pub fn from_translation(translation: Vec3) -> Self {
         Self {

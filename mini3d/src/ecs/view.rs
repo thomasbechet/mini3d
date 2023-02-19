@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Deref};
 
 use crate::registry::component::Component;
 
@@ -101,5 +101,13 @@ impl<'a, C: Component> IntoIterator for &ComponentViewMut<'a, C> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.components.iter_mut()
+    }
+}
+
+impl<'a, C: Component> Deref for ComponentViewMut<'a, C> {
+    type Target = ComponentView<'a, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &ComponentView::<'a, C> { components: &self.components, entities: self.entities, indices: self.indices }
     }
 }

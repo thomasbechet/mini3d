@@ -1,11 +1,13 @@
-use anyhow::{Result, Context};
+use anyhow::Result;
 
-use crate::{feature::component::{ui::{UIComponent, UIRenderTarget}, canvas::Canvas}, ecs::{context::SystemContext, world::World}};
+use crate::{context::SystemContext, feature::component::ui::UIComponent};
 
 pub fn update(ctx: &SystemContext) -> Result<()> {
-    for (_, ui) in world.query_mut::<&mut UIComponent>() {
-        if ui.active {
-            ui.ui.update(ctx.input, ctx.time)?;
+    let world = ctx.world().active();
+    let uis = world.view::<UIComponent>(UIComponent::UID)?;
+    for e in &world.query(&[UIComponent::UID]) {
+        if uis[e].active {
+            uis[e].ui.update(&ctx.input(), ctx.time().global())?;
         }
     }
     Ok(())

@@ -13,5 +13,5 @@ impl Asset for InputAction {}
 
 impl InputAction {
     pub const NAME: &'static str = "input_action";
-    pub const UID: UID = InputAction::NAME.into();
+    pub const UID: UID = UID::new(InputAction::NAME);
 }

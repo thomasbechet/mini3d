@@ -15,7 +15,7 @@ impl Component for LocalToWorld {}
 impl LocalToWorld {
 
     pub const NAME: &'static str = "local_to_world";
-    pub const UID: UID = LocalToWorld::NAME.into();
+    pub const UID: UID = UID::new(LocalToWorld::NAME);
 
     pub fn translation(&self) -> Vec3 {
         self.matrix.w_axis.truncate()

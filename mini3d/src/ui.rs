@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_RESOLUTION}, math::rect::IRect, input::InputManager};
+use crate::{uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_RESOLUTION}, math::rect::IRect, context::input::InputContext};
 
 use self::{interaction_layout::{InteractionLayout, InteractionEvent, InteractionInputs}, button::Button, label::Label, checkbox::Checkbox, sprite::Sprite, viewport::Viewport};
 
@@ -165,7 +165,7 @@ impl UI {
         }
     }
 
-    pub fn update(&mut self, input: &InputManager, time: f64) -> Result<()> {
+    pub fn update(&mut self, input: &InputContext<'_>, time: f64) -> Result<()> {
         
         // Update interaction layout
         self.interaction_events.clear();

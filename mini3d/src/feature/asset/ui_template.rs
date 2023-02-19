@@ -11,5 +11,5 @@ impl Asset for UITemplate {}
 
 impl UITemplate {
     pub const NAME: &'static str = "ui_template";
-    pub const UID: UID = UITemplate::NAME.into();
+    pub const UID: UID = UID::new(UITemplate::NAME);
 }

@@ -30,7 +30,7 @@ impl Default for ScriptStorage {
 impl ScriptStorage {
 
     pub const NAME: &'static str = "script_storage";
-    pub const UID: UID = ScriptStorage::NAME.into();
+    pub const UID: UID = UID::new(ScriptStorage::NAME);
 
     fn find_node(&self, key: &str) -> Option<&NodeValue> {
         let mut current = &self.root;

@@ -35,7 +35,7 @@ impl Asset for Font {}
 
 impl Font {
     pub const NAME: &'static str = "font";
-    pub const UID: UID = Font::NAME.into();
+    pub const UID: UID = UID::new(Font::NAME);
 }
 
 pub struct FontAtlas {

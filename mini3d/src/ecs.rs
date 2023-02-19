@@ -27,11 +27,11 @@ pub struct ECSManager {
 impl ECSManager {
 
     pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        struct SceneSerialize<'a> {
-            manager: &'a SceneManager,
-            scene: UID,
+        struct WorldSerialize<'a> {
+            manager: &'a ECSManager,
+            world: UID,
         }
-        impl<'a> Serialize for SceneSerialize<'a> {
+        impl<'a> Serialize for WorldSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer {
                 // struct WorldSerialize<'a> {

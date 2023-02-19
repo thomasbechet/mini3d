@@ -21,5 +21,5 @@ impl Model {
 
 impl Model {
     pub const NAME: &'static str = "model";
-    pub const UID: UID = Model::NAME.into();
+    pub const UID: UID = UID::new(Model::NAME);
 }

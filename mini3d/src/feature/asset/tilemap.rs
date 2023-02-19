@@ -14,5 +14,5 @@ impl Asset for Tilemap {}
 
 impl Tilemap {
     pub const NAME: &'static str = "tilemap";
-    pub const UID: UID = Tilemap::NAME.into();
+    pub const UID: UID = UID::new(Tilemap::NAME);
 }

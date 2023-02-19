@@ -4,24 +4,34 @@ use crate::{feature::component::{camera::Camera, model::Model, lifecycle::Lifecy
 
 pub(crate) fn despawn_renderer_entities(ctx: &SystemContext) -> Result<()> {
 
-    for (_, (l, v)) in ctx.world().query_mut::<(&Lifecycle, &mut Viewport)>() {
-        if !l.alive {
-            if let Some(handle) = v.handle { ctx.renderer.viewports_removed.insert(handle); }
+    let world = ctx.world().active();
+    let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
+    let viewports = world.view::<Viewport>(Viewport::UID)?;
+    let cameras = world.view::<Camera>(Camera::UID)?;
+    let models = world.view::<Model>(Model::UID)?;
+    let canvases = world.view::<Canvas>(Canvas::UID)?;
+
+    for e in &world.query(&[Lifecycle::UID, Viewport::UID]) {
+        if !lifecycles[e].alive {
+            if let Some(handle) = viewports[e].handle { ctx.renderer.borrow_mut().viewports_removed.insert(handle); }
         }
     }
-    for (_, (l, c)) in world.query_mut::<(&Lifecycle, &mut Camera)>() {
-        if !l.alive { 
-            if let Some(handle) = c.handle { ctx.renderer.scene_cameras_removed.insert(handle); }
+
+    for e in &world.query(&[Lifecycle::UID, Camera::UID]) {
+        if !lifecycles[e].alive { 
+            if let Some(handle) = cameras[e].handle { ctx.renderer.borrow_mut().scene_cameras_removed.insert(handle); }
         }
     }
-    for (_, (l, m)) in world.query_mut::<(&Lifecycle, &mut Model)>() {
-        if !l.alive { 
-            if let Some(handle) = m.handle { ctx.renderer.scene_models_removed.insert(handle); }
+
+    for e in &world.query(&[Lifecycle::UID, Model::UID]) {
+        if !lifecycles[e].alive { 
+            if let Some(handle) = models[e].handle { ctx.renderer.borrow_mut().scene_models_removed.insert(handle); }
         }
     }
-    for (_, (l, c)) in world.query_mut::<(&Lifecycle, &mut Canvas)>() {
-        if !l.alive {
-            if let Some(handle) = c.handle { ctx.renderer.scene_canvases_removed.insert(handle); }
+
+    for e in &world.query(&[Lifecycle::UID, Canvas::UID]) {
+        if !lifecycles[e].alive { 
+            if let Some(handle) = canvases[e].handle { ctx.renderer.borrow_mut().scene_canvases_removed.insert(handle); }
         }
     }
 

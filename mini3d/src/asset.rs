@@ -461,7 +461,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn add<A: Asset>(&mut self, asset: UID, name: &str, bundle: UID, data: A) -> Result<()> {
+    pub(crate) fn add<A: Asset>(&mut self, , name: &str, bundle: UID, data: A) -> Result<()> {
         if !self.bundles.contains_key(&bundle) { return Err(anyhow!("Bundle not found")); }
         let uid = UID::new(name);
         if self.container::<A>(asset)?.0.contains_key(&uid) { return Err(anyhow!("Asset '{}' already exists", name)); }

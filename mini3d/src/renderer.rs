@@ -4,7 +4,7 @@ use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, registry::asset::AssetRegistry};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, registry::asset::AssetRegistry, ecs::{ECSManager, entity::Entity}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
 
@@ -183,7 +183,7 @@ pub struct RendererManager {
 
 impl RendererManager {
 
-    pub(crate) fn reset(&mut self, scene: &mut SceneManager) -> Result<()> {
+    pub(crate) fn reset(&mut self, ecs: &mut ECSManager) -> Result<()> {
 
         self.resources.reset();
 

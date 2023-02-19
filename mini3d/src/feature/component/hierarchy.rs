@@ -15,7 +15,7 @@ impl Component for Hierarchy {}
 impl Hierarchy {
 
     pub const NAME: &'static str = "hierarchy";
-    pub const UID: UID = Hierarchy::NAME.into();
+    pub const UID: UID = UID::new(Hierarchy::NAME);
 
     pub fn parent(&self) -> Option<Entity> {
         self.parent

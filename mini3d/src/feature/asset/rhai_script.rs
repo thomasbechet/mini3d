@@ -11,5 +11,5 @@ impl Asset for RhaiScript {}
 
 impl RhaiScript {
     pub const NAME: &'static str = "rhai_script";
-    pub const UID: UID = RhaiScript::NAME.into();
+    pub const UID: UID = UID::new(RhaiScript::NAME);
 }

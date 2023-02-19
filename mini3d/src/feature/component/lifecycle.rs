@@ -22,5 +22,5 @@ impl Lifecycle {
 
 impl Lifecycle {
     pub const NAME: &'static str = "life_cycle";
-    pub const UID: UID = Lifecycle::NAME.into();
+    pub const UID: UID = UID::new(Lifecycle::NAME);
 }

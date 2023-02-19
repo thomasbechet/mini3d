@@ -279,7 +279,7 @@ impl Engine {
 
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
-        self.ecs.get_mut().update(&self.registry, &self.asset, &self.input, &self.script, &self.renderer, delta_time, self.time, FIXED_TIMESTEP, fixed_update_count)?;
+        self.ecs.get_mut().update(&self.registry, &self.asset, &self.input, &self.renderer, &self.script, delta_time, self.time, FIXED_TIMESTEP, fixed_update_count)?;
 
         // ================= REQUESTS STAGE ================= //
 

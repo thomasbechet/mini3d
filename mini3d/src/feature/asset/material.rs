@@ -11,5 +11,5 @@ impl Asset for Material {}
 
 impl Material {
     pub const NAME: &'static str = "material";
-    pub const UID: UID = Material::NAME.into();
+    pub const UID: UID = UID::new(Material::NAME);
 }

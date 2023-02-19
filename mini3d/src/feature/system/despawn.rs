@@ -22,10 +22,10 @@ pub fn run(ctx: &SystemContext) -> Result<()> {
 
     // Detach entities
     for (parent, entity) in detach_entities {
-        for child in Hierarchy::collect_childs(entity, world)? {
-            Hierarchy::detach(entity, child, world)?;
+        for child in Hierarchy::collect_childs(entity, &hierarchies)? {
+            Hierarchy::detach(entity, child, &mut hierarchies)?;
         }
-        Hierarchy::detach(parent, entity, world)?;
+        Hierarchy::detach(parent, entity, &mut hierarchies)?;
     }
 
     // Despawn entities

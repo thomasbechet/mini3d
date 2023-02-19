@@ -24,7 +24,7 @@ impl UIComponent {
 
     // TODO: find better name
     pub const NAME: &'static str = "ui_component";
-    pub const UID: UID = UIComponent::NAME.into();
+    pub const UID: UID = UID::new(UIComponent::NAME);
 
     pub fn new(ui: UI, render_target: UIRenderTarget) -> Self {
         Self {

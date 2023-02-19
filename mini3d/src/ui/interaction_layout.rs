@@ -3,7 +3,7 @@ use glam::{Vec2, IVec2};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
-use crate::{math::rect::IRect, renderer::{SCREEN_VIEWPORT, SCREEN_CENTER, graphics::Graphics, color::Color}, uid::UID, input::InputManager};
+use crate::{math::rect::IRect, renderer::{SCREEN_VIEWPORT, SCREEN_CENTER, graphics::Graphics, color::Color}, uid::UID, context::input::InputContext};
 
 #[derive(Clone, Copy)]
 enum Direction {
@@ -271,7 +271,7 @@ impl InteractionLayout {
 
     pub(crate) fn update(
         &mut self, 
-        input: &InputManager,
+        input: &InputContext<'_>,
         extent: IRect, 
         time: f64,
         events: &mut Vec<InteractionEvent>

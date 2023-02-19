@@ -20,7 +20,7 @@ impl Component for Viewport {}
 impl Viewport {
 
     pub const NAME: &'static str = "viewport";
-    pub const UID: UID = Viewport::NAME.into();
+    pub const UID: UID = UID::new(Viewport::NAME);
 
     pub fn new(resolution: UVec2, camera: Option<Entity>) -> Self {
         Self { camera, resolution, handle: None, out_of_date: true }

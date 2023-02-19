@@ -14,7 +14,7 @@ impl Asset for WorldTemplate {}
 impl WorldTemplate {
 
     pub const NAME: &'static str = "world_template";
-    pub const UID: UID = WorldTemplate::NAME.into();
+    pub const UID: UID = UID::new(WorldTemplate::NAME);
     
     pub fn instantiate(&self, world: &mut World, registry: &ComponentRegistry) -> Result<()> {
         for (_name, components) in &self.entities {
