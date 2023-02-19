@@ -4,9 +4,9 @@ use anyhow::{Result, anyhow};
 
 use crate::{uid::UID, context::SystemContext};
 
-pub type SystemCallback = fn(&mut SystemContext) -> Result<()>;
+pub type SystemCallback = fn(&SystemContext) -> Result<()>;
 
-pub(crate) enum SystemKind {
+pub(crate) enum SystemCode {
     Compiled(SystemCallback),
     Rhai(UID),
     Lua(UID),
@@ -14,7 +14,7 @@ pub(crate) enum SystemKind {
 
 pub(crate) struct SystemDefinition {
     pub(crate) name: String,
-    pub(crate) kind: SystemKind,
+    pub(crate) code: SystemCode,
 }
 
 #[derive(Default)]
@@ -36,18 +36,18 @@ impl SystemRegistry {
     pub(crate) fn define_compiled(&mut self, name: &str, system: SystemCallback) -> Result<()> {
         self.define(SystemDefinition { 
             name: name.to_string(),
-            kind: SystemKind::Compiled(system),
+            code: SystemCode::Compiled(system),
         })
     }
 
     pub(crate) fn define_rhai(&mut self, name: &str, script: UID) -> Result<()> {
-        self.define(SystemDefinition { 
+        self.define(SystemDefinition {
             name: name.to_string(),
-            kind: SystemKind::Rhai(script),
+            code: SystemCode::Rhai(script),
         })
     }
 
-    pub(crate) fn get(&self, uid: UID) -> Option<&SystemDefinition> {
-        self.systems.get(&uid)
+    pub(crate) fn get(&self, uid: &UID) -> Option<&SystemDefinition> {
+        self.systems.get(uid)
     }
 }

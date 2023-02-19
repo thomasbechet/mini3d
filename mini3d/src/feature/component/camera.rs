@@ -12,7 +12,7 @@ pub struct Camera {
 impl Component for Camera {}
 
 impl Camera {
-    pub const NAME: &'static str = "Camera";
+    pub const NAME: &'static str = "camera";
     pub const UID: UID = Camera::NAME.into();
 }
 

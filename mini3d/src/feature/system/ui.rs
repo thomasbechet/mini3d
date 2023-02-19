@@ -1,8 +1,8 @@
 use anyhow::{Result, Context};
 
-use crate::{feature::component::{ui::{UIComponent, UIRenderTarget}, canvas::Canvas}, scene::{context::SystemContext, world::World}};
+use crate::{feature::component::{ui::{UIComponent, UIRenderTarget}, canvas::Canvas}, ecs::{context::SystemContext, world::World}};
 
-pub fn update(ctx: &mut SystemContext) -> Result<()> {
+pub fn update(ctx: &SystemContext) -> Result<()> {
     for (_, ui) in world.query_mut::<&mut UIComponent>() {
         if ui.active {
             ui.ui.update(ctx.input, ctx.time)?;
@@ -11,7 +11,7 @@ pub fn update(ctx: &mut SystemContext) -> Result<()> {
     Ok(())
 }
 
-pub fn render(ctx: &mut SystemContext) -> Result<()> {
+pub fn render(ctx: &SystemContext) -> Result<()> {
     // for (_, ui) in world.query::<&UIComponent>() {
     //     if ui.visible {
     //         for render_target in &ui.render_targets {

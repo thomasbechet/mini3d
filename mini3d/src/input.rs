@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
 
-use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::{input_axis::{InputAxisRange, InputAxis}, input_action::InputAction}, asset::AssetManager};
+use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::{input_axis::{InputAxisRange, InputAxis}, input_action::InputAction}, asset::AssetManager, registry::asset::AssetRegistry};
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
@@ -133,13 +133,13 @@ impl InputManager {
         deserializer.deserialize_tuple(2, InputVisitor { manager: self })
     }
 
-    pub(crate) fn reload_input_tables(&mut self, asset: &AssetManager) -> Result<()> {
+    pub(crate) fn reload_input_tables(&mut self, asset: &AssetManager, registry: &AssetRegistry) -> Result<()> {
         self.actions.clear();
-        for (uid, entry) in asset.iter::<InputAction>()? {
+        for (uid, entry) in asset.iter::<InputAction>(InputAction::UID)? {
             self.actions.insert(*uid, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
         }
         self.axis.clear();
-        for (uid, entry) in asset.iter::<InputAxis>()? {
+        for (uid, entry) in asset.iter::<InputAxis>(InputAction::UID)? {
             let mut state =  InputAxisState { value: entry.asset.default_value, range: entry.asset.range };
             state.set_value(entry.asset.default_value);
             self.axis.insert(*uid, state);

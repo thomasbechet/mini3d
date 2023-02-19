@@ -1,95 +1,69 @@
-use crate::{uid::UID, registry::RegistryManager, scene::{world::World, SceneInfo}, input::InputManager, renderer::RendererManager, asset::AssetManager};
+use crate::{uid::UID, registry::RegistryManager, ecs::{world::World, scheduler::Scheduler}, input::InputManager, renderer::RendererManager, asset::AssetManager};
 use core::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
-use self::{asset::AssetContext, renderer::RendererContext, scene::{SceneContext, SceneCommand}, world::WorldContext, input::InputContext, schedule::ScheduleContext};
+use self::{asset::AssetContext, renderer::RendererContext, input::InputContext, world::WorldManagerContext, scheduler::SchedulerContext, procedure::ProcedureContext, time::TimeContext};
 
 pub mod asset;
 pub mod input;
 pub mod renderer;
-pub mod scene;
-pub mod schedule;
+pub mod scheduler;
+pub mod procedure;
+pub mod time;
 pub mod world;
 
 pub struct SystemContext<'a> {
 
+    // Managers
     pub(crate) registry: &'a RefCell<RegistryManager>,
-    asset: &'a RefCell<AssetManager>,
-    input: &'a RefCell<InputManager>,
-    renderer: &'a RefCell<RendererManager>,
+    pub(crate) asset: &'a RefCell<AssetManager>,
+    pub(crate) input: &'a RefCell<InputManager>,
+    pub(crate) renderer: &'a RefCell<RendererManager>,
     
-    world: &'a mut World,
-    delta_time: f64,
-    time: f64,
-    active_scene: UID,
+    // Scheduler
+    pub(crate) scheduler: &'a RefCell<Scheduler>,
 
-    scene_info: &'a HashMap<UID, SceneInfo>,
-    scene_commands: &'a mut Vec<SceneCommand>,
-    signal_queue: &'a mut VecDeque<UID>,
+    // Worlds
+    pub(crate) worlds: &'a RefCell<HashMap<UID, RefCell<Box<World>>>>,
+    pub(crate) active_world: UID,
+    pub(crate) change_world: &'a mut Option<UID>,
+
+    // Procedures
+    pub(crate) active_procedure: UID,
+    pub(crate) frame_procedures: &'a mut VecDeque<UID>,
+    pub(crate) next_frame_procedures: &'a mut VecDeque<UID>,
+
+    // Time
+    pub(crate) delta_time: f64,
+    pub(crate) time: f64,
 }
 
 impl<'a> SystemContext<'a> {
 
-    pub(crate) fn new(
-        registry: &'a RefCell<RegistryManager>,
-        asset: &'a RefCell<AssetManager>,
-        input: &'a RefCell<InputManager>,
-        renderer: &'a RefCell<RendererManager>,
-        world: &'a mut World,
-        delta_time: f64,
-        time: f64,
-        active_scene: UID,
-        scene_info: &'a HashMap<UID, SceneInfo>,
-        scene_commands: &'a mut Vec<SceneCommand>,
-        signal_queue: &'a mut VecDeque<UID>,
-    ) -> Self {
-        Self {
-            registry,
-            asset,
-            input,
-            renderer,
-            world,
-            delta_time,
-            time,
-            active_scene,
-            scene_info,
-            scene_commands,
-            signal_queue,
-        }
-    }
-
     pub fn asset(&self) -> AssetContext<'_> {
-        AssetContext::new(self.registry, self.asset)
+        AssetContext::new(self.registry, &mut self.asset.borrow_mut())
     }
 
     pub fn renderer(&self) -> RendererContext<'_> {
         RendererContext::new(self.renderer)
     }
 
-    pub fn scene(&self) -> SceneContext<'_> {
-        SceneContext::new(self.scene_info, self.scene_commands)
-    }
-
-    pub fn schedule(&self) -> ScheduleContext<'_> {
-        ScheduleContext::new(self.signal_queue)
-    }
-
-    pub fn world(&self) -> WorldContext<'_> {
-        WorldContext::new(self.registry, &mut self.world)
-    }
-
     pub fn input(&self) -> InputContext<'_> {
-        InputContext::new(self.input.borrow().into())
+        InputContext::new(&self.input.borrow())
     }
 
-    pub fn delta_time(&self) -> f64 {
-        self.delta_time
+    pub fn world(&self) -> WorldManagerContext<'_> {
+        WorldManagerContext::new(self.registry, self.worlds, self.active_world, self.change_world)
     }
 
-    pub fn time(&self) -> f64 {
-        self.time
+    pub fn scheduler(&self) -> SchedulerContext<'_> {
+        SchedulerContext::new(&mut self.scheduler.borrow_mut())
     }
 
-    pub fn active_scene(&self) -> UID {
-        self.active_scene
+    pub fn procedure(&self) -> ProcedureContext<'_> {
+        ProcedureContext::new(self.active_procedure, self.frame_procedures, self.next_frame_procedures)
+    }
+
+    pub fn time(&self) -> TimeContext {
+        TimeContext::new(self.time, self.delta_time)
     }
 }

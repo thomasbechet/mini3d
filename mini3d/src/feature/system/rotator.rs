@@ -3,7 +3,7 @@ use glam::{Quat, Vec3};
 
 use crate::{feature::component::{rotator::Rotator, transform::Transform}, context::SystemContext};
 
-pub fn run(ctx: &mut SystemContext) -> Result<()> {
+pub fn run(ctx: &SystemContext) -> Result<()> {
     let transforms = ctx.world().view_mut::<Transform>(Transform::UID)?;
     let rotators = ctx.world().view::<Rotator>(Rotator::UID)?;
     for e in &ctx.world().query(&[Transform::UID, Rotator::UID]) {

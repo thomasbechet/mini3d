@@ -1,17 +1,18 @@
 use anyhow::{Result, Context};
 use serde::de::{Visitor, DeserializeSeed};
 use serde::ser::SerializeTuple;
-use serde::{Serializer, Deserializer, Serialize, Deserialize};
+use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::{AssetManager, AssetEntry};
+use crate::ecs::ECSManager;
 use crate::feature::{asset, component, system};
 use crate::physics::PhysicsManager;
 use crate::registry::RegistryManager;
+use crate::registry::asset::Asset;
 use crate::registry::component::Component;
 use crate::registry::system::SystemCallback;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
-use crate::scene::{SceneManager, Scene};
 use crate::event::Events;
 use crate::event::system::SystemEvent;
 use crate::input::InputManager;
@@ -28,7 +29,7 @@ pub struct Engine {
     pub(crate) asset: RefCell<AssetManager>,
     pub(crate) input: RefCell<InputManager>,
     pub(crate) script: RefCell<ScriptManager>,
-    pub(crate) scene: RefCell<SceneManager>,
+    pub(crate) ecs: RefCell<ECSManager>,
     pub(crate) renderer: RefCell<RendererManager>,
     pub(crate) physics: RefCell<PhysicsManager>,
     accumulator: f64,
@@ -40,20 +41,20 @@ impl Engine {
     fn define_core_features(&mut self) -> Result<()> {
 
         // Assets
-        self.define_asset::<asset::font::Font>("font")?;
-        self.define_asset::<asset::input_action::InputAction>("input_action")?;
-        self.define_asset::<asset::input_axis::InputAxis>("input_axis")?;
-        self.define_asset::<asset::input_table::InputTable>("input_table")?;
-        self.define_asset::<asset::material::Material>("material")?;
-        self.define_asset::<asset::mesh::Mesh>("mesh")?;
-        self.define_asset::<asset::model::Model>("model")?;
-        self.define_asset::<asset::rhai_script::RhaiScript>("rhai_script")?;
-        self.define_asset::<asset::schedule::Schedule>("schedule")?;
-        self.define_asset::<asset::texture::Texture>("texture")?;
-        self.define_asset::<asset::tilemap::Tilemap>("tilemap")?;
-        self.define_asset::<asset::tileset::Tileset>("tileset")?;
-        self.define_asset::<asset::ui_template::UITemplate>("ui_template")?;
-        self.define_asset::<asset::world_template::WorldTemplate>("world_template")?;
+        self.define_asset::<asset::font::Font>(asset::font::Font::NAME)?;
+        self.define_asset::<asset::input_action::InputAction>(asset::input_action::InputAction::NAME)?;
+        self.define_asset::<asset::input_axis::InputAxis>(asset::input_axis::InputAxis::NAME)?;
+        self.define_asset::<asset::input_table::InputTable>(asset::input_table::InputTable::NAME)?;
+        self.define_asset::<asset::material::Material>(asset::material::Material::NAME)?;
+        self.define_asset::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
+        self.define_asset::<asset::model::Model>(asset::model::Model::NAME)?;
+        self.define_asset::<asset::rhai_script::RhaiScript>(asset::rhai_script::RhaiScript::NAME)?;
+        self.define_asset::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
+        self.define_asset::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
+        self.define_asset::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;
+        self.define_asset::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
+        self.define_asset::<asset::ui_template::UITemplate>(asset::ui_template::UITemplate::NAME)?;
+        self.define_asset::<asset::world_template::WorldTemplate>(asset::world_template::WorldTemplate::NAME)?;
 
         // Components
         self.define_component::<component::camera::Camera>(component::camera::Camera::NAME)?;
@@ -84,13 +85,13 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new(scene: Scene) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let mut engine = Self {
             registry: Default::default(),
             asset: Default::default(), 
             input: Default::default(), 
             script: Default::default(),
-            scene: Default::default(),
+            ecs: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
             accumulator: 0.0,
@@ -100,7 +101,7 @@ impl Engine {
         Ok(engine)
     }
 
-    pub fn define_asset<A: Serialize + for<'a> Deserialize<'a> + 'static>(&mut self, name: &str) -> Result<()> {
+    pub fn define_asset<A: Asset>(&mut self, name: &str) -> Result<()> {
         self.registry.borrow_mut().assets.define_compiled::<A>(name)
     }
 
@@ -112,15 +113,15 @@ impl Engine {
         self.registry.borrow_mut().systems.define_compiled(name, system)
     }
 
-    pub fn iter_asset<A: 'static>(&'_ self) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
-        self.asset.iter::<A>()
+    pub fn iter_asset<A: Asset>(&'_ mut self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
+        self.asset.get_mut().iter::<A>(asset)
     }
 
-    pub fn asset_entry<A: 'static>(&'_ self, uid: UID) -> Result<&'_ AssetEntry<A>> {
-        self.asset.entry::<A>(uid)
+    pub fn asset_entry<A: Asset>(&'_ mut self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
+        self.asset.get_mut().entry::<A>(asset, uid)
     }
 
-    pub fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    pub fn save_state<S: Serializer>(&mut self, serializer: S) -> Result<S::Ok, S::Error> {
         struct AssetManagerSerialize<'a> {
             manager: &'a AssetManager,
         }
@@ -140,7 +141,7 @@ impl Engine {
             }
         }
         struct ECSManagerSerialize<'a> {
-            manager: &'a SceneManager,
+            manager: &'a ECSManager,
         }
         impl<'a> Serialize for ECSManagerSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -158,10 +159,10 @@ impl Engine {
             }
         }
         let mut tuple = serializer.serialize_tuple(6)?;
-        tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
-        tuple.serialize_element(&RendererManagerSerialize { manager: &self.renderer })?;
-        tuple.serialize_element(&ECSManagerSerialize { manager: &self.scene })?;
-        tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
+        tuple.serialize_element(&AssetManagerSerialize { manager: self.asset.get_mut() })?;
+        tuple.serialize_element(&RendererManagerSerialize { manager: self.renderer.get_mut() })?;
+        tuple.serialize_element(&ECSManagerSerialize { manager: self.ecs.get_mut() })?;
+        tuple.serialize_element(&InputManagerSerialize { manager: self.input.get_mut() })?;
         tuple.serialize_element(&self.accumulator)?;
         tuple.serialize_element(&self.time)?;
         tuple.end()
@@ -200,7 +201,7 @@ impl Engine {
                     }
                 }
                 struct ECSManagerDeserializeSeed<'a> {
-                    manager: &'a mut SceneManager,
+                    manager: &'a mut ECSManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
                     type Value = ();
@@ -219,13 +220,13 @@ impl Engine {
                         self.manager.load_state(deserializer)
                     }
                 }
-                seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.engine.asset })?;
-                seq.next_element_seed(RendererManagerDeserializeSeed { manager: &mut self.engine.renderer })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.engine.scene })?;
-                seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.engine.input })?;
+                seq.next_element_seed(AssetManagerDeserializeSeed { manager: self.engine.asset.get_mut() })?;
+                seq.next_element_seed(RendererManagerDeserializeSeed { manager: self.engine.renderer.get_mut() })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: self.engine.ecs.get_mut() })?;
+                seq.next_element_seed(InputManagerDeserializeSeed { manager: self.engine.input.get_mut() })?;
                 self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
                 self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
-                self.engine.renderer.reset(&mut self.engine.scene).map_err(Error::custom)?;
+                self.engine.renderer.get_mut().reset(self.engine.ecs.get_mut()).map_err(Error::custom)?;
                 Ok(())
             }
         }
@@ -243,7 +244,7 @@ impl Engine {
         // ================= PREPARE STAGE ================== //
 
         // Reset graphics state
-        self.renderer.prepare()?;
+        self.renderer.get_mut().prepare()?;
 
         // Compute delta time
         if delta_time > MAXIMUM_TIMESTEP {
@@ -259,10 +260,10 @@ impl Engine {
         // ================= DISPATCH STAGE ================= //
 
         // Prepare input manager
-        self.input.prepare_dispatch();
+        self.input.get_mut().prepare_dispatch();
         // Dispatch input events
         for event in &events.input {
-            self.input.dispatch_event(event);
+            self.input.get_mut().dispatch_event(event);
         }
 
         // Dispatch system events
@@ -276,22 +277,16 @@ impl Engine {
 
         // TODO: dispatch more events ...
 
-        // ================= UPDATE STAGE ================= //
+        // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
-        self.scene.update(&mut self.asset, &mut self.input, &mut self.script, &mut self.renderer, delta_time, self.time)?;
-
-        // ================= FIXED UPDATE STAGE ================= //
-
-        for _ in 0..fixed_update_count {
-            // TODO: Process fixed update ...
-        }
+        self.ecs.get_mut().update(&self.registry, &self.asset, &self.input, &self.script, &self.renderer, delta_time, self.time, FIXED_TIMESTEP, fixed_update_count)?;
 
         // ================= REQUESTS STAGE ================= //
 
         // Check input requests
-        if self.input.reload_input_mapping {
+        if self.input.get_mut().reload_input_mapping {
             requests.reload_input_mapping = true;
-            self.input.reload_input_mapping = false;
+            self.input.get_mut().reload_input_mapping = false;
         }
 
         Ok(())
@@ -304,9 +299,9 @@ impl Engine {
     ) -> Result<()> {
         if reset {
             backend.reset()?;
-            self.renderer.reset(&mut self.scene)?;
+            self.renderer.get_mut().reset(self.scene.get_mut())?;
         }
-        self.renderer.update_backend(backend, &self.asset, &mut self.scene)?;
+        self.renderer.get_mut().update_backend(backend, self.asset.get_mut(), self.scene.get_mut())?;
         Ok(())
     }
 }

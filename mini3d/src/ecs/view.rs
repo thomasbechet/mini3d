@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::registry::component::Component;
 
-use super::{container::ComponentContainer, entity::Entity};
+use super::{entity::Entity, container::ComponentContainer};
 
 pub struct ComponentView<'a, C: Component> {
     components: &'a [C],

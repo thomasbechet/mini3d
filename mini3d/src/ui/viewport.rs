@@ -1,7 +1,7 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::graphics::Graphics, uid::UID, scene::entity::Entity};
+use crate::{renderer::graphics::Graphics, uid::UID, ecs::entity::Entity};
 
 #[derive(Serialize, Deserialize)]
 pub struct Viewport {

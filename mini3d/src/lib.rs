@@ -1,7 +1,7 @@
 pub mod asset;
 pub mod context;
 pub mod engine;
-pub mod scene;
+pub mod ecs;
 pub mod event;
 pub mod feature;
 pub mod renderer;

@@ -1,14 +1,15 @@
 use anyhow::Result;
 
-use crate::{feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}, scene::entity::Entity, context::SystemContext};
+use crate::{context::SystemContext, ecs::entity::Entity, feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}};
 
-pub fn run(ctx: &mut SystemContext) -> Result<()> {
-    
+pub fn run(ctx: &SystemContext) -> Result<()> {
+
     let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
-    let lifecycles = ctx.world().view::<Lifecycle>(Lifecycle::UID)?;
-    let hierarchies = ctx.world().view_mut::<Hierarchy>(Hierarchy::UID)?;
-    for e in &ctx.world().query(&[Lifecycle::UID, Hierarchy::UID]) {
+    let world = ctx.world().active();
+    let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
+    let hierarchies = world.view_mut::<Hierarchy>(Hierarchy::UID)?;
+    for e in &world.query(&[Lifecycle::UID, Hierarchy::UID]) {
         if !lifecycles[e].alive {
             despawn_entities.push(e);
             if let Some(hierarchy) = hierarchies.get_mut(e) {
@@ -29,7 +30,7 @@ pub fn run(ctx: &mut SystemContext) -> Result<()> {
 
     // Despawn entities
     for entity in despawn_entities {
-        ctx.world().destroy(entity)?;
+        world.destroy(entity)?;
     }
 
     Ok(())

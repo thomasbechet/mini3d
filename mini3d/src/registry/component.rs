@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Result};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, feature::asset::runtime_component::FieldType, scene::{container::{AnyComponentContainer, ComponentContainer, RuntimeComponent1, RuntimeComponent2, RuntimeComponent3, RuntimeComponent4, RuntimeComponent5}, entity::Entity}};
+use crate::{uid::UID, feature::asset::runtime_component::FieldType, ecs::{entity::Entity, container::{AnyComponentContainer, ComponentContainer, RuntimeComponent1, RuntimeComponent2, RuntimeComponent3, RuntimeComponent4, RuntimeComponent5}}};
 
 struct EntityResolver;
 struct ComponentContext;

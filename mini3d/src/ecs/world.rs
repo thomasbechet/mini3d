@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 
 use crate::{uid::UID, registry::component::{Component, ComponentRegistry}};
 
-use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, query::Query, view::{ComponentView, ComponentViewMut}};
+use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentView, ComponentViewMut}, query::Query};
 
 struct EntityEntry {
     alive: bool,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use glam::Mat4;
 
-use crate::{feature::component::{local_to_world::{Transform, LocalToWorld}, hierarchy::Hierarchy}, scene::{entity::Entity, context::SystemContext, world::World}};
+use crate::{feature::component::{local_to_world::{Transform, LocalToWorld}, hierarchy::Hierarchy}, ecs::{entity::Entity, context::SystemContext, world::World}};
 
 fn recursive_propagate(
     entity: Entity,
@@ -23,7 +23,7 @@ fn recursive_propagate(
     }
 }
 
-pub fn propagate(ctx: &mut SystemContext) -> Result<()> {
+pub fn propagate(ctx: &SystemContext) -> Result<()> {
     
     // Reset all flags
     let mut entities = Vec::new();

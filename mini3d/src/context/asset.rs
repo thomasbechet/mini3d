@@ -1,56 +1,56 @@
 use core::cell::RefCell;
 use anyhow::Result;
 
-use crate::{asset::{AssetManager, AssetEntry}, uid::UID, registry::RegistryManager};
+use crate::{asset::{AssetManager, AssetEntry}, uid::UID, registry::{RegistryManager, asset::Asset}};
 
 pub struct AssetContext<'a> {
     registry: &'a RefCell<RegistryManager>,
-    asset: &'a RefCell<AssetManager>,   
+    asset: &'a mut AssetManager,   
 }
 
 impl<'a> AssetContext<'a> {
 
-    pub(crate) fn new(registry: &'a RefCell<RegistryManager>, asset: &'a RefCell<AssetManager>) -> Self {
+    pub(crate) fn new(registry: &RefCell<RegistryManager>, asset: &mut AssetManager) -> Self {
         Self { registry, asset }
     }
 
-    pub fn set_default<A: 'static>(&mut self, uid: UID) -> Result<()> {
-        self.asset.borrow_mut().set_default::<A>(uid)
+    pub fn set_default<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<()> {
+        self.asset.set_default::<A>(asset, uid)
     }
 
-    pub fn get<A: 'static>(&'_ self, uid: UID) -> Result<&'_ A> {
-        self.asset.borrow().get::<A>(self.registry.borrow(), uid)
+    pub fn get<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ A> {
+        self.asset.get::<A>(asset, uid)
     }
 
-    pub fn get_or_default<A: 'static>(&'_ self, uid: UID) -> Result<&'_ A> {
-        self.asset.borrow().get_or_default::<A>(self.registry.borrow(), uid)
+    pub fn get_or_default<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ A> {
+        self.asset.get_or_default::<A>(asset, uid)
     }
 
-    pub fn get_mut<A: 'static>(&'_ mut self, uid: UID) -> Result<&'_ mut A> {
-        self.asset.borrow_mut().get_mut::<A>(self.registry.borrow(), uid)
+    pub fn get_mut<A: Asset>(&'_ mut self, asset: UID, uid: UID) -> Result<&'_ mut A> {
+        self.asset.get_mut::<A>(asset, uid)
     }
 
-    pub fn entry<A: 'static>(&'_ self, uid: UID) -> Result<&'_ AssetEntry<A>> {
-        self.asset.borrow().entry::<A>(self.registry.borrow(), uid)
+    pub fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
+        self.asset.entry::<A>(asset, uid)
     }
 
-    pub fn iter<A: 'static>(&'_ self) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
-        self.asset.borrow().iter::<A>(self.registry.borrow())
+    pub fn iter<A: Asset>(&'_ self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)> + '_> {
+        self.asset.iter::<A>(asset)
     }
 
     pub fn add_bundle(&mut self, name: &str) -> Result<()> {
-        self.asset.borrow_mut().add_bundle(name)
+        self.asset.add_bundle(name)
     }
 
-    pub fn add<A: 'static>(&mut self, name: &str, bundle: UID, data: A) -> Result<()> {
-        self.asset.borrow_mut().add::<A>(self.registry.borrow(), name, bundle, data)
+    pub fn add<A: Asset>(&mut self, asset: UID, name: &str, bundle: UID, data: A) -> Result<()> {
+        self.asset.add::<A>(asset, name, bundle, data)
     }
 
-    pub fn remove<A: 'static>(&mut self, uid: UID) -> Result<()> {
-        self.asset.borrow_mut().remove::<A>(self.registry.borrow(), uid)
+    pub fn remove<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<()> {
+        self.asset.remove::<A>(asset, uid)
     }
 
-    pub fn transfer<A: 'static>(&mut self, uid: UID, dst_bundle: UID) -> Result<()> {
-        self.asset.borrow_mut().transfer::<A>(self.registry.borrow(), uid, dst_bundle)
+    pub fn transfer<A: Asset>(&mut self, asset: UID, uid: UID, dst_bundle: UID) -> Result<()> {
+        self.asset.transfer::<A>(asset, uid, dst_bundle)
     }
 }

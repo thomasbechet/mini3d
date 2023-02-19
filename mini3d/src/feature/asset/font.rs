@@ -3,7 +3,7 @@ use bitvec::prelude::*;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::math::rect::IRect;
+use crate::{math::rect::IRect, registry::asset::Asset, uid::UID};
 
 use super::texture::{Texture, TextureFormat};
 
@@ -29,6 +29,13 @@ impl Default for Font {
             glyph_locations,
         }
     }
+}
+
+impl Asset for Font {}
+
+impl Font {
+    pub const NAME: &'static str = "font";
+    pub const UID: UID = Font::NAME.into();
 }
 
 pub struct FontAtlas {

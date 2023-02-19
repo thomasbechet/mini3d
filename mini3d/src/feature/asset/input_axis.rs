@@ -1,5 +1,7 @@
 use serde::{Serialize, Deserialize};
 
+use crate::{registry::asset::Asset, uid::UID};
+
 #[derive(Default, Clone, Copy, Serialize, Deserialize)]
 pub enum InputAxisRange {
     Clamped { min: f32, max: f32 },
@@ -15,4 +17,11 @@ pub struct InputAxis {
     pub description: String,
     pub range: InputAxisRange,
     pub default_value: f32,
+}
+
+impl Asset for InputAxis {}
+
+impl InputAxis {
+    pub const NAME: &'static str = "input_axis";
+    pub const UID: UID = InputAxis::NAME.into();
 }

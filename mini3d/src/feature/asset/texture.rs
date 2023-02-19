@@ -1,5 +1,7 @@
 use serde::{Serialize, Deserialize};
 
+use crate::{registry::asset::Asset, uid::UID};
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum TextureFormat {
     R,
@@ -14,4 +16,11 @@ pub struct Texture {
     pub format: TextureFormat,
     pub width: u32,
     pub height: u32,
+}
+
+impl Asset for Texture {}
+
+impl Texture {
+    pub const NAME: &'static str = "texture";
+    pub const UID: UID = Texture::NAME.into();
 }

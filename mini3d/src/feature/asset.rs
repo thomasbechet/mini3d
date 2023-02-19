@@ -8,7 +8,7 @@ pub mod mesh;
 pub mod model;
 pub mod rhai_script;
 pub mod world_template;
-pub mod schedule;
+pub mod system_group;
 pub mod texture;
 pub mod tilemap;
 pub mod tileset;

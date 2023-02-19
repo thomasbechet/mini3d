@@ -2,14 +2,19 @@ use anyhow::{Result, Context};
 use serde::{Serialize, Deserialize};
 use serde_json::{Map, Value};
 
-use crate::{scene::world::World, uid::UID, registry::component::ComponentRegistry};
+use crate::{ecs::world::World, uid::UID, registry::{component::ComponentRegistry, asset::Asset}};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WorldTemplate {
     entities: Map<String, Value>,
 }
 
+impl Asset for WorldTemplate {}
+
 impl WorldTemplate {
+
+    pub const NAME: &'static str = "world_template";
+    pub const UID: UID = WorldTemplate::NAME.into();
     
     pub fn instantiate(&self, world: &mut World, registry: &ComponentRegistry) -> Result<()> {
         for (_name, components) in &self.entities {
