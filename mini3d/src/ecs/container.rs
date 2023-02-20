@@ -1,13 +1,13 @@
-use std::any::Any;
+use std::{any::Any, marker::PhantomData, fmt};
 
 use anyhow::{Result, Context};
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, de::{Visitor, self}, Deserializer, Serializer, ser::SerializeTuple};
 
 use crate::{feature::asset::runtime_component::FieldValue, registry::component::Component};
 
 use std::cell::RefCell;
 
-use super::entity::Entity;
+use super::{entity::Entity, sparse::PagedVector};
 
 pub(crate) trait AnyComponentContainer {
     fn as_any(&self) -> &dyn Any;
@@ -21,18 +21,60 @@ pub(crate) trait AnyComponentContainer {
 pub(crate) struct ComponentContainer<C: Component> {
     pub(crate) components: RefCell<Vec<C>>,
     pub(crate) entities: Vec<Entity>,
-    pub(crate) indices: Vec<usize>, // TODO: page optimization
+    pub(crate) indices: PagedVector<usize>,
 }
 
 impl<C: Component> ComponentContainer<C> {
 
+    fn serialize<'a>(&'a self) -> Box<dyn erased_serde::Serialize + 'a> {
+        struct ContainerSerialize<'a, C: Component> {
+            components: &'a Vec<C>,
+            entities: &'a Vec<Entity>,
+        }
+        impl<'a, C: Component> Serialize for ContainerSerialize<'a, C> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: Serializer
+            {
+                let mut seq = serializer.serialize_tuple(2)?;
+                seq.serialize_element(&self.entities)?;
+                seq.serialize_element(&self.components)?;
+                seq.end()
+            }
+        }
+        Box::new(ContainerSerialize::<'a, C> { components: &self.components.borrow(), entities: &self.entities })
+    }
+
+    fn deserialize<'a>(deserializer: &mut dyn erased_serde::Deserializer<'a>) -> erased_serde::Result<ComponentContainer<C>> {
+        struct ContainerVisitor<C: Component> { marker: PhantomData<C> }
+        impl<'de, C: Component> Visitor<'de> for ContainerVisitor<C> {
+            type Value = ComponentContainer<C>;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Component container")
+            }
+            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
+                where S: de::SeqAccess<'de> {
+                use serde::de::Error;
+                let components: Vec<C> = seq.next_element()?.with_context(|| "Expect components").map_err(Error::custom)?;
+                let entities: Vec<Entity> = seq.next_element()?.with_context(|| "Expect entities").map_err(Error::custom)?;
+                let mut container = ComponentContainer::<C> {
+                    components: RefCell::new(components),
+                    entities,
+                    indices: PagedVector::new(),
+                };
+                for (index, entity) in container.entities.iter().enumerate() {
+                    container.indices.set(entity.index(), index);
+                }
+                Ok(container)
+            }
+        }
+        deserializer.deserialize_tuple(2, ContainerVisitor::<C> { marker: PhantomData })
+    }
+
     pub(crate) fn new() -> Self {
-        let mut indices = Vec::with_capacity(500);
-        unsafe { indices.set_len(500); }
         Self {
             components: RefCell::new(Vec::with_capacity(128)),
             entities: Vec::with_capacity(128),
-            indices,
+            indices: PagedVector::new(),
         }
     }
 
@@ -49,7 +91,7 @@ impl<C: Component> ComponentContainer<C> {
     }
 
     pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<()> {
-        self.indices[entity.index()] = self.entities.len() - 1;
+        self.indices.set(entity.index(), self.entities.len() - 1);
         self.entities.push(entity);
         self.components
             .try_borrow_mut().with_context(|| "Container already borrowed")?
@@ -58,14 +100,15 @@ impl<C: Component> ComponentContainer<C> {
     }
 
     pub(crate) fn remove(&mut self, entity: Entity) -> Result<()> {
-        let index = self.indices[entity.index()] as usize;
-        self.components
-            .try_borrow_mut().with_context(|| "Component container already borrowed")?
-            .swap_remove(index);
-        self.entities.swap_remove(index);
-        let swapped_entity = self.entities[index];
-        self.indices[swapped_entity.index()] = index;
-        self.entities[entity.index()] = Entity::null();
+        if let Some(index) = self.indices.get(entity.index()).copied() {
+            self.components
+                .try_borrow_mut().with_context(|| "Component container already borrowed")?
+                .swap_remove(index);
+            self.entities.swap_remove(index);
+            let swapped_entity = self.entities[index];
+            self.indices.set(swapped_entity.index(), index);
+            self.entities[entity.index()] = Entity::null();
+        }
         Ok(())
     }
 }

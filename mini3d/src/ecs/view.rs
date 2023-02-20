@@ -2,12 +2,12 @@ use std::ops::{Index, IndexMut, Deref};
 
 use crate::registry::component::Component;
 
-use super::{entity::Entity, container::ComponentContainer};
+use super::{entity::Entity, container::ComponentContainer, sparse::PagedVector};
 
 pub struct ComponentView<'a, C: Component> {
     components: &'a [C],
     entities: &'a [Entity],
-    indices: &'a [usize],
+    indices: &'a PagedVector<usize>,
 }
 
 impl<'a, C: Component> ComponentView<'a, C> {
@@ -25,9 +25,13 @@ impl<'a, C: Component> ComponentView<'a, C> {
     }
 
     pub fn get(&self, entity: Entity) -> Option<&C> {
-        let index = self.indices[entity.index() as usize] as usize;
-        if self.entities[index] != entity { return None }
-        Some(&self.components[index])
+        self.indices.get(entity.index()).copied().and_then(|index| {
+            if self.entities[index] == entity {
+                Some(&self.components[index])
+            } else {
+                None
+            }
+        })      
     }
 }
 
@@ -51,7 +55,7 @@ impl<'a, C: Component> IntoIterator for &ComponentView<'a, C> {
 pub struct ComponentViewMut<'a, C: Component> {
     components: &'a mut [C],
     entities: &'a [Entity],
-    indices: &'a [usize],
+    indices: &'a PagedVector<usize>,
 }
 
 impl<'a, C: Component> ComponentViewMut<'a, C> {
@@ -69,15 +73,23 @@ impl<'a, C: Component> ComponentViewMut<'a, C> {
     }
 
     pub fn get(&mut self, entity: Entity) -> Option<&C> {
-        let index = self.indices[entity.index() as usize] as usize;
-        if self.entities[index] != entity { return None }
-        Some(&self.components[index])
+        self.indices.get(entity.index()).copied().and_then(|index| {
+            if self.entities[index] == entity {
+                Some(&self.components[index])
+            } else {
+                None
+            }
+        })
     }
 
     pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
-        let index = self.indices[entity.index() as usize] as usize;
-        if self.entities[index] != entity { return None }
-        Some(&mut self.components[index])
+        self.indices.get(entity.index()).copied().and_then(|index| {
+            if self.entities[index] == entity {
+                Some(&mut self.components[index])
+            } else {
+                None
+            }
+        })
     }
 }
 

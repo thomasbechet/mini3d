@@ -13,6 +13,7 @@ pub mod pipeline;
 pub mod procedure;
 pub mod query;
 pub mod scheduler;
+pub mod sparse;
 pub mod view;
 pub mod world;
 

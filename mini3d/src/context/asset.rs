@@ -43,7 +43,7 @@ impl<'a> AssetContext<'a> {
     }
 
     pub fn add<A: Asset>(&mut self, asset: UID, name: &str, bundle: UID, data: A) -> Result<()> {
-        self.asset.add::<A>(asset, name, bundle, data)
+        self.asset.add::<A>(&self.registry.borrow().assets, asset, name, bundle, data)
     }
 
     pub fn remove<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<()> {
