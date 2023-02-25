@@ -142,11 +142,12 @@ impl Engine {
         }
         struct ECSManagerSerialize<'a> {
             manager: &'a ECSManager,
+            registry: &'a RegistryManager,
         }
         impl<'a> Serialize for ECSManagerSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer {
-                self.manager.save_state(serializer)
+                self.manager.save_state(self.registry, serializer)
             }
         }
         struct InputManagerSerialize<'a> {
@@ -161,7 +162,7 @@ impl Engine {
         let mut tuple = serializer.serialize_tuple(6)?;
         tuple.serialize_element(&AssetManagerSerialize { manager: self.asset.get_mut() })?;
         tuple.serialize_element(&RendererManagerSerialize { manager: self.renderer.get_mut() })?;
-        tuple.serialize_element(&ECSManagerSerialize { manager: self.ecs.get_mut() })?;
+        tuple.serialize_element(&ECSManagerSerialize { manager: self.ecs.get_mut(), registry: &self.registry.borrow() })?;
         tuple.serialize_element(&InputManagerSerialize { manager: self.input.get_mut() })?;
         tuple.serialize_element(&self.accumulator)?;
         tuple.serialize_element(&self.time)?;
@@ -182,12 +183,13 @@ impl Engine {
                 use serde::de::Error;
                 struct AssetManagerDeserializeSeed<'a> {
                     manager: &'a mut AssetManager,
+                    registry: &'a RegistryManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for AssetManagerDeserializeSeed<'a> {
                     type Value = ();
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
-                        self.manager.load_state(deserializer)
+                        self.manager.load_state(&self.registry.assets, deserializer)
                     }
                 }
                 struct RendererManagerDeserializeSeed<'a> {
@@ -202,12 +204,13 @@ impl Engine {
                 }
                 struct ECSManagerDeserializeSeed<'a> {
                     manager: &'a mut ECSManager,
+                    registry: &'a RegistryManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
                     type Value = ();
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
-                        self.manager.load_state(deserializer)
+                        self.manager.load_state(self.registry, deserializer)
                     }
                 }
                 struct InputManagerDeserializeSeed<'a> {
@@ -220,9 +223,9 @@ impl Engine {
                         self.manager.load_state(deserializer)
                     }
                 }
-                seq.next_element_seed(AssetManagerDeserializeSeed { manager: self.engine.asset.get_mut() })?;
+                seq.next_element_seed(AssetManagerDeserializeSeed { manager: self.engine.asset.get_mut(), registry: &self.engine.registry.borrow() })?;
                 seq.next_element_seed(RendererManagerDeserializeSeed { manager: self.engine.renderer.get_mut() })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: self.engine.ecs.get_mut() })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: self.engine.ecs.get_mut(), registry: &self.engine.registry.borrow() })?;
                 seq.next_element_seed(InputManagerDeserializeSeed { manager: self.engine.input.get_mut() })?;
                 self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
                 self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;

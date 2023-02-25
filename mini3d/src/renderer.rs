@@ -4,7 +4,7 @@ use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, registry::asset::AssetRegistry, ecs::{ECSManager, entity::Entity}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, ecs::{ECSManager, entity::Entity}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
 
@@ -78,27 +78,27 @@ pub(crate) struct RendererResourceManager {
     materials: HashMap<UID, RendererMaterial>,
 }
 
-fn load_font(uid: UID, backend: &mut impl RendererBackend, registry: &AssetRegistry, asset: &AssetManager) -> Result<RendererFont> {
-    let font = asset.get::<Font>(registry, uid)?;
+fn load_font(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererFont> {
+    let font = asset.get::<Font>(Font::UID, uid)?;
     let atlas = FontAtlas::new(font);
     let handle = backend.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
-fn load_mesh(uid: UID, backend: &mut impl RendererBackend, registry: &AssetRegistry, asset: &AssetManager) -> Result<RendererMesh> {
-    let mesh = asset.get::<Mesh>(registry, uid)?;
+fn load_mesh(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMesh> {
+    let mesh = asset.get::<Mesh>(Mesh::UID, uid)?;
     let handle = backend.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
-fn load_texture(uid: UID, backend: &mut impl RendererBackend, registry: &AssetRegistry, asset: &AssetManager) -> Result<RendererTexture> {
-    let texture = asset.get::<Texture>(registry, uid)?;
+fn load_texture(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererTexture> {
+    let texture = asset.get::<Texture>(Texture::UID, uid)?;
     let handle = backend.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
-fn load_material(uid: UID, textures: &HashMap<UID, RendererTexture>, backend: &mut impl RendererBackend, registry: &AssetRegistry, asset: &AssetManager) -> Result<RendererMaterial> {
-    let material = asset.entry::<Material>(registry, uid)?;
+fn load_material(uid: UID, textures: &HashMap<UID, RendererTexture>, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMaterial> {
+    let material = asset.entry::<Material>(Material::UID, uid)?;
     let diffuse = textures.get(&material.asset.diffuse).unwrap().handle;
     let handle = backend.material_add(BackendMaterialDescriptor { diffuse, name: &material.name })?;
     Ok(RendererMaterial { handle })
@@ -147,7 +147,7 @@ impl RendererResourceManager {
         match self.materials.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let material = asset.get::<Material>(*uid)?;
+                let material = asset.get::<Material>(Material::UID, *uid)?;
                 if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse) {
                     let diffuse = load_texture(*uid, backend, asset)?;
                     e.insert(diffuse);
@@ -192,7 +192,6 @@ impl RendererManager {
         self.scene_canvases_removed.clear();
 
         for world in scene.iter_worlds_mut() {
-
 
             let cameras = world.view_mut::<Camera>("camera".into())?;
 

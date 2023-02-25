@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, Serializer};
 
 use crate::{uid::UID, feature::asset::runtime_component::FieldType, ecs::{entity::Entity, container::{AnyComponentContainer, ComponentContainer, RuntimeComponent1, RuntimeComponent2, RuntimeComponent3, RuntimeComponent4, RuntimeComponent5}}};
 
@@ -24,8 +24,12 @@ pub(crate) enum ComponentKind {
     Runtime(RuntimeComponentDefinition),
 }
 
+pub(crate) struct AnyComponentContainerDeserializeSeed;
+
 pub(crate) trait AnyComponentDefinitionReflection {
     fn create_container(&self) -> Box<dyn AnyComponentContainer>;
+    fn serialize_container<'a>(&'a self, container: &dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a>;
+    fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>>;
 }
 
 pub(crate) struct ComponentDefinitionReflection<C: Component> {
@@ -33,8 +37,25 @@ pub(crate) struct ComponentDefinitionReflection<C: Component> {
 }
 
 impl<C: Component> AnyComponentDefinitionReflection for ComponentDefinitionReflection<C> {
+    
     fn create_container(&self) -> Box<dyn AnyComponentContainer> {
         Box::new(ComponentContainer::<C>::new())
+    }
+
+    fn serialize_container<'a>(&'a self, container: &dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a> {
+        struct SerializeContext<'a, C: Component> {
+            container: &'a ComponentContainer<C>,
+        }
+        impl<'a, C: Component> Serialize for SerializeContext<'a, C> {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                ComponentContainer::<C>::serialize(self.container, serializer)
+            }
+        }
+        Box::new(SerializeContext { container: container.as_any().downcast_ref::<ComponentContainer<C>>().expect("Invalid container type") })
+    }
+
+    fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>> {
+        Ok(Box::new(ComponentContainer::<C>::deserialize(deserializer)?))
     }
 }
 

@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::RegistryManager, context::{world::WorldContext, SystemContext}};
+use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{world::WorldContext, SystemContext}};
 
 use self::{world::World, scheduler::Scheduler, procedure::Procedure};
 
@@ -27,102 +27,102 @@ pub struct ECSManager {
 
 impl ECSManager {
 
-    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        struct WorldSerialize<'a> {
-            manager: &'a ECSManager,
-            world: UID,
+    pub(crate) fn save_state<S: Serializer>(&self, registry: &RegistryManager, serializer: S) -> Result<S::Ok, S::Error> {
+        struct WorldsSerialize<'a> {
+            registry: &'a ComponentRegistry,
+            worlds: &'a HashMap<UID, RefCell<Box<World>>>,
         }
-        impl<'a> Serialize for WorldSerialize<'a> {
+        impl<'a> Serialize for WorldsSerialize<'a> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: Serializer {
-                // struct WorldSerialize<'a> {
-                //     manager:  &'a SceneManager,
-                //     world: &'a World,
-                // }
-                // impl<'a> Serialize for WorldSerialize<'a> {
-                //     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                //         where S: Serializer {
-                //         hecs::serialize::column::serialize(&self.world.raw_world, &mut SceneSerializeContext { manager: self.manager, components: Default::default() }, serializer)
-                //     }
-                // }
-                let data = self.manager.scenes.get(&self.scene).unwrap();
-                let info = self.manager.scene_info.get(&self.scene).unwrap();
-                let mut tuple = serializer.serialize_tuple(3)?;
-                tuple.serialize_element(&info.name)?;
-                tuple.serialize_element(&info.index)?;
-                tuple.serialize_element(&data.schedule)?;
-                // tuple.serialize_element(&WorldSerialize { manager: self.manager, world: &data.world })?;
-                tuple.end()
+                struct WorldSerialize<'a> {
+                    registry:  &'a ComponentRegistry,
+                    world: &'a World,
+                }
+                impl<'a> Serialize for WorldSerialize<'a> {
+                    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                        self.world.serialize(serializer, self.registry)
+                    }
+                }
+                let mut seq = serializer.serialize_seq(Some(self.worlds.len()))?;
+                for world in self.worlds.values() {
+                    seq.serialize_element(&WorldSerialize { registry: self.registry, world: &world.borrow() })?;
+                }
+                seq.end()
             }
         }
-        let mut seq = serializer.serialize_seq(Some(self.scenes.len()))?;
-        for uid in self.scenes.keys().collect::<Vec<_>>() {
-            seq.serialize_element(&SceneSerialize { manager: self, scene: *uid })?;
-        }
-        seq.end()
+        let mut tuple = serializer.serialize_tuple(4)?;
+        tuple.serialize_element(&self.scheduler);
+        tuple.serialize_element(&WorldsSerialize { registry: &registry.components, worlds: &self.worlds.borrow() })?;
+        tuple.serialize_element(&self.next_frame_procedures)?;
+        tuple.serialize_element(&self.active_world)?;
+        tuple.end()
     }
 
-    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
-        struct SceneVisitor<'a> {
-            manager: &'a mut SceneManager,
+    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, registry: &RegistryManager, deserializer: D) -> Result<(), D::Error> {
+        struct ECSVisitor<'a> {
+            manager: &'a mut ECSManager,
+            registry: &'a ComponentRegistry,
         }
-        impl<'de, 'a> Visitor<'de> for SceneVisitor<'a> {
+        impl<'de, 'a> Visitor<'de> for ECSVisitor<'a> {
             type Value = ();
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Sequence of scene")
+                formatter.write_str("ECS Manager")
             }
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: SeqAccess<'de>, {
-                struct SceneDeserializeSeed<'a> {
-                    manager: &'a mut SceneManager,
+                use serde::de::Error;
+                struct WorldsDeserializeSeed<'a> {
+                    registry: &'a ComponentRegistry,
                 }
-                impl<'de, 'a> DeserializeSeed<'de> for SceneDeserializeSeed<'a> {
-                    type Value = ();
+                impl<'de, 'a> DeserializeSeed<'de> for WorldsDeserializeSeed<'a> {
+                    type Value = RefCell<HashMap<UID, RefCell<Box<World>>>>;
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
-                        struct ECSVisitor<'a> {
-                            manager: &'a mut SceneManager,
+                        struct WorldsVisitor<'a> {
+                            registry: &'a ComponentRegistry,
                         }
-                        impl<'de, 'a> Visitor<'de> for ECSVisitor<'a> {
-                            type Value = ();
+                        impl<'de, 'a> Visitor<'de> for WorldsVisitor<'a> {
+                            type Value = RefCell<HashMap<UID, RefCell<Box<World>>>>;
                             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                                formatter.write_str("Scene")
+                                formatter.write_str("Worlds")
                             }
                             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                                where A: SeqAccess<'de> {
-                                // struct WorldDeserializeSeed<'a> {
-                                //     manager: &'a SceneManager,
-                                // }
-                                // impl<'de, 'a> DeserializeSeed<'de> for WorldDeserializeSeed<'a> {
-                                //     type Value = World;
-                                //     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                                //         where D: Deserializer<'de> {
-                                //         let raw_world: hecs::World = hecs::serialize::column::deserialize(&mut SceneDeserializeContext { manager: self.manager, components: Default::default() }, deserializer)?;
-                                //         Ok(World { raw_world })
-                                //     }
-                                // }
-                                use serde::de::Error;
-                                let name: String = seq.next_element()?.with_context(|| "Expect scene name").map_err(Error::custom)?;
-                                let index: u32 = seq.next_element()?.with_context(|| "Expect scene index").map_err(Error::custom)?;
-                                let schedule: SystemSet = seq.next_element()?.with_context(|| "Expect scene schedule").map_err(Error::custom)?;
-                                // let world: World = seq.next_element_seed(WorldDeserializeSeed { manager: self.manager })?.with_context(|| "Expect scene world").map_err(Error::custom)?;
-                                let uid = UID::new(&name);
-                                if self.manager.scenes.contains_key(&uid) { return Err(Error::custom(format!("Scene world '{}' already exists", name))); }
-                                // self.manager.scenes.insert(uid, Box::new(Scene { world, schedule }));
-                                self.manager.scene_info.insert(uid, SceneInfo { name, index });
-                                Ok(())
+                                where A: SeqAccess<'de>, {
+                                struct WorldDeserializeSeed<'a> {
+                                    registry: &'a ComponentRegistry,
+                                }
+                                impl<'de, 'a> DeserializeSeed<'de> for WorldDeserializeSeed<'a> {
+                                    type Value = RefCell<Box<World>>;
+                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                                        where D: Deserializer<'de> {
+                                        Ok(RefCell::new(Box::new(World::deserialize(self.registry, deserializer)?)))
+                                    }
+                                }
+                                let mut worlds = HashMap::new();
+                                while let Some(world) = seq.next_element_seed(WorldDeserializeSeed { registry: self.registry })? {
+                                    let uid: UID = world.borrow().name.into();
+                                    if worlds.contains_key(&uid) {
+                                        return Err(A::Error::custom(format!("Duplicate world name: {}", uid)));
+                                    }
+                                    worlds.insert(uid, world);
+                                }
+                                Ok(RefCell::new(worlds))
                             }
                         }
-                        deserializer.deserialize_tuple(3, ECSVisitor { manager: self.manager })
+                        deserializer.deserialize_seq(WorldsVisitor { registry: self.registry })
                     }
                 }
-                while seq.next_element_seed(SceneDeserializeSeed { manager: self.manager })?.is_some() {}
+                self.manager.scheduler = seq.next_element()?.with_context(|| "Expect scheduler").map_err(A::Error::custom)?;
+                self.manager.worlds = seq.next_element_seed(WorldsDeserializeSeed { registry: self.registry })?.with_context(|| "Expect worlds").map_err(A::Error::custom)?;
+                self.manager.next_frame_procedures = seq.next_element()?.with_context(|| "Expect next frame procedures").map_err(A::Error::custom)?;
+                self.manager.active_world = seq.next_element()?.with_context(|| "Expect active world").map_err(A::Error::custom)?;
                 Ok(())
             }
         }
-        self.scenes.clear();
-        self.scene_info.clear();
-        deserializer.deserialize_seq(SceneVisitor { manager: self })?;
+        self.worlds.borrow_mut().clear();
+        self.scheduler = Default::default();
+        deserializer.deserialize_tuple(4, ECSVisitor { manager: self, registry: &registry.components })?;
         Ok(())
     }
 

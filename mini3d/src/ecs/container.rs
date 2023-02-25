@@ -26,25 +26,14 @@ pub(crate) struct ComponentContainer<C: Component> {
 
 impl<C: Component> ComponentContainer<C> {
 
-    fn serialize<'a>(&'a self) -> Box<dyn erased_serde::Serialize + 'a> {
-        struct ContainerSerialize<'a, C: Component> {
-            components: &'a Vec<C>,
-            entities: &'a Vec<Entity>,
-        }
-        impl<'a, C: Component> Serialize for ContainerSerialize<'a, C> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer
-            {
-                let mut seq = serializer.serialize_tuple(2)?;
-                seq.serialize_element(&self.entities)?;
-                seq.serialize_element(&self.components)?;
-                seq.end()
-            }
-        }
-        Box::new(ContainerSerialize::<'a, C> { components: &self.components.borrow(), entities: &self.entities })
+    pub(crate) fn serialize<'a, S: Serializer>(&'a self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_tuple(2)?;
+        seq.serialize_element(&self.entities)?;
+        seq.serialize_element(&self.components)?;
+        seq.end()
     }
 
-    fn deserialize<'a>(deserializer: &mut dyn erased_serde::Deserializer<'a>) -> erased_serde::Result<ComponentContainer<C>> {
+    pub(crate) fn deserialize<'a, D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         struct ContainerVisitor<C: Component> { marker: PhantomData<C> }
         impl<'de, C: Component> Visitor<'de> for ContainerVisitor<C> {
             type Value = ComponentContainer<C>;

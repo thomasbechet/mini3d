@@ -32,7 +32,7 @@ impl RhaiScriptCache {
     pub fn call(&mut self, uid: UID, asset: &AssetManager, scope: &mut rhai::Scope, function: &str) -> Result<()> {
         // Lazy script compilation
         if let hash_map::Entry::Vacant(e) = self.scripts.entry(uid) {
-            let script = asset.get::<RhaiScript>(uid)
+            let script: &RhaiScript = asset.get(RhaiScript::UID, uid)
                 .with_context(|| "Rhai script not found")?;
             let ast = self.engine.compile(script.source.clone())?;
             e.insert(ast);
