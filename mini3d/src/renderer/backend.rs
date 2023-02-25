@@ -30,6 +30,7 @@ define_handle!(MaterialHandle);
 
 define_handle!(ViewportHandle);
 
+define_handle!(SceneHandle);
 define_handle!(SceneCameraHandle);
 define_handle!(SceneModelHandle);
 define_handle!(SceneCanvasHandle);
@@ -79,6 +80,9 @@ pub trait RendererBackend {
     fn viewport_set_resolution(&mut self, handle: ViewportHandle, resolution: UVec2) -> Result<()> { Ok(()) }
 
     /// Scene API
+    
+    fn scene_add(&mut self) -> Result<SceneHandle> { Ok(0.into()) }
+    fn scene_remove(&mut self, handle: SceneHandle) -> Result<()> { Ok(()) }
 
     fn scene_camera_add(&mut self) -> Result<SceneCameraHandle> { Ok(0.into()) }
     fn scene_camera_remove(&mut self, handle: SceneCameraHandle) -> Result<()> { Ok(()) }

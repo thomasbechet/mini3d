@@ -8,7 +8,7 @@ pub struct InputContext<'a> {
 
 impl<'a> InputContext<'a> {
 
-    pub(crate) fn new(input: &InputManager) -> Self {
+    pub(crate) fn new(input: &'a InputManager) -> Self {
         Self { input }
     }
 

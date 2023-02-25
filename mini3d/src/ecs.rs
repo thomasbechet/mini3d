@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{world::WorldContext, SystemContext}};
+use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::SystemContext};
 
 use self::{world::World, scheduler::Scheduler, procedure::Procedure};
 
@@ -21,8 +21,8 @@ pub mod world;
 pub struct ECSManager {
     scheduler: RefCell<Scheduler>,
     next_frame_procedures: VecDeque<UID>,
-    worlds: RefCell<HashMap<UID, RefCell<Box<World>>>>,
-    active_world: UID,
+    pub(crate) worlds: RefCell<HashMap<UID, RefCell<Box<World>>>>,
+    pub(crate) active_world: UID,
 }
 
 impl ECSManager {
@@ -124,10 +124,6 @@ impl ECSManager {
         self.scheduler = Default::default();
         deserializer.deserialize_tuple(4, ECSVisitor { manager: self, registry: &registry.components })?;
         Ok(())
-    }
-
-    pub(crate) fn active_world(&mut self, registry: &RefCell<RegistryManager>) -> WorldContext<'_> {
-        WorldContext::new(registry, &mut self.worlds.borrow().get(&self.active_world).unwrap().borrow_mut())
     }
 
     pub fn update(

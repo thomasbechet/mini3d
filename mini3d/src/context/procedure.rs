@@ -12,8 +12,8 @@ impl<'a> ProcedureContext<'a> {
 
     pub(crate) fn new(
         uid: UID,
-        frame_procedures: &mut VecDeque<UID>,
-        next_frame_procedures: &mut VecDeque<UID>,
+        frame_procedures: &'a mut VecDeque<UID>,
+        next_frame_procedures: &'a mut VecDeque<UID>,
     ) -> Self {
         Self { uid, frame_procedures, next_frame_procedures }
     }

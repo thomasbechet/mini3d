@@ -10,7 +10,7 @@ pub struct AssetContext<'a> {
 
 impl<'a> AssetContext<'a> {
 
-    pub(crate) fn new(registry: &RefCell<RegistryManager>, asset: &mut AssetManager) -> Self {
+    pub(crate) fn new(registry: &'a RefCell<RegistryManager>, asset: &'a mut AssetManager) -> Self {
         Self { registry, asset }
     }
 

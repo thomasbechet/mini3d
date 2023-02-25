@@ -12,11 +12,11 @@ impl<'a> RendererContext<'a> {
     }
 
     pub fn graphics(&self) -> &mut Graphics {
-        self.renderer.borrow_mut().graphics()
+        self.renderer. get_mut().graphics()
     }
 
     pub fn set_clear_color(&self, color: Color) {
-        self.renderer.borrow().set_clear_color(color)
+        self.renderer.borrow_mut().set_clear_color(color)
     }
 
     pub fn statistics(&self) -> RendererStatistics {

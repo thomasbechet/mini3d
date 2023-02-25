@@ -302,9 +302,9 @@ impl Engine {
     ) -> Result<()> {
         if reset {
             backend.reset()?;
-            self.renderer.get_mut().reset(self.scene.get_mut())?;
+            self.renderer.get_mut().reset(self.ecs.get_mut())?;
         }
-        self.renderer.get_mut().update_backend(backend, self.asset.get_mut(), self.scene.get_mut())?;
+        self.renderer.get_mut().update_backend(backend, self.asset.get_mut(), self.ecs.get_mut())?;
         Ok(())
     }
 }
