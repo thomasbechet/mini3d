@@ -17,7 +17,7 @@ impl SystemPipeline {
         Ok(Self { systems: codes })
     }
 
-    pub(crate) fn run(&self, context: &SystemContext, _script: &ScriptManager) -> Result<()> {
+    pub(crate) fn run(&self, context: &mut SystemContext, _script: &ScriptManager) -> Result<()> {
         for system in &self.systems {
             match system {
                 SystemCode::Compiled(callback) => callback(context)?,

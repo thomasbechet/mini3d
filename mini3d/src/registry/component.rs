@@ -5,8 +5,8 @@ use serde::{Serialize, Deserialize, Serializer};
 
 use crate::{uid::UID, feature::asset::runtime_component::FieldType, ecs::{entity::Entity, container::{AnyComponentContainer, ComponentContainer, RuntimeComponent1, RuntimeComponent2, RuntimeComponent3, RuntimeComponent4, RuntimeComponent5}}};
 
-struct EntityResolver;
-struct ComponentContext;
+pub struct EntityResolver;
+pub struct ComponentContext;
 
 pub trait Component: Serialize + for<'de> Deserialize<'de> + 'static {
     fn on_construct(&mut self, _entity: Entity, _ctx: &mut ComponentContext) -> Result<()> { Ok(()) }

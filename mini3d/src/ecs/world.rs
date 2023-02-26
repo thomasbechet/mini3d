@@ -97,9 +97,9 @@ impl World {
         deserializer.deserialize_tuple(3, WorldVisitor { registry })
     }
 
-    pub(crate) fn new(name: String) -> World {
+    pub(crate) fn new(name: &str) -> World {
         World {
-            name,
+            name: name.to_string(),
             containers: HashMap::new(),
             free_entities: Vec::new(),
         }

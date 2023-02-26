@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use crate::{rhai::{input::InputManagerHandle, script_storage::ScriptStorageHandle}, feature::component::{rhai_scripts::{RhaiScripts, RhaiScriptStatus}, script_storage::ScriptStorage}, context::SystemContext};
 
-pub fn update_scripts(ctx: &SystemContext) -> Result<()> {
-    let world = ctx.world().active();
+pub fn update_scripts(ctx: &mut SystemContext) -> Result<()> {
+    let world = ctx.world.active();
     let scripts = world.view::<RhaiScripts>(RhaiScripts::UID)?;
     let storages = world.view::<ScriptStorage>(ScriptStorage::UID)?;
 

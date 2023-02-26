@@ -2,18 +2,18 @@ use anyhow::Result;
 
 use crate::{context::SystemContext, feature::component::ui::UIComponent};
 
-pub fn update(ctx: &SystemContext) -> Result<()> {
-    let world = ctx.world().active();
-    let uis = world.view::<UIComponent>(UIComponent::UID)?;
+pub fn update(ctx: &mut SystemContext) -> Result<()> {
+    let world = ctx.world.active();
+    let mut uis = world.view_mut::<UIComponent>(UIComponent::UID)?;
     for e in &world.query(&[UIComponent::UID]) {
         if uis[e].active {
-            uis[e].ui.update(&ctx.input(), ctx.time().global())?;
+            uis[e].ui.update(&ctx.input, ctx.time)?;
         }
     }
     Ok(())
 }
 
-pub fn render(ctx: &SystemContext) -> Result<()> {
+pub fn render(ctx: &mut SystemContext) -> Result<()> {
     // for (_, ui) in world.query::<&UIComponent>() {
     //     if ui.visible {
     //         for render_target in &ui.render_targets {

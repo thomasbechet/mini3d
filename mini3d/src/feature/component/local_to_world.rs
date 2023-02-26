@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, registry::component::Component};
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct LocalToWorld {
     pub matrix: Mat4,
     #[serde(skip)]

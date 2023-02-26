@@ -41,16 +41,6 @@ impl<'a, C: Component> ComponentView<C> for ComponentViewRef<'a, C> {
     }
 }
 
-// TODO: remove me
-// impl<'a, C: Component> IntoIterator for &ComponentViewRef<'a, C> {
-//     type Item = &'a C;
-//     type IntoIter = std::slice::Iter<'a, C>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.components.into_iter()
-//     }
-// }
-
 impl<'a, C: Component> Index<Entity> for ComponentViewRef<'a, C> {
     type Output = C;
 
@@ -115,13 +105,3 @@ impl<'a, C: Component> IndexMut<Entity> for ComponentViewMut<'a, C> {
         self.get_mut(entity).expect("Entity not found")
     }
 }
-
-// TODO: remove me
-// impl<'a, C: Component> IntoIterator for &ComponentViewMut<'a, C> {
-//     type Item = &'a mut C;
-//     type IntoIter = std::slice::IterMut<'a, C>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.components.iter_mut()
-//     }
-// }

@@ -53,14 +53,14 @@ impl Scheduler {
         Ok(None)
     }
 
-    pub(crate) fn add_group(&mut self, name: &str, group: &SystemGroup) -> Result<UID> {
+    pub(crate) fn add_group(&mut self, name: &str, group: SystemGroup) -> Result<UID> {
         let uid: UID = name.into();
         // Check existing group
         if self.groups.contains_key(&uid) {
             return Err(anyhow!("Group with name '{}' already exists", name));
         }
         // Insert group
-        self.groups.insert(uid, SystemGroupEntry { group: group.clone(), enabled: true });
+        self.groups.insert(uid, SystemGroupEntry { group, enabled: true });
         // Insert procedures
         for (procedure_uid, procedure) in &group.procedures {
             let procedures = self.procedures.entry(*procedure_uid).or_insert(ProcedureEntry::new(&procedure.name));

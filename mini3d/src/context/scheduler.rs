@@ -1,18 +1,14 @@
-use std::cell::{RefMut, RefCell};
+use std::cell::RefMut;
 
 use anyhow::Result;
 
 use crate::{uid::UID, feature::asset::system_group::SystemGroup, ecs::scheduler::Scheduler};
 
 pub struct SchedulerContext<'a> {
-    scheduler: RefMut<'a, Scheduler>,
+    pub(crate) scheduler: &'a mut Scheduler,
 }
 
 impl<'a> SchedulerContext<'a> {
-
-    pub(crate) fn new(scheduler: &'a RefCell<Scheduler>) -> Self {
-        Self { scheduler: scheduler.borrow_mut() }
-    }
 
     pub fn add_group(&mut self, name: &str, group: &SystemGroup) -> Result<UID> {
         self.scheduler.add_group(name, group)

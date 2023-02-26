@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 
 use crate::{uid::UID, context::SystemContext};
 
-pub type SystemCallback = fn(&SystemContext) -> Result<()>;
+pub type SystemCallback = fn(&mut SystemContext) -> Result<()>;
 
 #[derive(Clone, Copy)]
 pub(crate) enum SystemCode {

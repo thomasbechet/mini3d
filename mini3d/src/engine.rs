@@ -20,19 +20,19 @@ use crate::request::Requests;
 use crate::script::ScriptManager;
 use crate::uid::UID;
 use core::cell::RefCell;
-use std::cell::{RefMut, Ref};
+use std::cell::Ref;
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 pub struct Engine {
     pub(crate) registry: RefCell<RegistryManager>,
-    pub(crate) asset: RefCell<AssetManager>,
-    pub(crate) input: RefCell<InputManager>,
-    pub(crate) script: RefCell<ScriptManager>,
-    pub(crate) ecs: RefCell<ECSManager>,
-    pub(crate) renderer: RefCell<RendererManager>,
-    pub(crate) physics: RefCell<PhysicsManager>,
+    pub(crate) asset: AssetManager,
+    pub(crate) input: InputManager,
+    pub(crate) script: ScriptManager,
+    pub(crate) ecs: ECSManager,
+    pub(crate) renderer: RendererManager,
+    pub(crate) physics: PhysicsManager,
     accumulator: f64,
     time: f64,
 }
@@ -86,7 +86,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new() -> Result<Self> {
+    pub fn new(startup: SystemCallback) -> Result<Self> {
         let mut engine = Self {
             registry: Default::default(),
             asset: Default::default(), 
@@ -115,11 +115,11 @@ impl Engine {
     }
 
     pub fn iter_asset<A: Asset>(&'_ mut self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
-        self.asset.get_mut().iter::<A>(asset)
+        self.asset.iter::<A>(asset)
     }
 
     pub fn asset_entry<A: Asset>(&'_ mut self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
-        self.asset.get_mut().entry::<A>(asset, uid)
+        self.asset.entry::<A>(asset, uid)
     }
 
     pub fn save_state<S: Serializer>(&mut self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -161,10 +161,10 @@ impl Engine {
             }
         }
         let mut tuple = serializer.serialize_tuple(6)?;
-        tuple.serialize_element(&AssetManagerSerialize { manager: self.asset.get_mut() })?;
-        tuple.serialize_element(&RendererManagerSerialize { manager: self.renderer.get_mut() })?;
-        tuple.serialize_element(&ECSManagerSerialize { manager: self.ecs.get_mut(), registry: &self.registry.borrow() })?;
-        tuple.serialize_element(&InputManagerSerialize { manager: self.input.get_mut() })?;
+        tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
+        tuple.serialize_element(&RendererManagerSerialize { manager: &self.renderer })?;
+        tuple.serialize_element(&ECSManagerSerialize { manager: &self.ecs, registry: &self.registry.borrow() })?;
+        tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
         tuple.serialize_element(&self.accumulator)?;
         tuple.serialize_element(&self.time)?;
         tuple.end()
@@ -183,57 +183,54 @@ impl Engine {
                 where A: serde::de::SeqAccess<'de> {
                 use serde::de::Error;
                 struct AssetManagerDeserializeSeed<'a> {
-                    manager: RefMut<'a, AssetManager>,
+                    manager: &'a mut AssetManager,
                     registry: Ref<'a, RegistryManager>,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for AssetManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(&self.registry.assets, deserializer)
                     }
                 }
                 struct RendererManagerDeserializeSeed<'a> {
-                    manager: RefMut<'a, RendererManager>,
+                    manager: &'a mut RendererManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for RendererManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(deserializer)
                     }
                 }
                 struct ECSManagerDeserializeSeed<'a> {
-                    manager: RefMut<'a, ECSManager>,
+                    manager: &'a mut ECSManager,
                     registry: Ref<'a, RegistryManager>,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(&self.registry, deserializer)
                     }
                 }
                 struct InputManagerDeserializeSeed<'a> {
-                    manager: RefMut<'a, InputManager>,
+                    manager: &'a mut InputManager,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for InputManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(deserializer)
                     }
                 }
-                seq.next_element_seed(AssetManagerDeserializeSeed { manager: self.engine.asset.borrow_mut(), registry: self.engine.registry.borrow() })?;
-                seq.next_element_seed(RendererManagerDeserializeSeed { manager: self.engine.renderer.borrow_mut() })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: self.engine.ecs.borrow_mut(), registry: self.engine.registry.borrow() })?;
-                seq.next_element_seed(InputManagerDeserializeSeed { manager: self.engine.input.borrow_mut() })?;
+                seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.engine.asset, registry: self.engine.registry.borrow() })?;
+                seq.next_element_seed(RendererManagerDeserializeSeed { manager: &mut self.engine.renderer })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.engine.ecs, registry: self.engine.registry.borrow() })?;
+                seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.engine.input })?;
                 self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
                 self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
-                {
-                    let mut ecs = self.engine.ecs.borrow_mut();
-                    self.engine.renderer.get_mut().reset(&mut ecs).map_err(Error::custom)?;
-                }
+                self.engine.renderer.reset(&mut self.engine.ecs).map_err(Error::custom)?;
                 Ok(())
             }
         }
@@ -241,17 +238,12 @@ impl Engine {
         Ok(())
     }
 
-    pub fn progress(
-        &mut self,
-        events: &Events,
-        requests: &mut Requests,
-        mut delta_time: f64,
-    ) -> Result<()> {
+    pub fn progress(&mut self, events: &Events, requests: &mut Requests, mut delta_time: f64) -> Result<()> {
 
         // ================= PREPARE STAGE ================== //
 
         // Reset graphics state
-        self.renderer.get_mut().prepare()?;
+        self.renderer.prepare()?;
 
         // Compute delta time
         if delta_time > MAXIMUM_TIMESTEP {
@@ -267,10 +259,10 @@ impl Engine {
         // ================= DISPATCH STAGE ================= //
 
         // Prepare input manager
-        self.input.get_mut().prepare_dispatch();
+        self.input.prepare_dispatch();
         // Dispatch input events
         for event in &events.input {
-            self.input.get_mut().dispatch_event(event);
+            self.input.dispatch_event(event);
         }
 
         // Dispatch system events
@@ -286,29 +278,35 @@ impl Engine {
 
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
-        self.ecs.get_mut().update(&self.registry, &self.asset, &self.input, &self.renderer, &self.script, delta_time, self.time, FIXED_TIMESTEP, fixed_update_count)?;
+        self.ecs.update(
+            &self.registry, 
+            &mut self.asset, 
+            &mut self.input, 
+            &mut self.renderer, 
+            &mut self.script, 
+            delta_time, 
+            self.time, 
+            FIXED_TIMESTEP, 
+            fixed_update_count
+        )?;
 
         // ================= REQUESTS STAGE ================= //
 
         // Check input requests
-        if self.input.get_mut().reload_input_mapping {
+        if self.input.reload_input_mapping {
             requests.reload_input_mapping = true;
-            self.input.get_mut().reload_input_mapping = false;
+            self.input.reload_input_mapping = false;
         }
 
         Ok(())
     }
 
-    pub fn update_renderer(
-        &mut self,
-        backend: &mut impl RendererBackend,
-        reset: bool,
-    ) -> Result<()> {
+    pub fn update_renderer(&mut self, backend: &mut impl RendererBackend, reset: bool) -> Result<()> {
         if reset {
             backend.reset()?;
-            self.renderer.get_mut().reset(self.ecs.get_mut())?;
+            self.renderer.reset(&mut self.ecs)?;
         }
-        self.renderer.get_mut().update_backend(backend, self.asset.get_mut(), self.ecs.get_mut())?;
+        self.renderer.update_backend(backend, &mut self.asset, &mut self.ecs)?;
         Ok(())
     }
 }

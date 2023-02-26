@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::SystemContext};
+use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry, system::SystemCallback}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext}, feature::asset::system_group::SystemGroup};
 
 use self::{world::World, scheduler::Scheduler, procedure::Procedure};
 
@@ -17,15 +17,26 @@ pub mod sparse;
 pub mod view;
 pub mod world;
 
-#[derive(Default)]
-pub struct ECSManager {
-    scheduler: RefCell<Scheduler>,
+pub(crate) struct ECSManager {
+    scheduler: Scheduler,
     next_frame_procedures: VecDeque<UID>,
     pub(crate) worlds: RefCell<HashMap<UID, RefCell<Box<World>>>>,
-    pub(crate) active_world: UID,
+    pub(crate) active_world: Option<UID>,
 }
 
 impl ECSManager {
+
+    pub fn new(callback: SystemCallback) -> Self {
+        let mut manager = Self {
+            scheduler: Scheduler::default(),
+            next_frame_procedures: VecDeque::new(),
+            worlds: RefCell::new(HashMap::new()),
+            active_world: UID::new(MAIN_WORLD_NAME),
+        };
+        manager.worlds.get_mut().insert(manager.active_world, RefCell::new(Box::new(World::new(MAIN_WORLD_NAME))));
+        manager.scheduler.add_group(MAIN_SYSTEM_GROUP_NAME, SystemGroup::single(Procedure::ENGINE_STARTUP, callback, 0.0));
+        manager
+    }
 
     pub(crate) fn save_state<S: Serializer>(&self, registry: &RegistryManager, serializer: S) -> Result<S::Ok, S::Error> {
         struct WorldsSerialize<'a> {
@@ -52,7 +63,7 @@ impl ECSManager {
             }
         }
         let mut tuple = serializer.serialize_tuple(4)?;
-        tuple.serialize_element(&self.scheduler);
+        tuple.serialize_element(&self.scheduler)?;
         tuple.serialize_element(&WorldsSerialize { registry: &registry.components, worlds: &self.worlds.borrow() })?;
         tuple.serialize_element(&self.next_frame_procedures)?;
         tuple.serialize_element(&self.active_world)?;
@@ -126,13 +137,13 @@ impl ECSManager {
         Ok(())
     }
 
-    pub fn update(
+    pub(crate) fn update(
         &mut self,
         registry: &RefCell<RegistryManager>,
-        asset: &RefCell<AssetManager>,
-        input: &RefCell<InputManager>,
-        renderer: &RefCell<RendererManager>,
-        script: &RefCell<ScriptManager>,
+        asset: &mut AssetManager,
+        input: &mut InputManager,
+        renderer: &mut RendererManager,
+        script: &mut ScriptManager,
         delta_time: f64,
         time: f64,
         fixed_delta_time: f64,
@@ -140,7 +151,7 @@ impl ECSManager {
     ) -> Result<()> {
 
         // Prepare frame
-        let change_world: RefCell<Option<UID>> = RefCell::new(None);
+        let mut change_world: Option<UID> = None;
     
         // Collect procedures
         let mut frame_procedures = self.next_frame_procedures.drain(..).collect::<VecDeque<_>>();
@@ -154,32 +165,47 @@ impl ECSManager {
         while let Some(procedure) = frame_procedures.pop_front() {
 
             // Build pipeline
-            if let Some(pipeline) = self.scheduler.borrow().build_pipeline(procedure, &registry.borrow().systems)? {
+            if let Some(pipeline) = self.scheduler.build_pipeline(procedure, &registry.borrow().systems)? {
                 
                 // Build context
-                let context = SystemContext {
-                    registry,
-                    asset,
-                    input,
-                    renderer,
-                    scheduler: &self.scheduler,
-                    worlds: &self.worlds,
-                    active_world: self.active_world,
-                    change_world: &change_world,
-                    active_procedure: procedure,
-                    frame_procedures: &mut frame_procedures,
-                    next_frame_procedures: &mut self.next_frame_procedures,
+                let mut context = SystemContext {
+                    asset: AssetContext {
+                        registry,
+                        manager: asset,
+                    },
+                    input: InputContext {
+                        manager: input,
+                    },
+                    procedure: ProcedureContext {
+                        active_procedure: procedure,
+                        frame_procedures: &mut frame_procedures,
+                        next_frame_procedures: &mut self.next_frame_procedures,
+                    },
+                    registry: RegistryContext {
+                        manager: registry,
+                    },
+                    renderer: RendererContext {
+                        manager: renderer,
+                    },
+                    scheduler: SchedulerContext {
+                        scheduler: &mut self.scheduler,
+                    },
+                    world: WorldContext {
+                        worlds: &mut self.worlds.borrow_mut(),
+                        active_world: self.active_world,
+                        change_world: &mut change_world,
+                    },
                     delta_time: if procedure == Procedure::FIXED_UPDATE.into() { fixed_delta_time } else { delta_time },
                     time,
                 };
 
                 // Run pipeline
-                pipeline.run(&context, &script.borrow())?;
+                pipeline.run(&mut context, &script)?;
             }
         }
 
         // Change world
-        if let Some(world) = *change_world.borrow() {
+        if let Some(world) = change_world {
             self.active_world = world;
             self.next_frame_procedures.push_front(Procedure::WORLD_CHANGED.into());
         }

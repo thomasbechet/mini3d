@@ -1,26 +1,16 @@
 use anyhow::{Result, anyhow};
 
-use crate::{registry::{RegistryManager, component::Component}, ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query}, uid::UID};
+use crate::{registry::component::Component, ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query}, uid::UID};
 use core::cell::RefCell;
-use std::{collections::HashMap, cell::{RefMut, Ref}};
+use std::{collections::HashMap, cell::RefMut};
 
-pub struct WorldManagerContext<'a> {
-    registry: &'a RefCell<RegistryManager>,
-    worlds: RefMut<'a, HashMap<UID, RefCell<Box<World>>>>,
-    active_world: UID,
-    change_world: &'a RefCell<Option<UID>>,
+pub struct WorldContext<'a> {
+    pub(crate) worlds: &'a mut HashMap<UID, RefCell<Box<World>>>,
+    pub(crate) active_world: UID,
+    pub(crate) change_world: &'a mut Option<UID>,
 }
 
-impl<'a> WorldManagerContext<'a> {
-
-    pub(crate) fn new(
-        registry: &'a RefCell<RegistryManager>, 
-        worlds: &'a RefCell<HashMap<UID, RefCell<Box<World>>>>,
-        active_world: UID,
-        change_world: &'a RefCell<Option<UID>>,
-    ) -> Self {
-        Self { registry, worlds: worlds.borrow_mut(), active_world, change_world }
-    }
+impl<'a> WorldContext<'a> {
 
     pub fn add(&mut self, name: &str, world: World) -> Result<()> {
         let uid: UID = name.into();
@@ -32,7 +22,7 @@ impl<'a> WorldManagerContext<'a> {
     }
     
     pub fn remove(&mut self, uid: UID) -> Result<()> {
-        if let Some(change_world) = *self.change_world.borrow() {
+        if let Some(change_world) = *self.change_world {
             if change_world == uid {
                 return Err(anyhow!("Cannot remove world while it is being changed to"));
             }
@@ -43,30 +33,26 @@ impl<'a> WorldManagerContext<'a> {
         Ok(())
     }
 
-    pub fn active(self) -> WorldContext<'a> {
-        WorldContext::new(self.registry, self.worlds.get(&self.active_world).unwrap())
+    pub fn active<'c: 'b, 'b>(&'c mut self) -> WorldInstanceContext<'b> {
+        WorldInstanceContext {
+            world: self.worlds.get(&self.active_world).unwrap().borrow_mut(),
+        }
     }
 
     pub fn change(&mut self, uid: UID) -> Result<()> {
         if !self.worlds.contains_key(&uid) {
             return Err(anyhow!("World not found"));
         }
-        *self.change_world.borrow_mut() = Some(uid);
+        *self.change_world = Some(uid);
         Ok(())
     }
 }
 
-pub struct WorldContext<'a> {
-    registry: Ref<'a, RegistryManager>,
-    worlds: Ref<'a, HashMap<UID, RefCell<Box<World>>>>,
+pub struct WorldInstanceContext<'a> {
     world: RefMut<'a, Box<World>>,
 }
 
-impl<'a> WorldContext<'a> {
-
-    pub(crate) fn new(registry: &'a RefCell<RegistryManager>, world: &'a RefCell<Box<World>>) -> Self {
-        Self { registry: registry.borrow(), world: world.borrow_mut() }
-    }
+impl<'a> WorldInstanceContext<'a> {
 
     pub fn create(&mut self) -> Entity {
         self.world.create()

@@ -2,9 +2,9 @@ use anyhow::Result;
 
 use crate::{feature::component::{camera::Camera, model::Model, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, context::SystemContext};
 
-pub(crate) fn despawn_renderer_entities(ctx: &SystemContext) -> Result<()> {
+pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> Result<()> {
 
-    let world = ctx.world().active();
+    let world = ctx.world.active();
     let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
     let viewports = world.view::<Viewport>(Viewport::UID)?;
     let cameras = world.view::<Camera>(Camera::UID)?;
@@ -13,25 +13,25 @@ pub(crate) fn despawn_renderer_entities(ctx: &SystemContext) -> Result<()> {
 
     for e in &world.query(&[Lifecycle::UID, Viewport::UID]) {
         if !lifecycles[e].alive {
-            if let Some(handle) = viewports[e].handle { ctx.renderer.borrow_mut().viewports_removed.insert(handle); }
+            if let Some(handle) = viewports[e].handle { ctx.renderer.manager.viewports_removed.insert(handle); }
         }
     }
 
     for e in &world.query(&[Lifecycle::UID, Camera::UID]) {
         if !lifecycles[e].alive { 
-            if let Some(handle) = cameras[e].handle { ctx.renderer.borrow_mut().scene_cameras_removed.insert(handle); }
+            if let Some(handle) = cameras[e].handle { ctx.renderer.manager.scene_cameras_removed.insert(handle); }
         }
     }
 
     for e in &world.query(&[Lifecycle::UID, Model::UID]) {
         if !lifecycles[e].alive { 
-            if let Some(handle) = models[e].handle { ctx.renderer.borrow_mut().scene_models_removed.insert(handle); }
+            if let Some(handle) = models[e].handle { ctx.renderer.manager.scene_models_removed.insert(handle); }
         }
     }
 
     for e in &world.query(&[Lifecycle::UID, Canvas::UID]) {
         if !lifecycles[e].alive { 
-            if let Some(handle) = canvases[e].handle { ctx.renderer.borrow_mut().scene_canvases_removed.insert(handle); }
+            if let Some(handle) = canvases[e].handle { ctx.renderer.manager.scene_canvases_removed.insert(handle); }
         }
     }
 
