@@ -3,11 +3,28 @@ use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, registry::asset::Asset};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemPipeline {
+    pub(crate) systems: Vec<UID>,
+}
+
+impl SystemPipeline {
+    pub fn single(system: UID) -> Self {
+        Self { systems: vec![system] }
+    }
+}
+
+impl From<&[UID]> for SystemPipeline {
+    fn from(systems: &[UID]) -> Self {
+        Self { systems: systems.to_vec() }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ProcedureEntry {
     pub(crate) name: String,
     pub(crate) priority: i32,
-    pub(crate) systems: Vec<UID>,
+    pub(crate) pipeline: SystemPipeline,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -26,13 +43,12 @@ impl SystemGroup {
         Self { procedures: Default::default() }
     }
 
-    pub fn single(procedure: &str, system: UID, priority: i32) -> Self {
-        let mut procedures = HashMap::new();
-        procedures.insert(procedure.into(), ProcedureEntry {
-            name: procedure.into(),
-            priority,
-            systems: vec![system],
-        });
-        Self { procedures }
+    pub fn insert(&mut self, procedure: &str, pipeline: SystemPipeline, priority: i32) {
+        let uid = UID::new(procedure);
+        self.procedures.insert(uid, ProcedureEntry { name: procedure.to_string(), priority, pipeline });
+    }
+
+    pub fn remove(&mut self, procedure: UID) {
+        self.procedures.remove(&procedure);
     }
 }

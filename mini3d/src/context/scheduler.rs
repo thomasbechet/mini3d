@@ -1,5 +1,3 @@
-use std::cell::RefMut;
-
 use anyhow::Result;
 
 use crate::{uid::UID, feature::asset::system_group::SystemGroup, ecs::scheduler::Scheduler};
@@ -10,7 +8,7 @@ pub struct SchedulerContext<'a> {
 
 impl<'a> SchedulerContext<'a> {
 
-    pub fn add_group(&mut self, name: &str, group: &SystemGroup) -> Result<UID> {
+    pub fn add_group(&mut self, name: &str, group: SystemGroup) -> Result<UID> {
         self.scheduler.add_group(name, group)
     }
 

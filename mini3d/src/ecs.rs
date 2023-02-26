@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry, system::SystemCallback}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext}, feature::asset::system_group::SystemGroup};
+use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry, system::SystemCallback}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext}, feature::asset::system_group::{SystemGroup, SystemPipeline}};
 
 use self::{world::World, scheduler::Scheduler, procedure::Procedure};
 
@@ -17,25 +17,32 @@ pub mod sparse;
 pub mod view;
 pub mod world;
 
+const INIT_NAME: &str = "_init";
+
+#[derive(Default)]
 pub(crate) struct ECSManager {
     scheduler: Scheduler,
     next_frame_procedures: VecDeque<UID>,
     pub(crate) worlds: RefCell<HashMap<UID, RefCell<Box<World>>>>,
-    pub(crate) active_world: Option<UID>,
+    pub(crate) active_world: UID,
 }
 
 impl ECSManager {
 
-    pub fn new(callback: SystemCallback) -> Self {
-        let mut manager = Self {
-            scheduler: Scheduler::default(),
-            next_frame_procedures: VecDeque::new(),
-            worlds: RefCell::new(HashMap::new()),
-            active_world: UID::new(MAIN_WORLD_NAME),
-        };
-        manager.worlds.get_mut().insert(manager.active_world, RefCell::new(Box::new(World::new(MAIN_WORLD_NAME))));
-        manager.scheduler.add_group(MAIN_SYSTEM_GROUP_NAME, SystemGroup::single(Procedure::ENGINE_STARTUP, callback, 0.0));
-        manager
+    pub(crate) fn setup(&mut self, init: SystemCallback, registry: &mut RegistryManager) -> Result<()> {
+        // Define the init system
+        registry.systems.define_static(INIT_NAME, init)?;
+        // Create the init world and set as active
+        self.worlds.borrow_mut().insert(INIT_NAME.into(), RefCell::new(Box::new(World::new(INIT_NAME))));
+        self.active_world = INIT_NAME.into();
+        // Create the init system group
+        let mut init_group = SystemGroup::empty();
+        init_group.insert(INIT_NAME, SystemPipeline::single(INIT_NAME.into()), 0);
+        // Add the init procedure to the scheduler with the init system
+        self.scheduler.add_group(INIT_NAME, init_group)?;
+        // Invoke the init procedure
+        self.next_frame_procedures.push_back(INIT_NAME.into());
+        Ok(())
     }
 
     pub(crate) fn save_state<S: Serializer>(&self, registry: &RegistryManager, serializer: S) -> Result<S::Ok, S::Error> {
@@ -190,13 +197,16 @@ impl ECSManager {
                     scheduler: SchedulerContext {
                         scheduler: &mut self.scheduler,
                     },
+                    time: TimeContext {
+                        delta: if procedure == Procedure::FIXED_UPDATE.into() { fixed_delta_time } else { delta_time },
+                        global: time,
+                    },
                     world: WorldContext {
+                        registry,
                         worlds: &mut self.worlds.borrow_mut(),
                         active_world: self.active_world,
                         change_world: &mut change_world,
                     },
-                    delta_time: if procedure == Procedure::FIXED_UPDATE.into() { fixed_delta_time } else { delta_time },
-                    time,
                 };
 
                 // Run pipeline

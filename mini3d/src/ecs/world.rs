@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::{collections::{HashMap, hash_map}};
 
 use anyhow::{Context, Result};
 use serde::{Deserializer, Serializer, Serialize, de::{Visitor, DeserializeSeed}};
@@ -7,7 +7,7 @@ use crate::{uid::UID, registry::component::{Component, ComponentRegistry, AnyCom
 
 use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentViewRef, ComponentViewMut}, query::Query};
 
-pub struct World {
+pub(crate) struct World {
     pub(crate) name: String,
     containers: HashMap<UID, Box<dyn AnyComponentContainer>>,
     free_entities: Vec<Entity>,
@@ -121,16 +121,16 @@ impl World {
     }
 
     pub(crate) fn add<C: Component>(&mut self, registry: &ComponentRegistry, entity: Entity, component: UID, data: C) -> Result<()> {
-        if !self.containers.contains_key(&component) {
+        if let hash_map::Entry::Vacant(e) = self.containers.entry(component) {
             let container = registry
                 .get(component).with_context(|| "Component not registered")?
                 .reflection.create_container();
-            self.containers.insert(component, container);
+            e.insert(container);
         }
         let container = self.containers.get_mut(&component).unwrap();
         container.as_any_mut()
             .downcast_mut::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?
-            .add(entity, data);
+            .add(entity, data)?;
         Ok(())
     }
     
@@ -140,14 +140,14 @@ impl World {
         Ok(())
     }
 
-    pub(crate) fn view<'a, C: Component>(&'a self, component: UID) -> Result<ComponentViewRef<'a, C>> {
+    pub(crate) fn view<C: Component>(&self, component: UID) -> Result<ComponentViewRef<'_, C>> {
         let container = self.containers.get(&component).with_context(|| "Component container not found")?;
         let container = container.as_any()
             .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
         Ok(ComponentViewRef::new(container))
     }
 
-    pub(crate) fn view_mut<'a, C: Component>(&'a self, component: UID) -> Result<ComponentViewMut<'a, C>> {
+    pub(crate) fn view_mut<C: Component>(&self, component: UID) -> Result<ComponentViewMut<'_, C>> {
         let container = self.containers.get(&component).with_context(|| "Component container not found")?;
         let container = container.as_any()
             .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
@@ -159,7 +159,7 @@ impl World {
         for component in components {
             containers.push(self.containers.get(component).unwrap().as_ref());
         }
-        containers.sort_by(|a, b| a.len().cmp(&b.len()));
+        containers.sort_by_key(|a| a.len());
         Query::new(containers)
     }
 }

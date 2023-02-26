@@ -15,13 +15,13 @@ pub trait Component: Serialize + for<'de> Deserialize<'de> + 'static {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct RuntimeComponentDefinition {
+pub struct DynamicComponentDefinition {
     pub fields: HashMap<String, FieldType>,
 }
 
 pub(crate) enum ComponentKind {
-    Compiled,
-    Runtime(RuntimeComponentDefinition),
+    Static,
+    Dynamic(DynamicComponentDefinition),
 }
 
 pub(crate) struct AnyComponentContainerDeserializeSeed;
@@ -81,13 +81,13 @@ impl ComponentRegistry {
         Ok(uid)
     }
 
-    pub(crate) fn define_compiled<C: Component>(&mut self, name: &str) -> Result<UID> {
+    pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID> {
         let reflection = ComponentDefinitionReflection::<C> { _phantom: std::marker::PhantomData };
-        let uid = self.define(name, ComponentKind::Compiled, Box::new(reflection))?;
+        let uid = self.define(name, ComponentKind::Static, Box::new(reflection))?;
         Ok(uid)
     }
 
-    pub(crate) fn define_runtime(&mut self, name: &str, definition: RuntimeComponentDefinition) -> Result<UID> {
+    pub(crate) fn define_dynamic(&mut self, name: &str, definition: DynamicComponentDefinition) -> Result<UID> {
         let reflection: Box<dyn AnyComponentDefinitionReflection> = match definition.fields.len() {
             1 => Box::new(ComponentDefinitionReflection::<RuntimeComponent1> { _phantom: std::marker::PhantomData }),
             2 => Box::new(ComponentDefinitionReflection::<RuntimeComponent2> { _phantom: std::marker::PhantomData }),
@@ -96,7 +96,7 @@ impl ComponentRegistry {
             5 => Box::new(ComponentDefinitionReflection::<RuntimeComponent5> { _phantom: std::marker::PhantomData }),
             _ => return Err(anyhow!("Runtime component with 0 or more than 5 fields not supported")),
         };
-        let uid = self.define(name, ComponentKind::Runtime(definition), reflection)?;
+        let uid = self.define(name, ComponentKind::Dynamic(definition), reflection)?;
         Ok(uid)
     }
 

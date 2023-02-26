@@ -20,7 +20,7 @@ impl SystemPipeline {
     pub(crate) fn run(&self, context: &mut SystemContext, _script: &ScriptManager) -> Result<()> {
         for system in &self.systems {
             match system {
-                SystemCode::Compiled(callback) => callback(context)?,
+                SystemCode::Static(callback) => callback(context)?,
                 SystemCode::Rhai(_uid) => {
                     todo!()
                 },

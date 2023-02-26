@@ -9,7 +9,6 @@ use crate::feature::{asset, component, system};
 use crate::physics::PhysicsManager;
 use crate::registry::RegistryManager;
 use crate::registry::asset::Asset;
-use crate::registry::component::Component;
 use crate::registry::system::SystemCallback;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
@@ -41,52 +40,54 @@ impl Engine {
 
     fn define_core_features(&mut self) -> Result<()> {
 
+        let mut registry = self.registry.borrow_mut();
+
         // Assets
-        self.define_asset::<asset::font::Font>(asset::font::Font::NAME)?;
-        self.define_asset::<asset::input_action::InputAction>(asset::input_action::InputAction::NAME)?;
-        self.define_asset::<asset::input_axis::InputAxis>(asset::input_axis::InputAxis::NAME)?;
-        self.define_asset::<asset::input_table::InputTable>(asset::input_table::InputTable::NAME)?;
-        self.define_asset::<asset::material::Material>(asset::material::Material::NAME)?;
-        self.define_asset::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
-        self.define_asset::<asset::model::Model>(asset::model::Model::NAME)?;
-        self.define_asset::<asset::rhai_script::RhaiScript>(asset::rhai_script::RhaiScript::NAME)?;
-        self.define_asset::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
-        self.define_asset::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
-        self.define_asset::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;
-        self.define_asset::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
-        self.define_asset::<asset::ui_template::UITemplate>(asset::ui_template::UITemplate::NAME)?;
-        self.define_asset::<asset::world_template::WorldTemplate>(asset::world_template::WorldTemplate::NAME)?;
+        registry.assets.define_static::<asset::font::Font>(asset::font::Font::NAME)?;
+        registry.assets.define_static::<asset::input_action::InputAction>(asset::input_action::InputAction::NAME)?;
+        registry.assets.define_static::<asset::input_axis::InputAxis>(asset::input_axis::InputAxis::NAME)?;
+        registry.assets.define_static::<asset::input_table::InputTable>(asset::input_table::InputTable::NAME)?;
+        registry.assets.define_static::<asset::material::Material>(asset::material::Material::NAME)?;
+        registry.assets.define_static::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
+        registry.assets.define_static::<asset::model::Model>(asset::model::Model::NAME)?;
+        registry.assets.define_static::<asset::rhai_script::RhaiScript>(asset::rhai_script::RhaiScript::NAME)?;
+        registry.assets.define_static::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
+        registry.assets.define_static::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
+        registry.assets.define_static::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;
+        registry.assets.define_static::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
+        registry.assets.define_static::<asset::ui_template::UITemplate>(asset::ui_template::UITemplate::NAME)?;
+        registry.assets.define_static::<asset::world_template::WorldTemplate>(asset::world_template::WorldTemplate::NAME)?;
 
         // Components
-        self.define_component::<component::camera::Camera>(component::camera::Camera::NAME)?;
-        self.define_component::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
-        self.define_component::<component::lifecycle::Lifecycle>(component::lifecycle::Lifecycle::NAME)?;
-        self.define_component::<component::model::Model>(component::model::Model::NAME)?;
-        self.define_component::<component::rhai_scripts::RhaiScripts>(component::rhai_scripts::RhaiScripts::NAME)?;
-        self.define_component::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
-        self.define_component::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
-        self.define_component::<component::script_storage::ScriptStorage>(component::script_storage::ScriptStorage::NAME)?;
-        self.define_component::<component::transform::Transform>(component::transform::Transform::NAME)?;
-        self.define_component::<component::local_to_world::LocalToWorld>(component::local_to_world::LocalToWorld::NAME)?;
-        self.define_component::<component::hierarchy::Hierarchy>(component::hierarchy::Hierarchy::NAME)?;
-        self.define_component::<component::ui::UIComponent>(component::ui::UIComponent::NAME)?;
-        self.define_component::<component::viewport::Viewport>(component::viewport::Viewport::NAME)?;
-        self.define_component::<component::canvas::Canvas>(component::canvas::Canvas::NAME)?;
+        registry.components.define_static::<component::camera::Camera>(component::camera::Camera::NAME)?;
+        registry.components.define_static::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
+        registry.components.define_static::<component::lifecycle::Lifecycle>(component::lifecycle::Lifecycle::NAME)?;
+        registry.components.define_static::<component::model::Model>(component::model::Model::NAME)?;
+        registry.components.define_static::<component::rhai_scripts::RhaiScripts>(component::rhai_scripts::RhaiScripts::NAME)?;
+        registry.components.define_static::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
+        registry.components.define_static::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
+        registry.components.define_static::<component::script_storage::ScriptStorage>(component::script_storage::ScriptStorage::NAME)?;
+        registry.components.define_static::<component::transform::Transform>(component::transform::Transform::NAME)?;
+        registry.components.define_static::<component::local_to_world::LocalToWorld>(component::local_to_world::LocalToWorld::NAME)?;
+        registry.components.define_static::<component::hierarchy::Hierarchy>(component::hierarchy::Hierarchy::NAME)?;
+        registry.components.define_static::<component::ui::UIComponent>(component::ui::UIComponent::NAME)?;
+        registry.components.define_static::<component::viewport::Viewport>(component::viewport::Viewport::NAME)?;
+        registry.components.define_static::<component::canvas::Canvas>(component::canvas::Canvas::NAME)?;
 
         // Systems
-        self.define_system("despawn_entities", system::despawn::run)?;
-        self.define_system("renderer", system::renderer::despawn_renderer_entities)?;
-        self.define_system("free_fly", system::free_fly::run)?;
-        self.define_system("rhai_update_scripts", system::rhai::update_scripts)?;
-        self.define_system("rotator", system::rotator::run)?;
-        self.define_system("transform_propagate", system::transform::propagate)?;
-        self.define_system("ui_update", system::ui::update)?;
-        self.define_system("ui_render", system::ui::render)?;
+        registry.systems.define_static("despawn_entities", system::despawn::run)?;
+        registry.systems.define_static("renderer", system::renderer::despawn_renderer_entities)?;
+        registry.systems.define_static("free_fly", system::free_fly::run)?;
+        registry.systems.define_static("rhai_update_scripts", system::rhai::update_scripts)?;
+        registry.systems.define_static("rotator", system::rotator::run)?;
+        registry.systems.define_static("transform_propagate", system::transform::propagate)?;
+        registry.systems.define_static("ui_update", system::ui::update)?;
+        registry.systems.define_static("ui_render", system::ui::render)?;
 
         Ok(())
     }
 
-    pub fn new(startup: SystemCallback) -> Result<Self> {
+    pub fn new(init: SystemCallback) -> Result<Self> {
         let mut engine = Self {
             registry: Default::default(),
             asset: Default::default(), 
@@ -99,19 +100,8 @@ impl Engine {
             time: 0.0,
         };
         engine.define_core_features()?;
+        engine.ecs.setup(init, engine.registry.get_mut())?;
         Ok(engine)
-    }
-
-    pub fn define_asset<A: Asset>(&mut self, name: &str) -> Result<UID> {
-        self.registry.borrow_mut().assets.define_compiled::<A>(name)
-    }
-
-    pub fn define_component<C: Component>(&mut self, name: &str) -> Result<UID> {
-        self.registry.borrow_mut().components.define_compiled::<C>(name)
-    }
-
-    pub fn define_system(&mut self, name: &str, system: SystemCallback) -> Result<()> {
-        self.registry.borrow_mut().systems.define_compiled(name, system)
     }
 
     pub fn iter_asset<A: Asset>(&'_ mut self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {

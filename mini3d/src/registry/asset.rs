@@ -33,7 +33,7 @@ pub struct AssetRegistry {
 
 impl AssetRegistry {
 
-    pub(crate) fn define_compiled<A: Asset>(&mut self, name: &str) -> Result<UID> {
+    pub(crate) fn define_static<A: Asset>(&mut self, name: &str) -> Result<UID> {
         let uid: UID = name.into();
         if self.assets.contains_key(&uid) {
             return Err(anyhow!("Asset already defined"));

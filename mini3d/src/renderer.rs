@@ -236,13 +236,13 @@ impl RendererManager {
         for handle in self.viewports_removed.drain() {
             backend.viewport_remove(handle)?;
         }
-
+        
         // Update scene
         if !self.scenes.contains_key(&ecs.active_world) {
             let handle = backend.scene_add()?;
             self.scenes.insert(ecs.active_world, handle);
         }
-        
+
         // Update scene components
         {
             let world = ecs.worlds.get_mut().get_mut(&ecs.active_world).unwrap().get_mut();
@@ -308,17 +308,17 @@ impl RendererManager {
                 }
                 backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix)?;        
             }
-
-            // Render main screen
-            self.graphics.submit_backend(
-                None,
-                Color::TRANSPARENT,
-                &mut self.resources,
-                asset,
-                &self.viewports,
-                backend,
-            )?;
         }
+
+        // Render main screen
+        self.graphics.submit_backend(
+            None,
+            Color::TRANSPARENT,
+            &mut self.resources,
+            asset,
+            &self.viewports,
+            backend,
+        )?;
         
         // Recover statistics of previous frame
         self.statistics = backend.statistics()?;

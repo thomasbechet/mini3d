@@ -47,8 +47,7 @@ impl Scheduler {
             return Ok(Some(SystemPipeline::build(registry, entry.groups.iter()
                 .map(|(group, _)| self.groups.get(group).unwrap())
                 .filter(|group| group.enabled)
-                .map(move |group| group.group.procedures.get(&procedure).unwrap().systems.iter())
-                .flatten())?));
+                .flat_map(move |group| group.group.procedures.get(&procedure).unwrap().pipeline.systems.iter()))?));
         }
         Ok(None)
     }
@@ -59,14 +58,14 @@ impl Scheduler {
         if self.groups.contains_key(&uid) {
             return Err(anyhow!("Group with name '{}' already exists", name));
         }
-        // Insert group
-        self.groups.insert(uid, SystemGroupEntry { group, enabled: true });
         // Insert procedures
         for (procedure_uid, procedure) in &group.procedures {
-            let procedures = self.procedures.entry(*procedure_uid).or_insert(ProcedureEntry::new(&procedure.name));
+            let procedures = self.procedures.entry(*procedure_uid).or_insert_with(|| ProcedureEntry::new(&procedure.name));
             procedures.groups.push((uid, procedure.priority));
             procedures.groups.sort_by_key(|(_, priority)| *priority);
         }
+        // Insert group
+        self.groups.insert(uid, SystemGroupEntry { group, enabled: true });
         Ok(uid)
     }
 

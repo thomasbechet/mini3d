@@ -8,7 +8,7 @@ pub type SystemCallback = fn(&mut SystemContext) -> Result<()>;
 
 #[derive(Clone, Copy)]
 pub(crate) enum SystemCode {
-    Compiled(SystemCallback),
+    Static(SystemCallback),
     Rhai(UID),
     Lua(UID),
 }
@@ -34,10 +34,10 @@ impl SystemRegistry {
         Ok(())
     }
 
-    pub(crate) fn define_compiled(&mut self, name: &str, system: SystemCallback) -> Result<()> {
+    pub(crate) fn define_static(&mut self, name: &str, system: SystemCallback) -> Result<()> {
         self.define(SystemDefinition { 
             name: name.to_string(),
-            code: SystemCode::Compiled(system),
+            code: SystemCode::Static(system),
         })
     }
 

@@ -1,10 +1,11 @@
 use anyhow::{Result, anyhow};
 
-use crate::{registry::component::Component, ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query}, uid::UID};
+use crate::{registry::{component::Component, RegistryManager}, ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query}, uid::UID};
 use core::cell::RefCell;
-use std::{collections::HashMap, cell::RefMut};
+use std::{collections::HashMap, cell::{RefMut, Ref}};
 
 pub struct WorldContext<'a> {
+    pub(crate) registry: &'a RefCell<RegistryManager>,
     pub(crate) worlds: &'a mut HashMap<UID, RefCell<Box<World>>>,
     pub(crate) active_world: UID,
     pub(crate) change_world: &'a mut Option<UID>,
@@ -12,13 +13,13 @@ pub struct WorldContext<'a> {
 
 impl<'a> WorldContext<'a> {
 
-    pub fn add(&mut self, name: &str, world: World) -> Result<()> {
+    pub fn add(&mut self, name: &str) -> Result<UID> {
         let uid: UID = name.into();
         if self.worlds.contains_key(&uid) {
             return Err(anyhow!("World with name {} already exists", name));
         }
-        self.worlds.insert(uid, RefCell::new(Box::new(world)));
-        Ok(())
+        self.worlds.insert(uid, RefCell::new(Box::new(World::new(name))));
+        Ok(uid)
     }
     
     pub fn remove(&mut self, uid: UID) -> Result<()> {
@@ -33,10 +34,15 @@ impl<'a> WorldContext<'a> {
         Ok(())
     }
 
-    pub fn active<'c: 'b, 'b>(&'c mut self) -> WorldInstanceContext<'b> {
-        WorldInstanceContext {
-            world: self.worlds.get(&self.active_world).unwrap().borrow_mut(),
+    pub fn active(&mut self) -> WorldInstanceContext<'_> {
+        WorldInstanceContext { world: self.worlds.get(&self.active_world).unwrap().borrow_mut(), registry: self.registry.borrow() }
+    }
+
+    pub fn get(&mut self, uid: UID) -> Result<WorldInstanceContext<'_>> {
+        if !self.worlds.contains_key(&uid) {
+            return Err(anyhow!("World not found"));
         }
+        Ok(WorldInstanceContext { world: self.worlds.get(&uid).unwrap().borrow_mut(), registry: self.registry.borrow() })
     }
 
     pub fn change(&mut self, uid: UID) -> Result<()> {
@@ -50,6 +56,7 @@ impl<'a> WorldContext<'a> {
 
 pub struct WorldInstanceContext<'a> {
     world: RefMut<'a, Box<World>>,
+    registry: Ref<'a, RegistryManager>
 }
 
 impl<'a> WorldInstanceContext<'a> {
@@ -60,6 +67,14 @@ impl<'a> WorldInstanceContext<'a> {
 
     pub fn destroy(&mut self, entity: Entity) -> Result<()> {
         self.world.destroy(entity)
+    }
+
+    pub fn add<C: Component>(&mut self, entity: Entity, component: UID, data: C) -> Result<()> {
+        self.world.add(&self.registry.components, entity, component, data)
+    }
+
+    pub fn remove(&mut self, entity: Entity, component: UID) -> Result<()> {
+        self.world.remove(entity, component)
     }
 
     pub fn view<C: Component>(&self, component: UID) -> Result<ComponentViewRef<'_, C>> {
