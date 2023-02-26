@@ -11,7 +11,7 @@ impl<'a> Query<'a> {
         Self { containers }
     }
 
-    pub fn iter(&self) -> QueryIter<'a> {
+    pub fn iter(&'a self) -> QueryIter<'a> {
         QueryIter {
             query: self,
             index: 0,

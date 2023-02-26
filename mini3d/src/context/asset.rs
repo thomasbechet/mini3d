@@ -1,17 +1,18 @@
 use core::cell::RefCell;
+use std::cell::{Ref, RefMut};
 use anyhow::Result;
 
 use crate::{asset::{AssetManager, AssetEntry}, uid::UID, registry::{RegistryManager, asset::Asset}};
 
 pub struct AssetContext<'a> {
-    registry: &'a RefCell<RegistryManager>,
-    asset: &'a mut AssetManager,   
+    registry: Ref<'a, RegistryManager>,
+    asset: RefMut<'a, AssetManager>,
 }
 
 impl<'a> AssetContext<'a> {
 
-    pub(crate) fn new(registry: &'a RefCell<RegistryManager>, asset: &'a mut AssetManager) -> Self {
-        Self { registry, asset }
+    pub(crate) fn new(registry: &'a RefCell<RegistryManager>, asset: &'a RefCell<AssetManager>) -> Self {
+        Self { registry: registry.borrow(), asset: asset.borrow_mut() }
     }
 
     pub fn set_default<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<()> {
@@ -43,7 +44,7 @@ impl<'a> AssetContext<'a> {
     }
 
     pub fn add<A: Asset>(&mut self, asset: UID, name: &str, bundle: UID, data: A) -> Result<()> {
-        self.asset.add::<A>(&self.registry.borrow().assets, asset, name, bundle, data)
+        self.asset.add::<A>(&self.registry.assets, asset, name, bundle, data)
     }
 
     pub fn remove<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<()> {

@@ -17,14 +17,14 @@ impl SystemPipeline {
         Ok(Self { systems: codes })
     }
 
-    pub(crate) fn run(&self, context: &SystemContext, script: &ScriptManager) -> Result<()> {
-        for system in self.systems {
+    pub(crate) fn run(&self, context: &SystemContext, _script: &ScriptManager) -> Result<()> {
+        for system in &self.systems {
             match system {
                 SystemCode::Compiled(callback) => callback(context)?,
-                SystemCode::Rhai(uid) => {
+                SystemCode::Rhai(_uid) => {
                     todo!()
                 },
-                SystemCode::Lua(uid) => {
+                SystemCode::Lua(_uid) => {
                     todo!()
                 },
             }

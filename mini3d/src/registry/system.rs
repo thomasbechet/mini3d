@@ -6,6 +6,7 @@ use crate::{uid::UID, context::SystemContext};
 
 pub type SystemCallback = fn(&SystemContext) -> Result<()>;
 
+#[derive(Clone, Copy)]
 pub(crate) enum SystemCode {
     Compiled(SystemCallback),
     Rhai(UID),
@@ -25,9 +26,9 @@ pub(crate) struct SystemRegistry {
 impl SystemRegistry {
 
     fn define(&mut self, definition: SystemDefinition) -> Result<()> {
-        let uid: UID = definition.name.into();
+        let uid: UID = definition.name.as_str().into();
         if self.systems.contains_key(&uid) {
-            return Err(anyhow!("System '{}' already defined", definition.name));
+            return Err(anyhow!("System already defined"));
         }
         self.systems.insert(uid, definition);
         Ok(())

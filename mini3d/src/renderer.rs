@@ -4,7 +4,7 @@ use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, ecs::{ECSManager, entity::Entity}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, model::Model, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, ecs::{ECSManager, entity::Entity, view::ComponentView}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle, SceneHandle}, graphics::Graphics, color::Color};
 
@@ -196,13 +196,13 @@ impl RendererManager {
         self.scene_canvases_removed.clear();
 
         for world in ecs.worlds.get_mut().values_mut() {
-            for camera in &world.get_mut().view_mut::<Camera>(Camera::UID)? {
+            for camera in world.get_mut().view_mut::<Camera>(Camera::UID)?.iter() {
                 camera.handle = None;
             }
-            for model in &world.get_mut().view_mut::<Model>(Model::UID)? {
+            for model in world.get_mut().view_mut::<Model>(Model::UID)?.iter() {
                 model.handle = None;
             }
-            for canvas in &world.get_mut().view_mut::<Canvas>(Canvas::UID)? {
+            for canvas in world.get_mut().view_mut::<Canvas>(Canvas::UID)?.iter() {
                 canvas.handle = None;
             }
         }     
@@ -249,10 +249,10 @@ impl RendererManager {
         
             // Prepare views
             let local_to_world = world.view_mut::<LocalToWorld>(LocalToWorld::UID)?;
-            let cameras = world.view_mut::<Camera>(Camera::UID)?;
-            let viewports = world.view_mut::<Viewport>(Viewport::UID)?;
-            let models = world.view_mut::<Model>(Model::UID)?;
-            let canvases = world.view_mut::<Canvas>(Canvas::UID)?;
+            let mut cameras = world.view_mut::<Camera>(Camera::UID)?;
+            let mut viewports = world.view_mut::<Viewport>(Viewport::UID)?;
+            let mut models = world.view_mut::<Model>(Model::UID)?;
+            let mut canvases = world.view_mut::<Canvas>(Canvas::UID)?;
 
             // Update cameras
             for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {

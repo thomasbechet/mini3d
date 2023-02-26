@@ -1,15 +1,17 @@
+use std::cell::{Ref, RefCell};
+
 use anyhow::Result;
 
 use crate::{input::{InputManager, InputActionState, InputAxisState}, uid::UID};
 
 pub struct InputContext<'a> {
-    input: &'a InputManager,
+    input: Ref<'a, InputManager>,
 }
 
 impl<'a> InputContext<'a> {
 
-    pub(crate) fn new(input: &'a InputManager) -> Self {
-        Self { input }
+    pub(crate) fn new(input: &'a RefCell<InputManager>) -> Self {
+        Self { input: input.borrow() }
     }
 
     pub fn text(&self) -> &str {

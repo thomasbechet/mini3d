@@ -75,10 +75,6 @@ impl<C: Component> ComponentContainer<C> {
         self.entities.capacity()
     }
 
-    pub(crate) fn contains(&mut self, entity: Entity) -> bool {
-        self.entities[entity.index()] == entity
-    }
-
     pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<()> {
         self.indices.set(entity.index(), self.entities.len() - 1);
         self.entities.push(entity);
@@ -106,7 +102,7 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     fn as_any(&self) -> &dyn Any { self }
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
     fn entity(&self, index: usize) -> Entity { self.entities[index] }
-    fn contains(&self, entity: Entity) -> bool { self.contains(entity) }
+    fn contains(&self, entity: Entity) -> bool { self.entities[entity.index()] == entity }
     fn len(&self) -> usize { self.len() }
     fn remove(&mut self, entity: Entity) { self.remove(entity); }
 }

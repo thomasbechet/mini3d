@@ -1,25 +1,26 @@
 use core::cell::RefCell;
+use std::cell::RefMut;
 use crate::renderer::{RendererManager, graphics::Graphics, color::Color, RendererStatistics};
 
 pub struct RendererContext<'a> {
-    renderer: &'a RefCell<RendererManager>,
+    renderer: RefMut<'a, RendererManager>,
 }
 
 impl<'a> RendererContext<'a> {
 
     pub(crate) fn new(renderer: &'a RefCell<RendererManager>) -> Self {
-        Self { renderer }
+        Self { renderer: renderer.borrow_mut() }
     }
 
-    pub fn graphics(&self) -> &mut Graphics {
-        self.renderer. get_mut().graphics()
+    pub fn graphics(&mut self) -> &mut Graphics {
+        self.renderer.graphics()
     }
 
-    pub fn set_clear_color(&self, color: Color) {
-        self.renderer.borrow_mut().set_clear_color(color)
+    pub fn set_clear_color(&mut self, color: Color) {
+        self.renderer.set_clear_color(color)
     }
 
     pub fn statistics(&self) -> RendererStatistics {
-        self.renderer.borrow().statistics()
+        self.renderer.statistics()
     }
 }

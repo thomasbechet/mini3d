@@ -1,13 +1,13 @@
 use anyhow::Result;
 use glam::Mat4;
 
-use crate::{feature::component::{local_to_world::LocalToWorld, hierarchy::Hierarchy, transform::Transform}, ecs::{entity::Entity, view::{ComponentView, ComponentViewMut}}, context::SystemContext};
+use crate::{feature::component::{local_to_world::LocalToWorld, hierarchy::Hierarchy, transform::Transform}, ecs::{entity::Entity, view::{ComponentViewRef, ComponentViewMut, ComponentView}}, context::SystemContext};
 
 pub fn recursive_propagate(
     entity: Entity, 
-    transforms: &ComponentView<Transform>,
+    transforms: &ComponentViewRef<Transform>,
     local_to_worlds: &mut ComponentViewMut<LocalToWorld>,
-    hierarchies: &ComponentView<Hierarchy>,
+    hierarchies: &ComponentViewRef<Hierarchy>,
 ) -> Mat4 {
     if let Some(local_to_world) = local_to_worlds.get_mut(entity) {
         if !local_to_world.dirty {
@@ -32,7 +32,7 @@ pub fn recursive_propagate(
 pub fn propagate(ctx: &SystemContext) -> Result<()> {
     
     let world = ctx.world().active();
-    let transforms = world.view_mut::<Transform>(Transform::UID)?;
+    let transforms = world.view::<Transform>(Transform::UID)?;
     let local_to_worlds = world.view_mut::<LocalToWorld>(LocalToWorld::UID)?;
     let hierarchies = world.view::<Hierarchy>(Hierarchy::UID)?;
 

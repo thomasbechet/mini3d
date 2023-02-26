@@ -5,7 +5,7 @@ use serde::{Deserializer, Serializer, Serialize, de::{Visitor, DeserializeSeed}}
 
 use crate::{uid::UID, registry::component::{Component, ComponentRegistry, AnyComponentDefinitionReflection}};
 
-use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentView, ComponentViewMut}, query::Query};
+use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentViewRef, ComponentViewMut}, query::Query};
 
 pub struct World {
     pub(crate) name: String,
@@ -33,45 +33,45 @@ impl World {
             }
         }
         use serde::ser::SerializeTuple;
-        let tuple = serializer.serialize_tuple(3)?;
+        let mut tuple = serializer.serialize_tuple(3)?;
         tuple.serialize_element(&self.name)?;
         tuple.serialize_element(&ContainersSerializer { containers: &self.containers, registry })?;
         tuple.serialize_element(&self.free_entities)?;
         tuple.end()
     }
 
-    pub(crate) fn deserialize<'a, D: Deserializer<'a>>(registry: &ComponentRegistry, deserializer: D) -> Result<World, D::Error> {
+    pub(crate) fn deserialize<'a, 'de, D: Deserializer<'de>>(registry: &'a ComponentRegistry, deserializer: D) -> Result<World, D::Error> {
         struct WorldVisitor<'a> {
             registry: &'a ComponentRegistry,
         }
-        impl<'a> Visitor<'a> for WorldVisitor<'a> {
+        impl<'a, 'de> Visitor<'de> for WorldVisitor<'a> {
             type Value = World;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a tuple of (containers, free_entities)")
             }
-            fn visit_seq<A: serde::de::SeqAccess<'a>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
                 use serde::de::Error;
                 struct ContainersDeserializeSeed<'a> {
                     registry: &'a ComponentRegistry,
                 }
-                impl<'a> DeserializeSeed<'a> for ContainersDeserializeSeed<'a> {
+                impl<'a, 'de> DeserializeSeed<'de> for ContainersDeserializeSeed<'a> {
                     type Value = HashMap<UID, Box<dyn AnyComponentContainer>>;
-                    fn deserialize<D: Deserializer<'a>>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error> {
+                    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error> {
                         struct ContainersVisitor<'a> {
                             registry: &'a ComponentRegistry,
                         }
-                        impl<'a> Visitor<'a> for ContainersVisitor<'a> {
+                        impl<'a, 'de> Visitor<'de> for ContainersVisitor<'a> {
                             type Value = HashMap<UID, Box<dyn AnyComponentContainer>>;
                             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                                 formatter.write_str("a map of (uid, container)")
                             }
-                            fn visit_map<A: serde::de::MapAccess<'a>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
                                 struct ContainerDeserializeSeed<'a> {
                                     reflection: &'a dyn AnyComponentDefinitionReflection,
                                 }
-                                impl<'a> DeserializeSeed<'a> for ContainerDeserializeSeed<'a> {
+                                impl<'a, 'de> DeserializeSeed<'de> for ContainerDeserializeSeed<'a> {
                                     type Value = Box<dyn AnyComponentContainer>;
-                                    fn deserialize<D: Deserializer<'a>>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error> {
+                                    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error> {
                                         self.reflection.deserialize_container(&mut <dyn erased_serde::Deserializer>::erase(deserializer)).map_err(Error::custom)
                                     }
                                 }
@@ -134,17 +134,17 @@ impl World {
         Ok(())
     }
     
-    pub(crate) fn remove(&mut self, registry: ComponentRegistry, entity: Entity, component: UID) -> Result<()> {
+    pub(crate) fn remove(&mut self, entity: Entity, component: UID) -> Result<()> {
         let container = self.containers.get_mut(&component).with_context(|| "Component container not found")?;
         container.remove(entity);
         Ok(())
     }
 
-    pub(crate) fn view<'a, C: Component>(&'a self, component: UID) -> Result<ComponentView<'a, C>> {
+    pub(crate) fn view<'a, C: Component>(&'a self, component: UID) -> Result<ComponentViewRef<'a, C>> {
         let container = self.containers.get(&component).with_context(|| "Component container not found")?;
         let container = container.as_any()
             .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
-        Ok(ComponentView::new(container))
+        Ok(ComponentViewRef::new(container))
     }
 
     pub(crate) fn view_mut<'a, C: Component>(&'a self, component: UID) -> Result<ComponentViewMut<'a, C>> {

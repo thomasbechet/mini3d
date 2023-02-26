@@ -20,6 +20,7 @@ use crate::request::Requests;
 use crate::script::ScriptManager;
 use crate::uid::UID;
 use core::cell::RefCell;
+use std::cell::{RefMut, Ref};
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
@@ -101,11 +102,11 @@ impl Engine {
         Ok(engine)
     }
 
-    pub fn define_asset<A: Asset>(&mut self, name: &str) -> Result<()> {
+    pub fn define_asset<A: Asset>(&mut self, name: &str) -> Result<UID> {
         self.registry.borrow_mut().assets.define_compiled::<A>(name)
     }
 
-    pub fn define_component<C: Component>(&mut self, name: &str) -> Result<()> {
+    pub fn define_component<C: Component>(&mut self, name: &str) -> Result<UID> {
         self.registry.borrow_mut().components.define_compiled::<C>(name)
     }
 
@@ -169,11 +170,11 @@ impl Engine {
         tuple.end()
     }
 
-    pub fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
+    pub fn load_state<'de, D: Deserializer<'de>>(&'de mut self, deserializer: D) -> Result<(), D::Error> {
         struct EngineVisitor<'a> {
             engine: &'a mut Engine,
         }
-        impl<'de, 'a> Visitor<'de> for EngineVisitor<'a> {
+        impl<'de, 'a: 'de> Visitor<'de> for EngineVisitor<'a> {
             type Value = ();
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("App")
@@ -182,54 +183,57 @@ impl Engine {
                 where A: serde::de::SeqAccess<'de> {
                 use serde::de::Error;
                 struct AssetManagerDeserializeSeed<'a> {
-                    manager: &'a mut AssetManager,
-                    registry: &'a RegistryManager,
+                    manager: RefMut<'a, AssetManager>,
+                    registry: Ref<'a, RegistryManager>,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for AssetManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(&self.registry.assets, deserializer)
                     }
                 }
                 struct RendererManagerDeserializeSeed<'a> {
-                    manager: &'a mut RendererManager,
+                    manager: RefMut<'a, RendererManager>,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for RendererManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(deserializer)
                     }
                 }
                 struct ECSManagerDeserializeSeed<'a> {
-                    manager: &'a mut ECSManager,
-                    registry: &'a RegistryManager,
+                    manager: RefMut<'a, ECSManager>,
+                    registry: Ref<'a, RegistryManager>,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
-                        self.manager.load_state(self.registry, deserializer)
+                        self.manager.load_state(&self.registry, deserializer)
                     }
                 }
                 struct InputManagerDeserializeSeed<'a> {
-                    manager: &'a mut InputManager,
+                    manager: RefMut<'a, InputManager>,
                 }
                 impl<'de, 'a> DeserializeSeed<'de> for InputManagerDeserializeSeed<'a> {
                     type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                    fn deserialize<D>(mut self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         self.manager.load_state(deserializer)
                     }
                 }
-                seq.next_element_seed(AssetManagerDeserializeSeed { manager: self.engine.asset.get_mut(), registry: &self.engine.registry.borrow() })?;
-                seq.next_element_seed(RendererManagerDeserializeSeed { manager: self.engine.renderer.get_mut() })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: self.engine.ecs.get_mut(), registry: &self.engine.registry.borrow() })?;
-                seq.next_element_seed(InputManagerDeserializeSeed { manager: self.engine.input.get_mut() })?;
+                seq.next_element_seed(AssetManagerDeserializeSeed { manager: self.engine.asset.borrow_mut(), registry: self.engine.registry.borrow() })?;
+                seq.next_element_seed(RendererManagerDeserializeSeed { manager: self.engine.renderer.borrow_mut() })?;
+                seq.next_element_seed(ECSManagerDeserializeSeed { manager: self.engine.ecs.borrow_mut(), registry: self.engine.registry.borrow() })?;
+                seq.next_element_seed(InputManagerDeserializeSeed { manager: self.engine.input.borrow_mut() })?;
                 self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
                 self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
-                self.engine.renderer.get_mut().reset(self.engine.ecs.get_mut()).map_err(Error::custom)?;
+                {
+                    let mut ecs = self.engine.ecs.borrow_mut();
+                    self.engine.renderer.get_mut().reset(&mut ecs).map_err(Error::custom)?;
+                }
                 Ok(())
             }
         }

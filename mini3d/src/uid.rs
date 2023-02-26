@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 pub struct UID(u64);
 
 impl UID {
-    pub fn new(name: &str) -> Self {
+    pub const fn new(name: &str) -> Self {
         Self(const_fnv1a_hash::fnv1a_hash_str_64(name))
     }
     pub fn null() -> Self {

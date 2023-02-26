@@ -29,7 +29,7 @@ impl Hierarchy {
         self.next_sibling
     }
 
-    pub fn collect_childs(entity: Entity, view: &ComponentView<Hierarchy>) -> Result<Vec<Entity>> {
+    pub fn collect_childs<V: ComponentView<Hierarchy>>(entity: Entity, view: &V) -> Result<Vec<Entity>> {
         if let Some(first_child) = view.get(entity).unwrap().first_child {
             let mut childs = Vec::new();
             childs.push(first_child);

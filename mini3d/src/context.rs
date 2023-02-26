@@ -25,7 +25,7 @@ pub struct SystemContext<'a> {
     // Worlds
     pub(crate) worlds: &'a RefCell<HashMap<UID, RefCell<Box<World>>>>,
     pub(crate) active_world: UID,
-    pub(crate) change_world: &'a mut Option<UID>,
+    pub(crate) change_world: &'a RefCell<Option<UID>>,
 
     // Procedures
     pub(crate) active_procedure: UID,
@@ -40,7 +40,7 @@ pub struct SystemContext<'a> {
 impl<'a> SystemContext<'a> {
 
     pub fn asset(&self) -> AssetContext<'_> {
-        AssetContext::new(self.registry, &mut self.asset.borrow_mut())
+        AssetContext::new(self.registry, self.asset)
     }
 
     pub fn renderer(&self) -> RendererContext<'_> {
@@ -48,18 +48,18 @@ impl<'a> SystemContext<'a> {
     }
 
     pub fn input(&self) -> InputContext<'_> {
-        InputContext::new(&self.input.borrow())
+        InputContext::new(self.input)
     }
 
-    pub fn world(&self) -> WorldManagerContext<'_> {
+    pub fn world(&self) -> WorldManagerContext<'a> {
         WorldManagerContext::new(self.registry, self.worlds, self.active_world, self.change_world)
     }
 
     pub fn scheduler(&self) -> SchedulerContext<'_> {
-        SchedulerContext::new(&mut self.scheduler.borrow_mut())
+        SchedulerContext::new(&self.scheduler)
     }
 
-    pub fn procedure(&self) -> ProcedureContext<'_> {
+    pub fn procedure(&mut self) -> ProcedureContext<'_> {
         ProcedureContext::new(self.active_procedure, self.frame_procedures, self.next_frame_procedures)
     }
 

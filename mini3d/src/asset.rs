@@ -213,7 +213,7 @@ impl ImportAssetBundle {
                                                 let asset: UID = seq.next_element()?.with_context(|| "Expect asset type UID").map_err(Error::custom)?;
                                                 let definition = self.registry.get(asset)
                                                     .with_context(|| "Asset type not defined").map_err(Error::custom)?;
-                                                let container = definition.reflection.create_container();
+                                                let mut container = definition.reflection.create_container();
                                                 seq.next_element_seed(ContainerDeserializeSeed { container: container.as_mut(), bundle: self.bundle })?
                                                     .with_context(|| "Expect asset entries").map_err(Error::custom)?;
                                                 Ok((asset, container))
@@ -237,7 +237,7 @@ impl ImportAssetBundle {
                 }
                 use serde::de::Error;
                 let name: String = seq.next_element()?.with_context(|| "Expect name").map_err(Error::custom)?;
-                let bundle: UID = name.into();
+                let bundle: UID = name.as_str().into();
                 let containers = seq.next_element_seed(ContainersDeserializeSeed { registry: self.registry, bundle })?
                     .with_context(|| "Expect types").map_err(Error::custom)?;
                 Ok(ImportAssetBundle { name, containers })
@@ -460,10 +460,9 @@ impl AssetManager {
         tuple.end()
     }
 
-    pub(crate) fn import_bundle(&mut self, mut import: ImportAssetBundle) -> Result<()> {
+    pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<()> {
         self.add_bundle(&import.name)?;
-        let bundle = self.bundles.get_mut(&UID::new(&import.name)).expect("Bundle not found");
-        for (asset, container) in import.containers {
+        for (asset, mut container) in import.containers {
             if let Some(self_container) = self.containers.get_mut(&asset) {
                 self_container.merge(container.as_mut())?;
             } else {

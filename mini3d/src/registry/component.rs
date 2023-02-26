@@ -8,10 +8,10 @@ use crate::{uid::UID, feature::asset::runtime_component::FieldType, ecs::{entity
 struct EntityResolver;
 struct ComponentContext;
 
-pub trait Component: Serialize + for<'de> Deserialize<'de> {
-    fn on_construct(&mut self, entity: Entity, ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
-    fn on_destruct(&mut self, entity: Entity, ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<()> { Ok(()) }
+pub trait Component: Serialize + for<'de> Deserialize<'de> + 'static {
+    fn on_construct(&mut self, _entity: Entity, _ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
+    fn on_destruct(&mut self, _entity: Entity, _ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
+    fn resolve_entities(&mut self, _resolver: &EntityResolver) -> Result<()> { Ok(()) }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub(crate) struct AnyComponentContainerDeserializeSeed;
 
 pub(crate) trait AnyComponentDefinitionReflection {
     fn create_container(&self) -> Box<dyn AnyComponentContainer>;
-    fn serialize_container<'a>(&'a self, container: &dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a>;
+    fn serialize_container<'a>(&'a self, container: &'a dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a>;
     fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>>;
 }
 
@@ -42,7 +42,7 @@ impl<C: Component> AnyComponentDefinitionReflection for ComponentDefinitionRefle
         Box::new(ComponentContainer::<C>::new())
     }
 
-    fn serialize_container<'a>(&'a self, container: &dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a> {
+    fn serialize_container<'a>(&'a self, container: &'a dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a> {
         struct SerializeContext<'a, C: Component> {
             container: &'a ComponentContainer<C>,
         }
@@ -81,13 +81,13 @@ impl ComponentRegistry {
         Ok(uid)
     }
 
-    pub(crate) fn define_compiled<C: Component>(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn define_compiled<C: Component>(&mut self, name: &str) -> Result<UID> {
         let reflection = ComponentDefinitionReflection::<C> { _phantom: std::marker::PhantomData };
         let uid = self.define(name, ComponentKind::Compiled, Box::new(reflection))?;
-        Ok(())
+        Ok(uid)
     }
 
-    pub(crate) fn define_runtime(&mut self, name: &str, definition: RuntimeComponentDefinition) -> Result<()> {
+    pub(crate) fn define_runtime(&mut self, name: &str, definition: RuntimeComponentDefinition) -> Result<UID> {
         let reflection: Box<dyn AnyComponentDefinitionReflection> = match definition.fields.len() {
             1 => Box::new(ComponentDefinitionReflection::<RuntimeComponent1> { _phantom: std::marker::PhantomData }),
             2 => Box::new(ComponentDefinitionReflection::<RuntimeComponent2> { _phantom: std::marker::PhantomData }),
@@ -96,8 +96,8 @@ impl ComponentRegistry {
             5 => Box::new(ComponentDefinitionReflection::<RuntimeComponent5> { _phantom: std::marker::PhantomData }),
             _ => return Err(anyhow!("Runtime component with 0 or more than 5 fields not supported")),
         };
-        self.define(name, ComponentKind::Runtime(definition), reflection);
-        Ok(())
+        let uid = self.define(name, ComponentKind::Runtime(definition), reflection)?;
+        Ok(uid)
     }
 
     pub(crate) fn get(&self, uid: UID) -> Option<&ComponentDefinition> {

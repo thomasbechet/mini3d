@@ -61,8 +61,8 @@ impl ECSManager {
 
     pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, registry: &RegistryManager, deserializer: D) -> Result<(), D::Error> {
         struct ECSVisitor<'a> {
-            manager: &'a mut ECSManager,
             registry: &'a ComponentRegistry,
+            manager: &'a mut ECSManager,
         }
         impl<'de, 'a> Visitor<'de> for ECSVisitor<'a> {
             type Value = ();
@@ -75,14 +75,14 @@ impl ECSManager {
                 struct WorldsDeserializeSeed<'a> {
                     registry: &'a ComponentRegistry,
                 }
-                impl<'de, 'a> DeserializeSeed<'de> for WorldsDeserializeSeed<'a> {
+                impl<'a, 'de> DeserializeSeed<'de> for WorldsDeserializeSeed<'a> {
                     type Value = RefCell<HashMap<UID, RefCell<Box<World>>>>;
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                         where D: Deserializer<'de> {
                         struct WorldsVisitor<'a> {
                             registry: &'a ComponentRegistry,
                         }
-                        impl<'de, 'a> Visitor<'de> for WorldsVisitor<'a> {
+                        impl<'a, 'de> Visitor<'de> for WorldsVisitor<'a> {
                             type Value = RefCell<HashMap<UID, RefCell<Box<World>>>>;
                             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                                 formatter.write_str("Worlds")
@@ -92,7 +92,7 @@ impl ECSManager {
                                 struct WorldDeserializeSeed<'a> {
                                     registry: &'a ComponentRegistry,
                                 }
-                                impl<'de, 'a> DeserializeSeed<'de> for WorldDeserializeSeed<'a> {
+                                impl<'a, 'de> DeserializeSeed<'de> for WorldDeserializeSeed<'a> {
                                     type Value = RefCell<Box<World>>;
                                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
                                         where D: Deserializer<'de> {
@@ -101,7 +101,7 @@ impl ECSManager {
                                 }
                                 let mut worlds = HashMap::new();
                                 while let Some(world) = seq.next_element_seed(WorldDeserializeSeed { registry: self.registry })? {
-                                    let uid: UID = world.borrow().name.into();
+                                    let uid: UID = world.borrow().name.as_str().into();
                                     if worlds.contains_key(&uid) {
                                         return Err(A::Error::custom(format!("Duplicate world name: {}", uid)));
                                     }
@@ -140,11 +140,11 @@ impl ECSManager {
     ) -> Result<()> {
 
         // Prepare frame
-        let change_world: Option<UID> = None;
+        let change_world: RefCell<Option<UID>> = RefCell::new(None);
     
         // Collect procedures
         let mut frame_procedures = self.next_frame_procedures.drain(..).collect::<VecDeque<_>>();
-        for i in 0..fixed_update_count {
+        for _ in 0..fixed_update_count {
             frame_procedures.push_back(Procedure::FIXED_UPDATE.into());
         }
         frame_procedures.push_back(Procedure::UPDATE.into());
@@ -165,7 +165,7 @@ impl ECSManager {
                     scheduler: &self.scheduler,
                     worlds: &self.worlds,
                     active_world: self.active_world,
-                    change_world: &mut change_world,
+                    change_world: &change_world,
                     active_procedure: procedure,
                     frame_procedures: &mut frame_procedures,
                     next_frame_procedures: &mut self.next_frame_procedures,
@@ -179,7 +179,7 @@ impl ECSManager {
         }
 
         // Change world
-        if let Some(world) = change_world {
+        if let Some(world) = *change_world.borrow() {
             self.active_world = world;
             self.next_frame_procedures.push_front(Procedure::WORLD_CHANGED.into());
         }

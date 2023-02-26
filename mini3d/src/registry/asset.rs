@@ -33,7 +33,7 @@ pub struct AssetRegistry {
 
 impl AssetRegistry {
 
-    pub(crate) fn define_compiled<A: Asset>(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn define_compiled<A: Asset>(&mut self, name: &str) -> Result<UID> {
         let uid: UID = name.into();
         if self.assets.contains_key(&uid) {
             return Err(anyhow!("Asset already defined"));
@@ -42,7 +42,7 @@ impl AssetRegistry {
             name: name.to_owned(), 
             reflection: Box::new(AssetDefinitionReflection::<A> { _phantom: std::marker::PhantomData }) 
         });
-        Ok(())
+        Ok(uid)
     }
 
     // TODO: support runtime assets ???
