@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, registry::component::Component};
+use crate::{uid::UID, ecs::component::Component};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum NodeValue {

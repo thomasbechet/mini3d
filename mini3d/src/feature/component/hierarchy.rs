@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}}, uid::UID, registry::component::Component};
+use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}, component::Component}, uid::UID};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Hierarchy {

@@ -9,13 +9,12 @@ pub struct SystemPipeline {
 }
 
 impl SystemPipeline {
+
     pub fn single(system: UID) -> Self {
         Self { systems: vec![system] }
     }
-}
 
-impl From<&[UID]> for SystemPipeline {
-    fn from(systems: &[UID]) -> Self {
+    pub fn new(systems: &[UID]) -> Self {
         Self { systems: systems.to_vec() }
     }
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{rhai::{input::InputManagerHandle, script_storage::ScriptStorageHandle}, feature::component::{rhai_scripts::{RhaiScripts, RhaiScriptStatus}, script_storage::ScriptStorage}, context::SystemContext};
+use crate::{feature::component::{rhai_scripts::RhaiScripts, script_storage::ScriptStorage}, context::SystemContext};
 
 pub fn update_scripts(ctx: &mut SystemContext) -> Result<()> {
     let world = ctx.world.active();

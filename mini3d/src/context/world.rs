@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 
-use crate::{registry::{component::Component, RegistryManager}, ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query}, uid::UID};
+use crate::{ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query, component::{ComponentRef, Component, ComponentMut}, singleton::{SingletonRef, SingletonMut}}, uid::UID, registry::RegistryManager};
 use core::cell::RefCell;
 use std::{collections::HashMap, cell::{RefMut, Ref}};
 
@@ -35,14 +35,14 @@ impl<'a> WorldContext<'a> {
     }
 
     pub fn active(&mut self) -> WorldInstanceContext<'_> {
-        WorldInstanceContext { world: self.worlds.get(&self.active_world).unwrap().borrow_mut(), registry: self.registry.borrow() }
+        WorldInstanceContext { uid: self.active_world, world: self.worlds.get(&self.active_world).unwrap().borrow_mut(), registry: self.registry.borrow() }
     }
 
     pub fn get(&mut self, uid: UID) -> Result<WorldInstanceContext<'_>> {
         if !self.worlds.contains_key(&uid) {
             return Err(anyhow!("World not found"));
         }
-        Ok(WorldInstanceContext { world: self.worlds.get(&uid).unwrap().borrow_mut(), registry: self.registry.borrow() })
+        Ok(WorldInstanceContext { uid, world: self.worlds.get(&uid).unwrap().borrow_mut(), registry: self.registry.borrow() })
     }
 
     pub fn change(&mut self, uid: UID) -> Result<()> {
@@ -55,11 +55,16 @@ impl<'a> WorldContext<'a> {
 }
 
 pub struct WorldInstanceContext<'a> {
+    uid: UID,
     world: RefMut<'a, Box<World>>,
     registry: Ref<'a, RegistryManager>
 }
 
 impl<'a> WorldInstanceContext<'a> {
+
+    pub fn uid(&self) -> UID {
+        self.uid
+    }
 
     pub fn create(&mut self) -> Entity {
         self.world.create()
@@ -77,6 +82,14 @@ impl<'a> WorldInstanceContext<'a> {
         self.world.remove(entity, component)
     }
 
+    pub fn get<C: Component>(&self, entity: Entity, component: UID) -> Result<Option<ComponentRef<'_, C>>> {
+        self.world.get(entity, component)
+    }
+
+    pub fn get_mut<C: Component>(&self, entity: Entity, component: UID) -> Result<Option<ComponentMut<'_, C>>> {
+        self.world.get_mut(entity, component)
+    }
+
     pub fn view<C: Component>(&self, component: UID) -> Result<ComponentViewRef<'_, C>> {
         self.world.view(component)
     }
@@ -87,5 +100,21 @@ impl<'a> WorldInstanceContext<'a> {
 
     pub fn query(&self, components: &[UID]) -> Query<'_> {
         self.world.query(components)
+    }
+
+    pub fn add_singleton<C: Component>(&mut self, component: UID, data: C) -> Result<()> {
+        self.world.add_singleton(component, data)
+    }
+
+    pub fn remove_singleton(&mut self, component: UID) -> Result<()> {
+        self.world.remove_singleton(component)
+    }
+
+    pub fn get_singleton<C: Component>(&self, component: UID) -> Result<Option<SingletonRef<'_, C>>> {
+        self.world.get_singleton(component)
+    }
+
+    pub fn get_singleton_mut<C: Component>(&self, component: UID) -> Result<Option<SingletonMut<'_, C>>> {
+        self.world.get_singleton_mut(component)
     }
 }

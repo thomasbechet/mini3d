@@ -1,4 +1,4 @@
 pub mod asset;
-pub mod init;
+pub mod component;
 pub mod input;
-pub mod process;
+pub mod system;

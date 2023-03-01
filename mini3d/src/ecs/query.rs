@@ -11,11 +11,15 @@ impl<'a> Query<'a> {
         Self { containers }
     }
 
+    pub(crate) fn none() -> Self {
+        Self { containers: Vec::new() }
+    }
+
     pub fn iter(&'a self) -> QueryIter<'a> {
         QueryIter {
             query: self,
             index: 0,
-            len: self.containers[0].len(),
+            len: self.containers.first().map_or(0, |container| container.len())
         }
     }
 }

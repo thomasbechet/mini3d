@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, registry::component::Component};
+use crate::{uid::UID, ecs::component::Component};
 
 pub const MAX_RHAI_SCRIPT_COUNT: usize = 16;
 

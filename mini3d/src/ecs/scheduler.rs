@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-
+use core::cell::RefCell;
 use anyhow::{anyhow, Context, Result};
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, feature::asset::system_group::SystemGroup, registry::system::SystemRegistry};
+use crate::{uid::UID, feature::asset::system_group::SystemGroup, registry::RegistryManager};
 
 use super::pipeline::SystemPipeline;
 
@@ -42,9 +42,9 @@ pub(crate) struct Scheduler {
 
 impl Scheduler {
 
-    pub(crate) fn build_pipeline(&self, procedure: UID, registry: &SystemRegistry) -> Result<Option<SystemPipeline>> {
+    pub(crate) fn build_pipeline(&self, procedure: UID, registry: &RefCell<RegistryManager>) -> Result<Option<SystemPipeline>> {
         if let Some(entry) = self.procedures.get(&procedure) {
-            return Ok(Some(SystemPipeline::build(registry, entry.groups.iter()
+            return Ok(Some(SystemPipeline::build(&registry.borrow().systems, entry.groups.iter()
                 .map(|(group, _)| self.groups.get(group).unwrap())
                 .filter(|group| group.enabled)
                 .flat_map(move |group| group.group.procedures.get(&procedure).unwrap().pipeline.systems.iter()))?));

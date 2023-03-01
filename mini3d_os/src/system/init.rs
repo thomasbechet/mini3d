@@ -1,6 +1,11 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT}, ecs::{procedure::Procedure, world::World}, glam::{Vec3, Quat}, event::asset::ImportAssetEvent};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIComponent, UIRenderTarget}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{UI, checkbox::Checkbox, interaction_layout::InteractionInputs, self}, uid::UID};
 
-use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset};
+use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
+
+fn define_features(ctx: &mut SystemContext) -> Result<()> {
+    ctx.registry.define_static_component::<OS>(OS::NAME)?;
+    Ok(())
+}
 
 fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
     ctx.asset.add_bundle(DefaultAsset::BUNDLE).unwrap();
@@ -214,7 +219,7 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
     })?;
 
     // Import assets
-    for import in &ctx.events.asset {
+    for import in ctx.event.import_asset() {
         match import {
             ImportAssetEvent::Material(material) => {
                 ctx.asset.add(Material::UID, &material.name, default_bundle, material.data.clone())?;
@@ -239,15 +244,15 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
 }
 
 fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
-    let pipeline = SystemPipeline::from([
-        "rotator",
-        "rhai_update_scripts",
-        "transform_propagate",
-        "ui_update",
-        "ui_render",
-        "renderer",
-        "despawn_entities",
-        "free_fly",
+    let pipeline = SystemPipeline::new(&[
+        UID::new("rotator"),
+        UID::new("rhai_update_scripts"),
+        UID::new("transform_propagate"),
+        UID::new("ui_update"),
+        UID::new("ui_render"),
+        UID::new("renderer"),
+        UID::new("despawn_entities"),
+        UID::new("free_fly"),
     ]);
     let mut group = SystemGroup::empty();
     group.insert(Procedure::UPDATE, pipeline, 0);
@@ -259,7 +264,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
 
     let world = ctx.world.add("main")?;
     ctx.world.change(world)?;
-    let world = ctx.world.get(world)?;
+    let mut world = ctx.world.get(world)?;
 
     {
         let e = world.create();
@@ -271,59 +276,49 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         })?;
         world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
         world.add(e, Rotator::UID, Rotator { speed: 90.0 })?;
-        world.add(e, , Rotator { speed: 90.0 })?;
+        world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
     }
-    
-
-    world.spawn((
-        Lifecycle::alive(),
-        Transform {
-            translation: Vec3::new(0.0, -7.0, 0.0),    
-            rotation: Quat::IDENTITY,    
-            scale: Vec3::new(0.5, 0.5, 0.5),
-        },
-        LocalToWorld::default(),
-        Rotator { speed: 90.0 },
-        Model::new("alfred".into()),
-    ));
-    world.spawn((
-        Lifecycle::alive(),
-        Transform::from_translation(Vec3::new(0.0, -7.0, 9.0)),
-        LocalToWorld::default(),
-        Model::new("alfred".into()),
-    ));
-    for i in 0..100 {
-        world.spawn((
-            Lifecycle::alive(),
-            Transform::from_translation(
+    {
+        let e = world.create();
+        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add(e, Transform::UID, Transform::from_translation(Vec3::new(0.0, -7.0, 9.0)))?;
+        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
+    }
+    {
+        for i in 0..100 {
+            let e = world.create();
+            world.add(e, Lifecycle::UID, Lifecycle::alive())?;
+            world.add(e, Transform::UID, Transform::from_translation(
                 Vec3::new(((i / 10) * 5) as f32, 0.0,  -((i % 10) * 8) as f32
-            )),
-            LocalToWorld::default(),
-            Model::new("car".into()),
-            Rotator { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
-        ));
-        world.spawn((
-            Lifecycle::alive(),
-            Transform::from_translation(
-                Vec3::new(((i / 10) * 5) as f32, 10.0,  -((i % 10) * 8) as f32
-            )),
-            LocalToWorld::default(),
-            Model::new("alfred".into()),
-            Rotator { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 }
-        ));
+            )))?;
+            world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
+            world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
+            world.add(e, Rotator::UID, Rotator { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 })?;
+            let e = world.create();
+            world.add(e, Lifecycle::UID, Lifecycle::alive())?;
+            world.add(e, Transform::UID, Transform::from_translation(
+                Vec3::new(((i / 10) * 5) as f32, 10.0, -((i % 10) * 8) as f32
+            )))?;
+            world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
+            world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
+            world.add(e, Rotator::UID, Rotator { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 })?;
+        }
     }
-    world.spawn((
-        Lifecycle::alive(),
-        Transform::from_translation(Vec3::new(0.0, 0.0, 4.0)),
-        LocalToWorld::default(),
-        Model::new("car".into()),
-        Rotator { speed: 30.0 }
-    ));
-    let e = world.spawn((
-        Lifecycle::alive(),
-        Transform::from_translation(Vec3::new(0.0, 0.0, -10.0)),
-        LocalToWorld::default(),
-        FreeFly {
+    {
+        let e = world.create();
+        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add(e, Transform::UID, Transform::from_translation(Vec3::new(0.0, 0.0, 4.0)))?;
+        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
+        world.add(e, Rotator::UID, Rotator { speed: 30.0 })?;
+    }
+    {
+        let e = world.create();
+        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add(e, Transform::UID, Transform::from_translation(Vec3::new(0.0, 0.0, -10.0)))?;
+        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add(e, FreeFly::UID, FreeFly {
             active: true,
             switch_mode: "switch_mode".into(),
             roll_left: "roll_left".into(),
@@ -341,43 +336,33 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
             free_mode: false,
             yaw: 0.0,
             pitch: 0.0,
-        },
-        Model::new("car".into()),
-        ScriptStorage::default(),
-        RhaiScripts::default(),
-        Hierarchy::default(),
-    ));
-    let cam = world.spawn((
-        Lifecycle::alive(),
-        Transform::from_translation(Vec3::new(4.0, -1.0, 0.0)),
-        LocalToWorld::default(),
-        Camera::default(),
-        Hierarchy::default(),
-    ));
-    Hierarchy::attach(e, cam, world)?;
-    // let cam2 = world.spawn((
-    //     LifecycleComponent::alive(),
-    //     TransformComponent::from_translation(Vec3::new(10.0, 30.0, -10.0)),
-    //     LocalToWorldComponent::default(),
-    //     CameraComponent::default(),
-    // ));
-            
-    world.get::<&mut RhaiScripts>(e).unwrap().add("inventory".into()).unwrap();
+        })?;
+        world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
+        world.add(e, ScriptStorage::UID, ScriptStorage::default())?;
+        world.add(e, RhaiScripts::UID, RhaiScripts::default())?;
+        world.add(e, Hierarchy::UID, Hierarchy::default())?;
 
-    let viewport = world.spawn((
-        Viewport::new(SCREEN_RESOLUTION, Some(cam)),
-    ));
-    // let viewport2 = world.spawn((
-    //     ViewportComponent::new((200, 50).into(), Some(cam2)),
-    // ));
+        let cam = world.create();
+        world.add(cam, Lifecycle::UID, Lifecycle::alive())?;
+        world.add(cam, Transform::UID, Transform::from_translation(Vec3::new(4.0, -1.0, 0.0)))?;
+        world.add(cam, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add(cam, Camera::UID, Camera::default())?;
+        world.add(cam, Hierarchy::UID, Hierarchy::default())?;
+        
+        Hierarchy::attach(e, cam, &mut world.view_mut::<Hierarchy>(Hierarchy::UID)?)?;
 
-    {
+        world.get_mut::<RhaiScripts>(e, RhaiScripts::UID)?.unwrap()
+            .add("inventory".into()).unwrap();
+
+        let viewport = world.create();
+        world.add(viewport, Viewport::UID, Viewport::new(SCREEN_RESOLUTION, Some(cam)))?;
+    
         let mut ui = UI::default();
-        for i in 0..30 {
+        for _ in 0..30 {
             // ui.add_label(&format!("test{}", i), 30, UID::null(), Label::new((5, i * 10).into(), "0123456789012345678901234567890123456789", "default".into()))?;
         }
         ui.add_checkbox("checkbox", 50, UID::null(), Checkbox::new((50, 100).into(), true))?;
-        ui.add_viewport("main_viewport", 0, UID::null(), Viewport::new(IVec2::ZERO, self.scene, viewport))?;
+        ui.add_viewport("main_viewport", 0, UID::null(), ui::viewport::Viewport::new(IVec2::ZERO, world.uid(), viewport))?;
         // ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
         ui.add_profile("main", InteractionInputs {
             click: CommonAction::CLICK.into(),
@@ -391,18 +376,23 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
             cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
             scroll: CommonAxis::SCROLL_MOTION.into(),
         })?;
-        world.spawn((
-            Lifecycle::alive(),
-            UIComponent::new(ui, UIRenderTarget::Screen { offset: IVec2::ZERO }),
-        ));
+        let uie = world.create();
+        world.add(uie, Lifecycle::UID, Lifecycle::alive())?;
+        world.add(uie, UIComponent::UID, UIComponent::new(ui, UIRenderTarget::Screen { offset: IVec2::ZERO }))?;
+    }
+
+    // Setup singleton
+    {
+        world.add_singleton(OS::UID, OS { layout_active: true })?;
     }
     
     Ok(())
 }
 
 pub fn init(ctx: &mut SystemContext) -> Result<()> {
+    define_features(ctx)?;
     setup_assets(ctx)?;
-    setup_scheduler(ctx)?;
     setup_world(ctx)?;
+    setup_scheduler(ctx)?;
     Ok(())
 }

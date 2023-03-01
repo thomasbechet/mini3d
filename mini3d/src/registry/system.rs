@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{Result, anyhow};
 
-use crate::{uid::UID, context::SystemContext};
-
-pub type SystemCallback = fn(&mut SystemContext) -> Result<()>;
+use crate::{uid::UID, ecs::system::SystemCallback};
 
 #[derive(Clone, Copy)]
 pub(crate) enum SystemCode {

@@ -3,7 +3,7 @@ pub mod canvas;
 pub mod free_fly;
 pub mod hierarchy;
 pub mod lifecycle;
-pub mod model;
+pub mod static_mesh;
 pub mod ui;
 pub mod rhai_scripts;
 pub mod rigid_body;

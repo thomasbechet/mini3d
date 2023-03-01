@@ -1,9 +1,9 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::backend::SceneModelHandle, registry::component::Component};
+use crate::{uid::UID, renderer::backend::SceneModelHandle, ecs::component::Component};
 
 #[derive(Serialize, Deserialize)]
-pub struct Model {
+pub struct StaticMesh {
     pub model: UID,
     #[serde(skip)]
     pub changed: bool,
@@ -11,15 +11,15 @@ pub struct Model {
     pub(crate) handle: Option<SceneModelHandle>,
 }
 
-impl Component for Model {}
+impl Component for StaticMesh {}
 
-impl Model {
+impl StaticMesh {
     pub fn new(model: UID) -> Self {
         Self { model, changed: false, handle: None }
     }
 }
 
-impl Model {
-    pub const NAME: &'static str = "model";
-    pub const UID: UID = UID::new(Model::NAME);
+impl StaticMesh {
+    pub const NAME: &'static str = "static_mesh";
+    pub const UID: UID = UID::new(StaticMesh::NAME);
 }

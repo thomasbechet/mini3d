@@ -5,11 +5,11 @@ use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::{AssetManager, AssetEntry};
 use crate::ecs::ECSManager;
+use crate::ecs::system::SystemCallback;
 use crate::feature::{asset, component, system};
 use crate::physics::PhysicsManager;
 use crate::registry::RegistryManager;
 use crate::registry::asset::Asset;
-use crate::registry::system::SystemCallback;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
 use crate::event::Events;
@@ -62,7 +62,7 @@ impl Engine {
         registry.components.define_static::<component::camera::Camera>(component::camera::Camera::NAME)?;
         registry.components.define_static::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
         registry.components.define_static::<component::lifecycle::Lifecycle>(component::lifecycle::Lifecycle::NAME)?;
-        registry.components.define_static::<component::model::Model>(component::model::Model::NAME)?;
+        registry.components.define_static::<component::static_mesh::StaticMesh>(component::static_mesh::StaticMesh::NAME)?;
         registry.components.define_static::<component::rhai_scripts::RhaiScripts>(component::rhai_scripts::RhaiScripts::NAME)?;
         registry.components.define_static::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
         registry.components.define_static::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
@@ -104,11 +104,11 @@ impl Engine {
         Ok(engine)
     }
 
-    pub fn iter_asset<A: Asset>(&'_ mut self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
+    pub fn iter_asset<A: Asset>(&'_ self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
         self.asset.iter::<A>(asset)
     }
 
-    pub fn asset_entry<A: Asset>(&'_ mut self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
+    pub fn asset_entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
         self.asset.entry::<A>(asset, uid)
     }
 
@@ -273,7 +273,8 @@ impl Engine {
             &mut self.asset, 
             &mut self.input, 
             &mut self.renderer, 
-            &mut self.script, 
+            &mut self.script,
+            events,
             delta_time, 
             self.time, 
             FIXED_TIMESTEP, 

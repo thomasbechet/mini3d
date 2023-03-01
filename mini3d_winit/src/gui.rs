@@ -344,7 +344,7 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for (_, entry) in engine.iter_asset::<InputTable>().unwrap() {
+                                    for (_, entry) in engine.iter_asset::<InputTable>(InputTable::UID).unwrap() {
                                         ui_input_table(
                                             &entry.asset, 
                                             profile,
@@ -483,7 +483,7 @@ fn ui_input_table(
                 })
                 .body(|mut body| {
                     input_table.actions.iter().for_each(|uid| {
-                        let action = engine.asset_entry::<InputAction>(*uid).expect("Action UID not found");
+                        let action = engine.asset_entry::<InputAction>(InputAction::UID, *uid).expect("Action UID not found");
                         if let Some(map_action) = profile.actions.get_mut(uid) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
@@ -575,7 +575,7 @@ fn ui_input_table(
                 })
                 .body(|mut body| {
                     input_table.axis.iter().for_each(|uid| {
-                        let axis = engine.asset_entry::<InputAxis>(*uid).expect("Axis UID not found");
+                        let axis = engine.asset_entry::<InputAxis>(InputAxis::UID, *uid).expect("Axis UID not found");
                         if let Some(map_axis) = profile.axis.get_mut(uid) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {

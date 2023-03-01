@@ -3,11 +3,11 @@ use std::{any::Any, marker::PhantomData, fmt};
 use anyhow::{Result, Context};
 use serde::{Serialize, Deserialize, de::{Visitor, self}, Deserializer, Serializer, ser::SerializeTuple};
 
-use crate::{feature::asset::runtime_component::FieldValue, registry::component::Component};
+use crate::{feature::asset::runtime_component::FieldValue};
 
 use std::cell::RefCell;
 
-use super::{entity::Entity, sparse::PagedVector};
+use super::{entity::Entity, sparse::PagedVector, component::{Component, ComponentRef, ComponentMut}};
 
 pub(crate) trait AnyComponentContainer {
     fn as_any(&self) -> &dyn Any;
@@ -26,7 +26,7 @@ pub(crate) struct ComponentContainer<C: Component> {
 
 impl<C: Component> ComponentContainer<C> {
 
-    pub(crate) fn serialize<'a, S: Serializer>(&'a self, serializer: S) -> Result<S::Ok, S::Error> {
+    pub(crate) fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut seq = serializer.serialize_tuple(2)?;
         seq.serialize_element(&self.entities)?;
         seq.serialize_element(&self.components)?;
@@ -71,13 +71,9 @@ impl<C: Component> ComponentContainer<C> {
         self.entities.len()
     }
 
-    pub(crate) fn capacity(&self) -> usize {
-        self.entities.capacity()
-    }
-
     pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<()> {
-        self.indices.set(entity.index(), self.entities.len() - 1);
         self.entities.push(entity);
+        self.indices.set(entity.index(), self.entities.len() - 1);
         self.components
             .try_borrow_mut().with_context(|| "Container already borrowed")?
             .push(component);
@@ -96,6 +92,28 @@ impl<C: Component> ComponentContainer<C> {
         }
         Ok(())
     }
+
+    pub(crate) fn get(&self, entity: Entity) -> Option<ComponentRef<'_, C>> {
+        let components = self.components.borrow();
+        self.indices.get(entity.index()).and_then(|index| {
+            if self.entities[*index] == entity {
+                Some(ComponentRef { components, index: *index })
+            } else {
+                None
+            }
+        })
+    }
+
+    pub(crate) fn get_mut(&self, entity: Entity) -> Option<ComponentMut<'_, C>> {
+        let components = self.components.borrow_mut();
+        self.indices.get(entity.index()).and_then(|index| {
+            if self.entities[*index] == entity {
+                Some(ComponentMut { components, index: *index })
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
@@ -104,21 +122,21 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     fn entity(&self, index: usize) -> Entity { self.entities[index] }
     fn contains(&self, entity: Entity) -> bool { self.entities[entity.index()] == entity }
     fn len(&self) -> usize { self.len() }
-    fn remove(&mut self, entity: Entity) { self.remove(entity); }
+    fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RuntimeComponent1([FieldValue; 1]);
-impl Component for RuntimeComponent1 {}
+pub(crate) struct DynamicComponent1([FieldValue; 1]);
+impl Component for DynamicComponent1 {}
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RuntimeComponent2([FieldValue; 2]);
-impl Component for RuntimeComponent2 {}
+pub(crate) struct DynamicComponent2([FieldValue; 2]);
+impl Component for DynamicComponent2 {}
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RuntimeComponent3([FieldValue; 3]);
-impl Component for RuntimeComponent3 {}
+pub(crate) struct DynamicComponent3([FieldValue; 3]);
+impl Component for DynamicComponent3 {}
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RuntimeComponent4([FieldValue; 4]);
-impl Component for RuntimeComponent4 {}
+pub(crate) struct DynamicComponent4([FieldValue; 4]);
+impl Component for DynamicComponent4 {}
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RuntimeComponent5([FieldValue; 5]);
-impl Component for RuntimeComponent5 {}
+pub(crate) struct DynamicComponent5([FieldValue; 5]);
+impl Component for DynamicComponent5 {}

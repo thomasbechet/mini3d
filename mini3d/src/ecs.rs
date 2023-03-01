@@ -3,17 +3,20 @@ use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry, system::SystemCallback}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext}, feature::asset::system_group::{SystemGroup, SystemPipeline}};
+use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext, event::EventContext}, feature::asset::system_group::{SystemGroup, SystemPipeline}, event::Events};
 
-use self::{world::World, scheduler::Scheduler, procedure::Procedure};
+use self::{world::World, scheduler::Scheduler, procedure::Procedure, system::SystemCallback};
 
+pub mod component;
 pub mod container;
 pub mod entity;
 pub mod pipeline;
 pub mod procedure;
 pub mod query;
 pub mod scheduler;
+pub mod singleton;
 pub mod sparse;
+pub mod system;
 pub mod view;
 pub mod world;
 
@@ -151,6 +154,7 @@ impl ECSManager {
         input: &mut InputManager,
         renderer: &mut RendererManager,
         script: &mut ScriptManager,
+        events: &Events,
         delta_time: f64,
         time: f64,
         fixed_delta_time: f64,
@@ -172,13 +176,18 @@ impl ECSManager {
         while let Some(procedure) = frame_procedures.pop_front() {
 
             // Build pipeline
-            if let Some(pipeline) = self.scheduler.build_pipeline(procedure, &registry.borrow().systems)? {
-                
+            if let Some(pipeline) = self.scheduler.build_pipeline(procedure, registry)? {
+
+                registry.borrow_mut();
+
                 // Build context
                 let mut context = SystemContext {
                     asset: AssetContext {
                         registry,
                         manager: asset,
+                    },
+                    event: EventContext {
+                        events
                     },
                     input: InputContext {
                         manager: input,
@@ -210,7 +219,7 @@ impl ECSManager {
                 };
 
                 // Run pipeline
-                pipeline.run(&mut context, &script)?;
+                pipeline.run(&mut context, script)?;
             }
         }
 
