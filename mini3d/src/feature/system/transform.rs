@@ -12,8 +12,8 @@ pub fn recursive_propagate(
     if let Some(mut local_to_world) = local_to_worlds.get_mut(entity).cloned() {
         if !local_to_world.dirty {
             return local_to_world.matrix;
-        } else if let Some(hierarcy) = hierarchies.get(entity) {
-            if let Some(parent) = hierarcy.parent() {
+        } else if let Some(hierarchy) = hierarchies.get(entity) {
+            if let Some(parent) = hierarchy.parent() {
                 let parent_matrix = recursive_propagate(parent, transforms, local_to_worlds, hierarchies);
                 local_to_world.matrix = parent_matrix * transforms[entity].matrix();
             } else {
@@ -23,7 +23,7 @@ pub fn recursive_propagate(
             local_to_world.matrix = transforms[entity].matrix();
         }
         local_to_world.dirty = false;
-        let matrix = local_to_world.matrix.clone();
+        let matrix = local_to_world.matrix;
         local_to_worlds[entity] = local_to_world;
         matrix
     } else {
@@ -45,7 +45,7 @@ pub fn propagate(ctx: &mut SystemContext) -> Result<()> {
         entities.push(e);
     }
 
-    for e in &world.query(&[Transform::UID, LocalToWorld::UID]) {
+    for e in entities {
         let mut local_to_world = local_to_worlds.get_mut(e).cloned().unwrap();
         if local_to_world.dirty {
             if let Some(hierarcy) = hierarchies.get(e) {

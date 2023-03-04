@@ -22,16 +22,8 @@ impl<'a> AssetContext<'a> {
         self.manager.get_or_default::<A>(asset, uid)
     }
 
-    pub fn get_mut<A: Asset>(&'_ mut self, asset: UID, uid: UID) -> Result<&'_ mut A> {
-        self.manager.get_mut::<A>(asset, uid)
-    }
-
     pub fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
         self.manager.entry::<A>(asset, uid)
-    }
-
-    pub fn iter<A: Asset>(&'_ self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)> + '_> {
-        self.manager.iter::<A>(asset)
     }
 
     pub fn add_bundle(&mut self, name: &str) -> Result<()> {

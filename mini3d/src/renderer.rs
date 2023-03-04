@@ -4,7 +4,7 @@ use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, static_mesh::StaticMesh, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, self}}, ecs::{ECSManager, entity::Entity, view::ComponentView}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, static_mesh::StaticMesh, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, model::Model}}, ecs::{ECSManager, entity::Entity, view::ComponentView}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle, SceneHandle}, graphics::Graphics, color::Color};
 
@@ -238,9 +238,9 @@ impl RendererManager {
         }
         
         // Update scene
-        if !self.scenes.contains_key(&ecs.active_world) {
+        if let hash_map::Entry::Vacant(e) = self.scenes.entry(ecs.active_world) {
             let handle = backend.scene_add()?;
-            self.scenes.insert(ecs.active_world, handle);
+            e.insert(handle);
         }
 
         // Update scene components
@@ -255,6 +255,14 @@ impl RendererManager {
             let mut canvases = world.view_mut::<Canvas>(Canvas::UID)?;
 
             // Update cameras
+            {
+                let q = world.query(&[Camera::UID, LocalToWorld::UID]);
+                println!("{:?}", q.iter().size_hint());
+                for e in &q {
+                    println!("Update camera: {:?}", e);
+                }
+                println!("END");
+            }
             for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {
                 let c = cameras.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();
@@ -287,7 +295,7 @@ impl RendererManager {
                 let m = models.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();
                 if m.handle.is_none() {
-                    let model: &asset::model::Model = asset.get(asset::model::Model::UID, m.model)?;
+                    let model: &Model = asset.get(Model::UID, m.model)?;
                     let mesh_handle = self.resources.request_mesh(&model.mesh, backend, asset)?.handle;
                     let handle = backend.scene_model_add(mesh_handle)?;
                     for (index, material) in model.materials.iter().enumerate() {

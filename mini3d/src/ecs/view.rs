@@ -44,7 +44,7 @@ impl<'a, C: Component> ComponentViewRef<'a, C> {
 impl<'a, C: Component> ComponentView<C> for ComponentViewRef<'a, C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.view.as_ref().and_then(|data| {
-            data.indices.get(entity.index()).copied().and_then(|index| {
+            data.indices.get(entity.key()).copied().and_then(|index| {
                 if data.entities[index] == entity {
                     Some(&data.components[index])
                 } else {
@@ -99,7 +99,7 @@ impl<'a, C: Component> ComponentViewMut<'a, C> {
 
     pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
         self.view.as_mut().and_then(|data| {
-            data.indices.get(entity.index()).and_then(|index| {
+            data.indices.get(entity.key()).and_then(|index| {
                 if data.entities[*index] == entity {
                     Some(&mut data.components[*index])
                 } else {
@@ -113,7 +113,7 @@ impl<'a, C: Component> ComponentViewMut<'a, C> {
 impl<'a, C: Component> ComponentView<C> for ComponentViewMut<'a, C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.view.as_ref().and_then(|data| {
-            data.indices.get(entity.index()).and_then(|index| {
+            data.indices.get(entity.key()).and_then(|index| {
                 if data.entities[*index] == entity {
                     Some(&data.components[*index])
                 } else {

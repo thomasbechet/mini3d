@@ -11,15 +11,15 @@ impl<T: Default + Copy> PagedVector<T> {
         Self { pages: Vec::new() }
     }
 
-    pub(crate) fn get(&self, index: usize) -> Option<&T> {
-        let page = index / PAGE_SIZE;
-        let offset = index % PAGE_SIZE;
+    pub(crate) fn get(&self, key: usize) -> Option<&T> {
+        let page = key / PAGE_SIZE;
+        let offset = key % PAGE_SIZE;
         self.pages.get(page).and_then(|page| page.as_ref().map(|page| &page[offset]))
     }
 
-    pub(crate) fn set(&mut self, index: usize, value: T) {
-        let page = index / PAGE_SIZE;
-        let offset = index % PAGE_SIZE;
+    pub(crate) fn set(&mut self, key: usize, value: T) {
+        let page = key / PAGE_SIZE;
+        let offset = key % PAGE_SIZE;
         if page >= self.pages.len() {
             self.pages.resize_with(page + 1, || None)
         }

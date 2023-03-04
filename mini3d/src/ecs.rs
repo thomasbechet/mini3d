@@ -178,8 +178,6 @@ impl ECSManager {
             // Build pipeline
             if let Some(pipeline) = self.scheduler.build_pipeline(procedure, registry)? {
 
-                registry.borrow_mut();
-
                 // Build context
                 let mut context = SystemContext {
                     asset: AssetContext {

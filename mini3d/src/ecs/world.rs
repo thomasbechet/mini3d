@@ -12,6 +12,7 @@ pub(crate) struct World {
     containers: HashMap<UID, Box<dyn AnyComponentContainer>>,
     singletons: HashMap<UID, Box<dyn AnySingleton>>,
     free_entities: Vec<Entity>,
+    next_entity: Entity,
 }
 
 impl World {
@@ -50,11 +51,12 @@ impl World {
             }
         }
         use serde::ser::SerializeTuple;
-        let mut tuple = serializer.serialize_tuple(4)?;
+        let mut tuple = serializer.serialize_tuple(5)?;
         tuple.serialize_element(&self.name)?;
         tuple.serialize_element(&ContainersSerializer { containers: &self.containers, registry })?;
         tuple.serialize_element(&SingletonsSerializer { singletons: &self.singletons, registry })?;
         tuple.serialize_element(&self.free_entities)?;
+        tuple.serialize_element(&self.next_entity)?;
         tuple.end()
     }
 
@@ -148,10 +150,11 @@ impl World {
                 let containers = seq.next_element_seed(ContainersDeserializeSeed { registry: self.registry })?.with_context(|| "Missing containers").map_err(Error::custom)?;
                 let singletons = seq.next_element_seed(SingletonsDeserializeSeed { registry: self.registry })?.with_context(|| "Missing singletons").map_err(Error::custom)?;
                 let free_entities = seq.next_element()?.with_context(|| "Missing free_entities").map_err(Error::custom)?;
-                Ok(World { name, containers, singletons, free_entities })
+                let next_entity = seq.next_element()?.with_context(|| "Missing next_entity").map_err(Error::custom)?;
+                Ok(World { name, containers, singletons, free_entities, next_entity })
             }
         }
-        deserializer.deserialize_tuple(4, WorldVisitor { registry })
+        deserializer.deserialize_tuple(5, WorldVisitor { registry })
     }
 
     pub(crate) fn new(name: &str) -> World {
@@ -160,6 +163,7 @@ impl World {
             containers: HashMap::new(),
             singletons: HashMap::new(),
             free_entities: Vec::new(),
+            next_entity: Entity::new(1, 0),
         }
     }
 
@@ -167,14 +171,16 @@ impl World {
         if let Some(entity) = self.free_entities.pop() {
             return entity;
         }
-        Entity::null()
+        let entity = self.next_entity;
+        self.next_entity = Entity::new(entity.key() + 1, 0);
+        entity
     }
 
     pub(crate) fn destroy(&mut self, entity: Entity) -> Result<()> {
         for container in self.containers.values_mut() {
             container.remove(entity);
         }
-        self.free_entities.push(Entity::new(entity.index(), entity.version() + 1));
+        self.free_entities.push(Entity::new(entity.key(), entity.version() + 1));
         Ok(())
     }
 

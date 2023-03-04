@@ -51,7 +51,7 @@ impl<C: Component> ComponentContainer<C> {
                     indices: PagedVector::new(),
                 };
                 for (index, entity) in container.entities.iter().enumerate() {
-                    container.indices.set(entity.index(), index);
+                    container.indices.set(entity.key(), index);
                 }
                 Ok(container)
             }
@@ -73,29 +73,29 @@ impl<C: Component> ComponentContainer<C> {
 
     pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<()> {
         self.entities.push(entity);
-        self.indices.set(entity.index(), self.entities.len() - 1);
+        self.indices.set(entity.key(), self.entities.len() - 1);
         self.components
             .try_borrow_mut().with_context(|| "Container already borrowed")?
             .push(component);
-        Ok(())    
+        Ok(())
     }
 
     pub(crate) fn remove(&mut self, entity: Entity) -> Result<()> {
-        if let Some(index) = self.indices.get(entity.index()).copied() {
+        if let Some(index) = self.indices.get(entity.key()).copied() {
             self.components
                 .try_borrow_mut().with_context(|| "Component container already borrowed")?
                 .swap_remove(index);
             self.entities.swap_remove(index);
             let swapped_entity = self.entities[index];
-            self.indices.set(swapped_entity.index(), index);
-            self.entities[entity.index()] = Entity::null();
+            self.indices.set(swapped_entity.key(), index);
+            self.entities[entity.key()] = Entity::null();
         }
         Ok(())
     }
 
     pub(crate) fn get(&self, entity: Entity) -> Option<ComponentRef<'_, C>> {
         let components = self.components.borrow();
-        self.indices.get(entity.index()).and_then(|index| {
+        self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
                 Some(ComponentRef { components, index: *index })
             } else {
@@ -106,7 +106,7 @@ impl<C: Component> ComponentContainer<C> {
 
     pub(crate) fn get_mut(&self, entity: Entity) -> Option<ComponentMut<'_, C>> {
         let components = self.components.borrow_mut();
-        self.indices.get(entity.index()).and_then(|index| {
+        self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
                 Some(ComponentMut { components, index: *index })
             } else {
@@ -120,7 +120,13 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     fn as_any(&self) -> &dyn Any { self }
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
     fn entity(&self, index: usize) -> Entity { self.entities[index] }
-    fn contains(&self, entity: Entity) -> bool { self.entities[entity.index()] == entity }
+    fn contains(&self, entity: Entity) -> bool {
+        if let Some(index) = self.indices.get(entity.key()).copied() {
+            index < self.entities.len() && self.entities[index] == entity
+        } else {
+            false
+        } 
+    }
     fn len(&self) -> usize { self.len() }
     fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }
 }

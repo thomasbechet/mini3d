@@ -401,11 +401,6 @@ impl AssetManager {
             .with_context(|| "Asset not found and no default provided")
     }
 
-    pub(crate) fn get_mut<A: Asset>(&'_ mut self, asset: UID, uid: UID) -> Result<&'_ mut A> {
-        self.container_mut::<A>(asset)?.0.get_mut(&uid).map(|entry| &mut entry.asset)
-            .with_context(|| "Asset not found")
-    }
-
     pub(crate) fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
         self.container::<A>(asset)?.0.get(&uid)
             .with_context(|| "Asset not found")

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
 
-use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::{input_axis::{InputAxisRange, InputAxis}, input_action::InputAction}, asset::AssetManager, registry::asset::AssetRegistry};
+use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputAction, InputAxis, InputTable}, asset::AssetManager};
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
@@ -59,6 +59,7 @@ impl InputAxisState {
 #[derive(Default)]
 pub struct InputManager {
     text: String,
+    tables: HashMap<UID, InputTable>,
     actions: HashMap<UID, InputActionState>,
     axis: HashMap<UID, InputAxisState>,
     pub(crate) reload_input_mapping: bool,
@@ -133,18 +134,15 @@ impl InputManager {
         deserializer.deserialize_tuple(2, InputVisitor { manager: self })
     }
 
-    pub(crate) fn reload_input_tables(&mut self, asset: &AssetManager, registry: &AssetRegistry) -> Result<()> {
-        self.actions.clear();
-        for (uid, entry) in asset.iter::<InputAction>(InputAction::UID)? {
-            self.actions.insert(*uid, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
+    pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<()> {
+        for action in table.actions.iter() {
+            self.actions.insert(action.display_name.into(), InputActionState { pressed: action.default_pressed, was_pressed: false });
         }
-        self.axis.clear();
-        for (uid, entry) in asset.iter::<InputAxis>(InputAction::UID)? {
-            let mut state =  InputAxisState { value: entry.asset.default_value, range: entry.asset.range };
-            state.set_value(entry.asset.default_value);
-            self.axis.insert(*uid, state);
+        for axis in table.axis.iter() {
+            let mut state =  InputAxisState { value: axis.default_value, range: axis.range };
+            state.set_value(axis.default_value);
+            self.axis.insert(axis.display_name.into(), state);
         }
-        self.text.clear();
         self.reload_input_mapping = true;
         Ok(())
     }

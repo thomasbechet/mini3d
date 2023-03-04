@@ -44,8 +44,6 @@ impl Engine {
 
         // Assets
         registry.assets.define_static::<asset::font::Font>(asset::font::Font::NAME)?;
-        registry.assets.define_static::<asset::input_action::InputAction>(asset::input_action::InputAction::NAME)?;
-        registry.assets.define_static::<asset::input_axis::InputAxis>(asset::input_axis::InputAxis::NAME)?;
         registry.assets.define_static::<asset::input_table::InputTable>(asset::input_table::InputTable::NAME)?;
         registry.assets.define_static::<asset::material::Material>(asset::material::Material::NAME)?;
         registry.assets.define_static::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
@@ -102,10 +100,6 @@ impl Engine {
         engine.define_core_features()?;
         engine.ecs.setup(init, engine.registry.get_mut())?;
         Ok(engine)
-    }
-
-    pub fn iter_asset<A: Asset>(&'_ self, asset: UID) -> Result<impl Iterator<Item = (&UID, &'_ AssetEntry<A>)>> {
-        self.asset.iter::<A>(asset)
     }
 
     pub fn asset_entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
@@ -270,9 +264,9 @@ impl Engine {
 
         self.ecs.update(
             &self.registry, 
-            &mut self.asset, 
+            &mut self.asset,
             &mut self.input, 
-            &mut self.renderer, 
+            &mut self.renderer,
             &mut self.script,
             events,
             delta_time, 

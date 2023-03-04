@@ -15,11 +15,11 @@ pub(crate) type EntityVersion = u32;
 
 impl Entity {
 
-    pub(crate) fn new(index: usize, version: EntityVersion) -> Self {
-        Self(index | ((version as usize) << 32))
+    pub(crate) fn new(key: usize, version: EntityVersion) -> Self {
+        Self(key | ((version as usize) << 32))
     }
 
-    pub(crate) fn index(&self) -> usize {
+    pub(crate) fn key(&self) -> usize {
         self.0 & 0x0000_0000_ffff_ffff
     }
 

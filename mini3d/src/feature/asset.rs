@@ -1,7 +1,5 @@
 pub mod runtime_component;
 pub mod font;
-pub mod input_action;
-pub mod input_axis;
 pub mod input_table;
 pub mod material;
 pub mod mesh;
