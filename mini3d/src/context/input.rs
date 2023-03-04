@@ -1,6 +1,5 @@
 use anyhow::Result;
-
-use crate::{input::{InputManager, InputActionState, InputAxisState}, uid::UID, feature::asset::input_table::InputTable};
+use crate::{input::{InputManager, InputActionState, InputAxisState}, uid::UID};
 
 pub struct InputContext<'a> {
     pub(crate) manager: &'a mut InputManager,
@@ -8,8 +7,8 @@ pub struct InputContext<'a> {
 
 impl<'a> InputContext<'a> {
 
-    pub fn add_table(&mut self, table: &InputTable) -> Result<()> {
-        self.manager.add_table(table)
+    pub fn add_table(&mut self, table: UID) -> Result<()> {
+        self.manager.add_table(&self.asset.borrow(), table)
     }
 
     pub fn text(&self) -> &str {

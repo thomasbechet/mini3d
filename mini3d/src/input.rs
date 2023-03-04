@@ -134,7 +134,8 @@ impl InputManager {
         deserializer.deserialize_tuple(2, InputVisitor { manager: self })
     }
 
-    pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<()> {
+    pub(crate) fn add_table(&mut self, asset: &AssetManager, table: UID) -> Result<()> {
+        let table = asset.get::<InputTable>(InputTable::UID, table)?;
         for action in table.actions.iter() {
             self.actions.insert(action.display_name.into(), InputActionState { pressed: action.default_pressed, was_pressed: false });
         }
@@ -144,6 +145,10 @@ impl InputManager {
             self.axis.insert(axis.display_name.into(), state);
         }
         self.reload_input_mapping = true;
+        Ok(())
+    }
+
+    pub(crate) fn remove_table(&mut self, asset: &AssetManager, table: UID) -> Result<()> {
         Ok(())
     }
 
