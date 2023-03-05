@@ -3,21 +3,20 @@ use serde::de::{Visitor, DeserializeSeed};
 use serde::ser::SerializeTuple;
 use serde::{Serializer, Deserializer, Serialize};
 
-use crate::asset::{AssetManager, AssetEntry};
+use crate::asset::AssetManager;
 use crate::ecs::ECSManager;
 use crate::ecs::system::SystemCallback;
+use crate::feature::asset::input_table::{InputTable, InputAction, InputAxis};
 use crate::feature::{asset, component, system};
 use crate::physics::PhysicsManager;
 use crate::registry::RegistryManager;
-use crate::registry::asset::Asset;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
 use crate::event::Events;
 use crate::event::system::SystemEvent;
-use crate::input::InputManager;
+use crate::input::{InputManager, InputActionState, InputAxisState};
 use crate::request::Requests;
 use crate::script::ScriptManager;
-use crate::uid::UID;
 use core::cell::RefCell;
 use std::cell::Ref;
 
@@ -100,10 +99,6 @@ impl Engine {
         engine.define_core_features()?;
         engine.ecs.setup(init, engine.registry.get_mut())?;
         Ok(engine)
-    }
-
-    pub fn asset_entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
-        self.asset.entry::<A>(asset, uid)
     }
 
     pub fn save_state<S: Serializer>(&mut self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -220,6 +215,18 @@ impl Engine {
         }
         deserializer.deserialize_tuple(7, EngineVisitor { engine: self })?;
         Ok(())
+    }
+
+    pub fn iter_tables(&self) -> impl Iterator<Item = &InputTable> {
+        self.input.iter_tables()
+    }
+
+    pub fn iter_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
+        self.input.iter_actions()
+    }
+
+    pub fn iter_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
+        self.input.iter_axis()
     }
 
     pub fn progress(&mut self, events: &Events, requests: &mut Requests, mut delta_time: f64) -> Result<()> {

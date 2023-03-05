@@ -255,14 +255,6 @@ impl RendererManager {
             let mut canvases = world.view_mut::<Canvas>(Canvas::UID)?;
 
             // Update cameras
-            {
-                let q = world.query(&[Camera::UID, LocalToWorld::UID]);
-                println!("{:?}", q.iter().size_hint());
-                for e in &q {
-                    println!("Update camera: {:?}", e);
-                }
-                println!("END");
-            }
             for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {
                 let c = cameras.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();

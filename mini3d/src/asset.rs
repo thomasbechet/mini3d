@@ -17,7 +17,13 @@ pub struct AssetEntry<A> {
     pub bundle: UID,
 }
 
-impl<A: Serialize> Serialize for AssetEntry<A> {
+impl<A: Asset> AssetEntry<A> {
+    pub fn uid(&self) -> UID {
+        UID::new(&self.name)
+    }
+}
+
+impl<A: Asset> Serialize for AssetEntry<A> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer {
@@ -28,7 +34,7 @@ impl<A: Serialize> Serialize for AssetEntry<A> {
     }
 }
 
-impl<'de, A: Deserialize<'de>> Deserialize<'de> for AssetEntry<A> {
+impl<'de, A: Asset> Deserialize<'de> for AssetEntry<A> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de> {
@@ -114,7 +120,7 @@ impl<A: Asset> AnyAssetContainer for AssetContainer<A> {
 
     fn deserialize_entries<'a>(&mut self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'a>) -> Result<()> {
         struct AssetEntryVisitor<A> { marker: PhantomData<A> }
-        impl<'de, A: Deserialize<'de>> Visitor<'de> for AssetEntryVisitor<A> {
+        impl<'de, A: Asset> Visitor<'de> for AssetEntryVisitor<A> {
             type Value = Vec<AssetEntry<A>>;
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("Sequence of asset entry")
@@ -343,7 +349,6 @@ impl AssetManager {
                                 use serde::de::Error;
                                 struct BundleDeserializeSeed<'a> {
                                     registry: &'a AssetRegistry,
-                                    manager: &'a mut AssetManager,
                                 }
                                 impl<'de, 'a> DeserializeSeed<'de> for BundleDeserializeSeed<'a> {
                                     type Value = ImportAssetBundle;
@@ -352,7 +357,7 @@ impl AssetManager {
                                         ImportAssetBundle::deserialize(self.registry, deserializer)
                                     }
                                 }
-                                while let Some(import) = seq.next_element_seed(BundleDeserializeSeed {registry: self.registry, manager: self.manager })? {
+                                while let Some(import) = seq.next_element_seed(BundleDeserializeSeed {registry: self.registry })? {
                                     self.manager.import_bundle(import).map_err(Error::custom)?;
                                 }
                                 Ok(())
@@ -394,7 +399,7 @@ impl AssetManager {
         container.0.get(&uid)
             .or_else(|| {
                 default.and_then(|uid| {
-                    container.0.get(&uid)
+                    container.0.get(uid)
                 })
             })
             .map(|entry| &entry.asset)
@@ -406,8 +411,8 @@ impl AssetManager {
             .with_context(|| "Asset not found")
     }
 
-    pub(crate) fn iter<A: Asset>(&self, asset: UID) -> Result<impl Iterator<Item = (&UID, &AssetEntry<A>)>> {
-        Ok(self.container::<A>(asset)?.0.iter())
+    pub(crate) fn iter<A: Asset>(&self, asset: UID) -> Result<impl Iterator<Item = &AssetEntry<A>>> {
+        Ok(self.container::<A>(asset)?.0.values())
     }
 
     pub(crate) fn add_bundle(&mut self, name: &str) -> Result<()> {

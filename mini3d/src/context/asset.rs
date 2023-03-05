@@ -26,6 +26,10 @@ impl<'a> AssetContext<'a> {
         self.manager.entry::<A>(asset, uid)
     }
 
+    pub fn iter<A: Asset>(&self, asset: UID) -> Result<impl Iterator<Item = &AssetEntry<A>>> {
+        self.manager.iter::<A>(asset)
+    }
+
     pub fn add_bundle(&mut self, name: &str) -> Result<()> {
         self.manager.add_bundle(name)
     }

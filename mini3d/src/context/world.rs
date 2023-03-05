@@ -2,17 +2,19 @@ use anyhow::{Result, anyhow};
 
 use crate::{ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query, component::{ComponentRef, Component, ComponentMut}, singleton::{SingletonRef, SingletonMut}}, uid::UID, registry::RegistryManager};
 use core::cell::RefCell;
-use std::{collections::HashMap, cell::{RefMut, Ref}};
+use std::{collections::{HashMap, HashSet}, cell::{RefMut, Ref}};
 
 pub struct WorldContext<'a> {
     pub(crate) registry: &'a RefCell<RegistryManager>,
     pub(crate) worlds: &'a mut HashMap<UID, RefCell<Box<World>>>,
     pub(crate) active_world: UID,
     pub(crate) change_world: &'a mut Option<UID>,
+    pub(crate) removed_worlds: &'a mut HashSet<UID>,
 }
 
 impl<'a> WorldContext<'a> {
 
+    /// Applied immediately
     pub fn add(&mut self, name: &str) -> Result<UID> {
         let uid: UID = name.into();
         if self.worlds.contains_key(&uid) {
@@ -22,15 +24,17 @@ impl<'a> WorldContext<'a> {
         Ok(uid)
     }
     
+    /// Applied at the end of the procedure
     pub fn remove(&mut self, uid: UID) -> Result<()> {
         if let Some(change_world) = *self.change_world {
             if change_world == uid {
                 return Err(anyhow!("Cannot remove world while it is being changed to"));
             }
         }
-        if self.worlds.remove(&uid).is_none() {
-            return Err(anyhow!("World with uid {} does not exist", uid));
+        if !self.worlds.contains_key(&uid) {
+            return Err(anyhow!("World not found"));
         }
+        self.removed_worlds.insert(uid);
         Ok(())
     }
 
@@ -45,7 +49,11 @@ impl<'a> WorldContext<'a> {
         Ok(WorldInstanceContext { uid, world: self.worlds.get(&uid).unwrap().borrow_mut(), registry: self.registry.borrow() })
     }
 
+    /// Applied at the end of the procedure
     pub fn change(&mut self, uid: UID) -> Result<()> {
+        if self.removed_worlds.contains(&uid) {
+            return Err(anyhow!("Cannot change to a world that is being removed"));
+        }
         if !self.worlds.contains_key(&uid) {
             return Err(anyhow!("World not found"));
         }

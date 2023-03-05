@@ -1,9 +1,10 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIComponent, UIRenderTarget}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{UI, checkbox::Checkbox, interaction_layout::InteractionInputs, self}, uid::UID};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIComponent, UIRenderTarget}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{UI, checkbox::Checkbox, interaction_layout::InteractionInputs, self}, uid::UID};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
 fn define_features(ctx: &mut SystemContext) -> Result<()> {
     ctx.registry.define_static_component::<OS>(OS::NAME)?;
+    ctx.registry.define_static_system("update", crate::system::update::update)?;
     Ok(())
 }
 
@@ -14,186 +15,184 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
     // Register default font
     ctx.asset.add(Font::UID, "default", default_bundle, Font::default())?;
 
-    // Register common inputs
-    ctx.asset.add(InputAction::UID, CommonAction::CLICK, default_bundle, InputAction {
-        display_name: "Click".to_string(),
-        description: "UI interaction layout (click).".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, CommonAction::UP, default_bundle, InputAction {
-        display_name: "Up".to_string(),
-        description: "UI interaction layout (go up).".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, CommonAction::LEFT, default_bundle, InputAction {
-        display_name: "Left".to_string(),
-        description: "UI interaction layout (go left).".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, CommonAction::DOWN, default_bundle, InputAction {
-        display_name: "Down".to_string(),
-        description: "UI interaction layout (go down).".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, CommonAction::RIGHT, default_bundle, InputAction {
-        display_name: "Right".to_string(),
-        description: "UI interaction layout (go right).".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, CommonAction::CHANGE_CONTROL_MODE, default_bundle, InputAction {
-        display_name: "Change Control Mode".to_string(),
-        description: "Switch between selection and cursor control mode.".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, CommonAction::TOGGLE_PROFILER, default_bundle, InputAction {
-        display_name: "Toggle Profiler".to_string(),
-        description: "Show or hide the profiler.".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::CURSOR_X, default_bundle, InputAxis {
-        display_name: "Cursor X".to_string(),
-        description: "Horizontal position of the mouse cursor relative to the screen.".to_string(),
-        range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 },
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::CURSOR_Y, default_bundle, InputAxis {
-        display_name: "Cursor Y".to_string(),
-        description: "Vertical position of the mouse cursor relative to the screen.".to_string(),
-        range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 },
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::SCROLL_MOTION, default_bundle, InputAxis {
-        display_name: "Scroll Motion".to_string(),
-        description: "Delta scrolling value.".to_string(),
-        range: InputAxisRange::Infinite,
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::CURSOR_MOTION_X, default_bundle, InputAxis {
-        display_name: "Cursor Motion X".to_string(),
-        description: "Delta mouvement of the mouse on the horizontal axis.".to_string(),
-        range: InputAxisRange::Infinite,
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::CURSOR_MOTION_Y, default_bundle, InputAxis {
-        display_name: "Cursor Motion Y".to_string(),
-        description: "Delta mouvement of the mouse on the vertical axis.".to_string(),
-        range: InputAxisRange::Infinite,
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::VIEW_X, default_bundle, InputAxis {
-        display_name: "View X".to_string(),
-        description: "View horizontal delta movement.".to_string(),
-        range: InputAxisRange::Infinite,
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::VIEW_Y, default_bundle, InputAxis {
-        display_name: "View Y".to_string(),
-        description: "View vertical delta movement.".to_string(),
-        range: InputAxisRange::Infinite,
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::MOVE_FORWARD, default_bundle, InputAxis { 
-        display_name: "Move Forward".to_string(), 
-        description: "".to_string(), 
-        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::MOVE_BACKWARD, default_bundle, InputAxis { 
-        display_name: "Move Backward".to_string(), 
-        description: "".to_string(), 
-        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::MOVE_LEFT, default_bundle, InputAxis { 
-        display_name: "Move Left".to_string(), 
-        description: "".to_string(), 
-        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::MOVE_RIGHT, default_bundle, InputAxis { 
-        display_name: "Move Right".to_string(), 
-        description: "".to_string(), 
-        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::MOVE_UP, default_bundle, InputAxis { 
-        display_name: "Move Up".to_string(), 
-        description: "".to_string(), 
-        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
-        default_value: 0.0,
-    })?;
-    ctx.asset.add(InputAxis::UID, CommonAxis::MOVE_DOWN, default_bundle, InputAxis { 
-        display_name: "Move Down".to_string(), 
-        description: "".to_string(), 
-        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-        default_value: 0.0,
-    })?;
-            
-    // Register default inputs
-    ctx.asset.add(InputAction::UID, "roll_left", default_bundle, InputAction { 
-        display_name: "Roll Left".to_string(), 
-        description: "".to_string(),
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, "roll_right", default_bundle, InputAction { 
-        display_name: "Roll Right".to_string(), 
-        description: "".to_string(), 
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, "switch_mode", default_bundle, InputAction { 
-        display_name: "Switch Mode".to_string(), 
-        description: "".to_string(), 
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, "move_fast", default_bundle, InputAction { 
-        display_name: "Move Fast".to_string(), 
-        description: "".to_string(), 
-        default_pressed: false,
-    })?;
-    ctx.asset.add(InputAction::UID, "move_slow", default_bundle, InputAction { 
-        display_name: "Move Slow".to_string(), 
-        description: "".to_string(), 
-        default_pressed: false,
-    })?;
-
     // Register input tables
-    ctx.asset.add(InputTable::UID, "common", default_bundle, InputTable { 
+    ctx.input.add_table(&InputTable {
+        name: "common".to_string(),
         display_name: "Common Inputs".to_string(),
         description: "".to_string(), 
         actions: Vec::from([
-            CommonAction::CLICK.into(),
-            CommonAction::UP.into(),
-            CommonAction::LEFT.into(),
-            CommonAction::DOWN.into(),
-            CommonAction::RIGHT.into(),
-            CommonAction::CHANGE_CONTROL_MODE.into(),
-            CommonAction::TOGGLE_PROFILER.into(),
+            InputAction {
+                name: CommonAction::CLICK.to_string(),
+                display_name: "Click".to_string(),
+                description: "UI interaction layout (click).".to_string(),
+                default_pressed: false,
+            },
+            InputAction {
+                name: CommonAction::UP.to_string(),
+                display_name: "Up".to_string(),
+                description: "UI interaction layout (go up).".to_string(),
+                default_pressed: false,
+            },
+            InputAction {
+                name: CommonAction::LEFT.to_string(),
+                display_name: "Left".to_string(),
+                description: "UI interaction layout (go left).".to_string(),
+                default_pressed: false,
+            },
+            InputAction {
+                name: CommonAction::DOWN.to_string(),
+                display_name: "Down".to_string(),
+                description: "UI interaction layout (go down).".to_string(),
+                default_pressed: false,
+            },
+            InputAction {
+                name: CommonAction::RIGHT.to_string(),
+                display_name: "Right".to_string(),
+                description: "UI interaction layout (go right).".to_string(),
+                default_pressed: false,
+            },
+            InputAction {
+                name: CommonAction::CHANGE_CONTROL_MODE.to_string(),
+                display_name: "Change Control Mode".to_string(),
+                description: "Switch between selection and cursor control mode.".to_string(),
+                default_pressed: false,
+            },
+            InputAction {
+                name: CommonAction::TOGGLE_PROFILER.to_string(),
+                display_name: "Toggle Profiler".to_string(),
+                description: "Show or hide the profiler.".to_string(),
+                default_pressed: false,
+            },
         ]),
         axis: Vec::from([
-            CommonAxis::CURSOR_X.into(),
-            CommonAxis::CURSOR_Y.into(),
-            CommonAxis::SCROLL_MOTION.into(),
-            CommonAxis::CURSOR_MOTION_X.into(),
-            CommonAxis::CURSOR_MOTION_Y.into(),
-            CommonAxis::VIEW_X.into(),
-            CommonAxis::VIEW_Y.into(),
-            CommonAxis::MOVE_FORWARD.into(),
-            CommonAxis::MOVE_BACKWARD.into(),
-            CommonAxis::MOVE_LEFT.into(),
-            CommonAxis::MOVE_RIGHT.into(),
-            CommonAxis::MOVE_UP.into(),
-            CommonAxis::MOVE_DOWN.into(),
+            InputAxis {
+                name: CommonAxis::CURSOR_X.to_string(),
+                display_name: "Cursor X".to_string(),
+                description: "Horizontal position of the mouse cursor relative to the screen.".to_string(),
+                range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_WIDTH as f32 },
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::CURSOR_Y.to_string(),
+                display_name: "Cursor Y".to_string(),
+                description: "Vertical position of the mouse cursor relative to the screen.".to_string(),
+                range: InputAxisRange::Clamped { min: 0.0, max: SCREEN_HEIGHT as f32 },
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::SCROLL_MOTION.to_string(),
+                display_name: "Scroll Motion".to_string(),
+                description: "Delta scrolling value.".to_string(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::CURSOR_MOTION_X.to_string(),
+                display_name: "Cursor Motion X".to_string(),
+                description: "Delta mouvement of the mouse on the horizontal axis.".to_string(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::CURSOR_MOTION_Y.to_string(),
+                display_name: "Cursor Motion Y".to_string(),
+                description: "Delta mouvement of the mouse on the vertical axis.".to_string(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::VIEW_X.to_string(),
+                display_name: "View X".to_string(),
+                description: "View horizontal delta movement.".to_string(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::VIEW_Y.to_string(),
+                display_name: "View Y".to_string(),
+                description: "View vertical delta movement.".to_string(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::MOVE_FORWARD.to_string(),
+                display_name: "Move Forward".to_string(), 
+                description: "".to_string(), 
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::MOVE_BACKWARD.to_string(),
+                display_name: "Move Backward".to_string(), 
+                description: "".to_string(), 
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::MOVE_LEFT.to_string(),
+                display_name: "Move Left".to_string(), 
+                description: "".to_string(), 
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::MOVE_RIGHT.to_string(),
+                display_name: "Move Right".to_string(), 
+                description: "".to_string(), 
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::MOVE_UP.to_string(),
+                display_name: "Move Up".to_string(), 
+                description: "".to_string(), 
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 }, 
+                default_value: 0.0,
+            },
+            InputAxis {
+                name: CommonAxis::MOVE_DOWN.to_string(),
+                display_name: "Move Down".to_string(), 
+                description: "".to_string(), 
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            },
         ]),
     })?;
-    ctx.asset.add(InputTable::UID, "default", default_bundle, InputTable {
+    ctx.input.add_table(&InputTable {
+        name: "default".to_string(),
         display_name: "Default Inputs".to_string(),
         description: "".to_string(),
         actions: Vec::from([
-            "roll_left".into(),
-            "roll_right".into(),
-            "switch_mode".into(),
-            "move_fast".into(),
-            "move_slow".into(),
+            InputAction {
+                name: "roll_left".to_string(),
+                display_name: "Roll Left".to_string(), 
+                description: "".to_string(),
+                default_pressed: false,
+            },
+            InputAction { 
+                name: "roll_right".to_string(),
+                display_name: "Roll Right".to_string(), 
+                description: "".to_string(), 
+                default_pressed: false,
+            },
+            InputAction {
+                name: "switch_mode".to_string(),
+                display_name: "Switch Mode".to_string(), 
+                description: "".to_string(), 
+                default_pressed: false,
+            },
+            InputAction {
+                name: "move_fast".to_string(),
+                display_name: "Move Fast".to_string(), 
+                description: "".to_string(), 
+                default_pressed: false,
+            },
+            InputAction {
+                name: "move_slow".to_string(),
+                display_name: "Move Slow".to_string(), 
+                description: "".to_string(), 
+                default_pressed: false,
+            },
         ]),
         axis: Vec::from([]),
     })?;
@@ -240,23 +239,6 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
         }
     }
 
-    Ok(())
-}
-
-fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
-    let pipeline = SystemPipeline::new(&[
-        UID::new("rotator"),
-        UID::new("rhai_update_scripts"),
-        UID::new("transform_propagate"),
-        UID::new("ui_update"),
-        UID::new("ui_render"),
-        UID::new("renderer"),
-        UID::new("despawn_entities"),
-        UID::new("free_fly"),
-    ]);
-    let mut group = SystemGroup::empty();
-    group.insert(Procedure::UPDATE, pipeline, 0);
-    ctx.scheduler.add_group("os", group)?;
     Ok(())
 }
 
@@ -386,6 +368,24 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         world.add_singleton(OS::UID, OS { layout_active: true })?;
     }
     
+    Ok(())
+}
+
+fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
+    let pipeline = SystemPipeline::new(&[
+        UID::new("update"),
+        UID::new("rotator"),
+        UID::new("rhai_update_scripts"),
+        UID::new("transform_propagate"),
+        UID::new("ui_update"),
+        UID::new("ui_render"),
+        UID::new("renderer"),
+        UID::new("despawn_entities"),
+        UID::new("free_fly"),
+    ]);
+    let mut group = SystemGroup::empty();
+    group.insert(Procedure::UPDATE, pipeline, 0);
+    ctx.scheduler.add_group("os", group)?;
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque, HashSet};
 use core::cell::RefCell;
 use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
@@ -163,6 +163,7 @@ impl ECSManager {
 
         // Prepare frame
         let mut change_world: Option<UID> = None;
+        let mut removed_worlds: HashSet<UID> = Default::default();
     
         // Collect procedures
         let mut frame_procedures = self.next_frame_procedures.drain(..).collect::<VecDeque<_>>();
@@ -213,18 +214,25 @@ impl ECSManager {
                         worlds: &mut self.worlds.borrow_mut(),
                         active_world: self.active_world,
                         change_world: &mut change_world,
+                        removed_worlds: &mut removed_worlds,
                     },
                 };
 
                 // Run pipeline
                 pipeline.run(&mut context, script)?;
             }
-        }
 
-        // Change world
-        if let Some(world) = change_world {
-            self.active_world = world;
-            self.next_frame_procedures.push_front(Procedure::WORLD_CHANGED.into());
+            // Remove worlds
+            for uid in removed_worlds.drain() {
+                self.worlds.borrow_mut().remove(&uid);
+            }
+
+            // Change world
+            if let Some(world) = change_world {
+                self.active_world = world;
+                self.next_frame_procedures.push_front(Procedure::WORLD_CHANGED.into());
+                change_world = None;
+            }
         }
 
         Ok(())
