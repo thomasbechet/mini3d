@@ -27,7 +27,7 @@ pub fn compute_fixed_viewport(global_viewport: Vec4, mode: ViewportMode) -> Vec4
                 (w, h)
             } else {
                 let w = global_size.x;
-                let h = global_size.y * SCREEN_INV_ASPECT_RATIO;
+                let h = global_size.x * SCREEN_INV_ASPECT_RATIO;
                 (w, h)
             }
         },
