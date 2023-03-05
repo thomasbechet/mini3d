@@ -20,7 +20,7 @@ fn vs_main(
     var out: VertexOutput;
 
     // Extract position
-    var position = (vec2<f32>(pos) + 0.5) / vec2<f32>(global.resolution);
+    var position = (vec2<f32>(pos) + 0.25) / vec2<f32>(global.resolution);
     position.y = 1.0 - position.y;
 
     // Normalize position and save color
