@@ -344,7 +344,7 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for table in engine.iter_tables() {
+                                    for table in engine.iter_input_tables() {
                                         ui_input_table(
                                             table, 
                                             profile,

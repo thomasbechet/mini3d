@@ -355,6 +355,7 @@ fn main() {
                     //     engine.load_state(&mut deserializer).expect("Failed to load state");
                     // }
 
+                    println!("called");
                     engine.update_renderer(&mut renderer, true).expect("Failed to reset renderer");
 
                     load_state = false;

@@ -43,8 +43,8 @@ impl<C: Component> ComponentContainer<C> {
             fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
                 where S: de::SeqAccess<'de> {
                 use serde::de::Error;
-                let components: Vec<C> = seq.next_element()?.with_context(|| "Expect components").map_err(Error::custom)?;
                 let entities: Vec<Entity> = seq.next_element()?.with_context(|| "Expect entities").map_err(Error::custom)?;
+                let components: Vec<C> = seq.next_element()?.with_context(|| "Expect components").map_err(Error::custom)?;
                 let mut container = ComponentContainer::<C> {
                     components: RefCell::new(components),
                     entities,
@@ -125,7 +125,7 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
             index < self.entities.len() && self.entities[index] == entity
         } else {
             false
-        } 
+        }
     }
     fn len(&self) -> usize { self.len() }
     fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }

@@ -373,7 +373,6 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
 
 fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
     let pipeline = SystemPipeline::new(&[
-        UID::new("update"),
         UID::new("rotator"),
         UID::new("rhai_update_scripts"),
         UID::new("transform_propagate"),
@@ -382,6 +381,7 @@ fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
         UID::new("renderer"),
         UID::new("despawn_entities"),
         UID::new("free_fly"),
+        UID::new("update"),
     ]);
     let mut group = SystemGroup::empty();
     group.insert(Procedure::UPDATE, pipeline, 0);

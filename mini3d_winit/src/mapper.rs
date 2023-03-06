@@ -205,12 +205,12 @@ impl InputMapper {
         for profile in self.profiles.values_mut() {
 
             // Update actions
-            engine.iter_actions().for_each(|(action, _)| {
+            engine.iter_input_actions().for_each(|(action, _)| {
                 profile.actions.entry(action.uid()).or_insert_with(Default::default);
             });
             
             // Update axis
-            engine.iter_axis().for_each(|(axis, _)| {
+            engine.iter_input_axis().for_each(|(axis, _)| {
                 profile.axis.entry(axis.uid()).or_insert_with(Default::default);
             });
         }

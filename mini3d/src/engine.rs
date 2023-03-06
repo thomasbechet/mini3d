@@ -156,7 +156,7 @@ impl Engine {
         impl<'de, 'a: 'de> Visitor<'de> for EngineVisitor<'a> {
             type Value = ();
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("App")
+                formatter.write_str("Engine")
             }
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: serde::de::SeqAccess<'de> {
@@ -213,19 +213,19 @@ impl Engine {
                 Ok(())
             }
         }
-        deserializer.deserialize_tuple(7, EngineVisitor { engine: self })?;
+        deserializer.deserialize_tuple(6, EngineVisitor { engine: self })?;
         Ok(())
     }
 
-    pub fn iter_tables(&self) -> impl Iterator<Item = &InputTable> {
+    pub fn iter_input_tables(&self) -> impl Iterator<Item = &InputTable> {
         self.input.iter_tables()
     }
 
-    pub fn iter_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
+    pub fn iter_input_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
         self.input.iter_actions()
     }
 
-    pub fn iter_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
+    pub fn iter_input_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
         self.input.iter_axis()
     }
 
@@ -298,7 +298,7 @@ impl Engine {
             backend.reset()?;
             self.renderer.reset(&mut self.ecs)?;
         }
-        self.renderer.update_backend(backend, &mut self.asset, &mut self.ecs)?;
+        self.renderer.update_backend(backend, &self.asset, &mut self.ecs)?;
         Ok(())
     }
 }

@@ -274,15 +274,19 @@ pub struct AssetManager {
 impl AssetManager {
 
     #[inline]
-    fn container<A: Asset>(&'_ self, asset: UID) -> Result<&'_ AssetContainer<A>> {
-        self.containers.get(&asset).with_context(|| "Asset type not found")?
-            .as_any().downcast_ref().with_context(|| "Asset type mismatch")
+    fn container<A: Asset>(&'_ self, asset: UID) -> Result<Option<&'_ AssetContainer<A>>> {
+        if let Some(container) = self.containers.get(&asset) {
+            return Ok(Some(container.as_any().downcast_ref().with_context(|| "Asset type mismatch")?));
+        }
+        Ok(None)
     }
 
     #[inline]
-    fn container_mut<A: Asset>(&'_ mut self, asset: UID) -> Result<&'_ mut AssetContainer<A>> {
-        self.containers.get_mut(&asset).with_context(|| "Asset type not found")?
-            .as_any_mut().downcast_mut().with_context(|| "Asset type mismatch")
+    fn container_mut<A: Asset>(&'_ mut self, asset: UID) -> Result<Option<&'_ mut AssetContainer<A>>> {
+        if let Some(container) = self.containers.get_mut(&asset) {
+            return Ok(Some(container.as_any_mut().downcast_mut().with_context(|| "Asset type mismatch")?));
+        }
+        Ok(None)
     }
 
     pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -388,38 +392,32 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn get<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ A> {
-        self.container::<A>(asset)?.0.get(&uid).map(|entry| &entry.asset)
-            .with_context(|| "Asset not found")
+    pub(crate) fn get<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ A>> {
+        Ok(self.container::<A>(asset)?.and_then(|container| container.0.get(&uid).map(|entry| &entry.asset)))
     }
 
-    pub(crate) fn get_or_default<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ A> {
+    pub(crate) fn get_or_default<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ A>> {
         let container = self.container::<A>(asset)?;
-        let default = self.defaults.get(&asset);
-        container.0.get(&uid)
-            .or_else(|| {
-                default.and_then(|uid| {
-                    container.0.get(uid)
-                })
-            })
-            .map(|entry| &entry.asset)
-            .with_context(|| "Asset not found and no default provided")
+        Ok(container.and_then(|container| {
+            container.0.get(&uid).or_else(|| {
+                self.defaults.get(&asset).and_then(|uid| container.0.get(uid))
+            }).map(|entry| &entry.asset)
+        }))
     }
 
-    pub(crate) fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
-        self.container::<A>(asset)?.0.get(&uid)
-            .with_context(|| "Asset not found")
+    pub(crate) fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ AssetEntry<A>>> {
+        Ok(self.container::<A>(asset)?.and_then(|container| container.0.get(&uid)))
     }
 
-    pub(crate) fn iter<A: Asset>(&self, asset: UID) -> Result<impl Iterator<Item = &AssetEntry<A>>> {
-        Ok(self.container::<A>(asset)?.0.values())
+    pub(crate) fn iter<A: Asset>(&self, asset: UID) -> Result<Option<impl Iterator<Item = &AssetEntry<A>>>> {
+        Ok(self.container::<A>(asset)?.map(|container| container.0.values()))
     }
 
-    pub(crate) fn add_bundle(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn add_bundle(&mut self, name: &str) -> Result<UID> {
         let uid = UID::new(name);
         if self.bundles.contains_key(&uid) { return Err(anyhow!("Bundle already exists")); }
         self.bundles.insert(uid, AssetBundle::new(name));
-        Ok(())
+        Ok(uid)
     }
 
     pub(crate) fn serialize_bundle<S: Serializer>(&self, uid: UID, serializer: S) -> Result<S::Ok, S::Error> {
@@ -461,8 +459,10 @@ impl AssetManager {
     }
 
     pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<()> {
-        self.add_bundle(&import.name)?;
+        let uid = self.add_bundle(&import.name)?;
+        let bundle = self.bundles.get_mut(&uid).unwrap();
         for (asset, mut container) in import.containers {
+            bundle.assets.insert(asset, container.collect_uids());
             if let Some(self_container) = self.containers.get_mut(&asset) {
                 self_container.merge(container.as_mut())?;
             } else {
@@ -515,16 +515,16 @@ impl AssetManager {
     }
 
     pub(crate) fn transfer<A: Asset>(&mut self, asset: UID, uid: UID, dst_bundle: UID) -> Result<()> {
-        let src_bundle = self.container::<A>(asset)?.0.get(&uid)
-            .with_context(|| "Asset not found")?.bundle;
+        let src_bundle = self.container::<A>(asset)?.with_context(|| "Asset container not found")?
+            .0.get(&uid).with_context(|| "Asset not found")?.bundle;
         if !self.bundles.contains_key(&dst_bundle) { return Err(anyhow!("Invalid destination bundle")); }
         if src_bundle == dst_bundle { return Ok(()); }
         self.bundles.get_mut(&src_bundle).with_context(|| "Source bundle not found")?
-            .assets.get_mut(&asset).with_context(|| "Typeid in source bundle not found")?
+            .assets.get_mut(&asset).with_context(|| "Asset type in source bundle not found")?
             .remove(&uid);
         self.bundles.get_mut(&dst_bundle)
             .unwrap().assets.entry(asset).or_insert_with(Default::default).insert(uid);
-        self.container_mut::<A>(asset)?.0.get_mut(&uid).unwrap().bundle = dst_bundle;
+        self.container_mut::<A>(asset)?.unwrap().0.get_mut(&uid).unwrap().bundle = dst_bundle;
         Ok(())
     }
 }

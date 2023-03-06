@@ -14,23 +14,23 @@ impl<'a> AssetContext<'a> {
         self.manager.set_default::<A>(asset, uid)
     }
 
-    pub fn get<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ A> {
+    pub fn get<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ A>> {
         self.manager.get::<A>(asset, uid)
     }
 
-    pub fn get_or_default<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ A> {
+    pub fn get_or_default<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ A>> {
         self.manager.get_or_default::<A>(asset, uid)
     }
 
-    pub fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<&'_ AssetEntry<A>> {
+    pub fn entry<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ AssetEntry<A>>> {
         self.manager.entry::<A>(asset, uid)
     }
 
-    pub fn iter<A: Asset>(&self, asset: UID) -> Result<impl Iterator<Item = &AssetEntry<A>>> {
+    pub fn iter<A: Asset>(&self, asset: UID) -> Result<Option<impl Iterator<Item = &AssetEntry<A>>>> {
         self.manager.iter::<A>(asset)
     }
 
-    pub fn add_bundle(&mut self, name: &str) -> Result<()> {
+    pub fn add_bundle(&mut self, name: &str) -> Result<UID> {
         self.manager.add_bundle(name)
     }
 
