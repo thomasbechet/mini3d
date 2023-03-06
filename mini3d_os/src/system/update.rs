@@ -18,7 +18,7 @@ pub fn update(ctx: &mut SystemContext) -> Result<()> {
     }
 
     // Render center cross
-    ctx.renderer.graphics().fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 4, 4), Color::WHITE);
+    ctx.renderer.graphics().fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2), Color::WHITE);
 
     Ok(())
 }

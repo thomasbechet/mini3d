@@ -9,8 +9,8 @@ pub enum ViewportMode {
 }
 
 pub fn compute_fixed_viewport(global_viewport: Vec4, mode: ViewportMode) -> Vec4 {
-    let global_pos = global_viewport.xy();
-    let global_size = global_viewport.zw();
+    let global_pos = global_viewport.xy().floor();
+    let global_size = global_viewport.zw().floor();
 
     let size = match mode {
         ViewportMode::Fixed(factor) => (factor * SCREEN_WIDTH as f32, factor * SCREEN_HEIGHT as f32),
@@ -24,11 +24,11 @@ pub fn compute_fixed_viewport(global_viewport: Vec4, mode: ViewportMode) -> Vec4
             if global_size.x / global_size.y >= SCREEN_ASPECT_RATIO {
                 let w = global_size.y * SCREEN_ASPECT_RATIO;
                 let h = global_size.y;
-                (w, h)
+                (w.floor(), h.floor())
             } else {
                 let w = global_size.x;
                 let h = global_size.x * SCREEN_INV_ASPECT_RATIO;
-                (w, h)
+                (w.floor(), h.floor())
             }
         },
         ViewportMode::Stretch => {

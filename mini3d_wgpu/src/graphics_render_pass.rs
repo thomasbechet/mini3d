@@ -208,12 +208,12 @@ impl GraphicsRenderPass {
         let color: [f32; 4] = color.into();
         let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y + 1], depth, color });
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tl().x, extent.tl().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x, extent.tr().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x, extent.tr().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x, extent.br().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x + 1, extent.tr().y], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x + 1, extent.tr().y], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x + 1, extent.br().y + 1], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y + 1], depth, color });
         self.add_triangles_primitive_command(6);
         Ok(())
     }
