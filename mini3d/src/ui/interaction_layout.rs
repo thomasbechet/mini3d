@@ -98,7 +98,7 @@ pub(crate) enum AreaEvent {
 #[derive(Debug)]
 pub(crate) enum ProfileEvent {
     CursorMoved { position: IVec2 },
-} 
+}
 
 #[derive(Debug)]
 pub(crate) enum InteractionEvent {
