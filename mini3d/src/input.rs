@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
 
-use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::{input_axis::{InputAxisRange, InputAxisAsset}, input_action::InputActionAsset}, asset::AssetManager};
+use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable, InputAction, InputAxis}};
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
@@ -59,6 +59,7 @@ impl InputAxisState {
 #[derive(Default)]
 pub struct InputManager {
     text: String,
+    tables: HashMap<UID, InputTable>,
     actions: HashMap<UID, InputActionState>,
     axis: HashMap<UID, InputAxisState>,
     pub(crate) reload_input_mapping: bool,
@@ -105,7 +106,8 @@ impl InputManager {
     }
 
     pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut tuple = serializer.serialize_tuple(2)?;
+        let mut tuple = serializer.serialize_tuple(3)?;
+        tuple.serialize_element(&self.tables)?;
         tuple.serialize_element(&self.actions)?;
         tuple.serialize_element(&self.axis)?;
         tuple.end()
@@ -123,6 +125,7 @@ impl InputManager {
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: serde::de::SeqAccess<'de> {
                 use serde::de::Error;
+                self.manager.tables = seq.next_element()?.with_context(|| "Expect tables").map_err(Error::custom)?;
                 self.manager.actions = seq.next_element()?.with_context(|| "Expect actions").map_err(Error::custom)?;
                 self.manager.axis = seq.next_element()?.with_context(|| "Expect axis").map_err(Error::custom)?;
                 Ok(())
@@ -130,34 +133,70 @@ impl InputManager {
         }
         self.reload_input_mapping = true;
         self.text.clear();
-        deserializer.deserialize_tuple(2, InputVisitor { manager: self })
+        deserializer.deserialize_tuple(3, InputVisitor { manager: self })
     }
 
-    pub fn reload_input_tables(&mut self, asset: &AssetManager) -> Result<()> {
-        self.actions.clear();
-        for (uid, entry) in asset.iter::<InputActionAsset>()? {
-            self.actions.insert(*uid, InputActionState { pressed: entry.asset.default_pressed, was_pressed: false });
+    pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<()> {
+        // Check table validity
+        table.check_valid()?;
+        // Check duplicated table
+        if self.tables.contains_key(&table.uid()) {
+            return Err(anyhow!("Input table already exists"));
         }
-        self.axis.clear();
-        for (uid, entry) in asset.iter::<InputAxisAsset>()? {
-            let mut state =  InputAxisState { value: entry.asset.default_value, range: entry.asset.range };
-            state.set_value(entry.asset.default_value);
-            self.axis.insert(*uid, state);
+        // Check duplicated actions
+        for action in table.actions.iter() {
+            if self.actions.contains_key(&action.uid()) {
+                return Err(anyhow!("Input action already exists: {}", action.name));
+            }
         }
-        self.text.clear();
+        // Check duplicated axis
+        for axis in table.axis.iter() {
+            if self.axis.contains_key(&axis.uid()) {
+                return Err(anyhow!("Input axis already exists: {}", axis.name));
+            }
+        }
+        // We can safely insert table, actions and axis
+        for action in table.actions.iter() {
+            self.actions.insert(action.uid(), InputActionState { pressed: action.default_pressed, was_pressed: false });
+        }
+        for axis in table.axis.iter() {
+            let mut state =  InputAxisState { value: axis.default_value, range: axis.range };
+            state.set_value(axis.default_value);
+            self.axis.insert(axis.uid(), state);
+        }
+        self.tables.insert(table.uid(), table.clone());
+        // Reload input mapping
         self.reload_input_mapping = true;
         Ok(())
     }
 
-    pub fn text(&self) -> &str {
+    pub(crate) fn iter_tables(&self) -> impl Iterator<Item = &InputTable> {
+        self.tables.values()
+    }
+
+    pub(crate) fn iter_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
+        self.tables.values().flat_map(|table| table.actions.iter().map(|action| {
+            let state = self.actions.get(&action.uid()).unwrap();
+            (action, state)
+        }))
+    }
+
+    pub(crate) fn iter_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
+        self.tables.values().flat_map(|table| table.axis.iter().map(|axis| {
+            let state = self.axis.get(&axis.uid()).unwrap();
+            (axis, state)
+        }))
+    }
+
+    pub(crate) fn text(&self) -> &str {
         &self.text
     }
 
-    pub fn action(&self, uid: UID) -> Result<&InputActionState> {
+    pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState> {
         self.actions.get(&uid).ok_or_else(|| anyhow!("Input action not found"))
     }
 
-    pub fn axis(&self, uid: UID) -> Result<&InputAxisState> {
+    pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState> {
         self.axis.get(&uid).ok_or_else(|| anyhow!("Input axis not found"))
     }
 }

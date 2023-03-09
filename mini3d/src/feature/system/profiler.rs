@@ -84,8 +84,8 @@ impl Process for ProfilerProcess {
 
         // Process
         if self.active {
-            self.dt_record.push(ctx.delta_time);
-            self.time_graph.add(ctx.delta_time);
+            self.dt_record.push(ctx.delta_time());
+            self.time_graph.add(ctx.delta_time());
             if self.dt_record.len() > 30 {
                 self.dt_record.sort_by(|a, b| a.partial_cmp(b).unwrap());
                 self.last_dt = self.dt_record[14];

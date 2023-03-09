@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::feature::asset::{font::FontAsset, mesh::MeshAsset, material::MaterialAsset, model::ModelAsset, rhai_script::RhaiScriptAsset, texture::TextureAsset};
+use crate::feature::asset::{font::Font, mesh::Mesh, material::Material, model::Model, rhai_script::RhaiScript, texture::Texture};
 
 #[derive(Serialize, Deserialize)]
 pub struct AssetImportEntry<T> {
@@ -10,10 +10,10 @@ pub struct AssetImportEntry<T> {
 
 #[derive(Serialize, Deserialize)]
 pub enum ImportAssetEvent {
-    Font(AssetImportEntry<FontAsset>),
-    Material(AssetImportEntry<MaterialAsset>),
-    Mesh(AssetImportEntry<MeshAsset>),
-    Model(AssetImportEntry<ModelAsset>),
-    RhaiScript(AssetImportEntry<RhaiScriptAsset>),
-    Texture(AssetImportEntry<TextureAsset>),
+    Font(AssetImportEntry<Font>),
+    Material(AssetImportEntry<Material>),
+    Mesh(AssetImportEntry<Mesh>),
+    Model(AssetImportEntry<Model>),
+    RhaiScript(AssetImportEntry<RhaiScript>),
+    Texture(AssetImportEntry<Texture>),
 }

@@ -1,15 +1,21 @@
 use anyhow::Result;
-use hecs::{Entity, World};
 use serde::{Serialize, Deserialize};
 
+use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}, component::Component}, uid::UID};
+
 #[derive(Default, Serialize, Deserialize)]
-pub struct HierarchyComponent {
+pub struct Hierarchy {
     parent: Option<Entity>,
     first_child: Option<Entity>,
     next_sibling: Option<Entity>,
 }
 
-impl HierarchyComponent {
+impl Component for Hierarchy {}
+
+impl Hierarchy {
+
+    pub const NAME: &'static str = "hierarchy";
+    pub const UID: UID = UID::new(Hierarchy::NAME);
 
     pub fn parent(&self) -> Option<Entity> {
         self.parent
@@ -23,17 +29,11 @@ impl HierarchyComponent {
         self.next_sibling
     }
 
-    pub fn collect_childs(entity: Entity, world: &mut World) -> Result<Vec<Entity>> {
-        
-        // Prepare query and view
-        let mut query = world.query_mut::<&mut HierarchyComponent>();
-        let mut view = query.view();
-
-        // Collect childs
-        if let Some(first_child) = view.get_mut(entity).unwrap().first_child {
+    pub fn collect_childs<V: ComponentView<Hierarchy>>(entity: Entity, view: &V) -> Result<Vec<Entity>> {
+        if let Some(first_child) = view.get(entity).unwrap().first_child {
             let mut childs = Vec::new();
             childs.push(first_child);
-            while let Some(next) = view.get_mut(*childs.last().unwrap()).unwrap().next_sibling {
+            while let Some(next) = view.get(*childs.last().unwrap()).unwrap().next_sibling {
                 childs.push(next);
             }
             Ok(childs)
@@ -42,17 +42,13 @@ impl HierarchyComponent {
         }
     }
 
-    pub fn attach(entity: Entity, child: Entity, world: &mut World) -> Result<()> {
-
-        // Prepare query and view
-        let mut query = world.query_mut::<&mut HierarchyComponent>();
-        let mut view = query.view();
+    pub fn attach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<()> {
 
         // Find the last child
         let mut last_child: Option<Entity> = None;
-        if let Some(first_child) = view.get_mut(entity).unwrap().first_child {
+        if let Some(first_child) = view.get(entity).unwrap().first_child {
             last_child = Some(first_child);
-            while let Some(next) = view.get_mut(last_child.unwrap()).unwrap().next_sibling {
+            while let Some(next) = view.get(last_child.unwrap()).unwrap().next_sibling {
                 // Prevent circular references
                 if last_child.unwrap() == child {
                     return Err(anyhow::anyhow!("Circular reference detected"));
@@ -74,17 +70,13 @@ impl HierarchyComponent {
         Ok(())
     }
 
-    pub fn detach(entity: Entity, child: Entity, world: &mut World) -> Result<()> {
+    pub fn detach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<()> {
         
-        // Prepare query and view
-        let mut query = world.query_mut::<&mut HierarchyComponent>();
-        let mut view = query.view();
-
         // Find the child
-        if let Some(first_child) = view.get_mut(entity).unwrap().first_child {
+        if let Some(first_child) = view.get(entity).unwrap().first_child {
             if first_child == child {
                 // Remove child from the linked list
-                if let Some(next_next) = view.get_mut(first_child).unwrap().next_sibling {
+                if let Some(next_next) = view.get(first_child).unwrap().next_sibling {
                     view.get_mut(entity).unwrap().first_child = Some(next_next);
                 } else {
                     view.get_mut(entity).unwrap().first_child = None;
@@ -94,11 +86,11 @@ impl HierarchyComponent {
                 return Ok(());
             } else {
                 let mut next_child = first_child;
-                while let Some(next) = view.get_mut(next_child).unwrap().next_sibling {
+                while let Some(next) = view.get(next_child).unwrap().next_sibling {
                     // Child found 
                     if next == child {
                         // Remove child from the linked list
-                        if let Some(next_next) = view.get_mut(next).unwrap().next_sibling {
+                        if let Some(next_next) = view.get(next).unwrap().next_sibling {
                             view.get_mut(next_child).unwrap().next_sibling = Some(next_next);
                         } else {
                             view.get_mut(next_child).unwrap().next_sibling = None;

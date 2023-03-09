@@ -1,6 +1,6 @@
 use crate::rhai::RhaiScriptCache;
 
 #[derive(Default)]
-pub struct ScriptManager {
-    pub rhai: RhaiScriptCache,
+pub(crate) struct ScriptManager {
+    pub(crate) rhai: RhaiScriptCache,
 }

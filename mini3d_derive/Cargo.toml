@@ -1,0 +1,8 @@
+[package]
+name = "mini3d_derive"
+version = "0.1.0"
+authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
+edition = "2021"
+
+[lib]
+proc-macro = true

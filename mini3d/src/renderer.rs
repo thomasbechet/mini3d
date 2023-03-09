@@ -2,12 +2,11 @@ use std::collections::{HashMap, HashSet, hash_map};
 
 use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
-use hecs::Entity;
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, scene::SceneManager, feature::{component::{transform::LocalToWorldComponent, camera::CameraComponent, model::ModelComponent, viewport::ViewportComponent, canvas::CanvasComponent}, asset::{model::ModelAsset, material::MaterialAsset, mesh::MeshAsset, texture::TextureAsset, font::{FontAsset, FontAtlas}}}};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, static_mesh::StaticMesh, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, model::Model}}, ecs::{ECSManager, entity::Entity, view::ComponentView}};
 
-use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle}, graphics::Graphics, color::Color};
+use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle, SceneHandle}, graphics::Graphics, color::Color};
 
 pub mod backend;
 pub mod color;
@@ -80,26 +79,26 @@ pub(crate) struct RendererResourceManager {
 }
 
 fn load_font(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererFont> {
-    let font = asset.get::<FontAsset>(uid)?;
+    let font = asset.get::<Font>(Font::UID, uid)?.with_context(|| "Font not found")?;
     let atlas = FontAtlas::new(font);
     let handle = backend.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMesh> {
-    let mesh = asset.get::<MeshAsset>(uid)?;
+    let mesh = asset.get::<Mesh>(Mesh::UID, uid)?.with_context(|| "Mesh not found")?;
     let handle = backend.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererTexture> {
-    let texture = asset.get::<TextureAsset>(uid)?;
+    let texture = asset.get::<Texture>(Texture::UID, uid)?.with_context(|| "Texture not found")?;
     let handle = backend.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(uid: UID, textures: &HashMap<UID, RendererTexture>, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMaterial> {
-    let material = asset.entry::<MaterialAsset>(uid)?;
+    let material = asset.entry::<Material>(Material::UID, uid)?.with_context(|| "Material not found")?;
     let diffuse = textures.get(&material.asset.diffuse).unwrap().handle;
     let handle = backend.material_add(BackendMaterialDescriptor { diffuse, name: &material.name })?;
     Ok(RendererMaterial { handle })
@@ -148,7 +147,7 @@ impl RendererResourceManager {
         match self.materials.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let material = asset.get::<MaterialAsset>(*uid)?;
+                let material = asset.get::<Material>(Material::UID, *uid)?.with_context(|| "Material not found")?;
                 if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse) {
                     let diffuse = load_texture(*uid, backend, asset)?;
                     e.insert(diffuse);
@@ -172,7 +171,8 @@ pub struct RendererManager {
     pub(crate) scene_canvases_removed: HashSet<SceneCanvasHandle>,
     pub(crate) viewports_removed: HashSet<ViewportHandle>,
 
-    // Cached entities
+    // Cached resources
+    scenes: HashMap<UID, SceneHandle>,
     cameras: HashMap<Entity, SceneCameraHandle>,
     viewports: HashMap<Entity, ViewportHandle>,
 
@@ -184,7 +184,10 @@ pub struct RendererManager {
 
 impl RendererManager {
 
-    pub(crate) fn reset(&mut self, scene: &mut SceneManager) -> Result<()> {
+    pub(crate) fn reset(
+        &mut self, 
+        ecs: &mut ECSManager,
+    ) -> Result<()> {
 
         self.resources.reset();
 
@@ -192,18 +195,19 @@ impl RendererManager {
         self.scene_models_removed.clear();
         self.scene_canvases_removed.clear();
 
-        for world in scene.iter_world() {
-            for (_, camera) in world.query_mut::<&mut CameraComponent>() {
+        for world in ecs.worlds.get_mut().values_mut() {
+            for camera in world.get_mut().view_mut::<Camera>(Camera::UID)?.iter() {
                 camera.handle = None;
             }
-            for (_, model) in world.query_mut::<&mut ModelComponent>() {
-                model.handle = None;
+            for static_mesh in world.get_mut().view_mut::<StaticMesh>(StaticMesh::UID)?.iter() {
+                static_mesh.handle = None;
             }
-            for (_, canvas) in world.query_mut::<&mut CanvasComponent>() {
+            for canvas in world.get_mut().view_mut::<Canvas>(Canvas::UID)?.iter() {
                 canvas.handle = None;
             }
-        }
-
+        }     
+        
+        self.scenes.clear();
         self.cameras.clear();
         
         Ok(())
@@ -213,9 +217,9 @@ impl RendererManager {
         &mut self, 
         backend: &mut impl RendererBackend,
         asset: &AssetManager,
-        scene: &mut SceneManager,
+        ecs: &mut ECSManager,
     ) -> Result<()> {
-
+        
         // Remove entities
         for handle in self.scene_cameras_removed.drain() {
             backend.scene_camera_remove(handle)?;
@@ -233,69 +237,89 @@ impl RendererManager {
             backend.viewport_remove(handle)?;
         }
 
-        // Update scene components
-        for world in scene.iter_world() {
+        // Update scene
+        if let hash_map::Entry::Vacant(e) = self.scenes.entry(ecs.active_world) {
+            let handle = backend.scene_add()?;
+            e.insert(handle);
+        }
 
+        // Update scene components
+        {
+            let world = ecs.worlds.get_mut().get_mut(&ecs.active_world).unwrap().get_mut();
+            
+            // Prepare views
+            let local_to_world = world.view_mut::<LocalToWorld>(LocalToWorld::UID)?;
+            let mut cameras = world.view_mut::<Camera>(Camera::UID)?;
+            let mut viewports = world.view_mut::<Viewport>(Viewport::UID)?;
+            let mut static_meshes = world.view_mut::<StaticMesh>(StaticMesh::UID)?;
+            let mut canvases = world.view_mut::<Canvas>(Canvas::UID)?;
+            
             // Update cameras
-            for (entity, (c, t)) in world.query_mut::<(&mut CameraComponent, &LocalToWorldComponent)>() {
+            for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {
+                let c = cameras.get_mut(e).unwrap();
+                let t = local_to_world.get(e).unwrap();
                 if c.handle.is_none() {
                     let handle = backend.scene_camera_add()?;
-                    self.cameras.insert(entity, handle);
+                    self.cameras.insert(e, handle);
                     c.handle = Some(handle);
                 }
                 backend.scene_camera_update(c.handle.unwrap(), t.translation(), t.forward(), t.up(), c.fov)?;
             }
-
+            
             // Update viewports
-            for (e, viewport) in world.query_mut::<&mut ViewportComponent>() {
-                if viewport.handle.is_none() {
-                    viewport.handle = Some(backend.viewport_add(viewport.resolution)?);
-                    viewport.out_of_date = true;
-                    self.viewports.insert(e, viewport.handle.unwrap());
+            for e in &world.query(&[Viewport::UID]) {
+                let v = viewports.get_mut(e).unwrap();
+                if v.handle.is_none() {
+                    v.handle = Some(backend.viewport_add(v.resolution)?);
+                    v.out_of_date = true;
+                    self.viewports.insert(e, v.handle.unwrap());
                 }
-                if viewport.out_of_date {
-                    let camera = viewport.camera.map(|entity| *self.cameras.get(&entity).unwrap());
-                    backend.viewport_set_camera(viewport.handle.unwrap(), camera)?;
-                    backend.viewport_set_resolution(viewport.handle.unwrap(), viewport.resolution)?;
-                    viewport.out_of_date = false;
+                if v.out_of_date {
+                    let camera = v.camera.map(|entity| *self.cameras.get(&entity).unwrap());
+                    backend.viewport_set_camera(v.handle.unwrap(), camera)?;
+                    backend.viewport_set_resolution(v.handle.unwrap(), v.resolution)?;
+                    v.out_of_date = false;
                 }
             }
-            
-            // Update models
-            for (_, (m, t)) in world.query_mut::<(&mut ModelComponent, &LocalToWorldComponent)>() {
-                if m.handle.is_none() {
-                    let model = asset.get::<ModelAsset>(m.model)?;
+
+            // Update static meshes
+            for e in &world.query(&[StaticMesh::UID, LocalToWorld::UID]) {
+                let s = static_meshes.get_mut(e).unwrap();
+                let t = local_to_world.get(e).unwrap();
+                if s.handle.is_none() {
+                    let model: &Model = asset.get(Model::UID, s.model)?.with_context(|| "Model not found")?;
                     let mesh_handle = self.resources.request_mesh(&model.mesh, backend, asset)?.handle;
                     let handle = backend.scene_model_add(mesh_handle)?;
                     for (index, material) in model.materials.iter().enumerate() {
                         let material_handle = self.resources.request_material(material, backend, asset)?.handle;
                         backend.scene_model_set_material(handle, index, material_handle)?;
                     }
-                    m.handle = Some(handle);
+                    s.handle = Some(handle);
                 }
-                backend.scene_model_transfer_matrix(m.handle.unwrap(), t.matrix)?;
+                backend.scene_model_transfer_matrix(s.handle.unwrap(), t.matrix)?;
             }
 
             // Update Scene Canvas
-            for (_, (c, t)) in world.query_mut::<(&mut CanvasComponent, &LocalToWorldComponent)>() {
-
+            for e in &world.query(&[Canvas::UID, LocalToWorld::UID]) {
+                let c = canvases.get_mut(e).unwrap();
+                let t = local_to_world.get(e).unwrap();
                 if c.handle.is_none() {
                     c.handle = Some(backend.scene_canvas_add(c.resolution)?);
                 }
                 backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix)?;        
             }
-
-            // Render main screen
-            self.graphics.submit_backend(
-                None,
-                Color::TRANSPARENT,
-                &mut self.resources,
-                asset,
-                &self.viewports,
-                backend,
-            )?;
         }
 
+        // Render main screen
+        self.graphics.submit_backend(
+            None,
+            Color::TRANSPARENT,
+            &mut self.resources,
+            asset,
+            &self.viewports,
+            backend,
+        )?;
+        
         // Recover statistics of previous frame
         self.statistics = backend.statistics()?;
 

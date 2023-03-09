@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, Events}, feature::asset::texture::{TextureAsset, TextureFormat}};
+use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, Events}, feature::asset::texture::{Texture, TextureFormat}};
 
 pub struct ImageImport {
-    texture: AssetImportEntry<TextureAsset>
+    texture: AssetImportEntry<Texture>
 }
 
 impl ImageImport {
@@ -44,7 +44,7 @@ impl ImageImporter {
         // Convert to rgba8
         let data = image.to_rgba8();
         // Build the texture
-        let texture = TextureAsset {
+        let texture = Texture {
             format: TextureFormat::RGBA,
             data: data.to_vec(),
             width: image.width(),
@@ -52,7 +52,7 @@ impl ImageImporter {
         };
         // Return the texture import
         Ok(ImageImport {
-            texture: AssetImportEntry::<TextureAsset> {
+            texture: AssetImportEntry::<Texture> {
                 data: texture,
                 name: filename
             }

@@ -1,29 +1,43 @@
 use anyhow::Result;
-use hecs::{CommandBuffer, World};
 
-use crate::{scene::SystemContext, feature::component::{lifecycle::LifecycleComponent, hierarchy::HierarchyComponent}};
+use crate::{context::SystemContext, ecs::entity::Entity, feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}};
 
-pub fn run(_ctx: &mut SystemContext, world: &mut World) -> Result<()> {
-    let mut command_buffer = CommandBuffer::default();
+pub fn run(ctx: &mut SystemContext) -> Result<()> {
+
+    let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
-    for (e, (lifecycle, hierarchy)) in world.query_mut::<(&LifecycleComponent, Option<&HierarchyComponent>)>() {
-        if !lifecycle.alive {
-            command_buffer.despawn(e);
-            if let Some(hierarchy) = hierarchy {
-                if let Some(parent) = hierarchy.parent() {
-                    detach_entities.push((parent, e));
+    
+    let mut world = ctx.world.active();
+    
+    {
+        let mut hierarchies = world.view_mut::<Hierarchy>(Hierarchy::UID)?;
+        let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
+        
+        // Collect despawned entities
+        for e in &world.query(&[Lifecycle::UID, Hierarchy::UID]) {
+            if !lifecycles[e].alive {
+                despawn_entities.push(e);
+                if let Some(hierarchy) = hierarchies.get_mut(e) {
+                    if let Some(parent) = hierarchy.parent() {
+                        detach_entities.push((parent, e));
+                    }
                 }
             }
         }
-    }
-    // Detach entities
-    for (parent, entity) in detach_entities {
-        for child in HierarchyComponent::collect_childs(entity, world)? {
-            HierarchyComponent::detach(entity, child, world)?;
+
+        // Detach entities
+        for (parent, entity) in detach_entities {
+            for child in Hierarchy::collect_childs(entity, &hierarchies)? {
+                Hierarchy::detach(entity, child, &mut hierarchies)?;
+            }
+            Hierarchy::detach(parent, entity, &mut hierarchies)?;
         }
-        HierarchyComponent::detach(parent, entity, world)?;
     }
+
     // Despawn entities
-    command_buffer.run_on(world);
+    for entity in despawn_entities {
+        world.destroy(entity)?;
+    }
+
     Ok(())
 }

@@ -1,4 +1,4 @@
-use mini3d::{glam::Vec4, engine::Engine, uid::UID, feature::asset::{input_table::InputTableAsset, input_action::InputActionAsset, input_axis::{InputAxisAsset, InputAxisRange}}};
+use mini3d::{glam::Vec4, engine::Engine, uid::UID, feature::asset::{input_table::{InputTable, InputAxisRange}}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::{ControlFlow, EventLoop}};
 
@@ -344,12 +344,11 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for (_, entry) in engine.asset.iter::<InputTableAsset>().unwrap() {
+                                    for table in engine.iter_input_tables() {
                                         ui_input_table(
-                                            &entry.asset, 
+                                            table, 
                                             profile,
                                             ui, 
-                                            engine, 
                                             window,
                                             &mut self.record_request,
                                             UIInputTableDescriptor {
@@ -441,10 +440,9 @@ struct UIInputTableDescriptor {
 }
 
 fn ui_input_table(
-    input_table: &InputTableAsset,
+    input_table: &InputTable,
     profile: &mut InputProfile,
     ui: &mut egui::Ui,
-    engine: &Engine,
     window: &mut Window,
     record_request: &mut Option<RecordRequest>,
     desc: UIInputTableDescriptor,
@@ -482,9 +480,9 @@ fn ui_input_table(
                     header.col(|ui| { ui.label(egui::RichText::new("Description").strong()); });
                 })
                 .body(|mut body| {
-                    input_table.actions.iter().for_each(|uid| {
-                        let action = engine.asset.entry::<InputActionAsset>(*uid).expect("Action UID not found");
-                        if let Some(map_action) = profile.actions.get_mut(uid) {
+                    input_table.actions.iter().for_each(|action| {
+                        let uid = action.uid();
+                        if let Some(map_action) = profile.actions.get_mut(&uid) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
                                     row.col(|ui| { ui.label(uid.to_string()); });
@@ -492,7 +490,7 @@ fn ui_input_table(
                                 if desc.show_internal_name {
                                     row.col(|ui| { ui.label(action.name.to_string()); });
                                 }
-                                row.col(|ui| { ui.label(action.asset.display_name.clone()); });
+                                row.col(|ui| { ui.label(action.display_name.clone()); });
                                 row.col(|ui| { 
                                     if ui.add_sized(ui.available_size(), egui::Button::new(
                                             if let Some(button) = &map_action.button {
@@ -516,13 +514,13 @@ fn ui_input_table(
                                         // Record button
                                         *record_request = Some(RecordRequest {
                                             profile: desc.active_profile,
-                                            source: RecordSource::ActionButton { uid: *uid, previous: map_action.button }, 
+                                            source: RecordSource::ActionButton { uid, previous: map_action.button }, 
                                         });
                                         map_action.button = None;
                                         window.set_focus(true);
                                     }
                                 });
-                                row.col(|ui| { ui.label(action.asset.description.clone()); });
+                                row.col(|ui| { ui.label(action.description.clone()); });
                             });
                         }
                     });
@@ -574,9 +572,9 @@ fn ui_input_table(
                     header.col(|ui| { ui.label(egui::RichText::new("Description").strong()); });
                 })
                 .body(|mut body| {
-                    input_table.axis.iter().for_each(|uid| {
-                        let axis = engine.asset.entry::<InputAxisAsset>(*uid).expect("Axis UID not found");
-                        if let Some(map_axis) = profile.axis.get_mut(uid) {
+                    input_table.axis.iter().for_each(|axis| {
+                        let uid = axis.uid();
+                        if let Some(map_axis) = profile.axis.get_mut(&uid) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
                                     row.col(|ui| { ui.label(uid.to_string()); });
@@ -584,7 +582,7 @@ fn ui_input_table(
                                 if desc.show_internal_name {
                                     row.col(|ui| { ui.label(axis.name.to_string()); });
                                 }
-                                row.col(|ui| { ui.label(axis.asset.display_name.clone()); });
+                                row.col(|ui| { ui.label(axis.display_name.clone()); });
                                 row.col(|ui| {
                                     if ui.add_sized(ui.available_size(), egui::Button::new(
                                         if let Some((button, _)) = &map_axis.button {
@@ -606,7 +604,7 @@ fn ui_input_table(
                                     .clicked() {
                                         *record_request = Some(RecordRequest { 
                                             profile: desc.active_profile,
-                                            source: RecordSource::AxisButton { uid: *uid, previous: map_axis.button },
+                                            source: RecordSource::AxisButton { uid, previous: map_axis.button },
                                         });
                                         map_axis.button = None;
                                         window.set_focus(true);
@@ -661,7 +659,7 @@ fn ui_input_table(
                                     .clicked() {
                                         *record_request = Some(RecordRequest { 
                                             profile: desc.active_profile,
-                                            source: RecordSource::AxisAxis { uid: *uid, previous: map_axis.axis },
+                                            source: RecordSource::AxisAxis { uid, previous: map_axis.axis },
                                         });
                                         map_axis.axis = None;
                                         window.set_focus(true);
@@ -675,7 +673,7 @@ fn ui_input_table(
                                 if desc.show_min_max {
                                     row.col(|ui| {
                                         ui.centered_and_justified(|ui| {
-                                            ui.label(match axis.asset.range {
+                                            ui.label(match axis.range {
                                                 InputAxisRange::Clamped { min, .. } => { min.to_string() },
                                                 InputAxisRange::Normalized { .. } => { f32::NEG_INFINITY.to_string() },
                                                 InputAxisRange::ClampedNormalized { min, .. } => { min.to_string() },
@@ -685,7 +683,7 @@ fn ui_input_table(
                                     });
                                     row.col(|ui| {
                                         ui.centered_and_justified(|ui| {
-                                            ui.label(match axis.asset.range {
+                                            ui.label(match axis.range {
                                                 InputAxisRange::Clamped { max, .. } => { max.to_string() },
                                                 InputAxisRange::Normalized { .. } => { f32::INFINITY.to_string() },
                                                 InputAxisRange::ClampedNormalized { max, .. } => { max.to_string() },
@@ -694,7 +692,7 @@ fn ui_input_table(
                                         });
                                     });
                                 }
-                                row.col(|ui| { ui.add(egui::Label::new(axis.asset.description.clone()).wrap(false)); });
+                                row.col(|ui| { ui.add(egui::Label::new(axis.description.clone()).wrap(false)); });
                             });
                         }
                     });

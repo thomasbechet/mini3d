@@ -2,10 +2,10 @@ use anyhow::{Result, anyhow};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, math::rect::IRect};
+use crate::{uid::UID, math::rect::IRect, registry::asset::Asset};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct TilesetAsset {
+pub struct Tileset {
     pub texture: UID,
     pub offset: IVec2,
     pub tile_width: u32,
@@ -14,7 +14,12 @@ pub struct TilesetAsset {
     pub grid_height: u32,
 }
 
-impl TilesetAsset {
+impl Asset for Tileset {}
+
+impl Tileset {
+
+    pub const NAME: &'static str = "tileset";
+    pub const UID: UID = UID::new(Tileset::NAME);
     
     pub fn extent(&self, tile: u32) -> Result<IRect> {
         if tile >= self.grid_width * self.grid_height {

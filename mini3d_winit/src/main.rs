@@ -2,8 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScriptAsset};
-use mini3d_os::process::os::OSProcess;
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript};
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::{compute_fixed_viewport, ViewportMode};
@@ -54,9 +53,7 @@ fn main() {
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &event_loop, &mapper);
 
     // Engine
-    let mut engine = Engine::new().expect("Failed to create engine");
-    engine.process.register::<OSProcess>("os").expect("Failed to register os process");
-    engine.process.start("root", OSProcess::default()).expect("Failed to start os process");
+    let mut engine = Engine::new(mini3d_os::system::init::init).expect("Failed to create engine");
     let mut events = Events::new();
     let mut requests = Requests::new();
 
@@ -103,7 +100,7 @@ fn main() {
     let script = std::fs::read_to_string("assets/inventory.rhai").expect("Failed to load.");
     events.asset.push(ImportAssetEvent::RhaiScript(AssetImportEntry {
         name: "inventory".to_string(), 
-        data: RhaiScriptAsset { source: script },
+        data: RhaiScript { source: script },
     }));
 
     // Enter loop
