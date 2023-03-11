@@ -6,15 +6,12 @@ use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_RESOLUTION}, math::rect::IRect, context::input::InputContext};
 
-use self::{interaction_layout::{InteractionLayout, InteractionEvent, InteractionInputs}, button::Button, label::Label, checkbox::Checkbox, sprite::Sprite, viewport::Viewport};
+use self::{interaction_layout::{InteractionLayout, InteractionEvent, InteractionInputs}, button::Button, label::Label, checkbox::Checkbox, sprite::Sprite, viewport::Viewport, widget::{Widget, layout::Layout}, profile::Profile};
 
-pub mod button;
-pub mod graphics;
-pub mod checkbox;
-pub mod sprite;
-pub mod label;
+pub mod event;
 pub mod interaction_layout;
-pub mod viewport;
+pub mod profile;
+pub mod widget;
 
 macro_rules! define_add {
     ($name:ident, $fname:ident, $widget:ident) => {
@@ -51,45 +48,6 @@ macro_rules! define_get_mut {
     };
 }
 
-// impl Widget {
-
-//     fn handle_event(&mut self, event: &AreaEvent, interaction_layout: &mut InteractionLayout) -> Result<()> {
-//         match self {
-//             Widget::Button(button) => {},
-//             Widget::Graphics(paint) => {},
-//             Widget::Label(label) => {},
-//             Widget::Checkbox(checkbox) => {},
-//             Widget::Textbox => {},
-//             Widget::Viewport(viewport) => {},
-//             Widget::Sprite(sprite) => {},
-//         }
-//         Ok(())
-//     }
-
-//     fn release_backend(&mut self, backend: &mut dyn RendererBackend) -> Result<()> {
-//         if let Widget::Viewport(viewport) = self {
-//             viewport.release_backend(backend)?;
-//         }
-//         Ok(())
-//     }
-// }
-
-#[derive(Serialize, Deserialize)]
-enum WidgetVariant {
-    Button(Button),
-    Checkbox(Checkbox),
-    Label(Label),
-    Sprite(Sprite),
-    Viewport(Viewport),
-}
-
-#[derive(Serialize, Deserialize)]
-struct Widget {
-    z_index: i32,
-    parent: UID,
-    variant: WidgetVariant,
-}
-
 struct HandleContext {
     events: Vec<UIEvent>,
 }
@@ -107,10 +65,18 @@ pub enum UIEvent {
 }
 
 #[derive(Serialize, Deserialize)]
+struct WidgetEntry {
+    name: String,
+    parent: UID,
+    widget: Widget,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct UI {
 
-    widgets: HashMap<UID, Widget>,
-    interaction_layout: InteractionLayout,
+    root: UID,
+    widgets: HashMap<UID, WidgetEntry>,
+    profiles: HashMap<UID, Profile>,
 
     #[serde(skip)]
     events: Vec<UIEvent>,
