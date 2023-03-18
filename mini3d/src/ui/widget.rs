@@ -1,13 +1,6 @@
-use std::collections::HashMap;
+use crate::{renderer::graphics::Graphics, math::rect::IRect};
 
-use glam::Vec2;
-use serde::{Serialize, Deserialize};
-
-use crate::{feature::component::viewport::Viewport, uid::UID, renderer::graphics::Graphics, math::rect::IRect};
-
-use self::{button::Button, checkbox::Checkbox, sprite::Sprite, label::Label, layout::Layout};
-
-use super::WidgetEntry;
+use super::event::{EventContext, Event};
 
 pub mod button;
 pub mod checkbox;
@@ -16,36 +9,12 @@ pub mod label;
 pub mod layout;
 pub mod slider;
 pub mod sprite;
+pub mod textbox;
 pub mod viewport;
 
-#[derive(Serialize, Deserialize)]
-enum Widget {
-    Button(Button),
-    Checkbox(Checkbox),
-    Label(Label),
-    Sprite(Sprite),
-    Viewport(Viewport),
-    Layout(Layout),
-}
-
-impl Widget {
-
-    pub(crate) fn intersect(pos: Vec2) -> Option<UID> {
-        None
-    }
-
-    pub(crate) fn handle_event(&mut self) {
-
-    }
-
-    pub(crate) fn draw(&self, gfx: &mut Graphics, widgets: &HashMap<UID, WidgetEntry>) {
-        match self {
-            Widget::Button(_) => todo!(),
-            Widget::Checkbox(_) => todo!(),
-            Widget::Label(_) => todo!(),
-            Widget::Sprite(_) => todo!(),
-            Widget::Viewport(_) => todo!(),
-            Widget::Layout(_) => todo!(),
-        }
-    }
+pub(crate) trait Widget {
+    fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool;
+    fn render(&self, gfx: &mut Graphics, time: f64);
+    fn extent(&self) -> IRect;
+    fn is_focusable(&self) -> bool;
 }

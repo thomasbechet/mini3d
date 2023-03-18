@@ -70,6 +70,7 @@ fn main() {
     // Set initial display
     let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
     let viewport_mode = ViewportMode::StretchKeepAspect;
+    // let viewport_mode = ViewportMode::FixedBestFit;
 
     // Save state
     let mut save_state = false;

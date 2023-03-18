@@ -1,7 +1,9 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{color::Color, graphics::Graphics}, math::rect::IRect};
+use crate::{uid::UID, renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui::event::{Event, EventContext}};
+
+use super::Widget;
 
 #[derive(Serialize, Deserialize)]
 pub struct Sprite {
@@ -22,10 +24,6 @@ impl Sprite {
         }
     }
 
-    pub fn draw(&self, gfx: &mut Graphics) {
-        gfx.blit_texture(self.texture, self.extent, self.position, self.color, 0);
-    }
-
     pub fn set_position(&mut self, position: IVec2) -> &mut Self {
         self.position = position;
         self
@@ -40,4 +38,21 @@ impl Sprite {
         self.color = color;
         self
     }
+}
+
+impl Widget for Sprite {
+
+    fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool { false }
+
+    fn render(&self, gfx: &mut Graphics, _time: f64) {
+        gfx.blit_texture(self.texture, self.extent, self.position, self.color, 0);
+    }
+
+    fn extent(&self) -> IRect {
+        let mut extent = self.extent;
+        extent.translate(self.position);
+        extent
+    }
+
+    fn is_focusable(&self) -> bool { false }
 }

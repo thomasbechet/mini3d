@@ -8,6 +8,7 @@ pub struct CommonAction;
 
 impl CommonAction {
     pub const CLICK: &'static str = "click";
+    pub const BACK: &'static str = "back";
     pub const UP: &'static str = "up";
     pub const LEFT: &'static str = "left"; 
     pub const DOWN: &'static str = "down"; 

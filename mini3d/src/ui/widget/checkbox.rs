@@ -4,12 +4,12 @@ use serde::{Serialize, Deserialize};
 use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect};
 
 #[derive(Serialize, Deserialize)]
-pub struct Checkbox {
+pub struct CheckBox {
     position: IVec2,
     checked: bool,
 }
 
-impl Checkbox {
+impl CheckBox {
     
     pub fn new(position: IVec2, checked: bool) -> Self {
         Self { position, checked }
