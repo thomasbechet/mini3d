@@ -16,7 +16,7 @@ impl Label {
         Self { position, text: text.to_owned(), font }
     }
 
-    pub fn draw(&self, gfx: &mut Graphics) {
-        gfx.print(self.position, &self.text, self.font);
+    pub fn draw(&self, gfx: &mut Graphics, offset: IVec2) {
+        gfx.print(self.position + offset, &self.text, self.font);
     }
 }

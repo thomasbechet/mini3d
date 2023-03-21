@@ -44,15 +44,15 @@ impl Widget for Sprite {
 
     fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool { false }
 
-    fn render(&self, gfx: &mut Graphics, _time: f64) {
-        gfx.blit_texture(self.texture, self.extent, self.position, self.color, 0);
+    fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
+        gfx.blit_texture(self.texture, self.extent, self.position + offset, self.color, 0);
     }
 
     fn extent(&self) -> IRect {
-        let mut extent = self.extent;
-        extent.translate(self.position);
-        extent
+        self.extent.translate(self.position)
     }
 
     fn is_focusable(&self) -> bool { false }
+
+    fn is_selectable(&self) -> bool { false }
 }

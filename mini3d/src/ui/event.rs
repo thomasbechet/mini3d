@@ -1,56 +1,42 @@
 use glam::IVec2;
+use serde::{Serialize, Deserialize};
 
 use crate::uid::UID;
 
-use super::profile::Profile;
+use super::user::UIUser;
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Direction {
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum Direction {
     Up = 0,
     Down = 1,
     Left = 2,
     Right = 3,
 }
 
-impl Direction {
-    pub(crate) const COUNT: usize = 4;
-}
-
+#[derive(Debug, Clone)]
 pub enum UIEvent {
-    ButtonClicked {
-        id: UID,
-        profile: UID,
-    },
-    CheckboxChanged {
-        id: UID,
-        profile: UID,
-        checked: bool,
-    },
-    SliderValueChanged {
-        id: UID,
-        profile: UID,
-        value: f32,
-    },
+    Action { user: UID, id: UID },
+    FloatChanged { user: UID, id: UID, value: f32 },
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) enum Event {
     PrimaryJustPressed,
     PrimaryJustReleased,
-    SecondaryJustPressed,
-    SecondaryJustReleased,
+    Cancel,
     Enter,
     Leave,
     GainFocus,
     LooseFocus,
     Text { value: String },
     Scroll { value: f32 },
-    SelectionMove { direction: Direction },
-    CursorMove { position: IVec2 },
-    ModeChange,
+    SelectionMoved { direction: Direction },
+    CursorMoved { position: IVec2 },
+    ModeChanged,
 }
 
 pub(crate) struct EventContext<'a> {
-    pub(crate) profile: &'a mut Profile,
+    pub(crate) user: &'a mut UIUser,
     pub(crate) events: &'a mut Vec<UIEvent>,
     pub(crate) time: f64,
 }

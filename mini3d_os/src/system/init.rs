@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIComponent, UIRenderTarget}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{UI, profile::ProfileInputs, widget::{button::Button, sprite::Sprite, textbox::TextBox, layout::Navigation}}, uid::UID, math::rect::IRect};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::Button, sprite::Sprite, textbox::TextBox, layout::Navigation, checkbox::CheckBox}, controller::UIController}, uid::UID, math::rect::IRect};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
@@ -346,10 +346,15 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         world.add(viewport, Viewport::UID, Viewport::new(SCREEN_RESOLUTION, Some(cam)))?;
     
         let mut ui = UI::new(SCREEN_RESOLUTION);
-        let b0 = ui.root().add_button("b0", 0, Button::new(IRect::new(10, 10, 60, 20)))?;
+        let mut button = Button::new(IRect::new(10, 10, 60, 20));
+        button.on_pressed(Some("HELLO".into()));
+        let b0 = ui.root().add_button("b0", 0, button)?;
         let b1 = ui.root().add_button("b1", 0, Button::new(IRect::new(10, 50, 50, 20)))?;
-        let alfred = ui.root().add_sprite("alfred", 1, Sprite::new("alfred".into(), (100, 30).into(), (0, 0, 64, 64).into()))?;
-        let textbox = ui.root().add_textbox("textbox", 2, TextBox::new((50, 100, 100, 15).into()))?;
+        // let alfred = ui.root().add_sprite("alfred", 1, Sprite::new("alfred".into(), (100, 30).into(), (0, 0, 64, 64).into()))?;
+        let t0 = ui.root().add_textbox("textbox", 2, TextBox::new((50, 100, 100, 15).into()))?;
+        let mut checkbox = CheckBox::new((200, 200).into(), false);
+        checkbox.on_checked(Some("checked".into()));
+        let c0 = ui.root().add_checkbox("c0", 0, checkbox)?;
 
         ui.root().set_navigation(b0, Navigation {
             up: None,
@@ -359,12 +364,18 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         })?;
         ui.root().set_navigation(b1, Navigation {
             up: Some(b0),
-            down: Some(textbox),
+            down: Some(t0),
             left: None,
             right: None,
         })?;
-        ui.root().set_navigation(textbox, Navigation {
+        ui.root().set_navigation(t0, Navigation {
             up: Some(b1),
+            down: Some(c0),
+            left: None,
+            right: None,
+        })?;
+        ui.root().set_navigation(c0, Navigation {
+            up: Some(t0),
             down: None,
             left: None,
             right: None,
@@ -376,28 +387,23 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         // ui.add_checkbox("checkbox", 50, UID::null(), Checkbox::new((50, 100).into(), true))?;
         // ui.add_viewport("main_viewport", 0, UID::null(), ui::viewport::Viewport::new(IVec2::ZERO, world.uid(), viewport))?;
         // // ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
-        ui.add_profile("main", ProfileInputs {
-            click: CommonAction::CLICK.into(),
-            back: CommonAction::BACK.into(),
-            up: CommonAction::UP.into(),
-            down: CommonAction::DOWN.into(),
-            left: CommonAction::LEFT.into(),
-            right: CommonAction::RIGHT.into(),
-            cursor_x: CommonAxis::CURSOR_X.into(), 
-            cursor_y: CommonAxis::CURSOR_Y.into(),
-            cursor_motion_x: CommonAxis::CURSOR_MOTION_X.into(),
-            cursor_motion_y: CommonAxis::CURSOR_MOTION_Y.into(),
-            scroll: CommonAxis::SCROLL_MOTION.into(),
-        })?;
-        
+        ui.add_user("main")?;
         let uie = world.create();
         world.add(uie, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(uie, UIComponent::UID, UIComponent::new(ui, UIRenderTarget::Screen { offset: IVec2::ZERO }))?;
+        world.add(uie, UI::UID, ui)?;
+        world.add(uie, UIRenderTarget::UID, UIRenderTarget::Screen { offset: (0, 0).into() })?;
     }
+
+    let controller = UIController::new()
+        .with_primary(CommonAction::CLICK.into())
+        .with_cancel(CommonAction::BACK.into())
+        .with_cursor_motion(CommonAxis::CURSOR_MOTION_X.into(), CommonAxis::CURSOR_MOTION_Y.into())
+        .with_cursor_position(CommonAxis::CURSOR_X.into(), CommonAxis::CURSOR_Y.into())
+        .with_selection_move(CommonAction::UP.into(), CommonAction::DOWN.into(), CommonAction::LEFT.into(), CommonAction::RIGHT.into());
 
     // Setup singleton
     {
-        world.add_singleton(OS::UID, OS { layout_active: true })?;
+        world.add_singleton(OS::UID, OS { layout_active: true, controller })?;
     }
     
     Ok(())

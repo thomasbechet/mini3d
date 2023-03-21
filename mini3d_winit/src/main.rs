@@ -197,7 +197,10 @@ fn main() {
                         }
                         WindowEvent::ReceivedCharacter(c) => {
                             if window.is_focus() {
-                                events.input.push(InputEvent::Text(InputTextEvent::Character(c)));
+                                events.input.push(InputEvent::Text(InputTextEvent {
+                                    stream: "main".into(),
+                                    value: c.to_string(),
+                                }));
                             }
                         }
                         WindowEvent::CursorMoved { device_id: _, position, .. } => {

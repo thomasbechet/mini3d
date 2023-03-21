@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::{Result, Context};
+use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, profile::ProfileMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}};
+use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, user::InteractionMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}};
 
 use super::{button::Button, checkbox::CheckBox, label::Label, slider::Slider, sprite::Sprite, Widget, textbox::TextBox};
 
@@ -22,7 +23,7 @@ impl Widget for WidgetVariant {
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match self {
             WidgetVariant::Button(button) => button.handle_event(ctx, event),
-            WidgetVariant::Checkbox(checkbox) => { false },
+            WidgetVariant::Checkbox(checkbox) => checkbox.handle_event(ctx, event),
             WidgetVariant::Label(label) => { false },
             WidgetVariant::Slider(slider) => { false },
             WidgetVariant::TextBox(textbox) => textbox.handle_event(ctx, event),
@@ -30,21 +31,21 @@ impl Widget for WidgetVariant {
         }
     }
 
-    fn render(&self, gfx: &mut Graphics, time: f64) {
+    fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
         match self {
-            WidgetVariant::Button(button) => button.render(gfx, time),
-            WidgetVariant::Checkbox(checkbox) => {},
+            WidgetVariant::Button(button) => button.render(gfx, offset, time),
+            WidgetVariant::Checkbox(checkbox) => checkbox.render(gfx, offset, time),
             WidgetVariant::Label(label) => {},
             WidgetVariant::Slider(slider) => {},
-            WidgetVariant::Sprite(sprite) => sprite.render(gfx, time),
-            WidgetVariant::TextBox(textbox) => textbox.render(gfx, time),
+            WidgetVariant::Sprite(sprite) => sprite.render(gfx, offset, time),
+            WidgetVariant::TextBox(textbox) => textbox.render(gfx, offset, time),
         }
     }
 
     fn extent(&self) -> IRect {
         match self {
             WidgetVariant::Button(button) => button.extent(),
-            WidgetVariant::Checkbox(checkbox) => IRect::new(0, 0, 0, 0),
+            WidgetVariant::Checkbox(checkbox) => checkbox.extent(),
             WidgetVariant::Label(label) => IRect::new(0, 0, 0, 0),
             WidgetVariant::Slider(slider) => IRect::new(0, 0, 0, 0),
             WidgetVariant::Sprite(sprite) => sprite.extent(),
@@ -55,13 +56,15 @@ impl Widget for WidgetVariant {
     fn is_focusable(&self) -> bool {
         match self {
             WidgetVariant::Button(button) => button.is_focusable(),
-            WidgetVariant::Checkbox(checkbox) => false,
+            WidgetVariant::Checkbox(checkbox) => checkbox.is_focusable(),
             WidgetVariant::Label(label) => false,
             WidgetVariant::Slider(slider) => false,
             WidgetVariant::Sprite(sprite) => false,
             WidgetVariant::TextBox(textbox) => textbox.is_focusable(),
         }
     }
+
+    fn is_selectable(&self) -> bool { true }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -108,9 +111,8 @@ impl Layout {
         self.widgets.insert(uid, entry);
     }
 
-    pub fn add_button(&mut self, name: &str, z_index: i32, mut button: Button) -> Result<UID> {
+    pub fn add_button(&mut self, name: &str, z_index: i32, button: Button) -> Result<UID> {
         let uid: UID = name.into();
-        button.set_pressed_action(uid);
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
             z_index,
@@ -142,6 +144,17 @@ impl Layout {
         Ok(uid)
     }
 
+    pub fn add_checkbox(&mut self, name: &str, z_index: i32, checkbox: CheckBox) -> Result<UID> {
+        let uid: UID = name.into();
+        self.add(uid, WidgetEntry { 
+            name: name.to_string(), 
+            z_index,
+            navigation: Navigation::default(), 
+            widget: WidgetVariant::Checkbox(checkbox),
+        });
+        Ok(uid)
+    }
+
     pub fn set_navigation(&mut self, widget: UID, navigation: Navigation) -> Result<()> {
         self.widgets.get_mut(&widget).with_context(|| "Widget not found")?.navigation = navigation;
         Ok(())
@@ -152,7 +165,7 @@ impl Widget for Layout {
     
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         
-        let profile_uid = ctx.profile.uid();
+        let profile_uid = ctx.user.uid();
 
         match event {
             Event::PrimaryJustPressed => {
@@ -196,10 +209,14 @@ impl Widget for Layout {
                     entry.widget.handle_event(ctx, &Event::PrimaryJustReleased);
                 }
             },
-            Event::SecondaryJustPressed => {
-
+            Event::Cancel => {
+                if let Some(focus) = self.profiles_focus.get(&profile_uid) {
+                    let entry = self.widgets.get_mut(focus).unwrap();
+                    entry.widget.handle_event(ctx, &Event::LooseFocus);
+                    self.profiles_focus.remove(&profile_uid);
+                }
             },
-            Event::CursorMove { position } => {
+            Event::CursorMoved { position } => {
                 // Update target
                 let previous = self.profiles_target.get(&profile_uid).copied();
                 let mut target = None;
@@ -232,7 +249,7 @@ impl Widget for Layout {
                     entry.widget.handle_event(ctx, event);
                 }
             },
-            Event::SelectionMove { direction } => {
+            Event::SelectionMoved { direction } => {
                 // Check focus
                 if let Some(focus) = self.profiles_focus.get(&profile_uid) {
                     // Simply forward the event
@@ -245,7 +262,7 @@ impl Widget for Layout {
                             self.profiles_target.insert(profile_uid, next);
                             self.widgets.get_mut(&target).unwrap().widget.handle_event(ctx, &Event::Leave);
                             let next_entry = self.widgets.get_mut(&next).unwrap();
-                            ctx.profile.move_selection_extent(next_entry.widget.extent(), ctx.time);
+                            ctx.user.lerp_selection_extent(next_entry.widget.extent(), ctx.time);
                             next_entry.widget.handle_event(ctx, &Event::Enter);
                         }
                     } else if let Some(default) = self.default_target {
@@ -253,33 +270,33 @@ impl Widget for Layout {
                         self.profiles_target.insert(profile_uid, default);
                         let default_entry = self.widgets.get_mut(&default).unwrap();
                         default_entry.widget.handle_event(ctx, &Event::Enter);
-                        ctx.profile.move_selection_extent(default_entry.widget.extent(), ctx.time);
+                        ctx.user.lerp_selection_extent(default_entry.widget.extent(), ctx.time);
                     }
                 }
             },
-            Event::ModeChange => {
+            Event::ModeChanged => {
                 if let Some(focus) = self.profiles_focus.get(&profile_uid) {
                     // Simply forward the event
                     let entry = self.widgets.get_mut(focus).unwrap();
                     entry.widget.handle_event(ctx, event);
                 } else {
-                    match ctx.profile.mode {
-                        ProfileMode::Disabled => {},
-                        ProfileMode::Selection => {
+                    match ctx.user.mode {
+                        InteractionMode::Disabled => {},
+                        InteractionMode::Selection => {
                             if let Some(target) = self.profiles_target.get(&profile_uid).copied() {
                                 let entry = self.widgets.get_mut(&target).unwrap();
-                                ctx.profile.set_selection_extent(entry.widget.extent());
+                                ctx.user.set_selection_extent(entry.widget.extent());
                                 entry.widget.handle_event(ctx, &Event::Enter);
                             } else if let Some(default) = self.default_target {
                                 let entry = self.widgets.get_mut(&default).unwrap();
                                 self.profiles_target.insert(profile_uid, default);
-                                ctx.profile.set_selection_extent(entry.widget.extent());
+                                ctx.user.set_selection_extent(entry.widget.extent());
                                 entry.widget.handle_event(ctx, &Event::Enter);
                             } else {
-                                ctx.profile.set_selection_extent(self.extent());
+                                ctx.user.set_selection_extent(self.extent());
                             }
                         },
-                        ProfileMode::Cursor => {},
+                        InteractionMode::Cursor => {},
                     }
                 }
             },
@@ -288,7 +305,7 @@ impl Widget for Layout {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, time: f64) {
+    fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
 
         // Sort widgets
         let mut entries = self.widgets.values().collect::<Vec<_>>();
@@ -296,7 +313,7 @@ impl Widget for Layout {
 
         // Render widgets
         for entry in entries {
-            entry.widget.render(gfx, time);
+            entry.widget.render(gfx, offset, time);
         }
     }
 
@@ -305,4 +322,6 @@ impl Widget for Layout {
     }
 
     fn is_focusable(&self) -> bool { false }
+
+    fn is_selectable(&self) -> bool { true }
 }

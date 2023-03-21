@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
 
-use crate::{event::input::{InputEvent, InputTextEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable, InputAction, InputAxis}};
+use crate::{event::input::{InputEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable, InputAction, InputAxis}};
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
@@ -56,12 +56,17 @@ impl InputAxisState {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct InputTextState {
+    pub value: String,
+}
+
 #[derive(Default)]
 pub struct InputManager {
-    text: String,
     tables: HashMap<UID, InputTable>,
     actions: HashMap<UID, InputActionState>,
     axis: HashMap<UID, InputAxisState>,
+    texts: HashMap<UID, InputTextState>,
     pub(crate) reload_input_mapping: bool,
 }
 
@@ -71,12 +76,14 @@ impl InputManager {
     pub(crate) fn prepare_dispatch(&mut self) {
 
         // Save the previous action state
-        for (_, action) in self.actions.iter_mut() {
+        for action in self.actions.values_mut() {
             action.was_pressed = action.pressed;
         }
 
         // Reset text for current frame
-        self.text.clear();
+        for text in self.texts.values_mut() {
+            text.value.clear();
+        }
     }
 
     /// Process input events
@@ -92,14 +99,9 @@ impl InputManager {
                     axis.set_value(event.value);
                 }
             },
-            InputEvent::Text(text_event) => {
-                match text_event {
-                    InputTextEvent::Character(char) => {
-                        self.text.push(*char);
-                    },
-                    InputTextEvent::String(string) => {
-                        self.text += string;
-                    },
+            InputEvent::Text(text) => {
+                if let Some(text) = self.texts.get_mut(&text.stream) {
+                    text.value = text.value.clone();
                 }
             },
         }
@@ -132,7 +134,6 @@ impl InputManager {
             }
         }
         self.reload_input_mapping = true;
-        self.text.clear();
         deserializer.deserialize_tuple(3, InputVisitor { manager: self })
     }
 
@@ -188,15 +189,15 @@ impl InputManager {
         }))
     }
 
-    pub(crate) fn text(&self) -> &str {
-        &self.text
-    }
-
     pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState> {
         self.actions.get(&uid).ok_or_else(|| anyhow!("Input action not found"))
     }
 
     pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState> {
         self.axis.get(&uid).ok_or_else(|| anyhow!("Input axis not found"))
+    }
+
+    pub(crate) fn text(&self, uid: UID) -> Result<&InputTextState> {
+        self.texts.get(&uid).ok_or_else(|| anyhow!("Input text not found"))
     }
 }

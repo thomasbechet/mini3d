@@ -1,4 +1,3 @@
-use glam::Vec2;
 use serde::{Serialize, Deserialize};
 
 use crate::uid::UID;
@@ -16,14 +15,9 @@ pub struct InputAxisEvent {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum InputTextEvent {
-    Character(char),
-    String(String),
-}
-
-pub enum InputMouseEvent {
-    Move { delta: Vec2 },
-    Update { position: Vec2 },
+pub struct InputTextEvent {
+    pub stream: UID,
+    pub value: String,
 }
 
 pub enum InputEvent {

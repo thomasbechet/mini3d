@@ -99,13 +99,15 @@ impl IRect {
     }
 
     #[inline]
-    pub fn clamp(&mut self, rect: &IRect) {
-        self.tl = self.tl.max(rect.tl);
-        self.br = self.br.min(rect.br);
+    pub fn clamp(self, rect: IRect) -> Self {
+        Self {
+            tl: self.tl.max(rect.tl),
+            br: self.br.min(rect.br),
+        }
     }
 
     #[inline]
-    pub fn lerp(&self, rect: &IRect, a: f32) -> Self {
+    pub fn lerp(self, rect: IRect, a: f32) -> Self {
         Self {
             tl: self.tl.as_vec2().lerp(rect.tl.as_vec2(), a).as_ivec2(),
             br: self.br.as_vec2().lerp(rect.br.as_vec2(), a).as_ivec2(),
@@ -113,9 +115,11 @@ impl IRect {
     }
 
     #[inline]
-    pub fn translate(&mut self, translation: IVec2) {
-        self.tl += translation;
-        self.br += translation;
+    pub fn translate(self, translation: IVec2) -> Self {
+        Self {
+            tl: self.tl + translation,
+            br: self.br + translation,
+        }
     }
 }
 

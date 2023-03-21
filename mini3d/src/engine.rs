@@ -67,7 +67,8 @@ impl Engine {
         registry.components.define_static::<component::transform::Transform>(component::transform::Transform::NAME)?;
         registry.components.define_static::<component::local_to_world::LocalToWorld>(component::local_to_world::LocalToWorld::NAME)?;
         registry.components.define_static::<component::hierarchy::Hierarchy>(component::hierarchy::Hierarchy::NAME)?;
-        registry.components.define_static::<component::ui::UIComponent>(component::ui::UIComponent::NAME)?;
+        registry.components.define_static::<component::ui::UI>(component::ui::UI::NAME)?;
+        registry.components.define_static::<component::ui::UIRenderTarget>(component::ui::UIRenderTarget::NAME)?;
         registry.components.define_static::<component::viewport::Viewport>(component::viewport::Viewport::NAME)?;
         registry.components.define_static::<component::canvas::Canvas>(component::canvas::Canvas::NAME)?;
 

@@ -1,6 +1,6 @@
-use mini3d::{context::SystemContext, anyhow::Result, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::free_fly::FreeFly};
+use mini3d::{context::SystemContext, anyhow::Result, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::{free_fly::FreeFly, ui::UI}, ui::event::{UIEvent, Direction}, glam::{Vec2, IVec2}};
 
-use crate::{input::CommonAction, component::os::OS};
+use crate::{input::{CommonAction, CommonAxis}, component::os::OS};
 
 pub fn update(ctx: &mut SystemContext) -> Result<()> {
     
@@ -16,6 +16,19 @@ pub fn update(ctx: &mut SystemContext) -> Result<()> {
             free_fly.active = !os.layout_active;
         }
     }
+
+    // let ui = world.get::<UI>(UI::UID)?.unwrap();
+    // for event in ui.events() {
+    //     if let UIEvent::Action { profile, id } = event {
+    //         println!("{:?}", id);
+    //     }
+    // }
+
+    let mut view = world.view_mut::<UI>(UI::UID)?;
+    let ui = view.iter().next().unwrap();
+    let user = ui.user("main".into())?;
+
+    os.controller.update(&ctx.input, user)?;
 
     // Render center cross
     ctx.renderer.graphics().fill_rect(IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2), Color::WHITE);

@@ -75,7 +75,7 @@ impl FontAtlas {
 
             // Save extent and move to next glyph
             extents.insert(*c, extent);
-            extent.translate(IVec2::new(font.glyph_width as i32, 0));
+            extent = extent.translate(IVec2::new(font.glyph_width as i32, 0));
         }
 
         Self { texture, extents }

@@ -1,7 +1,7 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui::event::{EventContext, Event}};
+use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui::event::{EventContext, Event}};
 
 use super::Widget;
 
@@ -27,32 +27,33 @@ impl Widget for TextBox {
         match event {
             Event::PrimaryJustPressed => {},
             Event::PrimaryJustReleased => {},
-            Event::SecondaryJustPressed => {},
-            Event::SecondaryJustReleased => {},
+            Event::Cancel => {},
             Event::Enter => {},
             Event::Leave => {},
             Event::GainFocus => {
                 println!("focus");
-                self.focused = true
+                self.focused = true;
+                ctx.user.locked = true;
             },
             Event::LooseFocus => {
                 println!("unfocus");
-                self.focused = false
+                self.focused = false;
+                ctx.user.locked = false;
             },
             Event::Text { value } => todo!(),
             Event::Scroll { value } => todo!(),
-            Event::SelectionMove { direction } => todo!(),
-            Event::CursorMove { position } => {},
-            Event::ModeChange => todo!(),
+            Event::SelectionMoved { direction } => todo!(),
+            Event::CursorMoved { position } => {},
+            Event::ModeChanged => todo!(),
         }
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, time: f64) {
-        gfx.draw_rect(self.extent, Color::WHITE);
+    fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
+        gfx.draw_rect(self.extent.translate(offset), Color::WHITE);
         if self.focused {
             let extent = IRect::new(
-                self.extent.left() + 2, 
+                self.extent.left() + 2,
                 self.extent.top() + 2, 
                 self.extent.width() - 4, 
                 self.extent.height() - 4
@@ -66,4 +67,6 @@ impl Widget for TextBox {
     }
 
     fn is_focusable(&self) -> bool { true }
+
+    fn is_selectable(&self) -> bool { true }
 }
