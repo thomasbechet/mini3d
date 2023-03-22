@@ -23,7 +23,21 @@ var t_texture: texture_2d<f32>;
 @group(0) @binding(1)
 var s_texture: sampler;
 
+fn uv_filtering(uv: vec2<f32>, texture_size: vec2<i32>) -> vec2<f32> {
+    let pixel = uv * vec2<f32>(texture_size);
+
+    let seam = floor(pixel + 0.5);
+    let dudv = fwidth(pixel);
+    let rel = (pixel - seam) / dudv;
+    let mid_pix = vec2<f32>(0.5, 0.5);
+    let pixel = seam + clamp(rel, -mid_pix, mid_pix);
+    
+    return pixel / vec2<f32>(texture_size);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(t_texture, s_texture, vec2<f32>(in.uv.x, 1.0 - in.uv.y));
+    let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    let uv = uv_filtering(uv, textureDimensions(t_texture));
+    return textureSample(t_texture, s_texture, uv);
 }

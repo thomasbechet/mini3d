@@ -64,7 +64,8 @@ fn fs_main(
 ) -> @location(0) vec4<f32> {
 
     // Sample texture
-    var color = textureSample(t_texture, s_texture, vec2<f32>(in.uv.x, in.uv.y));
+    let uv = vec2<f32>(in.uv.x, in.uv.y);
+    var color = textureSample(t_texture, s_texture, uv);
     if color.a < in.threshold { discard; }
     return color * vec4<f32>(in.filtering, 1.0);
 }

@@ -350,7 +350,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         button.on_pressed(Some("HELLO".into()));
         let b0 = ui.root().add_button("b0", 0, button)?;
         let b1 = ui.root().add_button("b1", 0, Button::new(IRect::new(10, 50, 50, 20)))?;
-        // let alfred = ui.root().add_sprite("alfred", 1, Sprite::new("alfred".into(), (100, 30).into(), (0, 0, 64, 64).into()))?;
+        ui.root().add_sprite("alfred", 1, Sprite::new("alfred".into(), (100, 30).into(), (0, 0, 64, 64).into()))?;
         let t0 = ui.root().add_textbox("textbox", 2, TextBox::new((50, 100, 100, 15).into()))?;
         let mut checkbox = CheckBox::new((200, 200).into(), false);
         checkbox.on_checked(Some("checked".into()));
