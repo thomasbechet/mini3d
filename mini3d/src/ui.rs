@@ -1,5 +1,6 @@
 pub mod event;
 pub mod controller;
+pub mod style;
 pub mod user;
 pub mod widget;
 

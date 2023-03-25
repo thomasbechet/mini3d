@@ -6,7 +6,7 @@ use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, uid
 use super::Widget;
 
 #[derive(Serialize, Deserialize)]
-pub struct CheckBox {
+pub struct UICheckBox {
     position: IVec2,
     checked: bool,
     hovered: bool,
@@ -14,7 +14,7 @@ pub struct CheckBox {
     on_unchecked: Option<UID>,
 }
 
-impl CheckBox {
+impl UICheckBox {
     
     pub fn new(position: IVec2, checked: bool) -> Self {
         Self { position, checked, hovered: false, on_checked: None, on_unchecked: None }
@@ -29,7 +29,7 @@ impl CheckBox {
     }
 }
 
-impl Widget for CheckBox {
+impl Widget for UICheckBox {
 
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match event {

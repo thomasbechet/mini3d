@@ -1,4 +1,4 @@
-use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color, rasterizer}, math::rect::IRect, anyhow::Result, glam::IVec2};
+use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color, rasterizer, graphics::TextureWrapMode}, math::rect::IRect, anyhow::Result, glam::{IVec2, UVec2}};
 
 use crate::context::WGPUContext;
 
@@ -119,45 +119,104 @@ impl GraphicsRenderPass {
         Ok(())
     }
 
-    pub(crate) fn blit_rect(&mut self, texture: TextureHandle, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) -> Result<()> {
-        
-        // Insert in transfer buffer
+    fn add_blit(&mut self, pos: IVec2, tex: UVec2, size: UVec2, filtering: Color, alpha_threshold: u8) {
         self.blit_transfer.push(GPUBlitData {
             color: filtering.into(),
             depth: (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
-            pos: [position.x as i16, position.y as i16],
-            tex: [extent.left() as u16, extent.top() as u16],
-            size: [extent.width() as u16, extent.height() as u16],
+            pos: [pos.x as i16, pos.y as i16],
+            tex: [tex.x as u16, tex.y as u16],
+            size: [size.x as u16, size.y as u16],
             threshold: (alpha_threshold as f32 / 255.0),
         });
+    }
+
+    pub(crate) fn blit_rect(&mut self, texture: TextureHandle, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<()> {
+        
+        let mut blit_count;
+
+        match wrap_mode {
+            TextureWrapMode::Clamp => {
+
+                self.add_blit(extent.tl(), texture_extent.tl().as_uvec2(), texture_extent.size().min(extent.size()), filtering, alpha_threshold);
+                blit_count = 1;
+
+            },
+            TextureWrapMode::Repeat => {
+                
+                // Calculate blit count
+                let full_hblit_count = extent.width() / texture_extent.width();
+                let full_vblit_count = extent.height() / texture_extent.height();
+                blit_count = full_vblit_count * full_hblit_count;
+                
+                // Insert full blits in transfer buffer
+                for y in 0..full_vblit_count {
+                    for x in 0..full_hblit_count {
+                        let pos_x = extent.tl().x + (x * texture_extent.width()) as i32;
+                        let pos_y = extent.tl().y + (y * texture_extent.height()) as i32;
+                        self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), texture_extent.size(), filtering, alpha_threshold);
+                    }
+                }
+
+                // Insert partial blits in transfer buffer
+                let partial_hblit_size = extent.width() % texture_extent.width();
+                let partial_vblit_size = extent.height() % texture_extent.height();
+
+                if partial_hblit_size > 0 {
+                    for y in 0..full_vblit_count {
+                        let pos_x = extent.tl().x + (full_hblit_count * texture_extent.width()) as i32;
+                        let pos_y = extent.tl().y + (y * texture_extent.height()) as i32;
+                        let size = UVec2::new(partial_hblit_size, texture_extent.height());
+                        self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), size, filtering, alpha_threshold);
+                        blit_count += 1;
+                    }
+                }
+
+                if partial_vblit_size > 0 {
+                    for x in 0..full_hblit_count {
+                        let pos_x = extent.tl().x + (x * texture_extent.width()) as i32;
+                        let pos_y = extent.tl().y + (full_vblit_count * texture_extent.height()) as i32;
+                        let size = UVec2::new(texture_extent.width(), partial_vblit_size);
+                        self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), size, filtering, alpha_threshold);
+                        blit_count += 1;
+                    }
+                }
+
+                if partial_hblit_size > 0 && partial_vblit_size > 0 {
+                    let pos_x = extent.tl().x + (full_hblit_count * texture_extent.width()) as i32;
+                    let pos_y = extent.tl().y + (full_vblit_count * texture_extent.height()) as i32;
+                    let size = UVec2::new(partial_hblit_size, partial_vblit_size);
+                    self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), size, filtering, alpha_threshold);
+                    blit_count += 1;
+                }
+
+            },
+            TextureWrapMode::Mirror => {
+                todo!();
+            },
+        }
+
         self.depth += DEPTH_INCREMENT;
         
         // Reuse command or create new one
         let mut new_command_required = true;
         if let Some(GraphicsCommand::Blit(blit)) = self.commands.last_mut() {
             if blit.texture == texture {
-                blit.instance_count += 1;
+                blit.instance_count += blit_count;
                 new_command_required = false;
             }
         }
         if new_command_required {
             self.commands.push(GraphicsCommand::Blit(BlitBatch { 
                 texture, 
-                instance_start: self.blit_transfer.len() as u32 - 1,
-                instance_count: 1, 
+                instance_start: self.blit_transfer.len() as u32 - blit_count,
+                instance_count: blit_count,
             }));
         }
         Ok(())
     }
     pub(crate) fn blit_viewport(&mut self, viewport: ViewportHandle, extent: wgpu::Extent3d, position: IVec2) -> Result<()> {
-        self.blit_transfer.push(GPUBlitData {
-            color: Color::WHITE.into(),
-            depth: ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
-            pos: [position.x as i16, position.y as i16],
-            tex: [0, 0],
-            size: [extent.width as u16, extent.height as u16],
-            threshold: 0.0,
-        });
+        let size = UVec2::new(extent.width, extent.height);
+        self.add_blit(position, UVec2::ZERO, size, Color::WHITE, 0);
         self.commands.push(GraphicsCommand::Viewport(ViewportBatch { 
             viewport,
             blit_index: self.blit_transfer.len() as u32 - 1,

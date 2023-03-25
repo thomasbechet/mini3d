@@ -81,6 +81,12 @@ fn main() {
         .with_name("car")
         .import().expect("Failed to import car texture.")
         .push(&mut events);
+    ImageImporter::new()
+        .from_source(Path::new("assets/Sprites/UI_Flat_Frame_01_Standard.png"))
+        .with_name("frame")
+        .import().expect("Failed to import frame texture.")
+        .push(&mut events);
+    
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
         .with_flat_normals(false)

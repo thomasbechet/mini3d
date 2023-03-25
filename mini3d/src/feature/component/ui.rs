@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{ui::{widget::{layout::Layout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity, component::Component}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect};
+use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity, component::Component}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect};
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {
@@ -23,7 +23,7 @@ impl UIRenderTarget {
 #[derive(Serialize, Deserialize)]
 pub struct UI {
 
-    root: Layout,
+    root: UILayout,
     users: HashMap<UID, UIUser>,
 
     #[serde(skip)]
@@ -42,7 +42,7 @@ impl UI {
 
     pub fn new(resolution: UVec2) -> Self {
         Self {
-            root: Layout::default(),
+            root: UILayout::default(),
             users: Default::default(),
             events: Default::default(),
             resolution,
@@ -119,7 +119,7 @@ impl UI {
         self.background_color = color;
     }
   
-    pub fn root(&mut self) -> &'_ mut Layout {
+    pub fn root(&mut self) -> &'_ mut UILayout {
         &mut self.root
     }
 

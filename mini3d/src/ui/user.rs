@@ -59,7 +59,7 @@ pub struct UIUser {
     selection_source_extent: IRect,
     selection_source_time: f64,
     cursor_position: Vec2,
-    cursor_previous_position: IVec2,
+    cursor_previous_position: Vec2,
     primary_pressed: bool,
 }
 
@@ -77,7 +77,7 @@ impl UIUser {
             selection_source_extent: SCREEN_VIEWPORT,
             selection_source_time: 0.0,
             cursor_position: SCREEN_CENTER.as_vec2(),
-            cursor_previous_position: SCREEN_CENTER.as_ivec2(),
+            cursor_previous_position: SCREEN_CENTER.as_vec2(),
             primary_pressed: false,
         }
     }
@@ -118,11 +118,9 @@ impl UIUser {
 
     pub fn warp_cursor(&mut self, position: Vec2) -> Result<()> {
         self.cursor_position = position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
-        let position = self.cursor_position.as_ivec2();
-        if position != self.cursor_previous_position {
-            self.cursor_previous_position = position;
-            self.cursor_position = position.as_vec2();
-            self.events.push(Event::CursorMoved { position })
+        if self.cursor_position != self.cursor_previous_position {
+            self.cursor_previous_position = self.cursor_position;
+            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() })
         }
         Ok(())
     }
@@ -130,11 +128,10 @@ impl UIUser {
     pub fn move_cursor(&mut self, delta: Vec2) -> Result<()> {
         self.cursor_position += delta;
         self.cursor_position = self.cursor_position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
-        let position = self.cursor_position.as_ivec2();
-        if position != self.cursor_previous_position {
-            self.cursor_previous_position = position;
-            self.cursor_position = position.as_vec2();
-            self.events.push(Event::CursorMoved { position })
+        if self.cursor_position != self.cursor_previous_position {
+            self.cursor_previous_position = self.cursor_position;
+            // self.cursor_position = position.as_vec2();
+            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() })
         }
         Ok(())
     }

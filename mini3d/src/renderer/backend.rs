@@ -3,7 +3,7 @@ use glam::{Mat4, Vec3, IVec2, UVec2};
 
 use crate::{uid::UID, feature::asset::{texture::Texture, mesh::Mesh}, math::rect::IRect};
 
-use super::{RendererStatistics, color::Color};
+use super::{RendererStatistics, color::Color, graphics::TextureWrapMode};
 
 macro_rules! define_handle {
     ($name:ident) => {
@@ -63,7 +63,7 @@ pub trait RendererBackend {
     fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<()> { Ok(()) }
     fn scene_canvas_begin(&mut self, canvas: SceneCanvasHandle, clear_color: Color) -> Result<()> { Ok(()) }
     fn canvas_end(&mut self) -> Result<()> { Ok(()) }
-    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) -> Result<()> { Ok(()) }
+    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<()> { Ok(()) }
     fn canvas_blit_viewport(&mut self, viewport: ViewportHandle, position: IVec2) -> Result<()> { Ok(()) }
     fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<()> { Ok(()) }
     fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<()> { Ok(()) }

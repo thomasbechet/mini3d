@@ -4,6 +4,7 @@ use mini3d::anyhow::{Result, Context, anyhow};
 use mini3d::feature::asset::{mesh, texture};
 use mini3d::glam::{Vec4, Mat4, Vec3, UVec2, IVec2};
 use mini3d::math::rect::IRect;
+use mini3d::renderer::graphics::TextureWrapMode;
 use mini3d::renderer::{RendererStatistics, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION};
 use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, SceneModelHandle, SceneCameraHandle, ViewportHandle, SceneCanvasHandle};
 use mini3d::renderer::color::{srgb_to_linear, Color};
@@ -90,7 +91,7 @@ pub struct WGPURenderer {
     viewports: HashMap<ViewportHandle, Viewport>,
     
     // Canvas resources
-    sampler: wgpu::Sampler,
+    nearest_sampler: wgpu::Sampler,
     graphics_renderer: GraphicsRenderer,
     canvases: HashMap<UID, GraphicsCanvas>,
     screen_canvas: UID,
@@ -111,8 +112,19 @@ impl WGPURenderer {
 
         //////// Common Resources ////////
         
-        let sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
+        let nearest_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("nearest_sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let linear_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("linear_sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -127,7 +139,7 @@ impl WGPURenderer {
         let mesh_pass_bind_group_layout = create_mesh_pass_bind_group_layout(&context);
         let model_buffer = ModelBuffer::new(&context, MAX_MODEL_COUNT);
         let flat_material_bind_group_layout = create_flat_material_bind_group_layout(&context);
-        let viewport_renderer = ViewportRenderer::new(&context, &model_buffer, &sampler);
+        let viewport_renderer = ViewportRenderer::new(&context, &model_buffer, &nearest_sampler);
         let flat_pipeline = create_flat_pipeline(
             &context, 
             &viewport_renderer.viewport_bind_group_layout,
@@ -161,7 +173,7 @@ impl WGPURenderer {
         let graphics_renderer = GraphicsRenderer::new(&context);
         let canvas = GraphicsCanvas::new(&context, &graphics_renderer, SCREEN_RESOLUTION);
         let screen_canvas_blit_bind_group = create_blit_bind_group(&context, &blit_canvas_bind_group_layout, 
-            &canvas.color_view, &sampler, Some("screen_canvas_blit_bind_group"));
+            &canvas.color_view, &linear_sampler, Some("screen_canvas_blit_bind_group"));
         let screen_canvas = generator.next();
         let canvases = HashMap::from([(screen_canvas, canvas)]);
 
@@ -190,7 +202,7 @@ impl WGPURenderer {
             mesh_pass_bind_group_layout,
             forward_mesh_pass,
 
-            sampler,
+            nearest_sampler,
             graphics_renderer,
             canvases,
             current_canvas: None,
@@ -429,10 +441,10 @@ impl RendererBackend for WGPURenderer {
         self.current_canvas = None;
         Ok(())
     }
-    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) -> Result<()> {
+    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, tex_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<()> {
         if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
         let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.blit_rect(texture, extent, position, filtering, alpha_threshold)
+        canvas.render_pass.blit_rect(texture, extent, tex_extent, filtering, wrap_mode, alpha_threshold)
     }
     fn canvas_blit_viewport(&mut self, handle: ViewportHandle, position: IVec2) -> Result<()> {
         if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }

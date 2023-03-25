@@ -8,19 +8,27 @@ use crate::{uid::UID, math::rect::IRect, asset::AssetManager, ecs::entity::Entit
 
 use super::{color::Color, backend::{RendererBackend, ViewportHandle, SceneCanvasHandle}, RendererResourceManager};
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum TextureWrapMode {
+    Clamp,
+    Repeat,
+    Mirror,
+}
+
 #[derive(Serialize, Deserialize)]
 enum Command {
     Print { 
         position: IVec2, 
-        start: usize, 
-        stop: usize, 
-        font: UID
+        start: usize,
+        stop: usize,
+        font: UID,
     },
     BlitTexture { 
-        position: IVec2,
-        extent: IRect,
         texture: UID,
+        extent: IRect,
+        texture_extent: IRect,
         filtering: Color,
+        wrap_mode: TextureWrapMode,
         alpha_threshold: u8,
     },
     BlitViewport {
@@ -69,14 +77,18 @@ impl Graphics {
                     let font = resources.request_font(font, backend, asset)?;
                     let mut position = *position;
                     for c in self.text_buffer[*start..*stop].chars() {
-                        let extent = font.atlas.extents.get(&c).with_context(|| "Character extent not found")?;
-                        backend.canvas_blit_texture(font.handle, *extent, position, Color::WHITE, 1)?;
-                        position.x += extent.width() as i32;
+                        let char_extent = font.atlas.extents.get(&c).with_context(|| "Character extent not found")?;
+                        let extent = IRect::new(
+                            position.x, position.y,
+                            char_extent.width(), char_extent.height()
+                        );
+                        backend.canvas_blit_texture(font.handle, extent, *char_extent, Color::WHITE, TextureWrapMode::Clamp, 1)?;
+                        position.x += char_extent.width() as i32;
                     }
                 },
-                Command::BlitTexture { position, extent, texture, filtering, alpha_threshold } => {
+                Command::BlitTexture { texture, extent, texture_extent, filtering, wrap_mode, alpha_threshold  } => {
                     let texture = resources.request_texture(texture, backend, asset)?;
-                    backend.canvas_blit_texture(texture.handle, *extent, *position, *filtering, *alpha_threshold)?;
+                    backend.canvas_blit_texture(texture.handle, *extent, *texture_extent, *filtering, *wrap_mode, *alpha_threshold)?;
                 },
                 Command::BlitViewport { position, scene: _, viewport } => {
                     let viewport = viewports.get(viewport).unwrap();
@@ -113,8 +125,8 @@ impl Graphics {
         self.commands.push(Command::Print { position, start, stop, font });
     }
 
-    pub fn blit_texture(&mut self, texture: UID, extent: IRect, position: IVec2, filtering: Color, alpha_threshold: u8) { 
-        self.commands.push(Command::BlitTexture { position, extent, texture, filtering, alpha_threshold });
+    pub fn blit_texture(&mut self, texture: UID, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) { 
+        self.commands.push(Command::BlitTexture { texture, extent, texture_extent, filtering, wrap_mode, alpha_threshold });
     }
 
     pub fn blit_viewport(&mut self, scene: UID, viewport: Entity, position: IVec2) {

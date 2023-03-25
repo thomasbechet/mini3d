@@ -6,16 +6,17 @@ use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, user::InteractionMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}};
 
-use super::{button::Button, checkbox::CheckBox, label::Label, slider::Slider, sprite::Sprite, Widget, textbox::TextBox};
+use super::{button::UIButton, checkbox::UICheckBox, label::UILabel, slider::UISlider, sprite::UISprite, Widget, textbox::UITextBox, viewport::UIViewport};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum WidgetVariant {
-    Button(Button),
-    Checkbox(CheckBox),
-    Label(Label),
-    Slider(Slider),
-    Sprite(Sprite),
-    TextBox(TextBox),
+    Button(UIButton),
+    Checkbox(UICheckBox),
+    Label(UILabel),
+    Slider(UISlider),
+    Sprite(UISprite),
+    TextBox(UITextBox),
+    Viewport(UIViewport),
 }
 
 impl Widget for WidgetVariant {
@@ -35,10 +36,11 @@ impl Widget for WidgetVariant {
         match self {
             WidgetVariant::Button(button) => button.render(gfx, offset, time),
             WidgetVariant::Checkbox(checkbox) => checkbox.render(gfx, offset, time),
-            WidgetVariant::Label(label) => {},
+            WidgetVariant::Label(label) => label.render(gfx, offset, time),
             WidgetVariant::Slider(slider) => {},
             WidgetVariant::Sprite(sprite) => sprite.render(gfx, offset, time),
             WidgetVariant::TextBox(textbox) => textbox.render(gfx, offset, time),
+            WidgetVariant::Viewport(viewport) => viewport.render(gfx, offset, time),
         }
     }
 
@@ -50,6 +52,7 @@ impl Widget for WidgetVariant {
             WidgetVariant::Slider(slider) => IRect::new(0, 0, 0, 0),
             WidgetVariant::Sprite(sprite) => sprite.extent(),
             WidgetVariant::TextBox(textbox) => textbox.extent(),
+            WidgetVariant::Viewport(viewport) => viewport.extent(),
         }
     }
 
@@ -61,6 +64,7 @@ impl Widget for WidgetVariant {
             WidgetVariant::Slider(slider) => false,
             WidgetVariant::Sprite(sprite) => false,
             WidgetVariant::TextBox(textbox) => textbox.is_focusable(),
+            WidgetVariant::Viewport(viewport) => false,
         }
     }
 
@@ -95,14 +99,14 @@ struct WidgetEntry {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct Layout {
+pub struct UILayout {
     widgets: HashMap<UID, WidgetEntry>,
     default_target: Option<UID>,
     profiles_focus: HashMap<UID, UID>,
     profiles_target: HashMap<UID, UID>,
 }
 
-impl Layout {
+impl UILayout {
 
     fn add(&mut self, uid: UID, entry: WidgetEntry) {
         if self.default_target.is_none() {
@@ -111,7 +115,7 @@ impl Layout {
         self.widgets.insert(uid, entry);
     }
 
-    pub fn add_button(&mut self, name: &str, z_index: i32, button: Button) -> Result<UID> {
+    pub fn add_button(&mut self, name: &str, z_index: i32, button: UIButton) -> Result<UID> {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -122,7 +126,7 @@ impl Layout {
         Ok(uid)
     }
 
-    pub fn add_sprite(&mut self, name: &str, z_index: i32, sprite: Sprite) -> Result<UID> {
+    pub fn add_sprite(&mut self, name: &str, z_index: i32, sprite: UISprite) -> Result<UID> {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -133,7 +137,7 @@ impl Layout {
         Ok(uid)
     }
 
-    pub fn add_textbox(&mut self, name: &str, z_index: i32, textbox: TextBox) -> Result<UID> {
+    pub fn add_textbox(&mut self, name: &str, z_index: i32, textbox: UITextBox) -> Result<UID> {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -144,7 +148,7 @@ impl Layout {
         Ok(uid)
     }
 
-    pub fn add_checkbox(&mut self, name: &str, z_index: i32, checkbox: CheckBox) -> Result<UID> {
+    pub fn add_checkbox(&mut self, name: &str, z_index: i32, checkbox: UICheckBox) -> Result<UID> {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -155,13 +159,35 @@ impl Layout {
         Ok(uid)
     }
 
+    pub fn add_label(&mut self, name: &str, z_index: i32, label: UILabel) -> Result<UID> {
+        let uid: UID = name.into();
+        self.add(uid, WidgetEntry { 
+            name: name.to_string(), 
+            z_index,
+            navigation: Navigation::default(), 
+            widget: WidgetVariant::Label(label),
+        });
+        Ok(uid)
+    }
+
+    pub fn add_viewport(&mut self, name: &str, z_index: i32, viewport: UIViewport) -> Result<UID> {
+        let uid: UID = name.into();
+        self.add(uid, WidgetEntry {
+            name: name.to_string(), 
+            z_index,
+            navigation: Navigation::default(), 
+            widget: WidgetVariant::Viewport(viewport),
+        });
+        Ok(uid)
+    }
+
     pub fn set_navigation(&mut self, widget: UID, navigation: Navigation) -> Result<()> {
         self.widgets.get_mut(&widget).with_context(|| "Widget not found")?.navigation = navigation;
         Ok(())
     }
 }
 
-impl Widget for Layout {
+impl Widget for UILayout {
     
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         

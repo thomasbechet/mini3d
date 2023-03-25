@@ -1,28 +1,37 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{ui::event::{EventContext, Event, UIEvent}, renderer::{graphics::Graphics, color::Color}, math::rect::IRect, uid::UID};
+use crate::{ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, renderer::{graphics::Graphics, color::Color}, math::rect::IRect, uid::UID};
 
 use super::Widget;
 
-pub enum ButtonEvent {
-    Pressed,
-    Released,
+#[derive(Serialize, Deserialize)]
+pub struct UIButtonStyle {
+    normal: UIBoxStyle,
+    pressed: UIBoxStyle,
+    hovered: UIBoxStyle,
 }
 
-#[derive(Default, Serialize, Deserialize)]
-pub struct Button {
+impl UIButtonStyle {
+    pub fn new(normal: UIBoxStyle, pressed: UIBoxStyle, hovered: UIBoxStyle) -> Self {
+        Self { normal, pressed, hovered }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UIButton {
     pressed: bool,
     hovered: bool,
     extent: IRect,
+    style: UIButtonStyle,
     on_pressed: Option<UID>,
     on_released: Option<UID>,
 }
 
-impl Button {
+impl UIButton {
 
-    pub fn new(extent: IRect) -> Self {
-        Self { extent, ..Default::default() }
+    pub fn new(extent: IRect, style: UIButtonStyle) -> Self {
+        Self { extent, style, pressed: false, hovered: false, on_pressed: None, on_released: None }
     }
 
     pub fn on_pressed(&mut self, action: Option<UID>) {
@@ -34,7 +43,7 @@ impl Button {
     }
 }
 
-impl Widget for Button {
+impl Widget for UIButton {
 
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match event {
@@ -74,11 +83,11 @@ impl Widget for Button {
     fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
         let extent = self.extent.translate(offset);
         if self.pressed {
-            gfx.draw_rect(extent, Color::RED);
+            self.style.pressed.render(gfx, extent, Color::WHITE, 0);
         } else if self.hovered {
-            gfx.draw_rect(extent, Color::GREEN);
+            self.style.hovered.render(gfx, extent, Color::WHITE, 0);
         } else {
-            gfx.draw_rect(extent, Color::WHITE);
+            self.style.normal.render(gfx, extent, Color::WHITE, 0);
         }
     }
 

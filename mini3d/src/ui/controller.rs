@@ -74,7 +74,7 @@ impl UIController {
                 input.axis(axis_x)?.value,
                 input.axis(axis_y)?.value,
             );
-            if motion != Vec2::ZERO {
+            if motion.x != 0.0 || motion.y != 0.0 {
                 user.move_cursor(motion)?;
             }
         }

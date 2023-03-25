@@ -6,12 +6,12 @@ use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui:
 use super::Widget;
 
 #[derive(Serialize, Deserialize)]
-pub struct TextBox {
+pub struct UITextBox {
     extent: IRect,
     focused: bool,
 }
 
-impl TextBox {
+impl UITextBox {
 
     pub fn new(extent: IRect) -> Self {
         Self {
@@ -21,7 +21,7 @@ impl TextBox {
     }
 }
 
-impl Widget for TextBox {
+impl Widget for UITextBox {
 
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match event {

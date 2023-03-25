@@ -4,3 +4,4 @@ Cargo.lock
 fleet.toml
 .cargo/**
 assets/state.bin
+assets/Sprites/**

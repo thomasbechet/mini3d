@@ -1,26 +1,26 @@
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui::event::{Event, EventContext}};
+use crate::{uid::UID, renderer::{color::Color, graphics::{Graphics, TextureWrapMode}}, math::rect::IRect, ui::event::{Event, EventContext}};
 
 use super::Widget;
 
 #[derive(Serialize, Deserialize)]
-pub struct Sprite {
+pub struct UISprite {
     texture: UID,
     color: Color,
     position: IVec2,
-    extent: IRect,
+    texture_extent: IRect,
 }
 
-impl Sprite {
+impl UISprite {
 
-    pub fn new(texture: UID, position: IVec2, extent: IRect) -> Self {
+    pub fn new(texture: UID, position: IVec2, texture_extent: IRect) -> Self {
         Self {
             texture,
             color: Color::WHITE,
             position,
-            extent,
+            texture_extent,
         }
     }
 
@@ -29,8 +29,8 @@ impl Sprite {
         self
     }
 
-    pub fn set_extent(&mut self, extent: IRect) -> &mut Self {
-        self.extent = extent;
+    pub fn set_texture_extent(&mut self, texture_extent: IRect) -> &mut Self {
+        self.texture_extent = texture_extent;
         self
     }
 
@@ -40,16 +40,20 @@ impl Sprite {
     }
 }
 
-impl Widget for Sprite {
+impl Widget for UISprite {
 
     fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool { false }
 
     fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
-        gfx.blit_texture(self.texture, self.extent, self.position + offset, self.color, 0);
+        let extent = IRect::new(
+            self.position.x + offset.x, self.position.y + offset.y,
+            self.texture_extent.width(), self.texture_extent.height()
+        );
+        gfx.blit_texture(self.texture, extent, self.texture_extent, self.color, TextureWrapMode::Clamp, 5);
     }
 
     fn extent(&self) -> IRect {
-        self.extent.translate(self.position)
+        self.texture_extent.translate(self.position)
     }
 
     fn is_focusable(&self) -> bool { false }

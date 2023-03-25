@@ -1,4 +1,4 @@
-use glam::IVec2;
+use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
 
 /// Basic rectangle structure with useful functions
@@ -91,6 +91,16 @@ impl IRect {
     #[inline]
     pub fn height(&self) -> u32 {
         self.br.y as u32 - self.tl.y as u32 + 1
+    }
+
+    #[inline]
+    pub fn size(&self) -> UVec2 {
+        UVec2::new(self.width(), self.height())
+    }
+
+    #[inline]
+    pub fn area(&self) -> u32 {
+        self.width() * self.height()
     }
 
     #[inline]

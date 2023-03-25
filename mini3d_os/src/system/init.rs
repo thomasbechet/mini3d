@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::Button, sprite::Sprite, textbox::TextBox, layout::Navigation, checkbox::CheckBox}, controller::UIController}, uid::UID, math::rect::IRect};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color, graphics::TextureWrapMode}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::UICheckBox}, controller::UIController, self, style::{UIBoxStyle, UIMargin}}, uid::UID, math::rect::IRect};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
@@ -346,40 +346,23 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         world.add(viewport, Viewport::UID, Viewport::new(SCREEN_RESOLUTION, Some(cam)))?;
     
         let mut ui = UI::new(SCREEN_RESOLUTION);
-        let mut button = Button::new(IRect::new(10, 10, 60, 20));
+        let box_style = UIBoxStyle::sliced("frame".into(), (0, 0, 96, 96).into(), UIMargin::new(5, 5, 5, 5), TextureWrapMode::Repeat);
+        let button_style = UIButtonStyle::new(box_style, box_style, box_style);
+        let mut button = UIButton::new(IRect::new(10, 10, 60, 200), button_style);
         button.on_pressed(Some("HELLO".into()));
         let b0 = ui.root().add_button("b0", 0, button)?;
-        let b1 = ui.root().add_button("b1", 0, Button::new(IRect::new(10, 50, 50, 20)))?;
-        ui.root().add_sprite("alfred", 1, Sprite::new("alfred".into(), (100, 30).into(), (0, 0, 64, 64).into()))?;
-        let t0 = ui.root().add_textbox("textbox", 2, TextBox::new((50, 100, 100, 15).into()))?;
-        let mut checkbox = CheckBox::new((200, 200).into(), false);
+        // let b1 = ui.root().add_button("b1", 0, UIButton::new(IRect::new(10, 50, 50, 20)))?;
+        ui.root().add_sprite("alfred", 1, UISprite::new("alfred".into(), (50, 50).into(), (0, 0, 64, 64).into()))?;
+        let t0 = ui.root().add_textbox("textbox", 2, UITextBox::new((50, 100, 100, 15).into()))?;
+        let mut checkbox = UICheckBox::new((200, 200).into(), false);
         checkbox.on_checked(Some("checked".into()));
         let c0 = ui.root().add_checkbox("c0", 0, checkbox)?;
+        ui.root().add_sprite("frame", 1, UISprite::new("frame".into(), (300, 50).into(), (0, 0, 96, 96).into()))?;
+        ui.root().add_label("test", 2, ui::widget::label::UILabel::new((330, 90).into(), "Hello", "default".into()))?;
 
-        ui.root().set_navigation(b0, Navigation {
-            up: None,
-            down: Some(b1),
-            left: None,
-            right: None,
-        })?;
-        ui.root().set_navigation(b1, Navigation {
-            up: Some(b0),
-            down: Some(t0),
-            left: None,
-            right: None,
-        })?;
-        ui.root().set_navigation(t0, Navigation {
-            up: Some(b1),
-            down: Some(c0),
-            left: None,
-            right: None,
-        })?;
-        ui.root().set_navigation(c0, Navigation {
-            up: Some(t0),
-            down: None,
-            left: None,
-            right: None,
-        })?;
+
+        ui.root().add_viewport("main_viewport", -1, ui::widget::viewport::UIViewport::new(IVec2::ZERO, world.uid(), viewport))?;
+        // ui.root().add_label("label", 2, ui::widget::label::Label::new((300, 100).into(), "Hello World !", "default".into()))?;
 
         // for _ in 0..30 {
         //     // ui.add_label(&format!("test{}", i), 30, UID::null(), Label::new((5, i * 10).into(), "0123456789012345678901234567890123456789", "default".into()))?;
