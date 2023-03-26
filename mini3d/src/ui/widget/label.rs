@@ -1,7 +1,8 @@
+use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::graphics::Graphics, ui::event::{EventContext, Event}, math::rect::IRect};
+use crate::{uid::UID, renderer::graphics::Graphics, ui::event::{EventContext, Event}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
@@ -25,8 +26,9 @@ impl Widget for UILabel {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
         gfx.print(self.position + offset, &self.text, self.font);
+        Ok(())
     }
 
     fn extent(&self) -> IRect {

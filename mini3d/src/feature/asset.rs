@@ -10,4 +10,5 @@ pub mod system_group;
 pub mod texture;
 pub mod tilemap;
 pub mod tileset;
+pub mod ui_stylesheet;
 pub mod ui_template;

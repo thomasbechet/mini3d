@@ -57,11 +57,11 @@ pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
     for (ic, c) in text.chars().enumerate() {
         if let Some(glyph) = font.glyph_locations.get(&c) {
             let start = *glyph;
-            let end = start + (font.glyph_width as usize * font.glyph_height as usize);
+            let end = start + (font.glyph_size.x as usize * font.glyph_size.y as usize);
             for (i, b) in font.data.as_bitslice()[start..end].iter().enumerate() {
                 if *b {
-                    let px = p.x + font.glyph_width as i32 * ic as i32 + (i as i32 % font.glyph_width as i32);
-                    let py = p.y + (i as i32 / font.glyph_width as i32);
+                    let px = p.x + font.glyph_size.x as i32 * ic as i32 + (i as i32 % font.glyph_size.x as i32);
+                    let py = p.y + (i as i32 / font.glyph_size.x as i32);
                     plot.plot(IVec2::new(px, py));
                 }
             }

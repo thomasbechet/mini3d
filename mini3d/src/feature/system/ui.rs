@@ -24,11 +24,11 @@ pub fn render(ctx: &mut SystemContext) -> Result<()> {
         let target = world.get::<UIRenderTarget>(e, UIRenderTarget::UID)?.unwrap();
         match *target {
             UIRenderTarget::Screen { offset } => {
-                ui.render(ctx.renderer.graphics(), offset, ctx.time.global());
+                ui.render(ctx.renderer.graphics(), offset, ctx.time.global())?;
             },
             UIRenderTarget::Canvas { offset, canvas } => {
                 let canvas = canvases.get_mut(canvas).with_context(|| "Canvas entity not found")?;
-                ui.render(&mut canvas.graphics, offset, ctx.time.global());
+                ui.render(&mut canvas.graphics, offset, ctx.time.global())?;
             },
             UIRenderTarget::Texture { offset: _, texture: _ } => {},
         }

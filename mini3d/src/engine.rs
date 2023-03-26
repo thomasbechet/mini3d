@@ -53,6 +53,7 @@ impl Engine {
         registry.assets.define_static::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;
         registry.assets.define_static::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
         registry.assets.define_static::<asset::ui_template::UITemplate>(asset::ui_template::UITemplate::NAME)?;
+        registry.assets.define_static::<asset::ui_stylesheet::UIStyleSheet>(asset::ui_stylesheet::UIStyleSheet::NAME)?;
         registry.assets.define_static::<asset::world_template::WorldTemplate>(asset::world_template::WorldTemplate::NAME)?;
 
         // Components

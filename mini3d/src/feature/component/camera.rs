@@ -12,8 +12,14 @@ pub struct Camera {
 impl Component for Camera {}
 
 impl Camera {
+    
     pub const NAME: &'static str = "camera";
     pub const UID: UID = UID::new(Camera::NAME);
+
+    pub fn with_fov(mut self, fov: f32) -> Self {
+        self.fov = fov;
+        self
+    }
 }
 
 impl Default for Camera {

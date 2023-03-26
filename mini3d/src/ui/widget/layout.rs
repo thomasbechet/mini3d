@@ -4,7 +4,7 @@ use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, user::InteractionMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}};
+use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, user::InteractionMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::{button::UIButton, checkbox::UICheckBox, label::UILabel, slider::UISlider, sprite::UISprite, Widget, textbox::UITextBox, viewport::UIViewport};
 
@@ -32,15 +32,15 @@ impl Widget for WidgetVariant {
         }
     }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) -> Result<()> {
         match self {
-            WidgetVariant::Button(button) => button.render(gfx, offset, time),
-            WidgetVariant::Checkbox(checkbox) => checkbox.render(gfx, offset, time),
-            WidgetVariant::Label(label) => label.render(gfx, offset, time),
-            WidgetVariant::Slider(slider) => {},
-            WidgetVariant::Sprite(sprite) => sprite.render(gfx, offset, time),
-            WidgetVariant::TextBox(textbox) => textbox.render(gfx, offset, time),
-            WidgetVariant::Viewport(viewport) => viewport.render(gfx, offset, time),
+            WidgetVariant::Button(button) => button.render(gfx, styles, offset, time),
+            WidgetVariant::Checkbox(checkbox) => checkbox.render(gfx, styles, offset, time),
+            WidgetVariant::Label(label) => label.render(gfx, styles, offset, time),
+            WidgetVariant::Slider(slider) => { Ok(()) },
+            WidgetVariant::Sprite(sprite) => sprite.render(gfx, styles, offset, time),
+            WidgetVariant::TextBox(textbox) => textbox.render(gfx, styles, offset, time),
+            WidgetVariant::Viewport(viewport) => viewport.render(gfx, styles, offset, time),
         }
     }
 
@@ -331,7 +331,7 @@ impl Widget for UILayout {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) -> Result<()> {
 
         // Sort widgets
         let mut entries = self.widgets.values().collect::<Vec<_>>();
@@ -339,8 +339,10 @@ impl Widget for UILayout {
 
         // Render widgets
         for entry in entries {
-            entry.widget.render(gfx, offset, time);
+            entry.widget.render(gfx, styles, offset, time)?;
         }
+
+        Ok(())
     }
 
     fn extent(&self) -> IRect {

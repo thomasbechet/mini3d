@@ -1,7 +1,8 @@
+use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::graphics::Graphics, uid::UID, ecs::entity::Entity, math::rect::IRect, ui::event::{EventContext, Event}};
+use crate::{renderer::graphics::Graphics, uid::UID, ecs::entity::Entity, math::rect::IRect, ui::event::{EventContext, Event}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
@@ -25,9 +26,9 @@ impl Widget for UIViewport {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
         gfx.blit_viewport(self.world, self.viewport, self.position + offset);   
-
+        Ok(())
     }
 
     fn extent(&self) -> IRect {

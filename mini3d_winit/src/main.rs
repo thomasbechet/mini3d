@@ -82,9 +82,9 @@ fn main() {
         .import().expect("Failed to import car texture.")
         .push(&mut events);
     ImageImporter::new()
-        .from_source(Path::new("assets/Sprites/UI_Flat_Frame_01_Standard.png"))
-        .with_name("frame")
-        .import().expect("Failed to import frame texture.")
+        .from_source(Path::new("assets/GUI.png"))
+        .with_name("GUI")
+        .import().expect("Failed to import GUI texture.")
         .push(&mut events);
     
     ModelImporter::new()

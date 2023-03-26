@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color, graphics::TextureWrapMode}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::UICheckBox}, controller::UIController, self, style::{UIBoxStyle, UIMargin}}, uid::UID, math::rect::IRect};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color, graphics::TextureWrapMode}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
@@ -334,7 +334,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         world.add(cam, Lifecycle::UID, Lifecycle::alive())?;
         world.add(cam, Transform::UID, Transform::from_translation(Vec3::new(4.0, -1.0, 0.0)))?;
         world.add(cam, LocalToWorld::UID, LocalToWorld::default())?;
-        world.add(cam, Camera::UID, Camera::default())?;
+        world.add(cam, Camera::UID, Camera::default().with_fov(90.0))?;
         world.add(cam, Hierarchy::UID, Hierarchy::default())?;
         
         Hierarchy::attach(e, cam, &mut world.view_mut::<Hierarchy>(Hierarchy::UID)?)?;
@@ -344,33 +344,53 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
 
         let viewport = world.create();
         world.add(viewport, Viewport::UID, Viewport::new(SCREEN_RESOLUTION, Some(cam)))?;
-    
-        let mut ui = UI::new(SCREEN_RESOLUTION);
-        let box_style = UIBoxStyle::sliced("frame".into(), (0, 0, 96, 96).into(), UIMargin::new(5, 5, 5, 5), TextureWrapMode::Repeat);
-        let button_style = UIButtonStyle::new(box_style, box_style, box_style);
-        let mut button = UIButton::new(IRect::new(10, 10, 60, 200), button_style);
+        
+        let mut stylesheet = UIStyleSheet::empty();
+        {
+            let texture = UID::new("GUI");
+            let frame0 = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
+                IRect::new(2, 34, 44, 44), 
+                UIMargin::new(6, 6, 6, 6))?);
+            let button_normal = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
+                IRect::new(1, 81, 14, 14), 
+                UIMargin::new(3, 4, 3, 3))?);
+            let button_pressed = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
+                IRect::new(17, 81, 14, 14), 
+                UIMargin::new(4, 3, 3, 3))?);
+            let button = UIButtonStyle::new(button_normal, button_pressed, button_normal)?;
+            let checkbox_unchecked = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
+                IRect::new(81, 257, 14, 14), 
+                UIMargin::new(3, 4, 3, 3))?);
+            let checkbox_checked = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
+                IRect::new(97, 257, 14, 14), 
+                UIMargin::new(4, 3, 3, 3))?);
+            let checkbox = UICheckBoxStyle::new(checkbox_unchecked, checkbox_checked)?;
+            stylesheet.add_button_style(UIButtonStyle::DEFAULT, button)?;
+            stylesheet.add_checkbox_style(UICheckBoxStyle::DEFAULT, checkbox)?;
+        }
+        
+        let mut ui = UI::new(SCREEN_RESOLUTION, stylesheet);
+        // let box_style = UIBoxStyle::sliced("frame".into(), (0, 0, 96, 96).into(), UIMargin::new(5, 5, 5, 5), TextureWrapMode::Repeat);
+        // let button_style = UIButtonStyle::new(box_style, box_style, box_style);
+        let mut button = UIButton::new(IRect::new(10, 10, 60, 20));
         button.on_pressed(Some("HELLO".into()));
-        let b0 = ui.root().add_button("b0", 0, button)?;
+        let b0 = ui.root().add_button("b0", 5, button)?;
         // let b1 = ui.root().add_button("b1", 0, UIButton::new(IRect::new(10, 50, 50, 20)))?;
         ui.root().add_sprite("alfred", 1, UISprite::new("alfred".into(), (50, 50).into(), (0, 0, 64, 64).into()))?;
         let t0 = ui.root().add_textbox("textbox", 2, UITextBox::new((50, 100, 100, 15).into()))?;
-        let mut checkbox = UICheckBox::new((200, 200).into(), false);
+        let mut checkbox = UICheckBox::new((80, 10, 14, 14).into(), false);
         checkbox.on_checked(Some("checked".into()));
         let c0 = ui.root().add_checkbox("c0", 0, checkbox)?;
-        ui.root().add_sprite("frame", 1, UISprite::new("frame".into(), (300, 50).into(), (0, 0, 96, 96).into()))?;
-        ui.root().add_label("test", 2, ui::widget::label::UILabel::new((330, 90).into(), "Hello", "default".into()))?;
+        // ui.root().add_sprite("frame", 1, UISprite::new("frame".into(), (300, 50).into(), (0, 0, 96, 96).into()))?;
+        ui.root().add_label("test", 2, UILabel::new((330, 90).into(), "Hello", "default".into()))?;
 
+        ui.root().set_navigation(b0, Navigation { up: None, down: None, left: None, right: Some(c0) })?;
+        ui.root().set_navigation(c0, Navigation { up: None, down: None, left: Some(b0), right: None })?;
 
         ui.root().add_viewport("main_viewport", -1, ui::widget::viewport::UIViewport::new(IVec2::ZERO, world.uid(), viewport))?;
-        // ui.root().add_label("label", 2, ui::widget::label::Label::new((300, 100).into(), "Hello World !", "default".into()))?;
-
-        // for _ in 0..30 {
-        //     // ui.add_label(&format!("test{}", i), 30, UID::null(), Label::new((5, i * 10).into(), "0123456789012345678901234567890123456789", "default".into()))?;
-        // }
-        // ui.add_checkbox("checkbox", 50, UID::null(), Checkbox::new((50, 100).into(), true))?;
-        // ui.add_viewport("main_viewport", 0, UID::null(), ui::viewport::Viewport::new(IVec2::ZERO, world.uid(), viewport))?;
-        // // ui.add_viewport("second_viewport", 50, UID::null(), Viewport::new((440, 200).into(), UID::null(), viewport2))?;
+        
         ui.add_user("main")?;
+
         let uie = world.create();
         world.add(uie, Lifecycle::UID, Lifecycle::alive())?;
         world.add(uie, UI::UID, ui)?;

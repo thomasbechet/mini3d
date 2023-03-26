@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow, Context};
 use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
 
-use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity, component::Component}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect};
+use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity, component::Component}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet};
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {
@@ -25,6 +25,7 @@ pub struct UI {
 
     root: UILayout,
     users: HashMap<UID, UIUser>,
+    stylesheet: UIStyleSheet,
 
     #[serde(skip)]
     events: Vec<UIEvent>,
@@ -40,10 +41,11 @@ impl UI {
     pub const NAME: &'static str = "ui";
     pub const UID: UID = UID::new(UI::NAME);
 
-    pub fn new(resolution: UVec2) -> Self {
+    pub fn new(resolution: UVec2, stylesheet: UIStyleSheet) -> Self {
         Self {
             root: UILayout::default(),
             users: Default::default(),
+            stylesheet,
             events: Default::default(),
             resolution,
             background_color: Some(Color::BLACK),
@@ -92,7 +94,7 @@ impl UI {
         Ok(())
     }
 
-    pub fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) {
+    pub fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) -> Result<()> {
 
         // Compute extent
         let extent = IRect::new(offset.x, offset.y, self.resolution.x, self.resolution.y).clamp(SCREEN_VIEWPORT);
@@ -104,7 +106,7 @@ impl UI {
         }
 
         // Render
-        self.root.render(gfx, offset, time);
+        self.root.render(gfx, &self.stylesheet, offset, time)?;
 
         // Render profiles
         for user in self.users.values() {
@@ -113,6 +115,8 @@ impl UI {
 
         // Reset scissor
         gfx.scissor(None);
+
+        Ok(())
     }
 
     pub fn set_background_color(&mut self, color: Option<Color>) {
@@ -141,5 +145,9 @@ impl UI {
 
     pub fn user(&mut self, uid: UID) -> Result<&mut UIUser> {
         self.users.get_mut(&uid).with_context(|| "User not found")
+    }
+
+    pub fn add_styles(&mut self, stylesheet: &UIStyleSheet) -> Result<()> {
+        self.stylesheet.merge(stylesheet)
     }
 }

@@ -1,11 +1,12 @@
+use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, renderer::{graphics::Graphics, color::Color}, math::rect::IRect, uid::UID};
+use crate::{ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, renderer::{graphics::Graphics, color::Color}, math::rect::IRect, uid::UID, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct UIButtonStyle {
     normal: UIBoxStyle,
     pressed: UIBoxStyle,
@@ -13,8 +14,21 @@ pub struct UIButtonStyle {
 }
 
 impl UIButtonStyle {
-    pub fn new(normal: UIBoxStyle, pressed: UIBoxStyle, hovered: UIBoxStyle) -> Self {
-        Self { normal, pressed, hovered }
+
+    pub const DEFAULT: &'static str = "default";
+
+    pub fn new(normal: UIBoxStyle, pressed: UIBoxStyle, hovered: UIBoxStyle) -> Result<Self> {
+        Ok(Self { normal, pressed, hovered })
+    }
+}
+
+impl Default for UIButtonStyle {
+    fn default() -> Self {
+        Self {
+            normal: UIBoxStyle::Color(Color::WHITE), 
+            pressed: UIBoxStyle::Color(Color::RED), 
+            hovered: UIBoxStyle::Color(Color::GRAY),
+        }
     }
 }
 
@@ -23,15 +37,15 @@ pub struct UIButton {
     pressed: bool,
     hovered: bool,
     extent: IRect,
-    style: UIButtonStyle,
+    style: UID,
     on_pressed: Option<UID>,
     on_released: Option<UID>,
 }
 
 impl UIButton {
 
-    pub fn new(extent: IRect, style: UIButtonStyle) -> Self {
-        Self { extent, style, pressed: false, hovered: false, on_pressed: None, on_released: None }
+    pub fn new(extent: IRect) -> Self {
+        Self { extent, style: UIButtonStyle::DEFAULT.into(), pressed: false, hovered: false, on_pressed: None, on_released: None }
     }
 
     pub fn on_pressed(&mut self, action: Option<UID>) {
@@ -80,15 +94,17 @@ impl Widget for UIButton {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
+        let style = styles.buttons.get(&self.style).with_context(|| "UIButtonStyle not found")?;
         let extent = self.extent.translate(offset);
         if self.pressed {
-            self.style.pressed.render(gfx, extent, Color::WHITE, 0);
+            style.pressed.render(gfx, extent, Color::WHITE, 1);
         } else if self.hovered {
-            self.style.hovered.render(gfx, extent, Color::WHITE, 0);
+            style.hovered.render(gfx, extent, Color::WHITE, 1);
         } else {
-            self.style.normal.render(gfx, extent, Color::WHITE, 0);
+            style.normal.render(gfx, extent, Color::WHITE, 1);
         }
+        Ok(())
     }
 
     fn extent(&self) -> IRect {

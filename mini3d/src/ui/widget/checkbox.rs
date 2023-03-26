@@ -1,23 +1,49 @@
+use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, uid::UID, ui::event::{EventContext, Event, UIEvent}};
+use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, uid::UID, ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UICheckBoxStyle {
+    checked: UIBoxStyle,
+    unchecked: UIBoxStyle,
+}
+
+impl UICheckBoxStyle {
+
+    pub const DEFAULT: &'static str = "default";
+
+    pub fn new(checked: UIBoxStyle, unchecked: UIBoxStyle) -> Result<Self> {
+        Ok(Self { checked, unchecked })
+    }
+}
+
+impl Default for UICheckBoxStyle {
+    fn default() -> Self {
+        Self {
+            checked: UIBoxStyle::Color(Color::WHITE), 
+            unchecked: UIBoxStyle::Color(Color::RED), 
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct UICheckBox {
-    position: IVec2,
+    extent: IRect,
     checked: bool,
     hovered: bool,
+    style: UID,
     on_checked: Option<UID>,
     on_unchecked: Option<UID>,
 }
 
 impl UICheckBox {
     
-    pub fn new(position: IVec2, checked: bool) -> Self {
-        Self { position, checked, hovered: false, on_checked: None, on_unchecked: None }
+    pub fn new(extent: IRect, checked: bool) -> Self {
+        Self { extent, checked, style: UICheckBoxStyle::DEFAULT.into(), hovered: false, on_checked: None, on_unchecked: None }
     }
 
     pub fn on_checked(&mut self, action: Option<UID>) {
@@ -54,17 +80,19 @@ impl Widget for UICheckBox {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
-        let position = self.position + offset;
-        gfx.draw_rect(IRect::new(position.x, position.y, 10, 10), Color::WHITE);
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
+        let style = styles.checkboxes.get(&self.style).with_context(|| "Checkbox style not found")?;
+        let extent = self.extent.translate(offset);
         if self.checked {
-            gfx.draw_line(position, position + IVec2::new(9, 9), Color::WHITE);
-            gfx.draw_line(position + IVec2::new(9, 0), position + IVec2::new(0, 9), Color::WHITE);
+            style.checked.render(gfx, extent, Color::WHITE, 1);
+        } else {
+            style.unchecked.render(gfx, extent, Color::WHITE, 1);
         }
+        Ok(())
     }
 
     fn extent(&self) -> IRect {
-        IRect::new(self.position.x, self.position.y, 10, 10)
+        self.extent
     }
 
     fn is_focusable(&self) -> bool {

@@ -1,7 +1,8 @@
+use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, renderer::{color::Color, graphics::{Graphics, TextureWrapMode}}, math::rect::IRect, ui::event::{Event, EventContext}};
+use crate::{uid::UID, renderer::{color::Color, graphics::{Graphics, TextureWrapMode}}, math::rect::IRect, ui::event::{Event, EventContext}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
@@ -44,12 +45,13 @@ impl Widget for UISprite {
 
     fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool { false }
 
-    fn render(&self, gfx: &mut Graphics, offset: IVec2, _time: f64) {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
         let extent = IRect::new(
             self.position.x + offset.x, self.position.y + offset.y,
             self.texture_extent.width(), self.texture_extent.height()
         );
         gfx.blit_texture(self.texture, extent, self.texture_extent, self.color, TextureWrapMode::Clamp, 5);
+        Ok(())
     }
 
     fn extent(&self) -> IRect {

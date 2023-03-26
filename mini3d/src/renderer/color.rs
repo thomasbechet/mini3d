@@ -26,6 +26,7 @@ impl Color {
     pub const RED: Color = Color::rgba(255, 0, 0, 255);
     pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
     pub const TRANSPARENT: Color = Color::rgba(0, 0, 0, 0);
+    pub const GRAY: Color = Color::rgba(200, 200, 200, 255);
     
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self((a as u32) << 24 | (r as u32) << 16 | (g as u32) << 8 | (b as u32))
