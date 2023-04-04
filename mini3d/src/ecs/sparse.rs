@@ -1,3 +1,5 @@
+use super::entity::EntityKey;
+
 pub(crate) const PAGE_SIZE: usize = 512;
 
 #[derive(Default)]
@@ -11,15 +13,15 @@ impl<T: Default + Copy> PagedVector<T> {
         Self { pages: Vec::new() }
     }
 
-    pub(crate) fn get(&self, key: usize) -> Option<&T> {
-        let page = key / PAGE_SIZE;
-        let offset = key % PAGE_SIZE;
+    pub(crate) fn get(&self, key: EntityKey) -> Option<&T> {
+        let page = key as usize / PAGE_SIZE;
+        let offset = key as usize % PAGE_SIZE;
         self.pages.get(page).and_then(|page| page.as_ref().map(|page| &page[offset]))
     }
 
-    pub(crate) fn set(&mut self, key: usize, value: T) {
-        let page = key / PAGE_SIZE;
-        let offset = key % PAGE_SIZE;
+    pub(crate) fn set(&mut self, key: EntityKey, value: T) {
+        let page = key as usize / PAGE_SIZE;
+        let offset = (key as usize) % PAGE_SIZE;
         if page >= self.pages.len() {
             self.pages.resize_with(page + 1, || None)
         }

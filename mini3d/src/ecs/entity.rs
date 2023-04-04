@@ -9,22 +9,23 @@ use serde::{Serialize, Deserialize};
 // }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Entity(pub(crate) usize);
+pub struct Entity(pub(crate) u32);
 
-pub(crate) type EntityVersion = u32;
+pub(crate) type EntityVersion = u8;
+pub(crate) type EntityKey = u32;
 
 impl Entity {
 
-    pub(crate) fn new(key: usize, version: EntityVersion) -> Self {
-        Self(key | ((version as usize) << 32))
+    pub(crate) fn new(key: EntityKey, version: EntityVersion) -> Self {
+        Self(key | ((version as EntityKey) << 24))
     }
 
-    pub(crate) fn key(&self) -> usize {
-        self.0 & 0x0000_0000_ffff_ffff
+    pub(crate) fn key(&self) -> EntityKey {
+        self.0 & 0x00ff_ffff
     }
 
     pub(crate) fn version(&self) -> EntityVersion {
-        (self.0 >> 32) as EntityVersion
+        (self.0 >> 24) as EntityVersion
     }
 
     pub fn null() -> Self {

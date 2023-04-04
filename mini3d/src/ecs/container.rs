@@ -79,7 +79,7 @@ impl<C: Component> ComponentContainer<C> {
             self.entities.swap_remove(index);
             let swapped_entity = self.entities[index];
             self.indices.set(swapped_entity.key(), index);
-            self.entities[entity.key()] = Entity::null();
+            self.entities[entity.key() as usize] = Entity::null();
         }
         Ok(())
     }
