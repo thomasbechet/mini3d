@@ -1,7 +1,9 @@
+use anyhow::Result;
 use glam::{Mat4, Vec3, Vec4};
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{uid::UID, ecs::component::Component};
+use crate::{uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
 
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct LocalToWorld {

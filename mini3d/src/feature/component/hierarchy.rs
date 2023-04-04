@@ -1,7 +1,8 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}, component::Component}, uid::UID};
+use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}}, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Hierarchy {
@@ -51,7 +52,7 @@ impl Hierarchy {
             while let Some(next) = view.get(last_child.unwrap()).unwrap().next_sibling {
                 // Prevent circular references
                 if last_child.unwrap() == child {
-                    return Err(anyhow::anyhow!("Circular reference detected"));
+                    return Err(anyhow!("Circular reference detected"));
                 }
                 last_child = Some(next);
             }

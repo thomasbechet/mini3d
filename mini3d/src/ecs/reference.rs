@@ -1,19 +1,6 @@
 use std::{cell::{Ref, RefMut}, ops::{Deref, DerefMut}};
 
-use anyhow::Result;
-use serde::{Serialize, Deserialize};
-
-use super::entity::Entity;
-
-
-pub struct EntityResolver;
-pub struct ComponentContext;
-
-pub trait Component: Serialize + for<'de> Deserialize<'de> + 'static {
-    fn on_construct(&mut self, _entity: Entity, _ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
-    fn on_destruct(&mut self, _entity: Entity, _ctx: &mut ComponentContext) -> Result<()> { Ok(()) }
-    fn resolve_entities(&mut self, _resolver: &EntityResolver) -> Result<()> { Ok(()) }
-}
+use crate::registry::component::Component;
 
 pub struct ComponentRef<'a, C: Component> {
     pub(crate) components: Ref<'a, Vec<C>>,

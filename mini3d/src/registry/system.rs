@@ -23,23 +23,23 @@ pub(crate) struct SystemRegistry {
 
 impl SystemRegistry {
 
-    fn define(&mut self, definition: SystemDefinition) -> Result<()> {
+    fn define(&mut self, definition: SystemDefinition) -> Result<UID> {
         let uid: UID = definition.name.as_str().into();
         if self.systems.contains_key(&uid) {
             return Err(anyhow!("System already defined"));
         }
         self.systems.insert(uid, definition);
-        Ok(())
+        Ok(uid)
     }
 
-    pub(crate) fn define_static(&mut self, name: &str, system: SystemCallback) -> Result<()> {
+    pub(crate) fn define_static(&mut self, name: &str, system: SystemCallback) -> Result<UID> {
         self.define(SystemDefinition { 
             name: name.to_string(),
             code: SystemCode::Static(system),
         })
     }
 
-    pub(crate) fn define_rhai(&mut self, name: &str, script: UID) -> Result<()> {
+    pub(crate) fn define_rhai(&mut self, name: &str, script: UID) -> Result<UID> {
         self.define(SystemDefinition {
             name: name.to_string(),
             code: SystemCode::Rhai(script),

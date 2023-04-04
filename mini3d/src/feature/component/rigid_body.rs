@@ -1,7 +1,9 @@
+use anyhow::Result;
 use rapier3d::prelude::RigidBodyHandle;
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{uid::UID, ecs::component::Component};
+use crate::{uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
 
 #[derive(Serialize, Deserialize)]
 pub struct RigidBody {

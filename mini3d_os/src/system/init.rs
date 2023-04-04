@@ -1,12 +1,6 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION, color::Color, graphics::TextureWrapMode}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
-
-fn define_features(ctx: &mut SystemContext) -> Result<()> {
-    ctx.registry.define_static_component::<OS>(OS::NAME)?;
-    ctx.registry.define_static_system("update", crate::system::update::update)?;
-    Ok(())
-}
 
 fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
     ctx.asset.add_bundle(DefaultAsset::BUNDLE).unwrap();
@@ -250,9 +244,7 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
 
 fn setup_world(ctx: &mut SystemContext) -> Result<()> {
 
-    let world = ctx.world.add("main")?;
-    ctx.world.change(world)?;
-    let mut world = ctx.world.get(world)?;
+    let mut world = ctx.world.active();
 
     {
         let e = world.create();
@@ -430,10 +422,18 @@ fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init(ctx: &mut SystemContext) -> Result<()> {
-    define_features(ctx)?;
+fn init_system(ctx: &mut SystemContext) -> Result<()> {
     setup_assets(ctx)?;
     setup_world(ctx)?;
     setup_scheduler(ctx)?;
     Ok(())
+}
+
+pub fn initialize_engine(engine: &mut Engine) -> Result<()> {
+
+    engine.define_static_component::<OS>(OS::NAME)?;
+    engine.define_static_system("update", crate::system::update::update)?;
+    engine.define_static_system("init", init_system).expect("Failed to define init system");
+    
+    engine.invoke("init".into())
 }

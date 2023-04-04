@@ -1,6 +1,6 @@
 use mini3d::{context::SystemContext, anyhow::Result, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::{free_fly::FreeFly, ui::UI}, ui::event::{UIEvent, Direction}, glam::{Vec2, IVec2}};
 
-use crate::{input::{CommonAction, CommonAxis}, component::os::OS};
+use crate::{input::CommonAction, component::os::OS};
 
 pub fn update(ctx: &mut SystemContext) -> Result<()> {
     

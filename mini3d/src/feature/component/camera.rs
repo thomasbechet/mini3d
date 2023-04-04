@@ -1,6 +1,8 @@
+use anyhow::{Result, anyhow};
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{renderer::backend::SceneCameraHandle, uid::UID, ecs::component::Component};
+use crate::{renderer::backend::SceneCameraHandle, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition, ComponentProperty}};
 
 #[derive(Serialize, Deserialize)]
 pub struct Camera {

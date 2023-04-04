@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow, Context};
 use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity, component::Component}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet, registry::component::{Component, EntityResolver, ComponentDefinition}};
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {

@@ -4,12 +4,14 @@ use serde::ser::SerializeTuple;
 use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::AssetManager;
-use crate::ecs::ECSManager;
+use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::ecs::system::SystemCallback;
 use crate::feature::asset::input_table::{InputTable, InputAction, InputAxis};
 use crate::feature::{asset, component, system};
 use crate::physics::PhysicsManager;
 use crate::registry::RegistryManager;
+use crate::registry::asset::Asset;
+use crate::registry::component::Component;
 use crate::renderer::RendererManager;
 use crate::renderer::backend::RendererBackend;
 use crate::event::Events;
@@ -17,6 +19,7 @@ use crate::event::system::SystemEvent;
 use crate::input::{InputManager, InputActionState, InputAxisState};
 use crate::request::Requests;
 use crate::script::ScriptManager;
+use crate::uid::UID;
 use core::cell::RefCell;
 use std::cell::Ref;
 
@@ -47,6 +50,7 @@ impl Engine {
         registry.assets.define_static::<asset::material::Material>(asset::material::Material::NAME)?;
         registry.assets.define_static::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
         registry.assets.define_static::<asset::model::Model>(asset::model::Model::NAME)?;
+        registry.assets.define_static::<asset::prefab::Prefab>(asset::prefab::Prefab::NAME)?;
         registry.assets.define_static::<asset::rhai_script::RhaiScript>(asset::rhai_script::RhaiScript::NAME)?;
         registry.assets.define_static::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
         registry.assets.define_static::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
@@ -54,7 +58,6 @@ impl Engine {
         registry.assets.define_static::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
         registry.assets.define_static::<asset::ui_template::UITemplate>(asset::ui_template::UITemplate::NAME)?;
         registry.assets.define_static::<asset::ui_stylesheet::UIStyleSheet>(asset::ui_stylesheet::UIStyleSheet::NAME)?;
-        registry.assets.define_static::<asset::world_template::WorldTemplate>(asset::world_template::WorldTemplate::NAME)?;
 
         // Components
         registry.components.define_static::<component::camera::Camera>(component::camera::Camera::NAME)?;
@@ -86,7 +89,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new(init: SystemCallback) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let mut engine = Self {
             registry: Default::default(),
             asset: Default::default(), 
@@ -99,8 +102,11 @@ impl Engine {
             time: 0.0,
         };
         engine.define_core_features()?;
-        engine.ecs.setup(init, engine.registry.get_mut())?;
         Ok(engine)
+    }
+
+    pub fn invoke(&mut self, system: UID) -> Result<()> {
+        self.ecs.invoke(system)
     }
 
     pub fn save_state<S: Serializer>(&mut self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -219,6 +225,22 @@ impl Engine {
         Ok(())
     }
 
+    pub fn define_static_component<C: Component>(&mut self, name: &str) -> Result<()> {
+        let mut registry = self.registry.borrow_mut();
+        registry.components.define_static::<C>(name)?;
+        Ok(())
+    }
+
+    pub fn define_static_system(&mut self, name: &str, system: SystemCallback) -> Result<UID> {
+        let mut registry = self.registry.borrow_mut();
+        registry.systems.define_static(name, system)
+    }
+
+    pub fn define_static_asset<A: Asset>(&mut self, name: &str) -> Result<()> {
+        self.registry.borrow_mut().assets.define_static::<A>(name)?;
+        Ok(())
+    }
+
     pub fn iter_input_tables(&self) -> impl Iterator<Item = &InputTable> {
         self.input.iter_tables()
     }
@@ -272,16 +294,18 @@ impl Engine {
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
         self.ecs.update(
-            &self.registry, 
-            &mut self.asset,
-            &mut self.input, 
-            &mut self.renderer,
+            ECSUpdateContext {
+                registry: &self.registry,
+                asset: &mut self.asset,
+                input: &mut self.input,
+                renderer: &mut self.renderer,
+                events,
+                delta_time,
+                time: self.time,
+                fixed_delta_time: FIXED_TIMESTEP,
+            },
             &mut self.script,
-            events,
-            delta_time, 
-            self.time, 
-            FIXED_TIMESTEP, 
-            fixed_update_count
+            fixed_update_count,
         )?;
 
         // ================= REQUESTS STAGE ================= //

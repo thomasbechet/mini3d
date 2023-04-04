@@ -3,21 +3,33 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Result};
 use serde::{Serialize, Deserialize, Serializer};
 
-use crate::{uid::UID, feature::asset::runtime_component::FieldType, ecs::{container::{AnyComponentContainer, ComponentContainer, DynamicComponent1, DynamicComponent2, DynamicComponent3, DynamicComponent4, DynamicComponent5}, component::Component, singleton::{AnySingleton, Singleton}}};
+use crate::{uid::UID, ecs::{container::{AnyComponentContainer, ComponentContainer}, singleton::{AnySingleton, Singleton}, entity::Entity, dynamic::DynamicComponent}};
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct DynamicComponentDefinition {
-    pub fields: HashMap<String, FieldType>,
+pub struct EntityResolver;
+
+impl EntityResolver {
+    pub fn resolve(&self, entity: Entity) -> Result<Entity> {
+        // TODO: Resolve entity
+        Ok(entity)
+    }
+}
+
+pub trait Component: Serialize + for<'de> Deserialize<'de> + 'static {
+    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<()> { Ok(()) }
+}
+
+pub trait ComponentInspector {
+    type C: Component;
+    fn write_property(&self, component: &mut Self::C, property: UID, value: &serde_json::Value) -> Result<()>;
+    fn read_property(&self, component: &Self::C, property: UID) -> Option<serde_json::Value>;
 }
 
 pub(crate) enum ComponentKind {
     Static,
-    Dynamic(DynamicComponentDefinition),
+    Dynamic,
 }
 
-pub(crate) struct AnyComponentContainerDeserializeSeed;
-
-pub(crate) trait AnyComponentDefinitionReflection {
+pub(crate) trait AnyComponentReflection {
     fn create_container(&self) -> Box<dyn AnyComponentContainer>;
     fn serialize_container<'a>(&'a self, container: &'a dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a>;
     fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>>;
@@ -25,11 +37,11 @@ pub(crate) trait AnyComponentDefinitionReflection {
     fn deserialize_singleton(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnySingleton>>;
 }
 
-pub(crate) struct ComponentDefinitionReflection<C: Component> {
+pub(crate) struct ComponentReflection<C: Component> {
     _phantom: std::marker::PhantomData<C>,
 }
 
-impl<C: Component> AnyComponentDefinitionReflection for ComponentDefinitionReflection<C> {
+impl<C: Component> AnyComponentReflection for ComponentReflection<C> {
     
     fn create_container(&self) -> Box<dyn AnyComponentContainer> {
         Box::new(ComponentContainer::<C>::new())
@@ -68,48 +80,64 @@ impl<C: Component> AnyComponentDefinitionReflection for ComponentDefinitionRefle
     }
 }
 
+pub struct ComponentProperty {
+    pub(crate) name: String,
+    pub(crate) format: UID,
+    pub(crate) editable: bool,
+}
+
+impl ComponentProperty {
+
+    pub const BOOL: UID = UID::new("bool");
+    pub const FLOAT: UID = UID::new("float");
+    pub const VEC2: UID = UID::new("vec2");
+    pub const VEC3: UID = UID::new("vec3");
+    pub const INPUT_ACTION: UID = UID::new("input_action");
+    pub const INPUT_AXIS: UID = UID::new("input_axis");
+
+    pub fn new(name: &str, format: UID) -> Self {
+        Self { name: name.to_string(), format, editable: true }
+    }
+
+    pub fn editable(mut self, editable: bool) -> Self {
+        self.editable = editable;
+        self
+    }
+}
+
 pub(crate) struct ComponentDefinition {
     pub(crate) name: String,
+    pub(crate) reflection: Box<dyn AnyComponentReflection>,
     pub(crate) kind: ComponentKind,
-    pub(crate) reflection: Box<dyn AnyComponentDefinitionReflection>,
 }
 
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
-    components: HashMap<UID, ComponentDefinition>,
+    pub(crate) definitions: HashMap<UID, ComponentDefinition>,
 }
 
 impl ComponentRegistry {
 
-    fn define(&mut self, name: &str, kind: ComponentKind, reflection: Box<dyn AnyComponentDefinitionReflection>) -> Result<UID> {
+    fn define(&mut self, name: &str, kind: ComponentKind, reflection: Box<dyn AnyComponentReflection>) -> Result<UID> {
         let uid: UID = name.into();
-        if self.components.contains_key(&uid) {
+        if self.definitions.contains_key(&uid) {
             return Err(anyhow!("Component with name '{}' already defined", name));
         }
-        self.components.insert(uid, ComponentDefinition { name: name.to_string(), kind, reflection });
+        self.definitions.insert(uid, ComponentDefinition { name: name.to_string(), kind, reflection });
         Ok(uid)
     }
 
     pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID> {
-        let reflection = ComponentDefinitionReflection::<C> { _phantom: std::marker::PhantomData };
-        let uid = self.define(name, ComponentKind::Static, Box::new(reflection))?;
-        Ok(uid)
+        let reflection = ComponentReflection::<C> { _phantom: std::marker::PhantomData };
+        Ok(self.define(name, ComponentKind::Static, Box::new(reflection))?)
     }
 
-    pub(crate) fn define_dynamic(&mut self, name: &str, definition: DynamicComponentDefinition) -> Result<UID> {
-        let reflection: Box<dyn AnyComponentDefinitionReflection> = match definition.fields.len() {
-            1 => Box::new(ComponentDefinitionReflection::<DynamicComponent1> { _phantom: std::marker::PhantomData }),
-            2 => Box::new(ComponentDefinitionReflection::<DynamicComponent2> { _phantom: std::marker::PhantomData }),
-            3 => Box::new(ComponentDefinitionReflection::<DynamicComponent3> { _phantom: std::marker::PhantomData }),
-            4 => Box::new(ComponentDefinitionReflection::<DynamicComponent4> { _phantom: std::marker::PhantomData }),
-            5 => Box::new(ComponentDefinitionReflection::<DynamicComponent5> { _phantom: std::marker::PhantomData }),
-            _ => return Err(anyhow!("Runtime component with 0 or more than 5 fields not supported")),
-        };
-        let uid = self.define(name, ComponentKind::Dynamic(definition), reflection)?;
-        Ok(uid)
+    pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<UID> {
+        let reflection = ComponentReflection::<DynamicComponent> { _phantom: std::marker::PhantomData };
+        Ok(self.define(name, ComponentKind::Dynamic, Box::new(reflection))?)
     }
 
     pub(crate) fn get(&self, uid: UID) -> Option<&ComponentDefinition> {
-        self.components.get(&uid)
+        self.definitions.get(&uid)
     }
 }

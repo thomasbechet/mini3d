@@ -1,7 +1,9 @@
+use anyhow::Result;
 use glam::UVec2;
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, uid::UID, ecs::component::Component};
+use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition, ComponentProperty}};
 
 #[derive(Serialize, Deserialize)]
 pub struct Canvas {

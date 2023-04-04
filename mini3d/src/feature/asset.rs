@@ -1,11 +1,11 @@
-pub mod runtime_component;
+pub mod dynamic_component;
 pub mod font;
 pub mod input_table;
 pub mod material;
 pub mod mesh;
 pub mod model;
+pub mod prefab;
 pub mod rhai_script;
-pub mod world_template;
 pub mod system_group;
 pub mod texture;
 pub mod tilemap;

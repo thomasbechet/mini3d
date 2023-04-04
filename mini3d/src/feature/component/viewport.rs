@@ -1,7 +1,9 @@
+use anyhow::Result;
 use glam::UVec2;
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{renderer::backend::ViewportHandle, ecs::{entity::Entity, component::Component}, uid::UID};
+use crate::{renderer::backend::ViewportHandle, ecs::{entity::Entity}, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
 
 fn default_as_true() -> bool { true }
 

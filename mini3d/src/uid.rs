@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, iter::Sum};
 
 use serde::{Serialize, Deserialize};
 
@@ -50,6 +50,12 @@ impl From<UID> for u64 {
 impl Display for UID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:016X}", self.0)
+    }
+}
+
+impl Sum for UID {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::null(), |a, b| Self(a.0 + b.0))
     }
 }
 

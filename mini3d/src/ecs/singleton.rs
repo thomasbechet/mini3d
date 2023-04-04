@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::cell::{RefCell, Ref, RefMut};
 use std::ops::{Deref, DerefMut};
-use super::component::Component;
+
+use crate::registry::component::Component;
 
 pub(crate) struct Singleton<C: Component> {
     pub(crate) component: RefCell<C>,

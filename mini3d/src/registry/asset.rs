@@ -45,7 +45,7 @@ impl AssetRegistry {
         Ok(uid)
     }
 
-    // TODO: support runtime assets ???
+    // TODO: support dynamic assets ???
 
     pub(crate) fn get(&self, uid: UID) -> Result<&AssetDefinition> {
         self.assets.get(&uid).with_context(|| "Asset not found")

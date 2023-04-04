@@ -2,11 +2,11 @@ use anyhow::{Result, Context};
 
 use crate::{context::SystemContext, script::ScriptManager, registry::system::{SystemRegistry, SystemCode}, uid::UID};
 
-pub(crate) struct SystemPipeline {
+pub(crate) struct CompiledSystemPipeline {
     systems: Vec<SystemCode>,
 }
 
-impl SystemPipeline {
+impl CompiledSystemPipeline {
 
     pub(crate) fn build<'a>(registry: &SystemRegistry, systems: impl Iterator<Item = &'a UID>) -> Result<Self> {
         let mut codes = Vec::new();

@@ -2,10 +2,11 @@ use std::{collections::{HashMap, hash_map}};
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserializer, Serializer, Serialize, de::{Visitor, DeserializeSeed}};
+use serde_json::json;
 
-use crate::{uid::UID, registry::component::{ComponentRegistry, AnyComponentDefinitionReflection}};
+use crate::{uid::UID, registry::component::{ComponentRegistry, AnyComponentReflection, Component}, feature::{asset::prefab::Prefab}};
 
-use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentViewRef, ComponentViewMut}, query::Query, component::{Component, ComponentRef, ComponentMut}, singleton::{AnySingleton, Singleton, SingletonRef, SingletonMut}};
+use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentViewRef, ComponentViewMut}, query::Query, reference::{ComponentRef, ComponentMut}, singleton::{AnySingleton, Singleton, SingletonRef, SingletonMut}};
 
 pub(crate) struct World {
     pub(crate) name: String,
@@ -28,8 +29,8 @@ impl World {
                 let mut map = serializer.serialize_map(Some(self.containers.len()))?;
                 for (uid, container) in self.containers.iter() {
                     use serde::ser::Error;
-                    let definition = self.registry.get(*uid).with_context(|| "Component definition not found").map_err(Error::custom)?;
-                    map.serialize_entry(uid, &definition.reflection.serialize_container(container.as_ref()))?;
+                    let entry = self.registry.definitions.get(uid).with_context(|| "Component definition not found").map_err(Error::custom)?;
+                    map.serialize_entry(uid, &entry.reflection.serialize_container(container.as_ref()))?;
                 }
                 map.end()
             }
@@ -44,8 +45,8 @@ impl World {
                 let mut map = serializer.serialize_map(Some(self.singletons.len()))?;
                 for (uid, singleton) in self.singletons.iter() {
                     use serde::ser::Error;
-                    let definition = self.registry.get(*uid).with_context(|| "Component definition not found").map_err(Error::custom)?;
-                    map.serialize_entry(uid, &definition.reflection.serialize_singleton(singleton.as_ref()))?;
+                    let entry = self.registry.definitions.get(uid).with_context(|| "Component definition not found").map_err(Error::custom)?;
+                    map.serialize_entry(uid, &entry.reflection.serialize_singleton(singleton.as_ref()))?;
                 }
                 map.end()
             }
@@ -88,7 +89,7 @@ impl World {
                             }
                             fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
                                 struct ContainerDeserializeSeed<'a> {
-                                    reflection: &'a dyn AnyComponentDefinitionReflection,
+                                    reflection: &'a dyn AnyComponentReflection,
                                 }
                                 impl<'a, 'de> DeserializeSeed<'de> for ContainerDeserializeSeed<'a> {
                                     type Value = Box<dyn AnyComponentContainer>;
@@ -97,9 +98,9 @@ impl World {
                                     }
                                 }
                                 let mut containers = HashMap::new();
-                                while let Some(uid) = map.next_key()? {
+                                while let Some(uid) = map.next_key::<UID>()? {
                                     if containers.contains_key(&uid) { return Err(A::Error::duplicate_field("uid")); }
-                                    let reflection = &self.registry.get(uid).with_context(|| "Component definition not found").map_err(Error::custom)?.reflection;
+                                    let reflection = &self.registry.definitions.get(&uid).with_context(|| "Component definition not found").map_err(Error::custom)?.reflection;
                                     containers.insert(uid, map.next_value_seed(ContainerDeserializeSeed { reflection: reflection.as_ref() })?);
                                 }
                                 Ok(containers)
@@ -125,7 +126,7 @@ impl World {
                             }
                             fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
                                 struct SingletonDeserializeSeed<'a> {
-                                    reflection: &'a dyn AnyComponentDefinitionReflection,
+                                    reflection: &'a dyn AnyComponentReflection,
                                 }
                                 impl<'a, 'de> DeserializeSeed<'de> for SingletonDeserializeSeed<'a> {
                                     type Value = Box<dyn AnySingleton>;
@@ -134,9 +135,9 @@ impl World {
                                     }
                                 }
                                 let mut singletons = HashMap::new();
-                                while let Some(uid) = map.next_key()? {
+                                while let Some(uid) = map.next_key::<UID>()? {
                                     if singletons.contains_key(&uid) { return Err(A::Error::duplicate_field("uid")); }
-                                    let reflection = &self.registry.get(uid).with_context(|| "Component definition not found").map_err(Error::custom)?.reflection;
+                                    let reflection = &self.registry.definitions.get(&uid).with_context(|| "Component definition not found").map_err(Error::custom)?.reflection;
                                     singletons.insert(uid, map.next_value_seed(SingletonDeserializeSeed { reflection: reflection.as_ref() })?);
                                 }
                                 Ok(singletons)
@@ -186,8 +187,8 @@ impl World {
 
     pub(crate) fn add<C: Component>(&mut self, registry: &ComponentRegistry, entity: Entity, component: UID, data: C) -> Result<()> {
         if let hash_map::Entry::Vacant(e) = self.containers.entry(component) {
-            let container = registry
-                .get(component).with_context(|| "Component not registered")?
+            let container = registry.definitions
+                .get(&component).with_context(|| "Component not registered")?
                 .reflection.create_container();
             e.insert(container);
         }
@@ -293,5 +294,46 @@ impl World {
         } else {
             Ok(None)
         }
+    }
+
+    pub(crate) fn instantiate(&mut self, registry: &ComponentRegistry, prefab: &Prefab, patch: Option<serde_json::Value>) -> Result<Entity> {
+        
+        let patch = json!({
+            "root": {
+                "transform": {
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                }
+            },
+        });
+
+        
+        let entity = self.create();
+        
+        Ok(entity)
+    }
+
+    pub(crate) fn export(&self, registry: &ComponentRegistry, entity: Entity, export_hierarchy: bool) -> Result<Prefab> {
+        
+        
+
+        // let hierarchies = self.view::<Hierarchy>(Hierarchy::UID)
+        //     .with_context(|| "Hierarchy component not registered")?;
+
+        // let mut prefab = Prefab::empty();
+
+        // prefab.root = entity;
+        // for (component, container) in self.containers.iter() {
+        //     if let Some(data) = container. get(entity) {
+        //         let component = registry.get(*component).with_context(|| "Component not registered")?;
+        //         let data = component.reflection.export(data)?;
+        //         prefab.components.insert(*component, data);
+        //     }
+        // }
+
+        Ok(Prefab::empty())
     }
 }

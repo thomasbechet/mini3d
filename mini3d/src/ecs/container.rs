@@ -1,22 +1,13 @@
 use std::{any::Any, marker::PhantomData, fmt};
 
 use anyhow::{Result, Context};
-use serde::{Serialize, Deserialize, de::{Visitor, self}, Deserializer, Serializer, ser::SerializeTuple};
+use serde::{de::{Visitor, self}, Deserializer, Serializer, ser::SerializeTuple};
 
-use crate::{feature::asset::runtime_component::FieldValue};
+use crate::{registry::component::Component};
 
 use std::cell::RefCell;
 
-use super::{entity::Entity, sparse::PagedVector, component::{Component, ComponentRef, ComponentMut}};
-
-pub(crate) trait AnyComponentContainer {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn entity(&self, index: usize) -> Entity;
-    fn contains(&self, entity: Entity) -> bool;
-    fn len(&self) -> usize;
-    fn remove(&mut self, entity: Entity);
-}
+use super::{entity::Entity, sparse::PagedVector, reference::{ComponentRef, ComponentMut}};
 
 pub(crate) struct ComponentContainer<C: Component> {
     pub(crate) components: RefCell<Vec<C>>,
@@ -116,6 +107,16 @@ impl<C: Component> ComponentContainer<C> {
     }
 }
 
+pub(crate) trait AnyComponentContainer {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn entity(&self, index: usize) -> Entity;
+    fn contains(&self, entity: Entity) -> bool;
+    fn len(&self) -> usize;
+    fn remove(&mut self, entity: Entity);
+    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<()>;
+}
+
 impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     fn as_any(&self) -> &dyn Any { self }
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
@@ -129,20 +130,5 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     }
     fn len(&self) -> usize { self.len() }
     fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }
+    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<()> { self.patch(entity, value) }
 }
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct DynamicComponent1([FieldValue; 1]);
-impl Component for DynamicComponent1 {}
-#[derive(Serialize, Deserialize)]
-pub(crate) struct DynamicComponent2([FieldValue; 2]);
-impl Component for DynamicComponent2 {}
-#[derive(Serialize, Deserialize)]
-pub(crate) struct DynamicComponent3([FieldValue; 3]);
-impl Component for DynamicComponent3 {}
-#[derive(Serialize, Deserialize)]
-pub(crate) struct DynamicComponent4([FieldValue; 4]);
-impl Component for DynamicComponent4 {}
-#[derive(Serialize, Deserialize)]
-pub(crate) struct DynamicComponent5([FieldValue; 5]);
-impl Component for DynamicComponent5 {}

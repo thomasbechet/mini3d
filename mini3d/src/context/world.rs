@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 
-use crate::{ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query, component::{ComponentRef, Component, ComponentMut}, singleton::{SingletonRef, SingletonMut}}, uid::UID, registry::RegistryManager};
+use crate::{ecs::{world::World, entity::Entity, view::{ComponentViewRef, ComponentViewMut}, query::Query, reference::{ComponentRef, ComponentMut}, singleton::{SingletonRef, SingletonMut}}, uid::UID, registry::{RegistryManager, component::Component}};
 use core::cell::RefCell;
 use std::{collections::{HashMap, HashSet}, cell::{RefMut, Ref}};
 

@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3, Vec4, Quat};
 use serde::{Serialize, Deserialize};
 
 use crate::ecs::entity::Entity;
@@ -16,15 +16,8 @@ pub enum FieldType {
     Array,
 }
 
+
 #[derive(Serialize, Deserialize, Clone)]
-pub enum FieldValue {
-    String(String),
-    Integer(i32),
-    Float(f32),
-    Boolean(bool),
-    Vec2(Vec2),
-    Vec3(Vec3),
-    Vec4(Vec4),
-    Entity(Entity),
-    Array(Vec<FieldValue>),
+pub struct DynamicComponent {
+
 }

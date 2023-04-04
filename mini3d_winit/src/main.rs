@@ -2,7 +2,8 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript, ecs::dynamic::{DynamicComponent, Value}};
+use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::{compute_fixed_viewport, ViewportMode};
@@ -52,8 +53,21 @@ fn main() {
     let mut renderer = WGPURenderer::new(&window.handle);
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &event_loop, &mapper);
 
+    // let mut c = DynamicComponent::default();
+    // let key0 = "one.two.three.four";
+    // let key1 = "one.two.hello";
+    // c.set(key0.into(), key0, Value::Null).expect("FAILED");
+    // c.set(key1.into(), key1, Value::Integer(123)).expect("FAILED");
+    // c.clear_key(key0.into(), key0).unwrap();
+    // c.print_keys();
+    // println!("==================");
+    // for key in c.list_keys("one.two.three.four".into()).unwrap() {
+    //     println!("key: {}", key);
+    // }
+
     // Engine
-    let mut engine = Engine::new(mini3d_os::system::init::init).expect("Failed to create engine");
+    let mut engine = Engine::new().expect("Failed to create engine");
+    initialize_engine(&mut engine).expect("Failed to initialize os");
     let mut events = Events::new();
     let mut requests = Requests::new();
 

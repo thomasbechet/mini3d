@@ -1,4 +1,4 @@
-use mini3d::{ecs::component::Component, uid::UID, ui::controller::UIController};
+use mini3d::{uid::UID, ui::controller::UIController, registry::component::Component};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]

@@ -1,6 +1,8 @@
+use anyhow::Result;
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 
-use crate::{uid::UID, renderer::backend::SceneModelHandle, ecs::component::Component};
+use crate::{uid::UID, renderer::backend::SceneModelHandle, registry::component::{Component, EntityResolver, ComponentDefinition}};
 
 #[derive(Serialize, Deserialize)]
 pub struct StaticMesh {

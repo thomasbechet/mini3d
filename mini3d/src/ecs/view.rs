@@ -1,6 +1,8 @@
 use std::{ops::{Index, IndexMut}, cell::{Ref, RefMut}};
 
-use super::{entity::Entity, container::ComponentContainer, sparse::PagedVector, component::Component};
+use crate::registry::component::Component;
+
+use super::{entity::Entity, container::ComponentContainer, sparse::PagedVector};
 
 pub trait ComponentView<C: Component> {
     fn get(&self, entity: Entity) -> Option<&C>;

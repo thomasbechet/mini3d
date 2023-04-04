@@ -1,4 +1,4 @@
-use self::{asset::AssetContext, renderer::RendererContext, input::InputContext, scheduler::SchedulerContext, procedure::ProcedureContext, world::WorldContext, registry::RegistryContext, event::EventContext};
+use self::{asset::AssetContext, renderer::RendererContext, input::InputContext, scheduler::SchedulerContext, procedure::ProcedureContext, world::WorldContext, registry::RegistryContext, event::EventContext, time::TimeContext};
 
 pub mod asset;
 pub mod event;
@@ -18,6 +18,6 @@ pub struct SystemContext<'a> {
     pub registry: RegistryContext<'a>,
     pub renderer: RendererContext<'a>,
     pub scheduler: SchedulerContext<'a>,
-    pub time: time::TimeContext,
+    pub time: TimeContext,
     pub world: WorldContext<'a>,
 }
