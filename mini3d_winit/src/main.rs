@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript, ecs::dynamic::{DynamicComponent, Value}};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript, ecs::dynamic::{DynamicComponent, Value}, script::vm::{VirtualMachine, program::Program}};
 use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -43,7 +43,7 @@ fn set_display_mode(window: &mut Window, gui: &mut WindowGUI, mode: DisplayMode)
     mode
 }
 
-fn main() {
+fn main_run() {
     // Window
     let event_loop = EventLoop::new();
     let mut window = Window::new(&event_loop);
@@ -413,4 +413,19 @@ fn main() {
             _ => {}
         }
     });
+}
+
+fn main() {
+    // main_run();
+    let program = Program::empty()
+        .put_int(2)
+        .put_int(4)
+        .mul_int()
+        .put_int(1)
+        .put_int(5)
+        .mul_int()
+        .add_int()
+        .halt();
+    let mut vm = VirtualMachine::new(program);
+    vm.execute();
 }
