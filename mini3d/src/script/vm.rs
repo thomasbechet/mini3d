@@ -23,36 +23,64 @@ impl VirtualMachine {
 
     pub fn execute(&mut self) {
         loop {
-            let opcode = Instruction::decode_opcode(self.program.instructions[self.ip]);
+            let (opcode, operand) = Instruction::decode(self.program.instructions[self.ip]);
             match opcode {
                 Opcode::PUSH => {
                     let word_count = Instruction::decode_word_count(self.program.instructions[self.ip]);
                     let words = &self.program.instructions[self.ip + 1..self.ip + 1 + word_count];
-                    self.stack.push_words(words);
+                    self.stack.push_multi(words);
                     self.ip += word_count;
                 },
                 Opcode::PUSHS => {
                     self.ip += 1;
-                    self.stack.push_word(self.program.instructions[self.ip]);
+                    self.stack.push(self.program.instructions[self.ip]);
                 }
                 Opcode::POP => {
                     let word_count = Instruction::decode_word_count(self.program.instructions[self.ip]);
-                    self.stack.pop_words(word_count);
+                    self.stack.pop_multi(word_count);
+                },
+                Opcode::POPS => {
+                    self.stack.pop();
                 },
                 Opcode::ADDF => {
-                    let a = self.stack.pop_float();
-                    let b = self.stack.pop_float();
-                    self.stack.push_float(a + b);
+                    let a = f32::from_bits(self.stack.pop());
+                    let b = f32::from_bits(self.stack.pop());
+                    self.stack.push((a + b).to_bits());
+                },
+                Opcode::SUBF => {
+                    let a = f32::from_bits(self.stack.pop());
+                    let b = f32::from_bits(self.stack.pop());
+                    self.stack.push((a - b).to_bits());
+                },
+                Opcode::MULF => {
+                    let a = f32::from_bits(self.stack.pop());
+                    let b = f32::from_bits(self.stack.pop());
+                    self.stack.push((a * b).to_bits());
+                },
+                Opcode::DIVF => {
+                    let a = f32::from_bits(self.stack.pop());
+                    let b = f32::from_bits(self.stack.pop());
+                    self.stack.push((a / b).to_bits());
                 },
                 Opcode::ADDI => {
-                    let a = self.stack.pop_int();
-                    let b = self.stack.pop_int();
-                    self.stack.push_int(a + b);
+                    let a = self.stack.pop();
+                    let b = self.stack.pop();
+                    self.stack.push(a + b);
+                },
+                Opcode::SUBI => {
+                    let a = self.stack.pop();
+                    let b = self.stack.pop();
+                    self.stack.push(a - b);
                 },
                 Opcode::MULI => {
-                    let a = self.stack.pop_int();
-                    let b = self.stack.pop_int();
-                    self.stack.push_int(a * b);
+                    let a = self.stack.pop();
+                    let b = self.stack.pop();
+                    self.stack.push(a * b);
+                },
+                Opcode::DIVI => {
+                    let a = self.stack.pop();
+                    let b = self.stack.pop();
+                    self.stack.push(a / b);
                 },
                 Opcode::HALT => {
                     break;

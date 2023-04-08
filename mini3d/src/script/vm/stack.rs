@@ -20,48 +20,24 @@ impl Stack {
         }
     }
 
-    pub(crate) fn push_word(&mut self, word: Word) {
+    pub(crate) fn push(&mut self, word: Word) {
         self.stack.push(word);
     }
 
-    pub(crate) fn push_words(&mut self, words: &[Word]) {
+    pub(crate) fn push_multi(&mut self, words: &[Word]) {
         self.stack.extend_from_slice(words);
     }
 
-    pub(crate) fn push_zeros(&mut self, word_count: usize) {
-        self.stack.extend(std::iter::repeat(0).take(word_count));
+    pub(crate) fn push_zeros(&mut self, count: usize) {
+        self.stack.extend(std::iter::repeat(0).take(count));
     }
 
-    pub(crate) fn push_int(&mut self, value: u32) {
-        self.push_word(value);
-    }
-
-    pub(crate) fn push_float(&mut self, value: f32) {
-        self.push_word(value.to_bits());
-    }
-
-    pub(crate) fn push_vec2(&mut self, value: Vec2) {
-        self.push_words(&[value.x.to_bits(), value.y.to_bits()]);
-    }
-
-    pub(crate) fn push_vec3(&mut self, value: Vec3) {
-        self.push_words(&[value.x.to_bits(), value.y.to_bits(), value.z.to_bits()]);
-    }
-
-    pub(crate) fn push_vec4(&mut self, value: Vec4) {
-        self.push_words(&[value.x.to_bits(), value.y.to_bits(), value.z.to_bits(), value.w.to_bits()]);
-    }
-
-    pub(crate) fn pop_words(&mut self, word_count: usize) {
-        self.stack.truncate(self.stack.len() - word_count);
-    }
-
-    pub(crate) fn pop_int(&mut self) -> u32 {
+    pub(crate) fn pop(&mut self) -> Word {
         self.stack.pop().unwrap()
     }
 
-    pub(crate) fn pop_float(&mut self) -> f32 {
-        f32::from_bits(self.stack.pop().unwrap())
+    pub(crate) fn pop_multi(&mut self, count: usize) {
+        self.stack.truncate(self.stack.len() - count);
     }
 
     pub(crate) fn get_int(&self, index: usize) -> u32 {
