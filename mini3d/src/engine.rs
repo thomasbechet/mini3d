@@ -52,6 +52,7 @@ impl Engine {
         registry.assets.define_static::<asset::model::Model>(asset::model::Model::NAME)?;
         registry.assets.define_static::<asset::prefab::Prefab>(asset::prefab::Prefab::NAME)?;
         registry.assets.define_static::<asset::rhai_script::RhaiScript>(asset::rhai_script::RhaiScript::NAME)?;
+        registry.assets.define_static::<asset::script::Script>(asset::script::Script::NAME)?;
         registry.assets.define_static::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
         registry.assets.define_static::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
         registry.assets.define_static::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;

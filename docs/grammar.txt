@@ -1,0 +1,40 @@
+S -> E0 end
+E0 -> E0 "+" E1 | E1
+E1 -> P
+P -> v | "-"E1
+v -> [0-9]+
+
+A -> a | Ab
+becomes
+A -> a {b} -- where b means "zero or more b"
+
+E0 -> E0 "+" E1 | E1
+becomes
+E0 -> E1 | E0 "+" E1 (inverted)
+
+E0 -> P { "+" P }
+P -> v | "-"P
+v -> [0-9]+
+
+GRAMMAR   = { STAT } ;
+STAT      = LET , IDENT , EQUAL , EXPR |
+            FUNCTIONCALL |
+            DO , BLOCK , END |
+            WHILE , EXP , DO , BLOCK , END |
+            IF , EXP , THEN , BLOCK , { ELIF , EXP , THEN , BLOCK } , [ ELSE , BLOCK ] , END |
+            FOR , INDENT , IN , EXPLIST , DO , BLOCK , END |
+            FUNCTION , IDENT , FUNCBODY ;
+FUNCBODY  = LPAREN , [ IDENTLIST ] , RPAREN , BLOCK , END ;
+IDENTLIST = IDENT , { COMMA , IDENT } ;
+EXPR      = NIL | FALSE | TRUE | INTEGER | FLOAT | STRING | 
+            EXPR , BINOP , EXPR | UNOP , EXPR ;
+BINOP     = PLUS | MINUS | MULTIPLY | DIVIDE | EQUAL | LEQUAL | GEQUAL | AND | NOT ;
+UNOP      = MINUS | NOT ;
+
+
+EXP = NIL | FALSE | TRUE | INTEGER | FLOAT | STRING | 
+      EXP , BINOP , EXP | UNOP , EXP ;
+
+BINOP = PLUS | MINUS | MULTIPLY | DIVIDE | EQUAL | LEQUAL | GEQUAL | AND ;
+UNOP  = MINUS | NOT ;
+

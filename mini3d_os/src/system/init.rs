@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::{lexer::Lexer, parser::Parser}};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
@@ -232,6 +232,9 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
             ImportAssetEvent::RhaiScript(rhai_script) => {
                 ctx.asset.add(RhaiScript::UID, &rhai_script.name, default_bundle, rhai_script.data.clone())?;
             },
+            ImportAssetEvent::Script(script) => {
+                ctx.asset.add(Script::UID, &script.name, default_bundle, script.data.clone())?;
+            },
             ImportAssetEvent::Texture(texture) => {
                 ctx.asset.add(Texture::UID, &texture.name, default_bundle, texture.data.clone())?;
             },
@@ -426,6 +429,16 @@ fn init_system(ctx: &mut SystemContext) -> Result<()> {
     setup_assets(ctx)?;
     setup_world(ctx)?;
     setup_scheduler(ctx)?;
+
+    let script = ctx.asset.get::<Script>(Script::UID, "test".into())?.expect("Script not registered");
+    println!("Script: {:?}", script.source);
+    // let mut tokenizer = Lexer::new(&script.source);
+    // while let Some(token) = tokenizer.next_token()? {
+    //     println!("Token: {:?}", token);
+    // }
+    let ast = Parser::parse(&script.source, false)?;
+    ast.print();
+
     Ok(())
 }
 

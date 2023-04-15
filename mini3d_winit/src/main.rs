@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::rhai_script::RhaiScript, ecs::dynamic::{DynamicComponent, Value}, script::vm::{VirtualMachine, program::Program}};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::{rhai_script::RhaiScript, script::Script}, script::interpreter::{program::Program, opcode::Opcode, vm::VirtualMachine}};
 use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -123,6 +123,8 @@ fn main_run() {
         name: "inventory".to_string(), 
         data: RhaiScript { source: script },
     }));
+    let script = std::fs::read_to_string("assets/script.ms").expect("Failed to load.");
+    events.asset.push(ImportAssetEvent::Script(AssetImportEntry { name: "test".to_string(), data: Script { source: script } }));
 
     // Enter loop
     event_loop.run(move |event, _, control_flow| {
@@ -416,16 +418,21 @@ fn main_run() {
 }
 
 fn main() {
-    // main_run();
-    let program = Program::empty()
-        .put_int(2)
-        .put_int(4)
-        .mul_int()
-        .put_int(1)
-        .put_int(5)
-        .mul_int()
-        .add_int()
-        .halt();
-    let mut vm = VirtualMachine::new(program);
-    vm.execute();
+    main_run();
+    // 2 * 4 + 1 * 5
+    // let program = Program::empty()
+    //     .put(Opcode::PUSHLW)
+    //     .put_int(2)
+    //     .put(Opcode::PUSHLW)
+    //     .put_int(4)
+    //     .put(Opcode::MULI)
+    //     .put(Opcode::PUSHLW)
+    //     .put_int(1)
+    //     .put(Opcode::PUSHLW)
+    //     .put_int(5)
+    //     .put(Opcode::MULI)
+    //     .put(Opcode::ADDI)
+    //     .put(Opcode::INT);
+    // let mut vm = VirtualMachine::new(program);
+    // vm.run();
 }
