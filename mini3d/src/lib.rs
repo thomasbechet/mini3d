@@ -11,7 +11,6 @@ pub mod registry;
 pub mod physics;
 pub mod prng;
 pub mod request;
-pub mod rhai;
 pub mod script;
 pub mod ui;
 pub mod uid;

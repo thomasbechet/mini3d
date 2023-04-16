@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 
 use crate::script::frontend::ast::BinaryOperator;
 
-use super::{lexer::{Lexer, Token, TokenKind}, ast::{AST, ASTNodeId, ASTNode, Literal, ASTPrimitive, UnaryOperator}};
+use super::{lexer::{Lexer, Token, TokenKind, TokenSpan}, ast::{AST, ASTNodeId, ASTNode, Literal, ASTPrimitive}};
 
 pub struct Parser<'s: 'a, 'a> {
     source: &'s str,
