@@ -5,7 +5,6 @@ pub mod hierarchy;
 pub mod lifecycle;
 pub mod static_mesh;
 pub mod ui;
-pub mod rhai_scripts;
 pub mod rigid_body;
 pub mod rotator;
 pub mod script_storage;

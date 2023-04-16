@@ -2,16 +2,51 @@ use std::{fmt::Display, iter::Sum};
 
 use serde::{Serialize, Deserialize};
 
+/// Fast FNV1A hash algorithm taken from https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+
+const _FNV1A_HASH_32: u32 = 0x811c9dc5;
+const FNV1A_HASH_64: u64 = 0xcbf29ce484222325;
+
+const _FNV1A_PRIME_32: u32 = 0x01000193;
+const FNV1A_PRIME_64: u64 = 0x100000001b3;
+
+const fn _fnv1a_hash_32(bytes: &[u8]) -> u32 {
+    let mut hash = _FNV1A_HASH_32;
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        hash ^= bytes[i] as u32;
+        hash = hash.wrapping_mul(_FNV1A_PRIME_32);
+        i += 1;
+    }
+    hash
+}
+
+const fn fnv1a_hash_64(bytes: &[u8]) -> u64 {
+    let mut hash = FNV1A_HASH_64;
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len { // For loop is not supported in const fn
+        hash ^= bytes[i] as u64;
+        hash = hash.wrapping_mul(FNV1A_PRIME_64);
+        i += 1;
+    }
+    hash
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct UID(u64);
 
 impl UID {
+
     pub const fn new(name: &str) -> Self {
-        Self(const_fnv1a_hash::fnv1a_hash_str_64(name))
+        Self(fnv1a_hash_64(name.as_bytes()))
     }
+
     pub fn null() -> Self {
         Self(0)
     }
+
     pub fn is_null(&self) -> bool {
         self.0 == 0
     }

@@ -21,10 +21,7 @@ impl CompiledSystemPipeline {
         for system in &self.systems {
             match system {
                 SystemCode::Static(callback) => callback(context)?,
-                SystemCode::Rhai(_uid) => {
-                    todo!()
-                },
-                SystemCode::Lua(_uid) => {
+                SystemCode::Script(_uid) => {
                     todo!()
                 },
             }

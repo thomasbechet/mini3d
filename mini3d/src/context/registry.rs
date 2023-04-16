@@ -14,7 +14,7 @@ impl<'a> RegistryContext<'a> {
         self.manager.borrow_mut().components.define_dynamic(name)
     }
 
-    pub fn define_rhai_system(&self, name: &str, script: UID) -> Result<UID> {
-        self.manager.borrow_mut().systems.define_rhai(name, script)
+    pub fn define_script_system(&self, name: &str, script: UID) -> Result<UID> {
+        unimplemented!()
     }
 }

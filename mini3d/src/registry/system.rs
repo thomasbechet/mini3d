@@ -7,8 +7,7 @@ use crate::{uid::UID, ecs::system::SystemCallback};
 #[derive(Clone, Copy)]
 pub(crate) enum SystemCode {
     Static(SystemCallback),
-    Rhai(UID),
-    Lua(UID),
+    Script(UID),
 }
 
 pub(crate) struct SystemDefinition {
@@ -36,13 +35,6 @@ impl SystemRegistry {
         self.define(SystemDefinition { 
             name: name.to_string(),
             code: SystemCode::Static(system),
-        })
-    }
-
-    pub(crate) fn define_rhai(&mut self, name: &str, script: UID) -> Result<UID> {
-        self.define(SystemDefinition {
-            name: name.to_string(),
-            code: SystemCode::Rhai(script),
         })
     }
 

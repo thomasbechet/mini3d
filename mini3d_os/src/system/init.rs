@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, rand, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::{lexer::Lexer, parser::Parser}};
+use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::parser::Parser, prng::PCG32};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
@@ -229,9 +229,6 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
             ImportAssetEvent::Model(model) => {
                 ctx.asset.add(Model::UID, &model.name, default_bundle, model.data.clone())?;
             },
-            ImportAssetEvent::RhaiScript(rhai_script) => {
-                ctx.asset.add(RhaiScript::UID, &rhai_script.name, default_bundle, rhai_script.data.clone())?;
-            },
             ImportAssetEvent::Script(script) => {
                 ctx.asset.add(Script::UID, &script.name, default_bundle, script.data.clone())?;
             },
@@ -269,6 +266,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
     }
     {
+        let mut prng = PCG32::new(12345);
         for i in 0..100 {
             let e = world.create();
             world.add(e, Lifecycle::UID, Lifecycle::alive())?;
@@ -277,7 +275,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
             )))?;
             world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
             world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
-            world.add(e, Rotator::UID, Rotator { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 })?;
+            world.add(e, Rotator::UID, Rotator { speed: -90.0 + prng.next_f32() * 90.0 * 2.0 })?;
             let e = world.create();
             world.add(e, Lifecycle::UID, Lifecycle::alive())?;
             world.add(e, Transform::UID, Transform::from_translation(
@@ -285,7 +283,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
             )))?;
             world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
             world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
-            world.add(e, Rotator::UID, Rotator { speed: -90.0 + rand::random::<f32>() * 90.0 * 2.0 })?;
+            world.add(e, Rotator::UID, Rotator { speed: -90.0 + prng.next_f32() * 90.0 * 2.0 })?;
         }
     }
     {
@@ -322,7 +320,6 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         })?;
         world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
         world.add(e, ScriptStorage::UID, ScriptStorage::default())?;
-        world.add(e, RhaiScripts::UID, RhaiScripts::default())?;
         world.add(e, Hierarchy::UID, Hierarchy::default())?;
 
         let cam = world.create();
@@ -333,9 +330,6 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         world.add(cam, Hierarchy::UID, Hierarchy::default())?;
         
         Hierarchy::attach(e, cam, &mut world.view_mut::<Hierarchy>(Hierarchy::UID)?)?;
-
-        world.get_mut::<RhaiScripts>(e, RhaiScripts::UID)?.unwrap()
-            .add("inventory".into()).unwrap();
 
         let viewport = world.create();
         world.add(viewport, Viewport::UID, Viewport::new(SCREEN_RESOLUTION, Some(cam)))?;
@@ -410,7 +404,6 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
 fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
     let pipeline = SystemPipeline::new(&[
         UID::new("rotator"),
-        UID::new("rhai_update_scripts"),
         UID::new("transform_propagate"),
         UID::new("ui_update"),
         UID::new("ui_render"),

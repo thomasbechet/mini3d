@@ -5,7 +5,6 @@ pub mod material;
 pub mod mesh;
 pub mod model;
 pub mod prefab;
-pub mod rhai_script;
 pub mod script;
 pub mod system_group;
 pub mod texture;

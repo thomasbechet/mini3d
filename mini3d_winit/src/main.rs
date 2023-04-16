@@ -2,7 +2,7 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::{rhai_script::RhaiScript, script::Script}, script::interpreter::{program::Program, opcode::Opcode, vm::VirtualMachine}};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::script::Script, script::interpreter::{program::Program, opcode::Opcode, vm::VirtualMachine}};
 use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
@@ -118,11 +118,6 @@ fn main_run() {
         .with_name("alfred")
         .import().expect("Failed to import alfred model.")
         .push(&mut events);
-    let script = std::fs::read_to_string("assets/inventory.rhai").expect("Failed to load.");
-    events.asset.push(ImportAssetEvent::RhaiScript(AssetImportEntry {
-        name: "inventory".to_string(), 
-        data: RhaiScript { source: script },
-    }));
     let script = std::fs::read_to_string("assets/script.ms").expect("Failed to load.");
     events.asset.push(ImportAssetEvent::Script(AssetImportEntry { name: "test".to_string(), data: Script { source: script } }));
 

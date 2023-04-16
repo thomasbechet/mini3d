@@ -51,7 +51,6 @@ impl Engine {
         registry.assets.define_static::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
         registry.assets.define_static::<asset::model::Model>(asset::model::Model::NAME)?;
         registry.assets.define_static::<asset::prefab::Prefab>(asset::prefab::Prefab::NAME)?;
-        registry.assets.define_static::<asset::rhai_script::RhaiScript>(asset::rhai_script::RhaiScript::NAME)?;
         registry.assets.define_static::<asset::script::Script>(asset::script::Script::NAME)?;
         registry.assets.define_static::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
         registry.assets.define_static::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
@@ -65,7 +64,6 @@ impl Engine {
         registry.components.define_static::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
         registry.components.define_static::<component::lifecycle::Lifecycle>(component::lifecycle::Lifecycle::NAME)?;
         registry.components.define_static::<component::static_mesh::StaticMesh>(component::static_mesh::StaticMesh::NAME)?;
-        registry.components.define_static::<component::rhai_scripts::RhaiScripts>(component::rhai_scripts::RhaiScripts::NAME)?;
         registry.components.define_static::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
         registry.components.define_static::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
         registry.components.define_static::<component::script_storage::ScriptStorage>(component::script_storage::ScriptStorage::NAME)?;
@@ -81,7 +79,6 @@ impl Engine {
         registry.systems.define_static("despawn_entities", system::despawn::run)?;
         registry.systems.define_static("renderer", system::renderer::despawn_renderer_entities)?;
         registry.systems.define_static("free_fly", system::free_fly::run)?;
-        registry.systems.define_static("rhai_update_scripts", system::rhai::update_scripts)?;
         registry.systems.define_static("rotator", system::rotator::run)?;
         registry.systems.define_static("transform_propagate", system::transform::propagate)?;
         registry.systems.define_static("ui_update", system::ui::update)?;
