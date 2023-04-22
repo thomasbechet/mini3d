@@ -1,15 +1,15 @@
 use std::collections::{HashMap, VecDeque, HashSet};
 use core::cell::RefCell;
-use anyhow::{Result, Context};
 use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
 
 use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext, event::EventContext}, event::Events};
 
-use self::{world::World, scheduler::Scheduler, procedure::Procedure, pipeline::CompiledSystemPipeline};
+use self::{world::World, scheduler::Scheduler, procedure::Procedure, pipeline::CompiledSystemPipeline, error::ECSError};
 
 pub mod reference;
 pub mod container;
 pub mod entity;
+pub mod error;
 pub mod pipeline;
 pub mod procedure;
 pub mod query;
@@ -194,10 +194,10 @@ impl ECSManager {
                         deserializer.deserialize_seq(WorldsVisitor { registry: self.registry })
                     }
                 }
-                self.manager.scheduler = seq.next_element()?.with_context(|| "Expect scheduler").map_err(A::Error::custom)?;
-                self.manager.worlds = seq.next_element_seed(WorldsDeserializeSeed { registry: self.registry })?.with_context(|| "Expect worlds").map_err(A::Error::custom)?;
-                self.manager.next_frame_procedures = seq.next_element()?.with_context(|| "Expect next frame procedures").map_err(A::Error::custom)?;
-                self.manager.active_world = seq.next_element()?.with_context(|| "Expect active world").map_err(A::Error::custom)?;
+                self.manager.scheduler = seq.next_element()?.ok_or_else(|| A::Error::custom("Expect scheduler"))?;
+                self.manager.worlds = seq.next_element_seed(WorldsDeserializeSeed { registry: self.registry })?.ok_or_else(|| A::Error::custom("Expect worlds"))?;
+                self.manager.next_frame_procedures = seq.next_element()?.ok_or_else(|| A::Error::custom("Expect next frame procedures"))?;
+                self.manager.active_world = seq.next_element()?.ok_or_else(|| A::Error::custom("Expect active world"))?;
                 Ok(())
             }
         }
@@ -207,9 +207,8 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn invoke(&mut self, system: UID) -> Result<()> {
-        self.next_frame_system_invocations.push(system);
-        Ok(())
+    pub(crate) fn invoke(&mut self, system: UID) {
+        self.next_frame_system_invocations.push(system)
     }
 
     pub(crate) fn update(
@@ -217,7 +216,7 @@ impl ECSManager {
         mut context: ECSUpdateContext,
         scripts: &mut ScriptManager,
         fixed_update_count: u32,
-    ) -> Result<()> {
+    ) -> Result<(), ECSError> {
 
         // Prepare frame
         let mut change_world: Option<UID> = None;
@@ -234,7 +233,8 @@ impl ECSManager {
         // Invoke frame systems
         if !self.next_frame_system_invocations.is_empty() {
             // Build context
-            let pipeline = CompiledSystemPipeline::build(&context.registry.borrow_mut().systems, self.next_frame_system_invocations.iter())?;
+            let pipeline = CompiledSystemPipeline::build(&context.registry.borrow_mut().systems, self.next_frame_system_invocations.iter())
+                .map_err(|_| ECSError::RegistryError)?;
             pipeline.run(&mut create_system_context(
                 &mut context,
                 UID::null(), 
@@ -245,7 +245,7 @@ impl ECSManager {
                 &mut worlds,
                 &mut change_world,
                 &mut removed_worlds,
-            ), scripts)?;
+            ), scripts).map_err(|_| ECSError::SystemError)?;
             self.next_frame_system_invocations.clear();
         }
 
@@ -254,7 +254,7 @@ impl ECSManager {
         while let Some(procedure) = frame_procedures.pop_front() {
 
             // Build pipeline
-            if let Some(pipeline) = self.scheduler.build_pipeline(procedure, context.registry)? {
+            if let Some(pipeline) = self.scheduler.build_pipeline(procedure, context.registry).map_err(|_| ECSError::RegistryError)? {
 
                 // Run pipeline
                 pipeline.run(&mut create_system_context(
@@ -267,7 +267,7 @@ impl ECSManager {
                     &mut worlds,
                     &mut change_world,
                     &mut removed_worlds
-                ), scripts)?;
+                ), scripts).map_err(|_| ECSError::RegistryError)?;
             }
 
             // Remove worlds

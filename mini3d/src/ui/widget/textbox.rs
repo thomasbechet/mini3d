@@ -1,4 +1,3 @@
-use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -52,7 +51,7 @@ impl Widget for UITextBox {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) -> Result<()> {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) {
         gfx.draw_rect(self.extent.translate(offset), Color::WHITE);
         if self.focused {
             let extent = IRect::new(
@@ -63,7 +62,6 @@ impl Widget for UITextBox {
             );
             gfx.fill_rect(extent, Color::RED);
         }
-        Ok(())
     }
 
     fn extent(&self) -> IRect {

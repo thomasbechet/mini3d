@@ -1,6 +1,6 @@
-use mini3d::{anyhow::{anyhow, Result}, feature::asset};
+use mini3d::feature::asset;
 
-use crate::context::WGPUContext;
+use crate::{context::WGPUContext, error::WGPURendererError};
 
 #[derive(Clone, Copy)]
 pub(crate) struct VertexBufferDescriptor {
@@ -55,7 +55,7 @@ impl VertexAllocator {
         &mut self,
         context: &WGPUContext,
         vertices: &Vec<asset::mesh::Vertex>,
-    ) -> Result<VertexBufferDescriptor> {
+    ) -> Result<VertexBufferDescriptor, WGPURendererError> {
 
         // Create the vertex descriptor
         let descriptor = VertexBufferDescriptor { 
@@ -65,7 +65,7 @@ impl VertexAllocator {
 
         // Check vertex count
         if self.vertex_count + (descriptor.vertex_count as usize) > self.max_vertex_count {
-            return Err(anyhow!("Maximum vertex count reached"));
+            return Err(WGPURendererError::MaxVertexCountReached);
         }
 
         // Increment vertex count

@@ -1,4 +1,3 @@
-use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -26,9 +25,8 @@ impl Widget for UIViewport {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
-        gfx.blit_viewport(self.world, self.viewport, self.position + offset);   
-        Ok(())
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
+        gfx.blit_viewport(self.world, self.viewport, self.position + offset);
     }
 
     fn extent(&self) -> IRect {

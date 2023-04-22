@@ -1,8 +1,6 @@
-use anyhow::Result;
+use crate::{feature::component::{camera::Camera, static_mesh::StaticMesh, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, context::SystemContext, ecs::system::SystemResult};
 
-use crate::{feature::component::{camera::Camera, static_mesh::StaticMesh, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, context::SystemContext};
-
-pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> Result<()> {
+pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> SystemResult {
 
     let world = ctx.world.active();
     let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;

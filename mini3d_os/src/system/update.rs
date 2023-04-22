@@ -1,8 +1,8 @@
-use mini3d::{context::SystemContext, anyhow::Result, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::{free_fly::FreeFly, ui::UI}, ui::event::{UIEvent, Direction}, glam::{Vec2, IVec2}};
+use mini3d::{context::SystemContext, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::{free_fly::FreeFly, ui::UI}, ecs::system::SystemResult};
 
 use crate::{input::CommonAction, component::os::OS};
 
-pub fn update(ctx: &mut SystemContext) -> Result<()> {
+pub fn update(ctx: &mut SystemContext) -> SystemResult {
     
     let world = ctx.world.active();
     let mut os = world.get_singleton_mut::<OS>(OS::UID)?.unwrap(); 

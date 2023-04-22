@@ -1,4 +1,3 @@
-use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -26,9 +25,8 @@ impl Widget for UILabel {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
         gfx.print(self.position + offset, &self.text, self.font);
-        Ok(())
     }
 
     fn extent(&self) -> IRect {

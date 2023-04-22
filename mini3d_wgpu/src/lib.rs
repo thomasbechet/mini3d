@@ -3,6 +3,7 @@ pub mod renderer;
 pub mod graphics_renderer;
 pub mod camera;
 pub mod mesh_pass;
+pub mod error;
 pub mod graphics_canvas;
 pub mod model_buffer;
 pub mod graphics_render_pass;

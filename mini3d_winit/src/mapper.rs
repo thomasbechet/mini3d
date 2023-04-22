@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{engine::Engine, event::{Events, input::{InputEvent, InputActionEvent, InputAxisEvent}}, anyhow::{Result, Context, anyhow}, uid::UID};
+use mini3d::{event::{Events, input::{InputEvent, InputActionEvent, InputAxisEvent}}, uid::UID, input::backend::{InputBackend, InputBackendError}, feature::asset::input_table::InputTable};
 use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
@@ -88,6 +88,7 @@ pub(crate) struct InputMapper {
     
     pub(crate) profiles: HashMap<UID, InputProfile>,
     pub(crate) default_profile: UID,
+    pub(crate) tables: HashMap<UID, InputTable>,
 
     key_to_action: HashMap<VirtualKeyCode, Vec<KeyToAction>>,
     key_to_axis: HashMap<VirtualKeyCode, Vec<KeyToAxis>>,
@@ -141,7 +142,7 @@ impl InputMapper {
         mapper
     }
 
-    pub(crate) fn new_profile(&mut self, engine: &Engine) -> UID {
+    pub(crate) fn new_profile(&mut self) -> UID {
         let mut next_index = self.profiles.len() + 1;
         let mut name = format!("Profile {}", next_index);
         let uid = UID::from(&name);
@@ -150,11 +151,11 @@ impl InputMapper {
             name = format!("Profile {}", next_index); 
         }
         self.profiles.insert(uid, InputProfile { name, active: true, actions: Default::default(), axis: Default::default() });
-        self.refresh(engine);
+        self.refresh();
         uid
     }
 
-    pub(crate) fn duplicate(&mut self, from: UID, engine: &Engine) -> UID {
+    pub(crate) fn duplicate(&mut self, from: UID) -> UID {
         if let Some(from) = self.profiles.get(&from) {
             let mut name = format!("{} Copy", from.name);
             let mut next_index = 1;
@@ -165,54 +166,47 @@ impl InputMapper {
             let uid = UID::from(&name);
             let profile = InputProfile { name, active: true, actions: from.actions.clone(), axis: from.axis.clone() };
             self.profiles.insert(uid, profile);
-            self.refresh(engine);
+            self.refresh();
             uid
         } else {
             UID::null()
         }
     }
 
-    pub(crate) fn save(&self) -> Result<()> {
+    pub(crate) fn save(&self) -> Result<(), std::io::Error> {
         std::fs::create_dir_all("config").unwrap();
-        let file = File::create("config/profiles.json")
-            .with_context(|| "Failed to open file.")?;
+        let file = File::create("config/profiles.json")?;
         let profiles = self.profiles.values().collect::<Vec<&_>>();
-        serde_json::to_writer_pretty(&file, &profiles)
-            .with_context(|| "Failed to write file.")?;
+        serde_json::to_writer_pretty(&file, &profiles)?;
         Ok(())
     }
 
-    pub(crate) fn load(&mut self) -> Result<()> {
-        if let Ok(file) = File::open("config/profiles.json") {
-            let mut profiles: Vec<InputProfile> = serde_json::from_reader(&file).unwrap();
-            for profile in profiles.drain(..) {
-                if let Some((_, current)) = self.profiles.iter_mut().find(|(_, p)| p.name == profile.name) {
-                    *current = profile;
-                } else {
-                    let uid = UID::from(&profile.name);
-                    self.profiles.insert(uid, profile);
-                }
+    pub(crate) fn load(&mut self) -> Result<(), std::io::Error> {
+        let file = File::open("config/profiles.json")?;
+        let mut profiles: Vec<InputProfile> = serde_json::from_reader(&file).unwrap();
+        for profile in profiles.drain(..) {
+            if let Some((_, current)) = self.profiles.iter_mut().find(|(_, p)| p.name == profile.name) {
+                *current = profile;
+            } else {
+                let uid = UID::from(&profile.name);
+                self.profiles.insert(uid, profile);
             }
-            Ok(())
-        } else {
-            Err(anyhow!("Failed to open file."))
         }
+        Ok(())
     }
 
-    pub(crate) fn refresh(&mut self, engine: &Engine) {
+    pub(crate) fn refresh(&mut self) {
 
         // Update profiles
         for profile in self.profiles.values_mut() {
-
-            // Update actions
-            engine.iter_input_actions().for_each(|(action, _)| {
-                profile.actions.entry(action.uid()).or_insert_with(Default::default);
-            });
-            
-            // Update axis
-            engine.iter_input_axis().for_each(|(axis, _)| {
-                profile.axis.entry(axis.uid()).or_insert_with(Default::default);
-            });
+            for table in self.tables.values() {
+                for action in table.actions.iter() {
+                    profile.actions.entry(action.uid()).or_insert_with(Default::default);
+                }
+                for axis in table.axis.iter() {
+                    profile.axis.entry(axis.uid()).or_insert_with(Default::default);
+                }
+            }
         }
 
         // Rebuild cache
@@ -390,5 +384,18 @@ impl InputMapper {
                 }
             }
         }
+    }
+}
+
+impl InputBackend for InputMapper {
+    
+    fn update_table(&mut self, uid: UID, table: Option<&InputTable>) -> Result<(), InputBackendError> {
+        if let Some(table) = table {
+            self.tables.insert(uid, table.clone());
+        } else {
+            self.tables.remove(&uid);
+        }
+        self.refresh();
+        Ok(())
     }
 }

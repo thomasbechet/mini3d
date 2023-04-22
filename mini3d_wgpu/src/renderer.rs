@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
-use mini3d::anyhow::{Result, Context, anyhow};
 use mini3d::feature::asset::{mesh, texture};
 use mini3d::glam::{Vec4, Mat4, Vec3, UVec2, IVec2};
 use mini3d::math::rect::IRect;
 use mini3d::renderer::graphics::TextureWrapMode;
-use mini3d::renderer::{RendererStatistics, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION};
-use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, SceneModelHandle, SceneCameraHandle, ViewportHandle, SceneCanvasHandle};
+use mini3d::renderer::{RendererStatistics, SCREEN_RESOLUTION};
+use mini3d::renderer::backend::{RendererBackend, BackendMaterialDescriptor, MeshHandle, MaterialHandle, TextureHandle, SceneModelHandle, SceneCameraHandle, ViewportHandle, SceneCanvasHandle, RendererBackendError};
 use mini3d::renderer::color::{srgb_to_linear, Color};
 use mini3d::uid::{UID, SequentialGenerator};
 
 use crate::blit_bind_group::{create_blit_bind_group_layout, create_blit_bind_group};
 use crate::blit_pipeline::{create_blit_pipeline_layout, create_blit_pipeline, create_blit_shader_module};
 use crate::camera::Camera;
+use crate::error::WGPURendererError;
 use crate::graphics_canvas::GraphicsCanvas;
 use crate::graphics_renderer::GraphicsRenderer;
 use crate::mesh_pass::{MeshPass, create_mesh_pass_bind_group_layout};
@@ -233,10 +233,10 @@ impl WGPURenderer {
         &mut self,
         engine_viewport: Vec4,
         egui_pass: F,
-    ) -> Result<()> {
+    ) -> Result<(), WGPURendererError> {
 
         // Acquire next surface texture
-        let output = self.context.surface.get_current_texture()?;
+        let output = self.context.surface.get_current_texture().map_err(|_| WGPURendererError::SurfaceAcquisition)?;
         let output_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -255,7 +255,7 @@ impl WGPURenderer {
         {
             if self.forward_mesh_pass.out_of_date() {
                 println!("rebuild forward mesh pass");
-                self.forward_mesh_pass.build(&self.objects, &self.submeshes)?;
+                self.forward_mesh_pass.build(&self.objects, &self.submeshes);
                 self.forward_mesh_pass.write_buffers(&self.context);
             }
         }
@@ -272,11 +272,11 @@ impl WGPURenderer {
             &self.forward_mesh_pass, 
             &mut self.statistics, 
             &mut encoder
-        )?;
+        );
 
         // Render canvases
         for canvas in self.canvases.values_mut() {
-            self.graphics_renderer.render_canvas(&self.context, &self.textures, &self.viewports, canvas, &mut encoder)?;
+            self.graphics_renderer.render_canvas(&self.context, &self.textures, &self.viewports, canvas, &mut encoder);
         }
 
         // Blit screen canvas
@@ -322,7 +322,7 @@ impl WGPURenderer {
         Ok(())
     }
 
-    fn add_object(&mut self, submesh: UID, material: MaterialHandle, model_index: usize) -> Result<UID> {
+    fn add_object(&mut self, submesh: UID, material: MaterialHandle, model_index: usize) -> Result<UID, WGPURendererError> {
         let uid = self.generator.next();
         self.objects.insert(uid, Object { 
             submesh,
@@ -334,15 +334,14 @@ impl WGPURenderer {
         self.forward_mesh_pass.add(uid)?;
         Ok(uid)
     }
-    fn remove_object(&mut self, uid: UID) -> Result<()> {
+    fn remove_object(&mut self, uid: UID) {
         let object = self.objects.remove(&uid).unwrap();
         if object.draw_forward_pass {
-            self.forward_mesh_pass.remove(uid)?;
+            self.forward_mesh_pass.remove(uid);
         }
         if object.draw_shadow_pass {
             // TODO: remove from pass
         }
-        Ok(())
     }
 }
 
@@ -350,7 +349,7 @@ impl RendererBackend for WGPURenderer {
 
     /// Global API
 
-    fn reset(&mut self) -> Result<()> {
+    fn reset(&mut self) -> Result<(), RendererBackendError> {
         // Remove all models (and objects)
         let handles = self.models.keys().copied().collect::<Vec<_>>();
         for handle in handles {
@@ -377,11 +376,10 @@ impl RendererBackend for WGPURenderer {
     
     /// Assets API
 
-    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshHandle> {
+    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshHandle, RendererBackendError> {
         let mut submeshes: Vec<UID> = Default::default();
         for submesh in mesh.submeshes.iter() {
-            let descriptor = self.vertex_allocator.add(&self.context, &submesh.vertices)
-                .with_context(|| "Failed to create submesh")?;
+            let descriptor = self.vertex_allocator.add(&self.context, &submesh.vertices).map_err(|_| RendererBackendError::MaxResourcesReached)?;
             let submesh_uid = self.generator.next();
             self.submeshes.insert(submesh_uid, descriptor);
             submeshes.push(submesh_uid);
@@ -391,14 +389,14 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     
-    fn texture_add(&mut self, texture: &texture::Texture) -> Result<TextureHandle> {
+    fn texture_add(&mut self, texture: &texture::Texture) -> Result<TextureHandle, RendererBackendError> {
         let handle: TextureHandle = self.generator.next().into();
         self.textures.insert(handle, Texture::from_asset(&self.context, texture, 
             wgpu::TextureUsages::TEXTURE_BINDING, None));
         Ok(handle)
     }
     
-    fn material_add(&mut self, desc: BackendMaterialDescriptor) -> Result<MaterialHandle> {
+    fn material_add(&mut self, desc: BackendMaterialDescriptor) -> Result<MaterialHandle, RendererBackendError> {
         let diffuse = self.textures.get(&desc.diffuse).expect("Texture not found");
         let handle: MaterialHandle = self.generator.next().into();
         self.materials.insert(handle, Material { 
@@ -414,72 +412,62 @@ impl RendererBackend for WGPURenderer {
 
     /// Canvas API
 
-    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<()> {
-        if self.current_canvas.is_some() {
-            return Err(anyhow!("Another canvas is already being drawed"));
-        }
+    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererBackendError> {
         self.current_canvas = Some(self.screen_canvas);
         let canvas = self.canvases.get_mut(&self.screen_canvas).unwrap();
-        canvas.render_pass.begin(clear_color)?;
+        canvas.render_pass.begin(clear_color);
         Ok(())
     }
-    fn scene_canvas_begin(&mut self, canvas: SceneCanvasHandle, clear_color: Color) -> Result<()> { 
-        if self.current_canvas.is_some() {
-            return Err(anyhow!("Another canvas is already being drawed"));
-        }
+    fn scene_canvas_begin(&mut self, canvas: SceneCanvasHandle, clear_color: Color) -> Result<(), RendererBackendError> { 
         self.current_canvas = Some(self.screen_canvas);
         let canvas = self.canvases.get_mut(&canvas.into()).unwrap();
-        canvas.render_pass.begin(clear_color)?;
+        canvas.render_pass.begin(clear_color);
         Ok(())
     }
-    fn canvas_end(&mut self) -> Result<()> {
-        if self.current_canvas.is_none() {
-            return Err(anyhow!("Not drawing canvas"));
-        }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.end()?;
+    fn canvas_end(&mut self) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).unwrap();
+        canvas.render_pass.end();
         self.current_canvas = None;
         Ok(())
     }
-    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, tex_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.blit_rect(texture, extent, tex_extent, filtering, wrap_mode, alpha_threshold)
+    fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, tex_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.blit_rect(texture, extent, tex_extent, filtering, wrap_mode, alpha_threshold);
+        Ok(())
     }
-    fn canvas_blit_viewport(&mut self, handle: ViewportHandle, position: IVec2) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        let viewport = self.viewports.get(&handle).with_context(|| "Viewport not found")?;
-        canvas.render_pass.blit_viewport(handle, viewport.extent, position)
+    fn canvas_blit_viewport(&mut self, handle: ViewportHandle, position: IVec2) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let viewport = self.viewports.get(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.blit_viewport(handle, viewport.extent, position);
+        Ok(())
     }
-    fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.fill_rect(extent, color)
+    fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.fill_rect(extent, color);
+        Ok(())
     }
-    fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.draw_rect(extent, color)
+    fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.draw_rect(extent, color);
+        Ok(())
     }
-    fn canvas_draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.draw_line(x0, x1, color)
+    fn canvas_draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.draw_line(x0, x1, color);
+        Ok(())
     }
-    fn canvas_draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.draw_vline(x, y0, y1, color)
+    fn canvas_draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.draw_vline(x, y0, y1, color);
+        Ok(())
     }
-    fn canvas_draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
-        canvas.render_pass.draw_hline(y, x0, x1, color)
+    fn canvas_draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        canvas.render_pass.draw_hline(y, x0, x1, color);
+        Ok(())
     }
-    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<()> {
-        if self.current_canvas.is_none() { return Err(anyhow!("Not drawing canvas")); }
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).with_context(|| "Canvas not found")?;
+    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererBackendError> {
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         if let Some(extent) = extent {
             canvas.render_pass.scissor(extent);
         } else {
@@ -490,89 +478,89 @@ impl RendererBackend for WGPURenderer {
 
     /// Viewport API
     
-    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle> {
+    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle, RendererBackendError> {
         let handle: ViewportHandle = self.generator.next().into();
         self.viewports.insert(handle, Viewport::new(&self.context, resolution));
         Ok(handle)
     }
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<()> { 
-        self.viewports.remove(&handle).with_context(|| "Viewport not found")?;
+    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererBackendError> { 
+        self.viewports.remove(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         Ok(()) 
     }
-    fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<SceneCameraHandle>) -> Result<()> { 
-        let viewport = self.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+    fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<SceneCameraHandle>) -> Result<(), RendererBackendError> { 
+        let viewport = self.viewports.get_mut(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         viewport.camera= camera;
         Ok(())
     }
-    fn viewport_set_resolution(&mut self, handle: ViewportHandle, resolution: UVec2) -> Result<()> { 
-        let viewport = self.viewports.get_mut(&handle).with_context(|| "Viewport not found")?;
+    fn viewport_set_resolution(&mut self, handle: ViewportHandle, resolution: UVec2) -> Result<(), RendererBackendError> { 
+        let viewport = self.viewports.get_mut(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         viewport.resize(&self.context, resolution);
         Ok(())
     }
 
     /// Scene API
 
-    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle> {
+    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle, RendererBackendError> {
         let handle: SceneCameraHandle = self.generator.next().into();
         self.cameras.insert(handle, Camera::default());
         Ok(handle)
     }
-    fn scene_camera_remove(&mut self, handle: SceneCameraHandle) -> Result<()> {
-        self.cameras.remove(&handle).with_context(|| "Camera not found")?;
+    fn scene_camera_remove(&mut self, handle: SceneCameraHandle) -> Result<(), RendererBackendError> {
+        self.cameras.remove(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         Ok(())
     }
-    fn scene_camera_update(&mut self, handle: SceneCameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<()> {
-        let camera = self.cameras.get_mut(&handle).with_context(|| "Camera not found")?;
+    fn scene_camera_update(&mut self, handle: SceneCameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<(), RendererBackendError> {
+        let camera = self.cameras.get_mut(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         camera.update(eye, forward, up, fov);
         Ok(())
     }
 
-    fn scene_model_add(&mut self, mesh_handle: MeshHandle) -> Result<SceneModelHandle> {
+    fn scene_model_add(&mut self, mesh_handle: MeshHandle) -> Result<SceneModelHandle, RendererBackendError> {
         // Reserve the model index
         let model_index = self.model_buffer.add();
         // Generate the handle
         let handle: SceneModelHandle = self.generator.next().into();
         // Insert model (empty by default)
-        let mesh = self.meshes.get(&mesh_handle).with_context(|| "Mesh not found")?;
+        let mesh = self.meshes.get(&mesh_handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         self.models.insert(handle, Model { mesh: mesh_handle, model_index, objects: vec![None; mesh.submeshes.len()] });
         // Return handle
         Ok(handle)
     }
-    fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<()> {
-        let model = self.models.remove(&handle).with_context(|| "Model not found")?;
+    fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<(), RendererBackendError> {
+        let model = self.models.remove(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         for object in model.objects.iter().flatten() {
-            self.remove_object(*object)?;
+            self.remove_object(*object);
         }
         self.model_buffer.remove(model.model_index);
         Ok(())
     }
-    fn scene_model_set_material(&mut self, handle: SceneModelHandle, index: usize, material: MaterialHandle) -> Result<()> {
+    fn scene_model_set_material(&mut self, handle: SceneModelHandle, index: usize, material: MaterialHandle) -> Result<(), RendererBackendError> {
         // Check input
-        let model = self.models.get(&handle).with_context(|| "Model not found")?;
-        let mesh = self.meshes.get(&model.mesh).with_context(|| "Mesh not found")?;
-        if index >= model.objects.len() { return Err(anyhow!("Invalid index")); }
+        let model = self.models.get(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let mesh = self.meshes.get(&model.mesh).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        if index >= model.objects.len() { return Err(RendererBackendError::InvalidMatrialIndex); }
         // Get model info
         let submesh = *mesh.submeshes.get(index).unwrap();
         let model_index = model.model_index;
         let previous_object = *model.objects.get(index).unwrap();
         // Remove previous object
         if let Some(previous_uid) = previous_object {
-            self.remove_object(previous_uid)?;
+            self.remove_object(previous_uid);
         }
         // Add object
-        let object_uid = self.add_object(submesh, material, model_index)?;
+        let object_uid = self.add_object(submesh, material, model_index).map_err(|_| RendererBackendError::MaxResourcesReached)?;
         *self.models.get_mut(&handle).unwrap().objects.get_mut(index).unwrap() = Some(object_uid);
         Ok(())
     }
-    fn scene_model_transfer_matrix(&mut self, handle: SceneModelHandle, mat: Mat4) -> Result<()> {
-        let model = self.models.get(&handle).with_context(|| "Model not found")?;
+    fn scene_model_transfer_matrix(&mut self, handle: SceneModelHandle, mat: Mat4) -> Result<(), RendererBackendError> {
+        let model = self.models.get(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())
     }
 
     /// Statistics API
 
-    fn statistics(&self) -> Result<RendererStatistics> { 
+    fn statistics(&self) -> Result<RendererStatistics, RendererBackendError> { 
         Ok(self.statistics)
     }
 }

@@ -1,8 +1,6 @@
-use anyhow::Result;
+use crate::{context::{SystemContext, error::ContextError}, ecs::{entity::Entity, system::SystemResult}, feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}};
 
-use crate::{context::SystemContext, ecs::entity::Entity, feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}};
-
-pub fn run(ctx: &mut SystemContext) -> Result<()> {
+pub fn run(ctx: &mut SystemContext) -> SystemResult {
 
     let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
@@ -10,7 +8,7 @@ pub fn run(ctx: &mut SystemContext) -> Result<()> {
     let mut world = ctx.world.active();
     
     {
-        let mut hierarchies = world.view_mut::<Hierarchy>(Hierarchy::UID)?;
+        let mut hierarchies = world.view_mut::<Hierarchy>(Hierarchy::UID).with_context(|| "Failed to get hierarchy view")?;
         let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
         
         // Collect despawned entities

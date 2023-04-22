@@ -1,12 +1,28 @@
-use std::collections::{BTreeMap};
+use std::{collections::{BTreeMap}, error::Error, fmt::Display};
 
-use anyhow::{Result, anyhow, Context};
 use glam::{Vec2, Vec3, Vec4, Quat};
 use serde::{Serialize, Deserialize};
 
 use crate::{registry::component::{Component, EntityResolver}, uid::UID};
 
-use super::entity::Entity;
+use super::{entity::Entity, error::ECSError};
+
+#[derive(Debug)]
+pub enum MemberAccessError {
+    NotFound,
+    WrongType,
+}
+
+impl Error for MemberAccessError {}
+
+impl Display for MemberAccessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MemberAccessError::NotFound => write!(f, "Member not found"),
+            MemberAccessError::WrongType => write!(f, "Wrong type"),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Value {
@@ -53,7 +69,7 @@ impl DynamicComponent {
 
     pub const SEPARATOR: char = '.';
 
-    fn set_value(&mut self, uid: UID, key: &str, new_value: Value) -> Result<()> {
+    fn set_value(&mut self, uid: UID, key: &str, new_value: Value) -> Result<(), MemberAccessError> {
         if let Some((_, value)) = self.values.get_mut(&uid) {
             *value = new_value;
         } else {
@@ -79,27 +95,27 @@ impl DynamicComponent {
         Ok(())
     }
 
-    pub fn get_value(&self, uid: UID) -> Result<&Value> {
-        Ok(&self.values.get(&uid).with_context(|| "Value not found")?.1)
+    pub fn get_value(&self, uid: UID) -> Result<&Value, MemberAccessError> {
+        Ok(&self.values.get(&uid).ok_or_else(|| MemberAccessError::NotFound)?.1)
     }
 
-    pub fn list_keys_uid(&self, uid: UID) -> Result<impl Iterator<Item = &str>> {
-        if let (_, Value::Object(childs)) = self.values.get(&uid).with_context(|| "Not found")? {
+    pub fn list_keys_uid(&self, uid: UID) -> Result<impl Iterator<Item = &str>, MemberAccessError> {
+        if let (_, Value::Object(childs)) = self.values.get(&uid).ok_or_else(|| MemberAccessError::NotFound)? {
             Ok(childs.iter().map(|uid| self.values.get(uid).unwrap().0.as_str()))
         } else {
-            Err(anyhow!("Not an object"))
+            Err(MemberAccessError::WrongType)
         }
     }
 
-    pub fn get_length_uid(&self, uid: UID) -> Result<usize> {
+    pub fn get_length_uid(&self, uid: UID) -> Result<usize, MemberAccessError> {
         if let (_, Value::Object(childs)) = self.values.get(&uid).unwrap() {
             Ok(childs.len())
         } else {
-            Err(anyhow!("Not an object"))
+            Err(MemberAccessError::WrongType)
         }
     }
 
-    pub fn clear_key_uid(&mut self, uid: UID, key: &str) -> Result<()> {
+    pub fn clear_key_uid(&mut self, uid: UID, key: &str) -> Result<(), MemberAccessError> {
         if self.values.remove(&uid).is_some() {
             // Find parent
             if let Some(parent_key) = key.char_indices().rev().find(|(_, c)| *c == Self::SEPARATOR).map(|(i, _)| &key[..i]) { // Remove child from parent
@@ -110,7 +126,7 @@ impl DynamicComponent {
                         childs.retain(|child| *child != uid);
                     }
                 } else {
-                    return Err(anyhow!("Parent not found"));
+                    return Err(MemberAccessError::NotFound);
                 }
             }
         }
@@ -127,31 +143,31 @@ impl DynamicComponent {
     //     }
     // }
 
-    pub fn get_float_uid(&self, uid: UID) -> Result<f32> {
+    pub fn get_float_uid(&self, uid: UID) -> Result<f32, MemberAccessError> {
         if let Value::Float(value) = self.get_value(uid)? {
             Ok(*value)
         } else {
-            Err(anyhow!("Not a float"))
+            Err(MemberAccessError::WrongType)
         }
     }
 
-    pub fn get_integer_uid(&self, uid: UID) -> Result<i32> {
+    pub fn get_integer_uid(&self, uid: UID) -> Result<i32, MemberAccessError> {
         if let Value::Integer(value) = self.get_value(uid)? {
             Ok(*value)
         } else {
-            Err(anyhow!("Not a integer"))
+            Err(MemberAccessError::WrongType)
         }
     }
 
-    pub fn get_vec2_uid(&self, uid: UID) -> Result<i32> {
+    pub fn get_vec2_uid(&self, uid: UID) -> Result<i32, MemberAccessError> {
         if let Value::Integer(value) = self.get_value(uid)? {
             Ok(*value)
         } else {
-            Err(anyhow!("Not a integer"))
+            Err(MemberAccessError::WrongType)
         }
     }
 }
 
 impl Component for DynamicComponent {
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<()> { Ok(()) }
+    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> { Ok(()) }
 }

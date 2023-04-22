@@ -1,9 +1,39 @@
-use std::collections::HashMap;
+use std::{collections::{HashMap, HashSet}, error::Error, fmt::Display};
 
-use anyhow::{Result, anyhow, Context};
 use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
 
-use crate::{event::input::{InputEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable, InputAction, InputAxis}};
+use crate::{event::input::{InputEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable}};
+
+use self::backend::{InputBackend, InputBackendError};
+
+pub mod backend;
+
+#[derive(Debug)]
+pub enum InputError {
+    ActionNotFound { uid: UID },
+    AxisNotFound { uid: UID },
+    TextNotFound { uid: UID },
+    DuplicatedTable { name: String },
+    DuplicatedAction { name: String },
+    DuplicatedAxis { name: String },
+    TableValidationError,
+}
+
+impl Error for InputError {}
+
+impl Display for InputError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InputError::ActionNotFound { uid } => write!(f, "Action with UID {} not found", uid),
+            InputError::AxisNotFound { uid } => write!(f, "Axis with UID {} not found", uid),
+            InputError::TextNotFound { uid } => write!(f, "Text with UID {} not found", uid),
+            InputError::DuplicatedTable { name } => write!(f, "Duplicated table: {}", name),
+            InputError::DuplicatedAction { name } => write!(f, "Duplicated action: {}", name),
+            InputError::DuplicatedAxis { name } => write!(f, "Duplicated axis: {}", name),
+            InputError::TableValidationError => write!(f, "Table validation error"),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct InputActionState {
@@ -67,7 +97,7 @@ pub struct InputManager {
     actions: HashMap<UID, InputActionState>,
     axis: HashMap<UID, InputAxisState>,
     texts: HashMap<UID, InputTextState>,
-    pub(crate) reload_input_mapping: bool,
+    notify_tables: HashSet<UID>, // None means table removed
 }
 
 impl InputManager {
@@ -127,33 +157,43 @@ impl InputManager {
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: serde::de::SeqAccess<'de> {
                 use serde::de::Error;
-                self.manager.tables = seq.next_element()?.with_context(|| "Expect tables").map_err(Error::custom)?;
-                self.manager.actions = seq.next_element()?.with_context(|| "Expect actions").map_err(Error::custom)?;
-                self.manager.axis = seq.next_element()?.with_context(|| "Expect axis").map_err(Error::custom)?;
+                self.manager.tables = seq.next_element()?.ok_or_else(|| Error::custom("Expect tables"))?;
+                self.manager.actions = seq.next_element()?.ok_or_else(|| Error::custom("Expect actions"))?;
+                self.manager.axis = seq.next_element()?.ok_or_else(|| Error::custom("Expect axis"))?;
                 Ok(())
             }
         }
-        self.reload_input_mapping = true;
         deserializer.deserialize_tuple(3, InputVisitor { manager: self })
     }
 
-    pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<()> {
+    pub(crate) fn synchronize_backend(&mut self, backend: &mut impl InputBackend) -> Result<(), InputBackendError> {
+        for uid in self.notify_tables.drain() {
+            if let Some(table) = self.tables.get(&uid) {
+                backend.update_table(uid, Some(table))?;
+            } else {
+                backend.update_table(uid, None)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
         // Check table validity
-        table.check_valid()?;
+        table.validate().map_err(|_| InputError::TableValidationError)?;
         // Check duplicated table
         if self.tables.contains_key(&table.uid()) {
-            return Err(anyhow!("Input table already exists"));
+            return Err(InputError::DuplicatedTable { name: table.name.to_string() });
         }
         // Check duplicated actions
         for action in table.actions.iter() {
             if self.actions.contains_key(&action.uid()) {
-                return Err(anyhow!("Input action already exists: {}", action.name));
+                return Err(InputError::DuplicatedAction { name: action.name.to_string() });
             }
         }
         // Check duplicated axis
         for axis in table.axis.iter() {
             if self.axis.contains_key(&axis.uid()) {
-                return Err(anyhow!("Input axis already exists: {}", axis.name));
+                return Err(InputError::DuplicatedAxis { name: axis.name.to_string() });
             }
         }
         // We can safely insert table, actions and axis
@@ -166,38 +206,20 @@ impl InputManager {
             self.axis.insert(axis.uid(), state);
         }
         self.tables.insert(table.uid(), table.clone());
-        // Reload input mapping
-        self.reload_input_mapping = true;
+        // Notify input mapping
+        self.notify_tables.insert(table.uid());
         Ok(())
     }
 
-    pub(crate) fn iter_tables(&self) -> impl Iterator<Item = &InputTable> {
-        self.tables.values()
+    pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState, InputError> {
+        self.actions.get(&uid).ok_or(InputError::ActionNotFound { uid })
     }
 
-    pub(crate) fn iter_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
-        self.tables.values().flat_map(|table| table.actions.iter().map(|action| {
-            let state = self.actions.get(&action.uid()).unwrap();
-            (action, state)
-        }))
+    pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState, InputError> {
+        self.axis.get(&uid).ok_or(InputError::AxisNotFound { uid })
     }
 
-    pub(crate) fn iter_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
-        self.tables.values().flat_map(|table| table.axis.iter().map(|axis| {
-            let state = self.axis.get(&axis.uid()).unwrap();
-            (axis, state)
-        }))
-    }
-
-    pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState> {
-        self.actions.get(&uid).ok_or_else(|| anyhow!("Input action not found"))
-    }
-
-    pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState> {
-        self.axis.get(&uid).ok_or_else(|| anyhow!("Input axis not found"))
-    }
-
-    pub(crate) fn text(&self, uid: UID) -> Result<&InputTextState> {
-        self.texts.get(&uid).ok_or_else(|| anyhow!("Input text not found"))
+    pub(crate) fn text(&self, uid: UID) -> Result<&InputTextState, InputError> {
+        self.texts.get(&uid).ok_or(InputError::TextNotFound { uid })
     }
 }

@@ -2,6 +2,7 @@ use self::{component::ComponentRegistry, system::SystemRegistry, asset::AssetReg
 
 pub mod asset;
 pub mod component;
+pub mod error;
 pub mod system;
 
 #[derive(Default)]

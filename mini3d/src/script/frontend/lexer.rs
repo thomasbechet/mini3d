@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::CharIndices};
 
-use anyhow::{Result, anyhow};
+use super::error::LexerError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
@@ -135,25 +135,25 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn consume_comment(&mut self, start: usize) -> Result<Token> {
+    fn consume_comment(&mut self, start: usize) -> Token {
         for (offset, c) in self.chars.by_ref() {
             if c == '\n' { // Check for new line
-                return Ok(Token::new(TokenKind::Comment, TokenSpan::new(start, offset)));
+                return Token::new(TokenKind::Comment, TokenSpan::new(start, offset));
             }
         }
-        Ok(Token::new(TokenKind::Comment, TokenSpan::new(start, self.source.len() - 1)))
+        Token::new(TokenKind::Comment, TokenSpan::new(start, self.source.len() - 1))
     }
 
-    fn consume_string(&mut self, start: usize) -> Result<Token> {
+    fn consume_string(&mut self, start: usize) -> Result<Token, LexerError> {
         for (offset, c) in self.chars.by_ref() {
             if c == '\'' { // Check for end of string
                 return Ok(Token::new(TokenKind::String, TokenSpan::new(start, offset + 1)));
             }
         }
-        Err(anyhow!("Unterminated string"))
+        Err(LexerError::UnterminatedString)
     }
 
-    fn consume_identifier(&mut self, start: usize) -> Result<Token> {
+    fn consume_identifier(&mut self, start: usize) -> Token {
         
         // Find end of identifier
         let mut end = start + 1;
@@ -167,33 +167,33 @@ impl<'a> Lexer<'a> {
 
         // Check if identifier is a keyword
         match &self.source[start..end] {
-            "import" => Ok(Token::new(TokenKind::Import, TokenSpan::new(start, end))),
-            "true" => Ok(Token::new(TokenKind::True, TokenSpan::new(start, end))),
-            "false" => Ok(Token::new(TokenKind::False, TokenSpan::new(start, end))),
-            "nil" => Ok(Token::new(TokenKind::Nil, TokenSpan::new(start, end))),
-            "let" => Ok(Token::new(TokenKind::Let, TokenSpan::new(start, end))),
-            "if" => Ok(Token::new(TokenKind::If, TokenSpan::new(start, end))),
-            "then" => Ok(Token::new(TokenKind::Then, TokenSpan::new(start, end))),
-            "else" => Ok(Token::new(TokenKind::Else, TokenSpan::new(start, end))),
-            "elif" => Ok(Token::new(TokenKind::Elif, TokenSpan::new(start, end))),
-            "end" => Ok(Token::new(TokenKind::End, TokenSpan::new(start, end))),
-            "do" => Ok(Token::new(TokenKind::Do, TokenSpan::new(start, end))),
-            "for" => Ok(Token::new(TokenKind::For, TokenSpan::new(start, end))),
-            "in" => Ok(Token::new(TokenKind::In, TokenSpan::new(start, end))),
-            "while" => Ok(Token::new(TokenKind::While, TokenSpan::new(start, end))),
-            "function" => Ok(Token::new(TokenKind::Function, TokenSpan::new(start, end))),
-            "break" => Ok(Token::new(TokenKind::Break, TokenSpan::new(start, end))),
-            "continue" => Ok(Token::new(TokenKind::Continue, TokenSpan::new(start, end))),
-            "and" => Ok(Token::new(TokenKind::And, TokenSpan::new(start, end))),
-            "or" => Ok(Token::new(TokenKind::Or, TokenSpan::new(start, end))),
-            "return" => Ok(Token::new(TokenKind::Return, TokenSpan::new(start, end))),
-            "not" => Ok(Token::new(TokenKind::Not, TokenSpan::new(start, end))),
-            "as" => Ok(Token::new(TokenKind::As, TokenSpan::new(start, end))),
-            _ => Ok(Token::new(TokenKind::Identifier, TokenSpan::new(start, end))),
+            "import" => Token::new(TokenKind::Import, TokenSpan::new(start, end)),
+            "true" => Token::new(TokenKind::True, TokenSpan::new(start, end)),
+            "false" => Token::new(TokenKind::False, TokenSpan::new(start, end)),
+            "nil" => Token::new(TokenKind::Nil, TokenSpan::new(start, end)),
+            "let" => Token::new(TokenKind::Let, TokenSpan::new(start, end)),
+            "if" => Token::new(TokenKind::If, TokenSpan::new(start, end)),
+            "then" => Token::new(TokenKind::Then, TokenSpan::new(start, end)),
+            "else" => Token::new(TokenKind::Else, TokenSpan::new(start, end)),
+            "elif" => Token::new(TokenKind::Elif, TokenSpan::new(start, end)),
+            "end" => Token::new(TokenKind::End, TokenSpan::new(start, end)),
+            "do" => Token::new(TokenKind::Do, TokenSpan::new(start, end)),
+            "for" => Token::new(TokenKind::For, TokenSpan::new(start, end)),
+            "in" => Token::new(TokenKind::In, TokenSpan::new(start, end)),
+            "while" => Token::new(TokenKind::While, TokenSpan::new(start, end)),
+            "function" => Token::new(TokenKind::Function, TokenSpan::new(start, end)),
+            "break" => Token::new(TokenKind::Break, TokenSpan::new(start, end)),
+            "continue" => Token::new(TokenKind::Continue, TokenSpan::new(start, end)),
+            "and" => Token::new(TokenKind::And, TokenSpan::new(start, end)),
+            "or" => Token::new(TokenKind::Or, TokenSpan::new(start, end)),
+            "return" => Token::new(TokenKind::Return, TokenSpan::new(start, end)),
+            "not" => Token::new(TokenKind::Not, TokenSpan::new(start, end)),
+            "as" => Token::new(TokenKind::As, TokenSpan::new(start, end)),
+            _ => Token::new(TokenKind::Identifier, TokenSpan::new(start, end)),
         }
     }
 
-    fn consume_number(&mut self, start: usize) -> Result<Token> {
+    fn consume_number(&mut self, start: usize) -> Result<Token, LexerError> {
         let mut has_dot = false;
         let mut end = start + 1;
         while let Some((_, c)) = self.chars.peek().copied() {
@@ -201,7 +201,7 @@ impl<'a> Lexer<'a> {
                 // Check for float dot
                 if c == '.' {
                     if has_dot {
-                        return Err(anyhow!("Invalid number with double dot"));
+                        return Err(LexerError::MalformedNumber);
                     } else {
                         has_dot = true;
                     }
@@ -210,7 +210,7 @@ impl<'a> Lexer<'a> {
                 end += 1;
                 self.chars.next().unwrap();
             } else if is_identifier_character(c) {
-                return Err(anyhow!("Invalid number followed by identifier characters"));
+                return Err(LexerError::MalformedNumber);
             } else {
                 break;
             }
@@ -231,7 +231,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Token> {
+    pub fn next_token(&mut self) -> Result<Token, LexerError> {
         while let Some((offset, c)) = self.chars.next() {
             match c {
                 '+' => return Ok(Token::new(TokenKind::Plus, TokenSpan::new(offset, offset + 1))),
@@ -239,7 +239,7 @@ impl<'a> Lexer<'a> {
                     if let Some((offset, next)) = self.chars.peek().copied() {
                         if next == '-' { // Comment detected
                             self.chars.next(); // Skip second '-' character
-                            return self.consume_comment(offset - 1);
+                            return Ok(self.consume_comment(offset - 1));
                         } else {
                             return Ok(Token::new(TokenKind::Minus, TokenSpan::new(offset, offset + 1)));
                         }
@@ -291,7 +291,7 @@ impl<'a> Lexer<'a> {
                             return Ok(Token::new(TokenKind::NotEqual, TokenSpan::new(offset, offset + 2)));
                         }
                     }
-                    return Err(anyhow!("Invalid token '!'"));
+                    return Err(LexerError::InvalidCharacter { c });
                 },
                 '\'' => return self.consume_string(offset),
                 ' ' => {
@@ -306,7 +306,7 @@ impl<'a> Lexer<'a> {
                 return self.consume_number(offset);
             } else if is_identifier_character(c) {
                 // Try to parse an identifier
-                return self.consume_identifier(offset);
+                return Ok(self.consume_identifier(offset));
             }
         }
         Ok(Token::eof())

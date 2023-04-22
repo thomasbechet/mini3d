@@ -2,11 +2,12 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, request::Requests, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::script::Script, script::interpreter::{program::Program, opcode::Opcode, vm::VirtualMachine}};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::script::Script};
 use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 use utils::{compute_fixed_viewport, ViewportMode};
+use virtual_disk::VirtualDisk;
 use window::Window;
 use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, DeviceEvent, WindowEvent, ElementState, VirtualKeyCode, MouseButton, MouseScrollDelta}};
 
@@ -14,6 +15,7 @@ pub mod gui;
 pub mod mapper;
 pub mod utils;
 pub mod window;
+pub mod virtual_disk;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum DisplayMode {
@@ -53,23 +55,12 @@ fn main_run() {
     let mut renderer = WGPURenderer::new(&window.handle);
     let mut gui = WindowGUI::new(renderer.context(), &window.handle, &event_loop, &mapper);
 
-    // let mut c = DynamicComponent::default();
-    // let key0 = "one.two.three.four";
-    // let key1 = "one.two.hello";
-    // c.set(key0.into(), key0, Value::Null).expect("FAILED");
-    // c.set(key1.into(), key1, Value::Integer(123)).expect("FAILED");
-    // c.clear_key(key0.into(), key0).unwrap();
-    // c.print_keys();
-    // println!("==================");
-    // for key in c.list_keys("one.two.three.four".into()).unwrap() {
-    //     println!("key: {}", key);
-    // }
-
-    // Engine
-    let mut engine = Engine::new().expect("Failed to create engine");
-    initialize_engine(&mut engine).expect("Failed to initialize os");
+    // Instantiate engine with virtual disk
+    let mut disk = VirtualDisk::new();
     let mut events = Events::new();
-    let mut requests = Requests::new();
+
+    let mut engine = Engine::new(disk);
+    initialize_engine(&mut engine).expect("Failed to initialize os");
 
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
@@ -240,9 +231,6 @@ fn main_run() {
                     }
                 }
             }
-            Event::RedrawRequested(_) => {
-                
-            }
             Event::MainEventsCleared => {
 
                 // Dispatch mouse motion and reset
@@ -288,14 +276,13 @@ fn main_run() {
 
                 // Compute delta time
                 let now = Instant::now();
-                let delta_time = (now - last_time).as_secs_f64();
+                let dt = (now - last_time).as_secs_f64();
                 last_time = now;
 
                 // Update GUI
                 let last_display_mode = display_mode;
                 gui.ui(
                     &mut window,
-                    &engine,
                     &mut mapper,
                     &mut WindowControl {
                         control_flow,
@@ -311,8 +298,9 @@ fn main_run() {
                 }
 
                 // Progress engine
-                engine.progress(&events, &mut requests, delta_time).expect("Failed to progress engine");
-                engine.update_renderer(&mut renderer, false).expect("Failed to render");
+                engine.progress(&events, dt).expect("Failed to progress engine");
+                engine.synchronize_input(&mut mapper).expect("Failed to synchronize input");
+                engine.synchronize_renderer(&mut renderer, false).expect("Failed to synchronize renderer");
                 
                 // Save/Load state
                 if save_state {
@@ -376,7 +364,7 @@ fn main_run() {
                     //     engine.load_state(&mut deserializer).expect("Failed to load state");
                     // }
 
-                    engine.update_renderer(&mut renderer, true).expect("Failed to reset renderer");
+                    engine.synchronize_renderer(&mut renderer, true).expect("Failed to reset renderer");
 
                     load_state = false;
                 }
@@ -388,18 +376,12 @@ fn main_run() {
                 }).expect("Failed to render");
 
                 // Check shutdown
-                if requests.shutdown() {
-                    println!("Request Shutdown");
+                if !engine.is_running() {
+                    println!("Engine shutdown");
                     *control_flow = ControlFlow::Exit;
                 }
 
-                // Check input reloading
-                if requests.reload_input_mapping() {
-                    mapper.refresh(&engine);
-                }
-
-                // Reset requests and events
-                requests.reset();
+                // Reset events
                 events.clear();
 
                 // Check exit

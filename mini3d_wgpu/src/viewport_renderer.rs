@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use mini3d::{renderer::{backend::{MaterialHandle, SceneCameraHandle, ViewportHandle}, RendererStatistics}, anyhow::{Result, Context}, uid::UID};
+use mini3d::{renderer::{backend::{MaterialHandle, SceneCameraHandle, ViewportHandle}, RendererStatistics}, uid::UID};
 
-use crate::{context::WGPUContext, model_buffer::ModelBuffer, camera::Camera, mesh_pass::{MeshPass, GPUDrawIndirect}, Material, vertex_allocator::{VertexAllocator, VertexBufferDescriptor}, viewport::Viewport};
+use crate::{context::WGPUContext, model_buffer::ModelBuffer, camera::Camera, mesh_pass::MeshPass, Material, vertex_allocator::{VertexAllocator, VertexBufferDescriptor}, viewport::Viewport};
 
 #[repr(C)]
 #[derive(Default, Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -112,7 +112,7 @@ impl ViewportRenderer {
         forward_mesh_pass: &MeshPass,
         statistics: &mut RendererStatistics,
         encoder: &mut wgpu::CommandEncoder,
-    ) -> Result<()> {
+    ) {
 
         // Initialize buffer pointer
         let mut current_viewport_index = 0;
@@ -121,7 +121,7 @@ impl ViewportRenderer {
 
             // Retrieve the camera
             if viewport.camera.is_none() { continue; }
-            let camera = cameras.get(&viewport.camera.unwrap()).with_context(|| "Camera not found")?;
+            let camera = cameras.get(&viewport.camera.unwrap()).expect("Camera not found");
 
             // Fill viewport data
             let projection = camera.projection(viewport.aspect_ratio());
@@ -218,7 +218,5 @@ impl ViewportRenderer {
 
         // Write buffers
         context.queue.write_buffer(&self.viewport_buffer, 0, bytemuck::cast_slice(&self.viewport_transfer[0..current_viewport_index]));
-
-        Ok(())
     }
 }

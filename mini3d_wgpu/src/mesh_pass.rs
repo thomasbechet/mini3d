@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use mini3d::{uid::UID, renderer::backend::MaterialHandle, anyhow::{anyhow, Result}};
+use mini3d::{uid::UID, renderer::backend::MaterialHandle};
 
-use crate::{Object, model_buffer::ModelIndex, context::WGPUContext, vertex_allocator::VertexBufferDescriptor};
+use crate::{Object, model_buffer::ModelIndex, context::WGPUContext, vertex_allocator::VertexBufferDescriptor, error::WGPURendererError};
 
 pub(crate) fn create_mesh_pass_bind_group_layout(
     context: &WGPUContext
@@ -170,9 +170,9 @@ impl MeshPass {
         }
     }
 
-    pub(crate) fn add(&mut self, uid: UID) -> Result<()> {
+    pub(crate) fn add(&mut self, uid: UID) -> Result<(), WGPURendererError> {
         if self.pass_objects.len() >= self.max_pass_object_count {
-            return Err(anyhow!("Maximum pass object count reached"));
+            return Err(WGPURendererError::MaxPassObjectReached);
         }
         self.pass_objects.insert(uid, PassObject { 
             sort_key: 0
@@ -181,12 +181,9 @@ impl MeshPass {
         Ok(())
     }
 
-    pub(crate) fn remove(&mut self, uid: UID) -> Result<()> {
-        if self.pass_objects.remove(&uid).is_none() {
-            return Err(anyhow!("Pass object with UID {} not found", uid));
-        }
+    pub(crate) fn remove(&mut self, uid: UID) {
+        self.pass_objects.remove(&uid).expect("Pass object not found");
         self.out_of_date = true;
-        Ok(())
     }
 
     pub(crate) fn out_of_date(&self) -> bool {
@@ -197,7 +194,7 @@ impl MeshPass {
         &mut self,
         objects: &HashMap<UID, Object>,
         submeshes: &HashMap<UID, VertexBufferDescriptor>,
-    ) -> Result<()> {
+    ) {
 
         // Create sorted batches from object pass
         {
@@ -301,8 +298,6 @@ impl MeshPass {
 
         // Reset flag
         self.out_of_date = false;
-
-        Ok(())
     }
 
     pub(crate) fn write_buffers(&self, context: &WGPUContext) {

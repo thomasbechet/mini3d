@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Context, Result};
 use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, asset::{AnyAssetContainer, AssetContainer}};
+
+use super::error::RegistryError;
 
 pub trait Asset: Serialize + for<'de> Deserialize<'de> + 'static {}
 
@@ -33,10 +34,10 @@ pub struct AssetRegistry {
 
 impl AssetRegistry {
 
-    pub(crate) fn define_static<A: Asset>(&mut self, name: &str) -> Result<UID> {
+    pub(crate) fn define_static<A: Asset>(&mut self, name: &str) -> Result<UID, RegistryError> {
         let uid: UID = name.into();
         if self.assets.contains_key(&uid) {
-            return Err(anyhow!("Asset already defined"));
+            return Err(RegistryError::DuplicatedAssetDefinition { name: name.to_owned() });
         }
         self.assets.insert(uid, AssetDefinition { 
             name: name.to_owned(), 
@@ -47,7 +48,7 @@ impl AssetRegistry {
 
     // TODO: support dynamic assets ???
 
-    pub(crate) fn get(&self, uid: UID) -> Result<&AssetDefinition> {
-        self.assets.get(&uid).with_context(|| "Asset not found")
+    pub(crate) fn get(&self, uid: UID) -> Result<&AssetDefinition, RegistryError> {
+        self.assets.get(&uid).ok_or_else(|| RegistryError::AssetDefinitionNotFound { uid })
     }
 }

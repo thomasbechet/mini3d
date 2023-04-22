@@ -1,6 +1,5 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error, fmt::Display};
 
-use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -32,12 +31,12 @@ impl Widget for WidgetVariant {
         }
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) -> Result<()> {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) {
         match self {
             WidgetVariant::Button(button) => button.render(gfx, styles, offset, time),
             WidgetVariant::Checkbox(checkbox) => checkbox.render(gfx, styles, offset, time),
             WidgetVariant::Label(label) => label.render(gfx, styles, offset, time),
-            WidgetVariant::Slider(slider) => { Ok(()) },
+            WidgetVariant::Slider(slider) => {},
             WidgetVariant::Sprite(sprite) => sprite.render(gfx, styles, offset, time),
             WidgetVariant::TextBox(textbox) => textbox.render(gfx, styles, offset, time),
             WidgetVariant::Viewport(viewport) => viewport.render(gfx, styles, offset, time),
@@ -98,6 +97,21 @@ struct WidgetEntry {
     widget: WidgetVariant,
 }
 
+#[derive(Debug)]
+pub enum UILayoutError {
+    WidgetNotFound { uid: UID },
+}
+
+impl Error for UILayoutError {}
+
+impl Display for UILayoutError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UILayoutError::WidgetNotFound { uid } => write!(f, "Widget not found: {}", uid),
+        }
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct UILayout {
     widgets: HashMap<UID, WidgetEntry>,
@@ -115,7 +129,7 @@ impl UILayout {
         self.widgets.insert(uid, entry);
     }
 
-    pub fn add_button(&mut self, name: &str, z_index: i32, button: UIButton) -> Result<UID> {
+    pub fn add_button(&mut self, name: &str, z_index: i32, button: UIButton) -> UID {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -123,10 +137,10 @@ impl UILayout {
             navigation: Navigation::default(), 
             widget: WidgetVariant::Button(button),
         });
-        Ok(uid)
+        uid
     }
 
-    pub fn add_sprite(&mut self, name: &str, z_index: i32, sprite: UISprite) -> Result<UID> {
+    pub fn add_sprite(&mut self, name: &str, z_index: i32, sprite: UISprite) -> UID {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -134,10 +148,10 @@ impl UILayout {
             navigation: Navigation::default(), 
             widget: WidgetVariant::Sprite(sprite),
         });
-        Ok(uid)
+        uid
     }
 
-    pub fn add_textbox(&mut self, name: &str, z_index: i32, textbox: UITextBox) -> Result<UID> {
+    pub fn add_textbox(&mut self, name: &str, z_index: i32, textbox: UITextBox) -> UID {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -145,10 +159,10 @@ impl UILayout {
             navigation: Navigation::default(), 
             widget: WidgetVariant::TextBox(textbox),
         });
-        Ok(uid)
+        uid
     }
 
-    pub fn add_checkbox(&mut self, name: &str, z_index: i32, checkbox: UICheckBox) -> Result<UID> {
+    pub fn add_checkbox(&mut self, name: &str, z_index: i32, checkbox: UICheckBox) -> UID {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -156,10 +170,10 @@ impl UILayout {
             navigation: Navigation::default(), 
             widget: WidgetVariant::Checkbox(checkbox),
         });
-        Ok(uid)
+        uid
     }
 
-    pub fn add_label(&mut self, name: &str, z_index: i32, label: UILabel) -> Result<UID> {
+    pub fn add_label(&mut self, name: &str, z_index: i32, label: UILabel) -> UID {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry { 
             name: name.to_string(), 
@@ -167,10 +181,10 @@ impl UILayout {
             navigation: Navigation::default(), 
             widget: WidgetVariant::Label(label),
         });
-        Ok(uid)
+        uid
     }
 
-    pub fn add_viewport(&mut self, name: &str, z_index: i32, viewport: UIViewport) -> Result<UID> {
+    pub fn add_viewport(&mut self, name: &str, z_index: i32, viewport: UIViewport) -> UID {
         let uid: UID = name.into();
         self.add(uid, WidgetEntry {
             name: name.to_string(), 
@@ -178,11 +192,11 @@ impl UILayout {
             navigation: Navigation::default(), 
             widget: WidgetVariant::Viewport(viewport),
         });
-        Ok(uid)
+        uid
     }
 
-    pub fn set_navigation(&mut self, widget: UID, navigation: Navigation) -> Result<()> {
-        self.widgets.get_mut(&widget).with_context(|| "Widget not found")?.navigation = navigation;
+    pub fn set_navigation(&mut self, widget: UID, navigation: Navigation) -> Result<(), UILayoutError> {
+        self.widgets.get_mut(&widget).ok_or_else(|| UILayoutError::WidgetNotFound { uid: widget })?.navigation = navigation;
         Ok(())
     }
 }
@@ -331,7 +345,7 @@ impl Widget for UILayout {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) -> Result<()> {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) {
 
         // Sort widgets
         let mut entries = self.widgets.values().collect::<Vec<_>>();
@@ -339,10 +353,8 @@ impl Widget for UILayout {
 
         // Render widgets
         for entry in entries {
-            entry.widget.render(gfx, styles, offset, time)?;
+            entry.widget.render(gfx, styles, offset, time);
         }
-
-        Ok(())
     }
 
     fn extent(&self) -> IRect {

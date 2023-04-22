@@ -1,8 +1,8 @@
-use mini3d::{context::SystemContext, anyhow::Result, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::procedure::Procedure, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::parser::Parser, prng::PCG32};
+use mini3d::{context::SystemContext, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::{procedure::Procedure, system::SystemResult}, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::parser::Parser, prng::PCG32, registry::error::RegistryError};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
-fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
+fn setup_assets(ctx: &mut SystemContext) -> SystemResult {
     ctx.asset.add_bundle(DefaultAsset::BUNDLE).unwrap();
     let default_bundle = DefaultAsset::BUNDLE.into();
 
@@ -242,7 +242,7 @@ fn setup_assets(ctx: &mut SystemContext) -> Result<()> {
     Ok(())
 }
 
-fn setup_world(ctx: &mut SystemContext) -> Result<()> {
+fn setup_world(ctx: &mut SystemContext) -> SystemResult {
 
     let mut world = ctx.world.active();
 
@@ -346,14 +346,14 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
             let button_pressed = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
                 IRect::new(17, 81, 14, 14), 
                 UIMargin::new(4, 3, 3, 3))?);
-            let button = UIButtonStyle::new(button_normal, button_pressed, button_normal)?;
+            let button = UIButtonStyle::new(button_normal, button_pressed, button_normal);
             let checkbox_unchecked = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
                 IRect::new(81, 257, 14, 14), 
                 UIMargin::new(3, 4, 3, 3))?);
             let checkbox_checked = UIBoxStyle::Image(UIImageStyle::sliced(texture, 
                 IRect::new(97, 257, 14, 14), 
                 UIMargin::new(4, 3, 3, 3))?);
-            let checkbox = UICheckBoxStyle::new(checkbox_unchecked, checkbox_checked)?;
+            let checkbox = UICheckBoxStyle::new(checkbox_unchecked, checkbox_checked);
             stylesheet.add_button_style(UIButtonStyle::DEFAULT, button)?;
             stylesheet.add_checkbox_style(UICheckBoxStyle::DEFAULT, checkbox)?;
         }
@@ -363,20 +363,20 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
         // let button_style = UIButtonStyle::new(box_style, box_style, box_style);
         let mut button = UIButton::new(IRect::new(10, 10, 60, 20));
         button.on_pressed(Some("HELLO".into()));
-        let b0 = ui.root().add_button("b0", 5, button)?;
+        let b0 = ui.root().add_button("b0", 5, button);
         // let b1 = ui.root().add_button("b1", 0, UIButton::new(IRect::new(10, 50, 50, 20)))?;
-        ui.root().add_sprite("alfred", 1, UISprite::new("alfred".into(), (50, 50).into(), (0, 0, 64, 64).into()))?;
-        let t0 = ui.root().add_textbox("textbox", 2, UITextBox::new((50, 100, 100, 15).into()))?;
+        ui.root().add_sprite("alfred", 1, UISprite::new("alfred".into(), (50, 50).into(), (0, 0, 64, 64).into()));
+        let t0 = ui.root().add_textbox("textbox", 2, UITextBox::new((50, 100, 100, 15).into()));
         let mut checkbox = UICheckBox::new((80, 10, 14, 14).into(), false);
         checkbox.on_checked(Some("checked".into()));
-        let c0 = ui.root().add_checkbox("c0", 0, checkbox)?;
+        let c0 = ui.root().add_checkbox("c0", 0, checkbox);
         // ui.root().add_sprite("frame", 1, UISprite::new("frame".into(), (300, 50).into(), (0, 0, 96, 96).into()))?;
-        ui.root().add_label("test", 2, UILabel::new((330, 90).into(), "Hello", "default".into()))?;
+        ui.root().add_label("test", 2, UILabel::new((330, 90).into(), "Hello", "default".into()));
 
         ui.root().set_navigation(b0, Navigation { up: None, down: None, left: None, right: Some(c0) })?;
         ui.root().set_navigation(c0, Navigation { up: None, down: None, left: Some(b0), right: None })?;
 
-        ui.root().add_viewport("main_viewport", -1, ui::widget::viewport::UIViewport::new(IVec2::ZERO, world.uid(), viewport))?;
+        ui.root().add_viewport("main_viewport", -1, ui::widget::viewport::UIViewport::new(IVec2::ZERO, world.uid(), viewport));
         
         ui.add_user("main")?;
 
@@ -401,7 +401,7 @@ fn setup_world(ctx: &mut SystemContext) -> Result<()> {
     Ok(())
 }
 
-fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
+fn setup_scheduler(ctx: &mut SystemContext) -> SystemResult {
     let pipeline = SystemPipeline::new(&[
         UID::new("rotator"),
         UID::new("transform_propagate"),
@@ -418,7 +418,7 @@ fn setup_scheduler(ctx: &mut SystemContext) -> Result<()> {
     Ok(())
 }
 
-fn init_system(ctx: &mut SystemContext) -> Result<()> {
+fn init_system(ctx: &mut SystemContext) -> SystemResult {
     setup_assets(ctx)?;
     setup_world(ctx)?;
     setup_scheduler(ctx)?;
@@ -435,11 +435,13 @@ fn init_system(ctx: &mut SystemContext) -> Result<()> {
     Ok(())
 }
 
-pub fn initialize_engine(engine: &mut Engine) -> Result<()> {
+pub fn initialize_engine(engine: &mut Engine) -> Result<(), RegistryError> {
 
     engine.define_static_component::<OS>(OS::NAME)?;
     engine.define_static_system("update", crate::system::update::update)?;
     engine.define_static_system("init", init_system).expect("Failed to define init system");
     
-    engine.invoke("init".into())
+    engine.invoke_system("init".into());
+    
+    Ok(())
 }

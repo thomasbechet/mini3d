@@ -1,8 +1,6 @@
-use anyhow::{Result, anyhow};
-
 use crate::script::frontend::ast::BinaryOperator;
 
-use super::{lexer::{Lexer, Token, TokenKind, TokenSpan}, ast::{AST, ASTNodeId, ASTNode, Literal, ASTPrimitive}};
+use super::{lexer::{Lexer, Token, TokenKind}, ast::{AST, ASTNodeId, ASTNode, Literal, ASTPrimitive}, error::{ParserError, LexerError}};
 
 pub struct Parser<'s: 'a, 'a> {
     source: &'s str,
@@ -17,11 +15,11 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
     const MAX_LOOKAHEAD: usize = 2;
 
     /// Translate peeked tokens
-    fn advance(&mut self) -> Result<()> {
+    fn advance(&mut self) -> Result<(), ParserError> {
         for i in (1..Self::MAX_LOOKAHEAD).rev() {
             self.peeks[i] = self.peeks[i - 1];
         }
-        self.peeks[0] = self.lexer.next_token()?;
+        self.peeks[0] = self.lexer.next_token().map_err(|e| ParserError::Lexer(e))?;
         Ok(())
     }
 
@@ -35,7 +33,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
     }
 
     /// Consume next token
-    fn consume(&mut self) -> Result<Token> {
+    fn consume(&mut self) -> Result<Token, ParserError> {
         let token = self.peek(0);
         self.advance()?;
         Ok(token)
@@ -46,10 +44,10 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
     /// # Arguments
     /// 
     /// * `kind` - Expected token kind
-    fn expect(&mut self, kind: TokenKind) -> Result<Token> {
+    fn expect(&mut self, kind: TokenKind) -> Result<Token, ParserError> {
         let token = self.consume()?;
         if token.kind != kind {
-            Err(anyhow!("Expected '{:?}', got '{:?}'", kind, token.kind))
+            Err(ParserError::UnexpectedToken { expected: kind, got: token.kind })
         } else {
             Ok(token)
         }
@@ -60,7 +58,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
     /// # Arguments
     /// 
     /// * `kind` - Expected token kind
-    fn accept(&mut self, kind: TokenKind) -> Result<Option<Token>> {
+    fn accept(&mut self, kind: TokenKind) -> Result<Option<Token>, ParserError> {
         let token = self.peek(0);
         if token.kind == kind {
             self.advance()?;
@@ -70,11 +68,11 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         }
     }
 
-    fn parse_member_lookup(&mut self, child: ASTNodeId) -> Result<ASTNodeId> {
+    fn parse_member_lookup(&mut self, child: ASTNodeId) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::Dot)?;
         let ident = self.expect(TokenKind::Identifier)?;
         let node = self.ast.add(ASTNode::MemberLookup(ident.span.slice(self.source)));
-        self.ast.append_child(node, child)?;
+        self.ast.append_child(node, child);
         if self.peek(0).kind == TokenKind::Dot {
             self.parse_member_lookup(node)
         } else {
@@ -82,7 +80,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         }
     }
 
-    fn parse_identifier(&mut self) -> Result<ASTNodeId> {
+    fn parse_identifier(&mut self) -> Result<ASTNodeId, ParserError> {
         let ident = self.expect(TokenKind::Identifier)?;
         let mut node = self.ast.add(ASTNode::Identifier(ident.span.slice(self.source)));
         if self.peek(0).kind == TokenKind::Dot {
@@ -91,7 +89,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         Ok(node)
     }
 
-    fn parse_atom(&mut self) -> Result<ASTNodeId> {
+    fn parse_atom(&mut self) -> Result<ASTNodeId, ParserError> {
         let next = self.peek(0);
         let node = match next.kind {
             TokenKind::Identifier => {
@@ -104,11 +102,13 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
             },
             TokenKind::Integer => {
                 self.consume()?;
-                self.ast.add(ASTNode::Literal(Literal::Integer(next.span.slice(self.source).parse()?)))
+                let value = next.span.slice(self.source).parse().map_err(|e| ParserError::IntegerParseError(e))?;
+                self.ast.add(ASTNode::Literal(Literal::Integer(value)))
             },
             TokenKind::Float => {
                 self.consume()?;
-                self.ast.add(ASTNode::Literal(Literal::Float(next.span.slice(self.source).parse()?)))
+                let value = next.span.slice(self.source).parse().map_err(|e| ParserError::FloatParseError(e))?;
+                self.ast.add(ASTNode::Literal(Literal::Float(value)))
             },
             TokenKind::String => {
                 self.consume()?;
@@ -127,12 +127,12 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
                 self.consume()?;
                 self.ast.add(ASTNode::Literal(Literal::Nil))
             },
-            _ => return Err(anyhow!("Expected expression, got '{:?}'", next.kind))
+            _ => return Err(ParserError::InvalidAtomExpression { got: next.kind })
         };
         Ok(node)
     }
 
-    fn parse_primary(&mut self) -> Result<ASTNodeId> {
+    fn parse_primary(&mut self) -> Result<ASTNodeId, ParserError> {
         let token = self.peek(0);
         if token.kind == TokenKind::LeftParen {
             self.consume()?;
@@ -143,16 +143,16 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
             self.consume()?;
             let expr = self.parse_primary()?;
             let node = self.ast.add(ASTNode::UnaryOperator(token.kind.into()));
-            self.ast.append_child(node, expr)?;
+            self.ast.append_child(node, expr);
             Ok(node)
         } else if token.kind.is_binop() {
-            Err(anyhow!("Expected expression, got '{:?}'", token.kind))
+            Err(ParserError::UnexpectedBinaryOperator)
         } else {
             Ok(self.parse_atom()?)
         }
     }
 
-    fn parse_expression(&mut self, min_precedence: u32) -> Result<ASTNodeId> {
+    fn parse_expression(&mut self, min_precedence: u32) -> Result<ASTNodeId, ParserError> {
         let mut lhs = self.parse_primary()?;
         loop {
             let current = self.peek(0);
@@ -170,8 +170,8 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
                 let rhs = self.parse_expression(next_min_assoc)?;
 
                 let op_node = self.ast.add(ASTNode::BinaryOperator(op));
-                self.ast.append_child(op_node, lhs)?;
-                self.ast.append_child(op_node, rhs)?;
+                self.ast.append_child(op_node, lhs);
+                self.ast.append_child(op_node, rhs);
                 lhs = op_node;
 
             } else {
@@ -181,7 +181,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         Ok(lhs)
     }
 
-    fn parse_statement(&mut self) -> Result<Option<ASTNodeId>> {
+    fn parse_statement(&mut self) -> Result<Option<ASTNodeId>, ParserError> {
         let next = self.peek(0);
         if next.kind == TokenKind::Let {
             Ok(Some(self.parse_variable_declaration()?))
@@ -198,7 +198,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
             } else if self.peek(0).kind == TokenKind::LeftParen {
                 Ok(Some(self.parse_call(ident)?))
             } else {
-                Err(anyhow!("Identifier alone is not a statement"))
+                Err(ParserError::IdentifierAsStatement)
             }
         } else if next.kind == TokenKind::Comment {
             let comment = self.consume()?;
@@ -208,39 +208,39 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
                 self.parse_statement() // Ignore comments
             }
         } else if next.kind == TokenKind::Import {
-            Err(anyhow!("Import statements are must be at the beginning of the file"))
+            Err(ParserError::UnexpectedImportStatement)
         } else {
             Ok(None)
         }
     }
 
-    fn try_parse_primitive_type(&mut self) -> Result<Option<ASTPrimitive>> {
+    fn try_parse_primitive_type(&mut self) -> Result<Option<ASTPrimitive>, ParserError> {
         if self.accept(TokenKind::Colon)?.is_some() {
             let ident = self.expect(TokenKind::Identifier)?.span.slice(self.source);
-            Ok(Some(ASTPrimitive::parse(ident)?))
+            Ok(ASTPrimitive::parse(ident))
         } else {
             Ok(None)
         }
     }
 
-    fn parse_variable_declaration(&mut self) -> Result<ASTNodeId> {
+    fn parse_variable_declaration(&mut self) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::Let)?;
         let ident = self.expect(TokenKind::Identifier)?;
         let primitive = self.try_parse_primitive_type()?;
         self.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0)?;
         let node = self.ast.add(ASTNode::VariableDeclaration { identifier: ident.span.slice(self.source), var_type: primitive });
-        self.ast.append_child(node, expr)?;
+        self.ast.append_child(node, expr);
         Ok(node)
     }
 
-    fn parse_function_argument(&mut self) -> Result<ASTNodeId> {
+    fn parse_function_argument(&mut self) -> Result<ASTNodeId, ParserError> {
         let ident = self.expect(TokenKind::Identifier)?;
         let primitive = self.try_parse_primitive_type()?;
         Ok(self.ast.add(ASTNode::FunctionArgument { identifier: ident.span.slice(self.source), arg_type: primitive }))
     }
 
-    fn parse_function_declaration(&mut self) -> Result<ASTNodeId> {
+    fn parse_function_declaration(&mut self) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::Function)?;
         // Identifier
         let ident = self.expect(TokenKind::Identifier)?;
@@ -252,12 +252,12 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         // First argument
         if self.peek(0).kind != TokenKind::RightParen {
             let arg = self.parse_function_argument()?;
-            self.ast.append_child(function, arg)?;
+            self.ast.append_child(function, arg);
         }
         // Rest of the arguments
         while self.accept(TokenKind::Comma)?.is_some() {
             let arg = self.parse_function_argument()?;
-            self.ast.append_child(function, arg)?;
+            self.ast.append_child(function, arg);
         }
         self.expect(TokenKind::RightParen)?;
         if let Some(primitive) = self.try_parse_primitive_type()? {
@@ -268,41 +268,42 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         }
         
         while let Some(stmt) = self.parse_statement()? {
-            self.ast.append_child(function, stmt)?;
+            self.ast.append_child(function, stmt);
         }
         self.expect(TokenKind::End)?;
         Ok(function)
     }
 
-    fn parse_return_statement(&mut self) -> Result<ASTNodeId> {
+    fn parse_return_statement(&mut self) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::Return)?;
         let expr = self.parse_expression(0)?;
         let node = self.ast.add(ASTNode::ReturnStatement);
-        self.ast.append_child(node, expr)?;
+        self.ast.append_child(node, expr);
         Ok(node)
     }
 
-    fn parse_and_append_if_body(&mut self, if_node: ASTNodeId) -> Result<()> {
+    fn parse_and_append_if_body(&mut self, if_node: ASTNodeId) -> Result<(), ParserError> {
         let body = self.ast.add(ASTNode::IfBody);
         while let Some(stmt) = self.parse_statement()? {
-            self.ast.append_child(body, stmt)?;
+            self.ast.append_child(body, stmt);
         }
-        self.ast.append_child(if_node, body)
+        self.ast.append_child(if_node, body);
+        Ok(())
     }
 
-    fn parse_if_statement(&mut self) -> Result<ASTNodeId> {
+    fn parse_if_statement(&mut self) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::If)?;
         let node = self.ast.add(ASTNode::IfStatement);
         // If condition
         let condition = self.parse_expression(0)?;
-        self.ast.append_child(node, condition)?;
+        self.ast.append_child(node, condition);
         self.expect(TokenKind::Then)?;
         // If body
         self.parse_and_append_if_body(node)?;
         while self.accept(TokenKind::Elif)?.is_some() {
             // Elif condition
             let condition = self.parse_expression(0)?;
-            self.ast.append_child(node, condition)?;
+            self.ast.append_child(node, condition);
             self.expect(TokenKind::Then)?;
             // Elif body
             self.parse_and_append_if_body(node)?;
@@ -315,7 +316,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         Ok(node)
     }
 
-    fn parse_for_statement(&mut self) -> Result<ASTNodeId> {
+    fn parse_for_statement(&mut self) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::For)?;
         let ident = self.expect(TokenKind::Identifier)?;
         self.expect(TokenKind::In)?;
@@ -323,41 +324,41 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
 
         let node = self.ast.add(ASTNode::ForStatement);
         // self.ast.append_child(node, )?;
-        self.ast.append_child(node, expr)?;
+        self.ast.append_child(node, expr);
         self.expect(TokenKind::Do)?;
         while let Some(stmt) = self.parse_statement()? {
-            self.ast.append_child(node, stmt)?;
+            self.ast.append_child(node, stmt);
         }
         self.expect(TokenKind::End)?;
         Ok(node)
     }
 
-    fn parse_assignment_statement(&mut self, ident: ASTNodeId) -> Result<ASTNodeId> {
+    fn parse_assignment_statement(&mut self, ident: ASTNodeId) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0)?;
         let node = self.ast.add(ASTNode::Assignment);
-        self.ast.append_child(node, ident)?;
-        self.ast.append_child(node, expr)?;
+        self.ast.append_child(node, ident);
+        self.ast.append_child(node, expr);
         Ok(node)
     }
 
-    fn parse_call(&mut self, ident: ASTNodeId) -> Result<ASTNodeId> {
+    fn parse_call(&mut self, ident: ASTNodeId) -> Result<ASTNodeId, ParserError> {
         let node = self.ast.add(ASTNode::Call);
-        self.ast.append_child(node, ident)?;
+        self.ast.append_child(node, ident);
         self.expect(TokenKind::LeftParen)?;
         if self.peek(0).kind != TokenKind::RightParen {
             let expr = self.parse_expression(0)?;
-            self.ast.append_child(node, expr)?;
+            self.ast.append_child(node, expr);
         }
         while self.accept(TokenKind::Comma)?.is_some() {
             let expr = self.parse_expression(0)?;
-            self.ast.append_child(node, expr)?;
+            self.ast.append_child(node, expr);
         }
         self.expect(TokenKind::RightParen)?;
         Ok(node)
     }
 
-    fn parse_import(&mut self) -> Result<ASTNodeId> {
+    fn parse_import(&mut self) -> Result<ASTNodeId, ParserError> {
         self.expect(TokenKind::Import)?;
         let path = self.expect(TokenKind::String)?;
         self.expect(TokenKind::As)?;
@@ -366,21 +367,21 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         Ok(node)
     }
 
-    fn build_ast(&mut self) -> Result<()> {
+    fn build_ast(&mut self) -> Result<(), ParserError> {
 
         while self.peek(0).kind == TokenKind::Import {
             let import = self.parse_import()?;
-            self.ast.append_child(self.ast.root(), import)?;
+            self.ast.append_child(self.ast.root(), import);
         }
 
         while let Some(stmt) = self.parse_statement()? {
-            self.ast.append_child(self.ast.root(), stmt)?;
+            self.ast.append_child(self.ast.root(), stmt);
         }
 
         Ok(())
     }
 
-    pub fn parse(source: &'s str, parse_comments: bool) -> Result<AST<'s>> {
+    pub fn parse(source: &'s str, parse_comments: bool) -> Result<AST<'s>, ParserError> {
         let mut ast = AST::new();
         let mut parser = Parser {
             source,

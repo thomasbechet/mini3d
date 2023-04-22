@@ -1,9 +1,8 @@
-use anyhow::Result;
 use glam::{Vec3, Quat};
 
-use crate::{feature::component::{free_fly::FreeFly, transform::Transform}, context::SystemContext};
+use crate::{feature::component::{free_fly::FreeFly, transform::Transform}, context::SystemContext, ecs::system::SystemResult};
 
-pub fn run(ctx: &mut SystemContext) -> Result<()> {
+pub fn run(ctx: &mut SystemContext) -> SystemResult {
 
     let world = ctx.world.active();
     let mut transforms = world.view_mut::<Transform>(Transform::UID)?;

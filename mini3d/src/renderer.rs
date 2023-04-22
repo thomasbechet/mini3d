@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet, hash_map};
 
-use anyhow::{Result, Context};
 use glam::{UVec2, uvec2};
 use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
 
 use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, static_mesh::StaticMesh, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, model::Model}}, ecs::{ECSManager, entity::Entity, view::ComponentView}};
 
-use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle, SceneHandle}, graphics::Graphics, color::Color};
+use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle, SceneHandle, RendererBackendError}, graphics::Graphics, color::Color};
 
 pub mod backend;
 pub mod color;
@@ -78,27 +77,27 @@ pub(crate) struct RendererResourceManager {
     materials: HashMap<UID, RendererMaterial>,
 }
 
-fn load_font(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererFont> {
-    let font = asset.get::<Font>(Font::UID, uid)?.with_context(|| "Font not found")?;
+fn load_font(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererFont, RendererBackendError> {
+    let font = asset.get::<Font>(Font::UID, uid).unwrap().unwrap();
     let atlas = FontAtlas::new(font);
     let handle = backend.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
-fn load_mesh(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMesh> {
-    let mesh = asset.get::<Mesh>(Mesh::UID, uid)?.with_context(|| "Mesh not found")?;
+fn load_mesh(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMesh, RendererBackendError> {
+    let mesh = asset.get::<Mesh>(Mesh::UID, uid).unwrap().unwrap();
     let handle = backend.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
-fn load_texture(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererTexture> {
-    let texture = asset.get::<Texture>(Texture::UID, uid)?.with_context(|| "Texture not found")?;
+fn load_texture(uid: UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererTexture, RendererBackendError> {
+    let texture = asset.get::<Texture>(Texture::UID, uid).unwrap().unwrap();
     let handle = backend.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
-fn load_material(uid: UID, textures: &HashMap<UID, RendererTexture>, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMaterial> {
-    let material = asset.entry::<Material>(Material::UID, uid)?.with_context(|| "Material not found")?;
+fn load_material(uid: UID, textures: &HashMap<UID, RendererTexture>, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<RendererMaterial, RendererBackendError> {
+    let material = asset.entry::<Material>(Material::UID, uid).unwrap().unwrap();
     let diffuse = textures.get(&material.asset.diffuse).unwrap().handle;
     let handle = backend.material_add(BackendMaterialDescriptor { diffuse, name: &material.name })?;
     Ok(RendererMaterial { handle })
@@ -113,7 +112,7 @@ impl RendererResourceManager {
         self.materials.clear();
     }
 
-    pub(crate) fn request_font<'a>(&'a mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&'a RendererFont> {
+    pub(crate) fn request_font<'a>(&'a mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&'a RendererFont, RendererBackendError> {
         match self.fonts.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
@@ -123,7 +122,7 @@ impl RendererResourceManager {
         }
     }
 
-    pub(crate) fn request_mesh(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&RendererMesh> {
+    pub(crate) fn request_mesh(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&RendererMesh, RendererBackendError> {
         match self.meshes.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
@@ -133,7 +132,7 @@ impl RendererResourceManager {
         }
     }
 
-    pub(crate) fn request_texture(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&RendererTexture> {
+    pub(crate) fn request_texture(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&RendererTexture, RendererBackendError> {
         match self.textures.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
@@ -143,11 +142,11 @@ impl RendererResourceManager {
         }
     }
 
-    pub(crate) fn request_material(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&RendererMaterial> {
+    pub(crate) fn request_material(&mut self, uid: &UID, backend: &mut impl RendererBackend, asset: &AssetManager) -> Result<&RendererMaterial, RendererBackendError> {
         match self.materials.entry(*uid) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let material = asset.get::<Material>(Material::UID, *uid)?.with_context(|| "Material not found")?;
+                let material = asset.get::<Material>(Material::UID, *uid).unwrap().unwrap();
                 if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse) {
                     let diffuse = load_texture(*uid, backend, asset)?;
                     e.insert(diffuse);
@@ -184,10 +183,7 @@ pub struct RendererManager {
 
 impl RendererManager {
 
-    pub(crate) fn reset(
-        &mut self, 
-        ecs: &mut ECSManager,
-    ) -> Result<()> {
+    pub(crate) fn reset(&mut self, ecs: &mut ECSManager) {
 
         self.resources.reset();
 
@@ -196,29 +192,27 @@ impl RendererManager {
         self.scene_canvases_removed.clear();
 
         for world in ecs.worlds.get_mut().values_mut() {
-            for camera in world.get_mut().view_mut::<Camera>(Camera::UID)?.iter() {
+            for camera in world.get_mut().view_mut::<Camera>(Camera::UID).unwrap().iter() {
                 camera.handle = None;
             }
-            for static_mesh in world.get_mut().view_mut::<StaticMesh>(StaticMesh::UID)?.iter() {
+            for static_mesh in world.get_mut().view_mut::<StaticMesh>(StaticMesh::UID).unwrap().iter() {
                 static_mesh.handle = None;
             }
-            for canvas in world.get_mut().view_mut::<Canvas>(Canvas::UID)?.iter() {
+            for canvas in world.get_mut().view_mut::<Canvas>(Canvas::UID).unwrap().iter() {
                 canvas.handle = None;
             }
         }     
         
         self.scenes.clear();
         self.cameras.clear();
-        
-        Ok(())
     }
 
-    pub(crate) fn update_backend(
+    pub(crate) fn synchronize_backend(
         &mut self, 
         backend: &mut impl RendererBackend,
         asset: &AssetManager,
         ecs: &mut ECSManager,
-    ) -> Result<()> {
+    ) -> Result<(), RendererBackendError> {
         
         // Remove entities
         for handle in self.scene_cameras_removed.drain() {
@@ -248,11 +242,11 @@ impl RendererManager {
             let world = ecs.worlds.get_mut().get_mut(&ecs.active_world).unwrap().get_mut();
             
             // Prepare views
-            let local_to_world = world.view_mut::<LocalToWorld>(LocalToWorld::UID)?;
-            let mut cameras = world.view_mut::<Camera>(Camera::UID)?;
-            let mut viewports = world.view_mut::<Viewport>(Viewport::UID)?;
-            let mut static_meshes = world.view_mut::<StaticMesh>(StaticMesh::UID)?;
-            let mut canvases = world.view_mut::<Canvas>(Canvas::UID)?;
+            let local_to_world = world.view_mut::<LocalToWorld>(LocalToWorld::UID).unwrap();
+            let mut cameras = world.view_mut::<Camera>(Camera::UID).unwrap();
+            let mut viewports = world.view_mut::<Viewport>(Viewport::UID).unwrap();
+            let mut static_meshes = world.view_mut::<StaticMesh>(StaticMesh::UID).unwrap();
+            let mut canvases = world.view_mut::<Canvas>(Canvas::UID).unwrap();
             
             // Update cameras
             for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {
@@ -287,7 +281,7 @@ impl RendererManager {
                 let s = static_meshes.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();
                 if s.handle.is_none() {
-                    let model: &Model = asset.get(Model::UID, s.model)?.with_context(|| "Model not found")?;
+                    let model: &Model = asset.get(Model::UID, s.model).unwrap().unwrap();
                     let mesh_handle = self.resources.request_mesh(&model.mesh, backend, asset)?.handle;
                     let handle = backend.scene_model_add(mesh_handle)?;
                     for (index, material) in model.materials.iter().enumerate() {
@@ -326,9 +320,8 @@ impl RendererManager {
         Ok(())
     }
 
-    pub(crate) fn prepare(&mut self) -> Result<()> {
+    pub(crate) fn prepare(&mut self) {
         self.graphics.clear();
-        Ok(())
     }
 
     pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -349,7 +342,7 @@ impl RendererManager {
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
                 where A: serde::de::SeqAccess<'de> {
                 use serde::de::Error;
-                self.manager.graphics = seq.next_element()?.with_context(|| "Expect graphics").map_err(Error::custom)?;
+                self.manager.graphics = seq.next_element()?.ok_or_else(|| Error::missing_field("graphics"))?;
                 Ok(())
             }
         }

@@ -1,8 +1,23 @@
-use anyhow::{Result, anyhow};
-use glam::IVec2;
+use std::{error::Error, fmt::Display};
+
 use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, math::rect::IRect, renderer::{graphics::{TextureWrapMode, Graphics}, color::Color}};
+
+#[derive(Debug)]
+pub enum UIImageStyleError {
+    InvalidMargin,
+}
+
+impl Error for UIImageStyleError {}
+
+impl Display for UIImageStyleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidMargin => write!(f, "Invalid margin"),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct UIMargin {
@@ -115,9 +130,9 @@ impl UIImageStyle {
         }
     }
 
-    pub fn sliced(texture: UID, extent: IRect, margin: UIMargin) -> Result<Self> {
+    pub fn sliced(texture: UID, extent: IRect, margin: UIMargin) -> Result<Self, UIImageStyleError> {
         if margin.left + margin.right > extent.width() || margin.top + margin.bottom > extent.height() {
-            return Err(anyhow!("Invalid margin for UIImageStyle"));
+            return Err(UIImageStyleError::InvalidMargin);
         }
         Ok(Self {
             texture,

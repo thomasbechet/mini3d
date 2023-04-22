@@ -7,6 +7,5 @@ edition = "2021"
 wgpu = "0.14.2"
 raw-window-handle = "0.5.0"
 bytemuck = { version = "1.10.0", features = [ "derive" ] }
-rand = "0.8.5"
 futures = { version = "0.3", features = ["compat"] }
 mini3d = { path = "../mini3d" }

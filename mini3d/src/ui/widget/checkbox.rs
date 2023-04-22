@@ -1,4 +1,3 @@
-use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -16,8 +15,8 @@ impl UICheckBoxStyle {
 
     pub const DEFAULT: &'static str = "default";
 
-    pub fn new(checked: UIBoxStyle, unchecked: UIBoxStyle) -> Result<Self> {
-        Ok(Self { checked, unchecked })
+    pub fn new(checked: UIBoxStyle, unchecked: UIBoxStyle) -> Self {
+        Self { checked, unchecked }
     }
 }
 
@@ -80,15 +79,15 @@ impl Widget for UICheckBox {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
-        let style = styles.checkboxes.get(&self.style).with_context(|| "Checkbox style not found")?;
-        let extent = self.extent.translate(offset);
-        if self.checked {
-            style.checked.render(gfx, extent, Color::WHITE, 1);
-        } else {
-            style.unchecked.render(gfx, extent, Color::WHITE, 1);
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
+        if let Some(style) = styles.checkboxes.get(&self.style) {
+            let extent = self.extent.translate(offset);
+            if self.checked {
+                style.checked.render(gfx, extent, Color::WHITE, 1);
+            } else {
+                style.unchecked.render(gfx, extent, Color::WHITE, 1);
+            }
         }
-        Ok(())
     }
 
     fn extent(&self) -> IRect {

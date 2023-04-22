@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::collections::VecDeque;
 use crate::{uid::UID, ecs::scheduler::Invocation};
 
@@ -10,7 +9,7 @@ pub struct ProcedureContext<'a> {
 
 impl<'a> ProcedureContext<'a> {
 
-    pub fn invoke(&mut self, procedure: UID, invocation: Invocation) -> Result<()> {
+    pub fn invoke(&mut self, procedure: UID, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 self.frame_procedures.push_front(procedure);
@@ -22,7 +21,6 @@ impl<'a> ProcedureContext<'a> {
                 self.next_frame_procedures.push_back(procedure);
             },
         }
-        Ok(())
     }
 
     pub fn uid(&self) -> UID {

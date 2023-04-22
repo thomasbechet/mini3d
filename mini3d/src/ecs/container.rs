@@ -1,13 +1,12 @@
 use std::{any::Any, marker::PhantomData, fmt};
 
-use anyhow::{Result, Context};
 use serde::{de::{Visitor, self}, Deserializer, Serializer, ser::SerializeTuple};
 
 use crate::{registry::component::Component};
 
 use std::cell::RefCell;
 
-use super::{entity::Entity, sparse::PagedVector, reference::{ComponentRef, ComponentMut}};
+use super::{entity::Entity, sparse::PagedVector, reference::{ComponentRef, ComponentMut}, error::ECSError};
 
 pub(crate) struct ComponentContainer<C: Component> {
     pub(crate) components: RefCell<Vec<C>>,
@@ -34,8 +33,8 @@ impl<C: Component> ComponentContainer<C> {
             fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
                 where S: de::SeqAccess<'de> {
                 use serde::de::Error;
-                let entities: Vec<Entity> = seq.next_element()?.with_context(|| "Expect entities").map_err(Error::custom)?;
-                let components: Vec<C> = seq.next_element()?.with_context(|| "Expect components").map_err(Error::custom)?;
+                let entities: Vec<Entity> = seq.next_element()?.ok_or_else(|| Error::custom("Expect entities"))?;
+                let components: Vec<C> = seq.next_element()?.ok_or_else(|| Error::custom("Expect components"))?;
                 let mut container = ComponentContainer::<C> {
                     components: RefCell::new(components),
                     entities,
@@ -62,19 +61,19 @@ impl<C: Component> ComponentContainer<C> {
         self.entities.len()
     }
 
-    pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<()> {
+    pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<(), ECSError> {
         self.entities.push(entity);
         self.indices.set(entity.key(), self.entities.len() - 1);
         self.components
-            .try_borrow_mut().with_context(|| "Container already borrowed")?
+            .try_borrow_mut().map_err(|_| ECSError::ContainerBorrowMut)?
             .push(component);
         Ok(())
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity) -> Result<()> {
+    pub(crate) fn remove(&mut self, entity: Entity) -> Result<(), ECSError> {
         if let Some(index) = self.indices.get(entity.key()).copied() {
             self.components
-                .try_borrow_mut().with_context(|| "Component container already borrowed")?
+                .try_borrow_mut().map_err(|_| ECSError::ContainerBorrowMut)?
                 .swap_remove(index);
             self.entities.swap_remove(index);
             let swapped_entity = self.entities[index];
@@ -114,7 +113,7 @@ pub(crate) trait AnyComponentContainer {
     fn contains(&self, entity: Entity) -> bool;
     fn len(&self) -> usize;
     fn remove(&mut self, entity: Entity);
-    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<()>;
+    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<(), ECSError>;
 }
 
 impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
@@ -130,5 +129,5 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     }
     fn len(&self) -> usize { self.len() }
     fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }
-    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<()> { self.patch(entity, value) }
+    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<(), ECSError> { self.patch(entity, value) }
 }

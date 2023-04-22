@@ -1,12 +1,11 @@
 use std::{collections::{HashMap, hash_map}};
 
-use anyhow::{Context, Result, anyhow};
 use serde::{Deserializer, Serializer, Serialize, de::{Visitor, DeserializeSeed}};
 use serde_json::json;
 
-use crate::{uid::UID, registry::component::{ComponentRegistry, AnyComponentReflection, Component}, feature::{asset::prefab::Prefab}};
+use crate::{uid::UID, registry::{component::{ComponentRegistry, AnyComponentReflection, Component}, error::RegistryError}, feature::{asset::prefab::Prefab}};
 
-use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentViewRef, ComponentViewMut}, query::Query, reference::{ComponentRef, ComponentMut}, singleton::{AnySingleton, Singleton, SingletonRef, SingletonMut}};
+use super::{entity::Entity, container::{AnyComponentContainer, ComponentContainer}, view::{ComponentViewRef, ComponentViewMut}, query::Query, reference::{ComponentRef, ComponentMut}, singleton::{AnySingleton, Singleton, SingletonRef, SingletonMut}, error::WorldError};
 
 pub(crate) struct World {
     pub(crate) name: String,
@@ -29,7 +28,7 @@ impl World {
                 let mut map = serializer.serialize_map(Some(self.containers.len()))?;
                 for (uid, container) in self.containers.iter() {
                     use serde::ser::Error;
-                    let entry = self.registry.definitions.get(uid).with_context(|| "Component definition not found").map_err(Error::custom)?;
+                    let entry = self.registry.definitions.get(uid).ok_or_else(|| Error::custom("Component definition not found"))?;
                     map.serialize_entry(uid, &entry.reflection.serialize_container(container.as_ref()))?;
                 }
                 map.end()
@@ -45,7 +44,7 @@ impl World {
                 let mut map = serializer.serialize_map(Some(self.singletons.len()))?;
                 for (uid, singleton) in self.singletons.iter() {
                     use serde::ser::Error;
-                    let entry = self.registry.definitions.get(uid).with_context(|| "Component definition not found").map_err(Error::custom)?;
+                    let entry = self.registry.definitions.get(uid).ok_or_else(|| Error::custom("Component definition not found"))?;
                     map.serialize_entry(uid, &entry.reflection.serialize_singleton(singleton.as_ref()))?;
                 }
                 map.end()
@@ -100,7 +99,7 @@ impl World {
                                 let mut containers = HashMap::new();
                                 while let Some(uid) = map.next_key::<UID>()? {
                                     if containers.contains_key(&uid) { return Err(A::Error::duplicate_field("uid")); }
-                                    let reflection = &self.registry.definitions.get(&uid).with_context(|| "Component definition not found").map_err(Error::custom)?.reflection;
+                                    let reflection = &self.registry.definitions.get(&uid).ok_or_else(|| Error::custom("Component definition not found"))?.reflection;
                                     containers.insert(uid, map.next_value_seed(ContainerDeserializeSeed { reflection: reflection.as_ref() })?);
                                 }
                                 Ok(containers)
@@ -137,7 +136,7 @@ impl World {
                                 let mut singletons = HashMap::new();
                                 while let Some(uid) = map.next_key::<UID>()? {
                                     if singletons.contains_key(&uid) { return Err(A::Error::duplicate_field("uid")); }
-                                    let reflection = &self.registry.definitions.get(&uid).with_context(|| "Component definition not found").map_err(Error::custom)?.reflection;
+                                    let reflection = &self.registry.definitions.get(&uid).ok_or_else(|| Error::custom("Component definition not found"))?.reflection;
                                     singletons.insert(uid, map.next_value_seed(SingletonDeserializeSeed { reflection: reflection.as_ref() })?);
                                 }
                                 Ok(singletons)
@@ -147,11 +146,11 @@ impl World {
                     }
                 }
 
-                let name: String = seq.next_element()?.with_context(|| "Missing name").map_err(Error::custom)?;
-                let containers = seq.next_element_seed(ContainersDeserializeSeed { registry: self.registry })?.with_context(|| "Missing containers").map_err(Error::custom)?;
-                let singletons = seq.next_element_seed(SingletonsDeserializeSeed { registry: self.registry })?.with_context(|| "Missing singletons").map_err(Error::custom)?;
-                let free_entities = seq.next_element()?.with_context(|| "Missing free_entities").map_err(Error::custom)?;
-                let next_entity = seq.next_element()?.with_context(|| "Missing next_entity").map_err(Error::custom)?;
+                let name: String = seq.next_element()?.ok_or_else(|| Error::missing_field("name"))?;
+                let containers = seq.next_element_seed(ContainersDeserializeSeed { registry: self.registry })?.ok_or_else(|| Error::missing_field("containers"))?;
+                let singletons = seq.next_element_seed(SingletonsDeserializeSeed { registry: self.registry })?.ok_or_else(|| Error::missing_field("singletons"))?;
+                let free_entities = seq.next_element()?.ok_or_else(|| Error::missing_field("free_entities"))?;
+                let next_entity = seq.next_element()?.ok_or_else(|| Error::missing_field("next_entity"))?;
                 Ok(World { name, containers, singletons, free_entities, next_entity })
             }
         }
@@ -177,7 +176,7 @@ impl World {
         entity
     }
 
-    pub(crate) fn destroy(&mut self, entity: Entity) -> Result<()> {
+    pub(crate) fn destroy(&mut self, entity: Entity) -> Result<(), WorldError> {
         for container in self.containers.values_mut() {
             container.remove(entity);
         }
@@ -185,60 +184,60 @@ impl World {
         Ok(())
     }
 
-    pub(crate) fn add<C: Component>(&mut self, registry: &ComponentRegistry, entity: Entity, component: UID, data: C) -> Result<()> {
+    pub(crate) fn add<C: Component>(&mut self, registry: &ComponentRegistry, entity: Entity, component: UID, data: C) -> Result<(), WorldError> {
         if let hash_map::Entry::Vacant(e) = self.containers.entry(component) {
             let container = registry.definitions
-                .get(&component).with_context(|| "Component not registered")?
+                .get(&component).ok_or_else(|| WorldError::Registry(RegistryError::ComponentDefinitionNotFound { uid: component }))?
                 .reflection.create_container();
             e.insert(container);
         }
         let container = self.containers.get_mut(&component).unwrap();
         container.as_any_mut()
-            .downcast_mut::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?
-            .add(entity, data)?;
+            .downcast_mut::<ComponentContainer<C>>().ok_or_else(|| WorldError::ComponentTypeMismatch { uid: component })?
+            .add(entity, data).map_err(|_| WorldError::ContainerBorrowMut)?;
         Ok(())
     }
     
-    pub(crate) fn remove(&mut self, entity: Entity, component: UID) -> Result<()> {
-        let container = self.containers.get_mut(&component).with_context(|| "Component container not found")?;
+    pub(crate) fn remove(&mut self, entity: Entity, component: UID) -> Result<(), WorldError> {
+        let container = self.containers.get_mut(&component).ok_or_else(|| WorldError::ComponentContainerNotFound { uid: component } )?;
         container.remove(entity);
         Ok(())
     }
 
-    pub(crate) fn get<C: Component>(&self, entity: Entity, component: UID) -> Result<Option<ComponentRef<'_, C>>> {
+    pub(crate) fn get<C: Component>(&self, entity: Entity, component: UID) -> Result<Option<ComponentRef<'_, C>>, WorldError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.as_any()
-                .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?
+                .downcast_ref::<ComponentContainer<C>>().ok_or_else(|| WorldError::ComponentTypeMismatch { uid: component })?
                 .get(entity))
         } else {
             Ok(None)
         }
     }
 
-    pub(crate) fn get_mut<C: Component>(&self, entity: Entity, component: UID) -> Result<Option<ComponentMut<'_, C>>> {
+    pub(crate) fn get_mut<C: Component>(&self, entity: Entity, component: UID) -> Result<Option<ComponentMut<'_, C>>, WorldError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.as_any()
-                .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?
+                .downcast_ref::<ComponentContainer<C>>().ok_or_else(|| WorldError::ComponentTypeMismatch { uid: component })?
                 .get_mut(entity))
         } else {
             Ok(None)
         }
     }
 
-    pub(crate) fn view<C: Component>(&self, component: UID) -> Result<ComponentViewRef<'_, C>> {
+    pub(crate) fn view<C: Component>(&self, component: UID) -> Result<ComponentViewRef<'_, C>, WorldError> {
         if let Some(container) = self.containers.get(&component) {
             let container = container.as_any()
-                .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
+                .downcast_ref::<ComponentContainer<C>>().ok_or_else(|| WorldError::ComponentTypeMismatch { uid: component })?;
             Ok(ComponentViewRef::new(container))
         } else {
             Ok(ComponentViewRef::none())
         } 
     }
 
-    pub(crate) fn view_mut<C: Component>(&self, component: UID) -> Result<ComponentViewMut<'_, C>> {
+    pub(crate) fn view_mut<C: Component>(&self, component: UID) -> Result<ComponentViewMut<'_, C>, WorldError> {
         if let Some(container) = self.containers.get(&component) {
             let container = container.as_any()
-                .downcast_ref::<ComponentContainer<C>>().with_context(|| "Component type mismatch")?;
+                .downcast_ref::<ComponentContainer<C>>().ok_or_else(|| WorldError::ComponentTypeMismatch { uid: component })?;
             Ok(ComponentViewMut::new(container))
         } else {
             Ok(ComponentViewMut::none())
@@ -259,24 +258,24 @@ impl World {
         Query::new(containers)
     }
 
-    pub(crate) fn add_singleton<C: Component>(&mut self, component: UID, data: C) -> Result<()> {
+    pub(crate) fn add_singleton<C: Component>(&mut self, component: UID, data: C) -> Result<(), WorldError> {
         if self.singletons.contains_key(&component) {
-            return Err(anyhow!("Singleton already exists"));
+            return Err(WorldError::DuplicatedSingleton { uid: component });
         }
         self.singletons.insert(component, Box::new(Singleton::new(data)));
         Ok(())
     }
 
-    pub(crate) fn remove_singleton(&mut self, component: UID) -> Result<()> {
-        self.singletons.remove(&component).with_context(|| "Singleton not found")?;
+    pub(crate) fn remove_singleton(&mut self, component: UID) -> Result<(), WorldError> {
+        self.singletons.remove(&component).ok_or_else(|| WorldError::SingletonNotFound { uid: component })?;
         Ok(())
     }
 
-    pub(crate) fn get_singleton<C: Component>(&self, component: UID) -> Result<Option<SingletonRef<'_, C>>> {
+    pub(crate) fn get_singleton<C: Component>(&self, component: UID) -> Result<Option<SingletonRef<'_, C>>, WorldError> {
         if let Some(singleton) = self.singletons.get(&component) {
             Ok(Some(SingletonRef {
                 component: singleton.as_any()
-                    .downcast_ref::<Singleton<C>>().with_context(|| "Singleton type mismatch")?
+                    .downcast_ref::<Singleton<C>>().ok_or_else(|| WorldError::SingletonTypeMismatch { uid: component })?
                     .component.borrow()
             }))
         } else {
@@ -284,11 +283,11 @@ impl World {
         }
     }
 
-    pub(crate) fn get_singleton_mut<C: Component>(&self, component: UID) -> Result<Option<SingletonMut<'_, C>>> {
+    pub(crate) fn get_singleton_mut<C: Component>(&self, component: UID) -> Result<Option<SingletonMut<'_, C>>, WorldError> {
         if let Some(singleton) = self.singletons.get(&component) {
             Ok(Some(SingletonMut {
                 component: singleton.as_any()
-                    .downcast_ref::<Singleton<C>>().with_context(|| "Singleton type mismatch")?
+                    .downcast_ref::<Singleton<C>>().ok_or_else(|| WorldError::SingletonTypeMismatch { uid: component })?
                     .component.borrow_mut()
             }))
         } else {
@@ -296,7 +295,7 @@ impl World {
         }
     }
 
-    pub(crate) fn instantiate(&mut self, registry: &ComponentRegistry, prefab: &Prefab, patch: Option<serde_json::Value>) -> Result<Entity> {
+    pub(crate) fn instantiate(&mut self, registry: &ComponentRegistry, prefab: &Prefab, patch: Option<serde_json::Value>) -> Result<Entity, WorldError> {
         
         let patch = json!({
             "root": {
@@ -316,7 +315,7 @@ impl World {
         Ok(entity)
     }
 
-    pub(crate) fn export(&self, registry: &ComponentRegistry, entity: Entity, export_hierarchy: bool) -> Result<Prefab> {
+    pub(crate) fn export(&self, registry: &ComponentRegistry, entity: Entity, export_hierarchy: bool) -> Result<Prefab, WorldError> {
         
         
 

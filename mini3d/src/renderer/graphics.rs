@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
 use crate::{uid::UID, math::rect::IRect, asset::AssetManager, ecs::entity::Entity};
 
-use super::{color::Color, backend::{RendererBackend, ViewportHandle, SceneCanvasHandle}, RendererResourceManager};
+use super::{color::Color, backend::{RendererBackend, ViewportHandle, SceneCanvasHandle, RendererBackendError}, RendererResourceManager};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum TextureWrapMode {
@@ -65,7 +64,7 @@ impl Graphics {
         asset: &AssetManager,
         viewports: &HashMap<Entity, ViewportHandle>,
         backend: &mut impl RendererBackend,
-    ) -> Result<()> {
+    ) -> Result<(), RendererBackendError> {
         if let Some(canvas) = canvas {
             backend.scene_canvas_begin(canvas, clear_color)?;
         } else {
@@ -77,7 +76,7 @@ impl Graphics {
                     let font = resources.request_font(font, backend, asset)?;
                     let mut position = *position;
                     for c in self.text_buffer[*start..*stop].chars() {
-                        let char_extent = font.atlas.extents.get(&c).with_context(|| "Character extent not found")?;
+                        let char_extent = font.atlas.extents.get(&c).expect("Character extent not found");
                         let extent = IRect::new(
                             position.x, position.y,
                             char_extent.width(), char_extent.height()

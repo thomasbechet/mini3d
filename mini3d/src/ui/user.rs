@@ -1,4 +1,5 @@
-use anyhow::Result;
+use std::{error::Error, fmt::Display};
+
 use glam::{IVec2, Vec2};
 use serde::{Serialize, Deserialize};
 
@@ -116,54 +117,47 @@ impl UIUser {
         }
     }
 
-    pub fn warp_cursor(&mut self, position: Vec2) -> Result<()> {
+    pub fn warp_cursor(&mut self, position: Vec2) {
         self.cursor_position = position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
         if self.cursor_position != self.cursor_previous_position {
             self.cursor_previous_position = self.cursor_position;
-            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() })
+            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() });
         }
-        Ok(())
     }
 
-    pub fn move_cursor(&mut self, delta: Vec2) -> Result<()> {
+    pub fn move_cursor(&mut self, delta: Vec2) {
         self.cursor_position += delta;
         self.cursor_position = self.cursor_position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
         if self.cursor_position != self.cursor_previous_position {
             self.cursor_previous_position = self.cursor_position;
             // self.cursor_position = position.as_vec2();
-            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() })
+            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() });
         }
-        Ok(())
     }
 
-    pub fn move_selection(&mut self, direction: Direction) -> Result<()> {
+    pub fn move_selection(&mut self, direction: Direction) {
         self.events.push(Event::SelectionMoved { direction });
-        Ok(())
     }
 
-    pub fn scroll(&mut self, value: f32) -> Result<()> {
+    pub fn scroll(&mut self, value: f32) {
         self.events.push(Event::Scroll { value });
-        Ok(())
     }
 
-    pub fn press_primary(&mut self) -> Result<()> {
+    pub fn press_primary(&mut self) {
         if !self.primary_pressed {
             self.primary_pressed = true;
             self.events.push(Event::PrimaryJustPressed);
         }
-        Ok(())
     }
 
-    pub fn release_primary(&mut self) -> Result<()> {
+    pub fn release_primary(&mut self) {
         if self.primary_pressed {
             self.primary_pressed = false;
             self.events.push(Event::PrimaryJustReleased);
         }
-        Ok(())
     }
 
-    pub fn cancel(&mut self) -> Result<()> {
+    pub fn cancel(&mut self) {
         self.events.push(Event::Cancel);
-        Ok(())
     }
 }

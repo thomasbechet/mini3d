@@ -1,4 +1,3 @@
-use anyhow::Result;
 use rapier3d::prelude::RigidBodyHandle;
 use serde::{Serialize, Deserialize};
 use serde_json::json;

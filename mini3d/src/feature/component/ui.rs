@@ -1,11 +1,28 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error, fmt::Display};
 
-use anyhow::{Result, anyhow, Context};
 use glam::{IVec2, UVec2};
 use serde::{Serialize, Deserialize};
-use serde_json::json;
 
-use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet, registry::component::{Component, EntityResolver, ComponentDefinition}};
+use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::{UIStyleSheet, UIStyleSheetError}, registry::component::{Component, EntityResolver, ComponentDefinition}};
+
+#[derive(Debug)]
+pub enum UIError {
+    DuplicatedUser { name: String },
+    UserNotFound { uid: UID },
+    UIStyleSheetError(UIStyleSheetError),
+}
+
+impl Error for UIError {}
+
+impl Display for UIError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UIError::DuplicatedUser { name } => write!(f, "Duplicated user: {}", name),
+            UIError::UserNotFound { uid } => write!(f, "User not found: {}", uid),
+            UIError::UIStyleSheetError(e) => write!(f, "UIStyleSheetError: {}", e),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub enum UIRenderTarget {
@@ -53,7 +70,7 @@ impl UI {
         }
     }
 
-    pub fn update(&mut self, time: f64) -> Result<()> {
+    pub fn update(&mut self, time: f64) -> Result<(), UIError> {
         
         // Clear events
         self.events.clear();
@@ -95,7 +112,7 @@ impl UI {
         Ok(())
     }
 
-    pub fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) -> Result<()> {
+    pub fn render(&self, gfx: &mut Graphics, offset: IVec2, time: f64) -> Result<(), UIError> {
 
         // Compute extent
         let extent = IRect::new(offset.x, offset.y, self.resolution.x, self.resolution.y).clamp(SCREEN_VIEWPORT);
@@ -107,7 +124,7 @@ impl UI {
         }
 
         // Render
-        self.root.render(gfx, &self.stylesheet, offset, time)?;
+        self.root.render(gfx, &self.stylesheet, offset, time);
 
         // Render profiles
         for user in self.users.values() {
@@ -132,23 +149,23 @@ impl UI {
         &self.events
     }
 
-    pub fn add_user(&mut self, name: &str) -> Result<UID> {
+    pub fn add_user(&mut self, name: &str) -> Result<UID, UIError> {
         let uid = UID::new(name);
-        if self.users.contains_key(&uid) { return Err(anyhow!("User name already exists")); }
+        if self.users.contains_key(&uid) { return Err(UIError::DuplicatedUser { name: name.to_owned() }); }
         self.users.insert(uid, UIUser::new(name, IRect::new(0, 0, self.resolution.x, self.resolution.y)));
         Ok(uid)
     }
 
-    pub fn remove_user(&mut self, uid: UID) -> Result<()> {
-        self.users.remove(&uid).with_context(|| "User not found")?;
+    pub fn remove_user(&mut self, uid: UID) -> Result<(), UIError> {
+        self.users.remove(&uid).ok_or_else(|| UIError::UserNotFound { uid })?;
         Ok(())
     }
 
-    pub fn user(&mut self, uid: UID) -> Result<&mut UIUser> {
-        self.users.get_mut(&uid).with_context(|| "User not found")
+    pub fn user(&mut self, uid: UID) -> Result<&mut UIUser, UIError> {
+        self.users.get_mut(&uid).ok_or_else(|| UIError::UserNotFound { uid })
     }
 
-    pub fn add_styles(&mut self, stylesheet: &UIStyleSheet) -> Result<()> {
-        self.stylesheet.merge(stylesheet)
+    pub fn add_styles(&mut self, stylesheet: &UIStyleSheet) -> Result<(), UIError> {
+        self.stylesheet.merge(stylesheet).map_err(|e| UIError::UIStyleSheetError(e))
     }
 }

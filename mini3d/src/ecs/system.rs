@@ -1,5 +1,7 @@
-use anyhow::Result;
+use std::error::Error;
 
 use crate::context::SystemContext;
 
-pub type SystemCallback = fn(&mut SystemContext) -> Result<()>;
+pub type SystemResult = Result<(), Box<dyn Error>>;
+
+pub type SystemCallback = fn(&mut SystemContext) -> SystemResult;

@@ -1,4 +1,4 @@
-use mini3d::{glam::Vec4, engine::Engine, uid::UID, feature::asset::{input_table::{InputTable, InputAxisRange}}};
+use mini3d::{glam::Vec4, uid::UID, feature::asset::{input_table::{InputTable, InputAxisRange}}};
 use mini3d_wgpu::context::WGPUContext;
 use winit::{event::{Event, WindowEvent, KeyboardInput, ElementState, VirtualKeyCode}, event_loop::{ControlFlow, EventLoop}};
 
@@ -214,7 +214,6 @@ impl WindowGUI {
     pub(crate) fn ui(
         &mut self, 
         window: &mut Window,
-        engine: &Engine,
         mapper: &mut InputMapper,
         control: &mut WindowControl,
     ) {
@@ -280,12 +279,11 @@ impl WindowGUI {
                             }
                             if ui.button("   Cancel   ").clicked() {
                                 mapper.load().ok();
-                                mapper.refresh(engine); // Update IDs
-                                mapper.rebuild_cache();
+                                mapper.refresh(); // Update IDs
                                 self.page = Page::None;
                             }
                             if ui.button("   Refresh   ").clicked() {
-                                mapper.refresh(engine);
+                                mapper.refresh();
                             }
                             ui.separator();
                             ui.checkbox(&mut self.show_uid, "Show UID");
@@ -307,14 +305,14 @@ impl WindowGUI {
                             }
                             ui.separator();
                             if ui.button("Add").clicked() {
-                                self.active_profile = mapper.new_profile(engine);
+                                self.active_profile = mapper.new_profile();
                             }
                             if ui.button("Remove").clicked() && !self.active_profile.is_null() {
                                 mapper.profiles.remove(&self.active_profile);
                                 self.active_profile = UID::null();
                             }
                             if ui.button("Duplicate").clicked() {
-                                self.active_profile = mapper.duplicate(self.active_profile, engine);
+                                self.active_profile = mapper.duplicate(self.active_profile);
                             }
                             ui.add(egui::TextEdit::singleline(&mut self.profile_rename_placeholder).desired_width(100.0));
                             if ui.button("Rename").clicked() && !mapper.profiles.iter().any(|(_, p)| p.name == self.profile_rename_placeholder) {
@@ -344,7 +342,7 @@ impl WindowGUI {
                                 .auto_shrink([false, false])
                                 .max_height(total_height)
                                 .show_rows(ui, total_height, 1, |ui, _| {
-                                    for table in engine.iter_input_tables() {
+                                    for table in mapper.tables.values() {
                                         ui_input_table(
                                             table, 
                                             profile,

@@ -1,4 +1,3 @@
-use anyhow::Result;
 use rapier3d::prelude::{RigidBodySet, ColliderSet, PhysicsPipeline, QueryPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, ImpulseJointSet, MultibodyJointSet};
 
 #[derive(Default)]
@@ -18,8 +17,7 @@ pub struct PhysicsManager {
 
 impl PhysicsManager {
     
-    pub(crate) fn update(&mut self) -> Result<()> {
-
-        Ok(())
+    pub(crate) fn update(&mut self) {
+        
     }
 }

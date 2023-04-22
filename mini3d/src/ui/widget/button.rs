@@ -1,4 +1,3 @@
-use anyhow::{Result, Context};
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -17,8 +16,8 @@ impl UIButtonStyle {
 
     pub const DEFAULT: &'static str = "default";
 
-    pub fn new(normal: UIBoxStyle, pressed: UIBoxStyle, hovered: UIBoxStyle) -> Result<Self> {
-        Ok(Self { normal, pressed, hovered })
+    pub fn new(normal: UIBoxStyle, pressed: UIBoxStyle, hovered: UIBoxStyle) -> Self {
+        Self { normal, pressed, hovered }
     }
 }
 
@@ -94,17 +93,17 @@ impl Widget for UIButton {
         true
     }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
-        let style = styles.buttons.get(&self.style).with_context(|| "UIButtonStyle not found")?;
-        let extent = self.extent.translate(offset);
-        if self.pressed {
-            style.pressed.render(gfx, extent, Color::WHITE, 1);
-        } else if self.hovered {
-            style.hovered.render(gfx, extent, Color::WHITE, 1);
-        } else {
-            style.normal.render(gfx, extent, Color::WHITE, 1);
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
+        if let Some(style) = styles.buttons.get(&self.style) {
+            let extent = self.extent.translate(offset);
+            if self.pressed {
+                style.pressed.render(gfx, extent, Color::WHITE, 1);
+            } else if self.hovered {
+                style.hovered.render(gfx, extent, Color::WHITE, 1);
+            } else {
+                style.normal.render(gfx, extent, Color::WHITE, 1);
+            }
         }
-        Ok(())
     }
 
     fn extent(&self) -> IRect {

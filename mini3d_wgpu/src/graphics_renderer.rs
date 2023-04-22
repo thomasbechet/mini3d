@@ -1,6 +1,6 @@
 use std::collections::{HashMap, hash_map};
 
-use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}}, anyhow::Result};
+use mini3d::renderer::{backend::{TextureHandle, ViewportHandle}};
 use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::{context::WGPUContext, texture::Texture, graphics_canvas::{GraphicsCanvas, CANVAS_COLOR_FORMAT, CANVAS_DEPTH_FORMAT}, viewport::Viewport, graphics_render_pass::GraphicsCommand};
@@ -397,10 +397,10 @@ impl GraphicsRenderer {
         viewports: &HashMap<ViewportHandle, Viewport>,
         canvas: &mut GraphicsCanvas,
         encoder: &mut wgpu::CommandEncoder,
-    ) -> Result<()> {
+    ) {
 
         // Transfer buffers
-        canvas.render_pass.write_buffers(context)?;
+        canvas.render_pass.write_buffers(context);
         
         // Build missing bind groups
         for command in &canvas.render_pass.commands {
@@ -486,7 +486,5 @@ impl GraphicsRenderer {
                 },
             }
         }
-
-        Ok(())
     }
 }

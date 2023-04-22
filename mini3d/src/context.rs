@@ -1,6 +1,7 @@
 use self::{asset::AssetContext, renderer::RendererContext, input::InputContext, scheduler::SchedulerContext, procedure::ProcedureContext, world::WorldContext, registry::RegistryContext, event::EventContext, time::TimeContext};
 
 pub mod asset;
+pub mod error;
 pub mod event;
 pub mod input;
 pub mod procedure;

@@ -21,10 +21,6 @@ typedef struct mini3d_utils_import_model_info {
   bool flat_normals;
 } mini3d_utils_import_model_info;
 
-typedef struct mini3d_app_requests {
-  void *_0;
-} mini3d_app_requests;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -44,16 +40,6 @@ int mini3d_utils_import_image(const struct mini3d_utils_import_image_info *info,
 
 int mini3d_utils_import_model(const struct mini3d_utils_import_model_info *info,
                               struct mini3d_app_events *events);
-
-struct mini3d_app_requests *mini3d_app_requests_new(void);
-
-void mini3d_app_requests_delete(struct mini3d_app_requests *requests);
-
-bool mini3d_app_requests_shutdown(const struct mini3d_app_requests *requests);
-
-bool mini3d_app_requests_reload_input_mapping(const struct mini3d_app_requests *requests);
-
-void mini3d_app_requests_reset(struct mini3d_app_requests *requests);
 
 #ifdef __cplusplus
 } // extern "C"

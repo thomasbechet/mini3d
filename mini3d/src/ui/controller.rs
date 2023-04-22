@@ -1,11 +1,9 @@
-use anyhow::Result;
 use glam::Vec2;
 use serde::{Serialize, Deserialize};
 
-use crate::{uid::UID, context::input::InputContext};
+use crate::{uid::UID, context::input::InputContext, input::InputError};
 
 use super::{event::Direction, user::UIUser};
-
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct UIController {
@@ -55,17 +53,17 @@ impl UIController {
         self
     }
 
-    pub fn update(&mut self, input: &InputContext, user: &mut UIUser) -> Result<()> {
+    pub fn update(&mut self, input: &InputContext, user: &mut UIUser) -> Result<(), InputError> {
         
         if let Some((up, down, left, right)) = self.selection_move {
             if input.action(up)?.is_just_pressed() {
-                user.move_selection(Direction::Up)?;
+                user.move_selection(Direction::Up);
             } else if input.action(down)?.is_just_pressed() {
-                user.move_selection(Direction::Down)?;
+                user.move_selection(Direction::Down);
             } else if input.action(left)?.is_just_pressed() {
-                user.move_selection(Direction::Left)?;
+                user.move_selection(Direction::Left);
             } else if input.action(right)?.is_just_pressed() {
-                user.move_selection(Direction::Right)?;
+                user.move_selection(Direction::Right);
             }
         }
     
@@ -75,7 +73,7 @@ impl UIController {
                 input.axis(axis_y)?.value,
             );
             if motion.x != 0.0 || motion.y != 0.0 {
-                user.move_cursor(motion)?;
+                user.move_cursor(motion);
             }
         }
 
@@ -86,21 +84,21 @@ impl UIController {
             );
             if self.previous_cursor_position != position {
                 self.previous_cursor_position = position;
-                user.warp_cursor(position)?;
+                user.warp_cursor(position);
             }
         }
     
         if let Some(action) = self.primary {
             if input.action(action)?.is_pressed() {
-                user.press_primary()?;
+                user.press_primary();
             } else if input.action(action)?.is_released() {
-                user.release_primary()?;
+                user.release_primary();
             }
         }
 
         if let Some(action) = self.cancel {
             if input.action(action)?.is_just_pressed() {
-                user.cancel()?;
+                user.cancel();
             }
         }
 

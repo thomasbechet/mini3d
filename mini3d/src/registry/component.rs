@@ -1,26 +1,27 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
 use serde::{Serialize, Deserialize, Serializer};
 
-use crate::{uid::UID, ecs::{container::{AnyComponentContainer, ComponentContainer}, singleton::{AnySingleton, Singleton}, entity::Entity, dynamic::DynamicComponent}};
+use crate::{uid::UID, ecs::{container::{AnyComponentContainer, ComponentContainer}, singleton::{AnySingleton, Singleton}, entity::Entity, dynamic::DynamicComponent, error::ECSError}};
+
+use super::error::RegistryError;
 
 pub struct EntityResolver;
 
 impl EntityResolver {
-    pub fn resolve(&self, entity: Entity) -> Result<Entity> {
+    pub fn resolve(&self, entity: Entity) -> Result<Entity, ECSError> {
         // TODO: Resolve entity
         Ok(entity)
     }
 }
 
 pub trait Component: Serialize + for<'de> Deserialize<'de> + 'static {
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<()> { Ok(()) }
+    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> { Ok(()) }
 }
 
 pub trait ComponentInspector {
     type C: Component;
-    fn write_property(&self, component: &mut Self::C, property: UID, value: &serde_json::Value) -> Result<()>;
+    fn write_property(&self, component: &mut Self::C, property: UID, value: &serde_json::Value) -> Result<(), ECSError>;
     fn read_property(&self, component: &Self::C, property: UID) -> Option<serde_json::Value>;
 }
 
@@ -32,9 +33,9 @@ pub(crate) enum ComponentKind {
 pub(crate) trait AnyComponentReflection {
     fn create_container(&self) -> Box<dyn AnyComponentContainer>;
     fn serialize_container<'a>(&'a self, container: &'a dyn AnyComponentContainer) -> Box<dyn erased_serde::Serialize + 'a>;
-    fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>>;
+    fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>, erased_serde::Error>;
     fn serialize_singleton<'a>(&'a self, singleton: &'a dyn AnySingleton) -> Box<dyn erased_serde::Serialize + 'a>;
-    fn deserialize_singleton(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnySingleton>>;
+    fn deserialize_singleton(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnySingleton>, erased_serde::Error>;
 }
 
 pub(crate) struct ComponentReflection<C: Component> {
@@ -59,7 +60,7 @@ impl<C: Component> AnyComponentReflection for ComponentReflection<C> {
         Box::new(SerializeContext { container: container.as_any().downcast_ref::<ComponentContainer<C>>().expect("Invalid container type") })
     }
 
-    fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>> {
+    fn deserialize_container(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnyComponentContainer>, erased_serde::Error> {
         Ok(Box::new(ComponentContainer::<C>::deserialize(deserializer)?))
     }
 
@@ -75,7 +76,7 @@ impl<C: Component> AnyComponentReflection for ComponentReflection<C> {
         Box::new(SerializeContext { singleton: singleton.as_any().downcast_ref::<Singleton<C>>().expect("Invalid singleton type") })
     }
 
-    fn deserialize_singleton(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnySingleton>> {
+    fn deserialize_singleton(&self, deserializer: &mut dyn erased_serde::Deserializer) -> Result<Box<dyn AnySingleton>, erased_serde::Error> {
         Ok(Box::new(Singleton::<C>::new(C::deserialize(deserializer)?)))
     }
 }
@@ -118,21 +119,21 @@ pub(crate) struct ComponentRegistry {
 
 impl ComponentRegistry {
 
-    fn define(&mut self, name: &str, kind: ComponentKind, reflection: Box<dyn AnyComponentReflection>) -> Result<UID> {
+    fn define(&mut self, name: &str, kind: ComponentKind, reflection: Box<dyn AnyComponentReflection>) -> Result<UID, RegistryError> {
         let uid: UID = name.into();
         if self.definitions.contains_key(&uid) {
-            return Err(anyhow!("Component with name '{}' already defined", name));
+            return Err(RegistryError::DuplicatedComponentDefinition { name: name.to_string() });
         }
         self.definitions.insert(uid, ComponentDefinition { name: name.to_string(), kind, reflection });
         Ok(uid)
     }
 
-    pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID> {
+    pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID, RegistryError> {
         let reflection = ComponentReflection::<C> { _phantom: std::marker::PhantomData };
         Ok(self.define(name, ComponentKind::Static, Box::new(reflection))?)
     }
 
-    pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<UID> {
+    pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<UID, RegistryError> {
         let reflection = ComponentReflection::<DynamicComponent> { _phantom: std::marker::PhantomData };
         Ok(self.define(name, ComponentKind::Dynamic, Box::new(reflection))?)
     }

@@ -1,5 +1,3 @@
-use anyhow::{Result, anyhow, Context};
-
 use super::lexer::TokenKind;
 
 #[derive(Debug)]
@@ -91,15 +89,15 @@ pub enum ASTPrimitive {
 
 impl ASTPrimitive {
 
-    pub fn parse(value: &str) -> Result<Self> {
+    pub fn parse(value: &str) -> Option<Self> {
         match value {
-            "bool" => Ok(Self::Boolean),
-            "int" => Ok(Self::Integer),
-            "float" => Ok(Self::Float),
-            "string" => Ok(Self::String),
-            "entity" => Ok(Self::Entity),
-            "object" => Ok(Self::Object),
-            _ => Err(anyhow!("Invalid primitive type")),
+            "bool" => Some(Self::Boolean),
+            "int" => Some(Self::Integer),
+            "float" => Some(Self::Float),
+            "string" => Some(Self::String),
+            "entity" => Some(Self::Entity),
+            "object" => Some(Self::Object),
+            _ => None,
         }
     }
 }
@@ -191,7 +189,7 @@ impl<'a> AST<'a> {
         self.entries.len() - 1
     }
 
-    pub(crate) fn append_child(&mut self, parent: ASTNodeId, child: ASTNodeId) -> Result<()> {
+    pub(crate) fn append_child(&mut self, parent: ASTNodeId, child: ASTNodeId) {
         if let Some(last_child) = self.entries[parent].last_child {
             self.entries[last_child].next_sibling = Some(child);
             self.entries[parent].last_child = Some(child);
@@ -200,7 +198,6 @@ impl<'a> AST<'a> {
             self.entries[parent].last_child = Some(child);
         }
         self.entries[child].parent = Some(parent);
-        Ok(())
     }
 
     pub(crate) fn iter_childs(&'a self, node: ASTNodeId) -> ASTChildIterator<'a> {
@@ -208,8 +205,8 @@ impl<'a> AST<'a> {
         ASTChildIterator { next, ast: self }
     }
 
-    pub(crate) fn get_mut(&mut self, node: ASTNodeId) -> Result<&mut ASTNode<'a>> {
-        Ok(&mut self.entries.get_mut(node).with_context(|| "Invalid node id")?.node)
+    pub(crate) fn get_mut(&mut self, node: ASTNodeId) -> Option<&mut ASTNode<'a>> {
+        self.entries.get_mut(node).map(|e| &mut e.node)
     }
 
     fn print_node(&self, node: ASTNodeId, indent: usize) {

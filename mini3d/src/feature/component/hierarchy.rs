@@ -1,8 +1,27 @@
-use anyhow::{Result, anyhow};
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use std::{error::Error, fmt::Display};
 
-use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}}, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
+use serde::{Serialize, Deserialize};
+
+use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}}, uid::UID, registry::component::Component};
+
+#[derive(Debug)]
+pub enum HierarchyError {
+    CircularReference,
+    ChildNotFound,
+    ParentWithoutChild,
+}
+
+impl Error for HierarchyError {}
+
+impl Display for HierarchyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HierarchyError::CircularReference => write!(f, "Circular reference"),
+            HierarchyError::ChildNotFound => write!(f, "Child not found"),
+            HierarchyError::ParentWithoutChild => write!(f, "Parent without child"),
+        }
+    }
+}
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Hierarchy {
@@ -30,7 +49,7 @@ impl Hierarchy {
         self.next_sibling
     }
 
-    pub fn collect_childs<V: ComponentView<Hierarchy>>(entity: Entity, view: &V) -> Result<Vec<Entity>> {
+    pub fn collect_childs<V: ComponentView<Hierarchy>>(entity: Entity, view: &V) -> Result<Vec<Entity>, HierarchyError> {
         if let Some(first_child) = view.get(entity).unwrap().first_child {
             let mut childs = Vec::new();
             childs.push(first_child);
@@ -43,7 +62,7 @@ impl Hierarchy {
         }
     }
 
-    pub fn attach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<()> {
+    pub fn attach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<(), HierarchyError> {
 
         // Find the last child
         let mut last_child: Option<Entity> = None;
@@ -52,7 +71,7 @@ impl Hierarchy {
             while let Some(next) = view.get(last_child.unwrap()).unwrap().next_sibling {
                 // Prevent circular references
                 if last_child.unwrap() == child {
-                    return Err(anyhow!("Circular reference detected"));
+                    return Err(HierarchyError::CircularReference);
                 }
                 last_child = Some(next);
             }
@@ -71,7 +90,7 @@ impl Hierarchy {
         Ok(())
     }
 
-    pub fn detach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<()> {
+    pub fn detach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<(), HierarchyError> {
         
         // Find the child
         if let Some(first_child) = view.get(entity).unwrap().first_child {
@@ -102,9 +121,9 @@ impl Hierarchy {
                     }
                     next_child = next;
                 }
-                return Err(anyhow::anyhow!("Child not found"));
+                return Err(HierarchyError::ChildNotFound);
             }
         }
-        Err(anyhow::anyhow!("Parent does not have childs"))
+        Err(HierarchyError::ParentWithoutChild)
     }
 }

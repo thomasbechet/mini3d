@@ -1,32 +1,53 @@
-use anyhow::{Result, Context};
 use serde::de::{Visitor, DeserializeSeed};
 use serde::ser::SerializeTuple;
 use serde::{Serializer, Deserializer, Serialize};
 
 use crate::asset::AssetManager;
+use crate::disk::backend::DiskBackend;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::ecs::system::SystemCallback;
 use crate::feature::asset::input_table::{InputTable, InputAction, InputAxis};
 use crate::feature::{asset, component, system};
+use crate::input::backend::{InputBackend, InputBackendError};
 use crate::physics::PhysicsManager;
 use crate::registry::RegistryManager;
 use crate::registry::asset::Asset;
 use crate::registry::component::Component;
+use crate::registry::error::RegistryError;
 use crate::renderer::RendererManager;
-use crate::renderer::backend::RendererBackend;
+use crate::renderer::backend::{RendererBackend, RendererBackendError};
 use crate::event::Events;
 use crate::event::system::SystemEvent;
 use crate::input::{InputManager, InputActionState, InputAxisState};
-use crate::request::Requests;
 use crate::script::ScriptManager;
 use crate::uid::UID;
 use core::cell::RefCell;
 use std::cell::Ref;
+use std::error::Error;
+use std::fmt::Display;
+
+#[derive(Debug)]
+pub enum ProgressError {
+    SystemError,
+    ECSError,
+}
+
+impl Error for ProgressError {}
+
+impl Display for ProgressError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProgressError::SystemError => write!(f, "System error"),
+            ProgressError::ECSError => write!(f, "ECS error"),
+        }
+    }
+}
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 pub struct Engine {
+    pub(crate) disk: Box<dyn DiskBackend>,
     pub(crate) registry: RefCell<RegistryManager>,
     pub(crate) asset: AssetManager,
     pub(crate) input: InputManager,
@@ -36,11 +57,12 @@ pub struct Engine {
     pub(crate) physics: PhysicsManager,
     accumulator: f64,
     time: f64,
+    running: bool,
 }
 
 impl Engine {
 
-    fn define_core_features(&mut self) -> Result<()> {
+    fn define_core_features(&mut self) -> Result<(), RegistryError> {
 
         let mut registry = self.registry.borrow_mut();
 
@@ -87,8 +109,9 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new() -> Result<Self> {
+    pub fn new(disk: impl DiskBackend + 'static) -> Self {
         let mut engine = Self {
+            disk: Box::new(disk),
             registry: Default::default(),
             asset: Default::default(), 
             input: Default::default(), 
@@ -98,12 +121,13 @@ impl Engine {
             physics: Default::default(),
             accumulator: 0.0,
             time: 0.0,
+            running: true,
         };
-        engine.define_core_features()?;
-        Ok(engine)
+        engine.define_core_features().expect("Failed to define core features");
+        engine
     }
 
-    pub fn invoke(&mut self, system: UID) -> Result<()> {
+    pub fn invoke_system(&mut self, system: UID) {
         self.ecs.invoke(system)
     }
 
@@ -213,9 +237,9 @@ impl Engine {
                 seq.next_element_seed(RendererManagerDeserializeSeed { manager: &mut self.engine.renderer })?;
                 seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.engine.ecs, registry: self.engine.registry.borrow() })?;
                 seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.engine.input })?;
-                self.engine.accumulator = seq.next_element()?.with_context(|| "Expect accumulator").map_err(Error::custom)?;
-                self.engine.time = seq.next_element()?.with_context(|| "Expect time").map_err(Error::custom)?;
-                self.engine.renderer.reset(&mut self.engine.ecs).map_err(Error::custom)?;
+                self.engine.accumulator = seq.next_element()?.ok_or_else(|| Error::custom("Expect accumulator"))?;
+                self.engine.time = seq.next_element()?.ok_or_else(|| Error::custom("Expect time"))?;
+                self.engine.renderer.reset(&mut self.engine.ecs);
                 Ok(())
             }
         }
@@ -223,48 +247,52 @@ impl Engine {
         Ok(())
     }
 
-    pub fn define_static_component<C: Component>(&mut self, name: &str) -> Result<()> {
-        let mut registry = self.registry.borrow_mut();
-        registry.components.define_static::<C>(name)?;
-        Ok(())
+    pub fn define_static_component<C: Component>(&mut self, name: &str) -> Result<UID, RegistryError> {
+        self.registry.borrow_mut().components.define_static::<C>(name)
     }
 
-    pub fn define_static_system(&mut self, name: &str, system: SystemCallback) -> Result<UID> {
-        let mut registry = self.registry.borrow_mut();
-        registry.systems.define_static(name, system)
+    pub fn define_static_system(&mut self, name: &str, system: SystemCallback) -> Result<UID, RegistryError> {
+        self.registry.borrow_mut().systems.define_static(name, system)
     }
 
-    pub fn define_static_asset<A: Asset>(&mut self, name: &str) -> Result<()> {
-        self.registry.borrow_mut().assets.define_static::<A>(name)?;
-        Ok(())
+    pub fn define_static_asset<A: Asset>(&mut self, name: &str) -> Result<UID, RegistryError> {
+        self.registry.borrow_mut().assets.define_static::<A>(name)
     }
 
-    pub fn iter_input_tables(&self) -> impl Iterator<Item = &InputTable> {
-        self.input.iter_tables()
+    // pub fn iter_input_tables(&self) -> impl Iterator<Item = &InputTable> {
+    //     self.input.iter_tables()
+    // }
+
+    // pub fn iter_input_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
+    //     self.input.iter_actions()
+    // }
+
+    // pub fn iter_input_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
+    //     self.input.iter_axis()
+    // }
+
+    pub fn is_running(&self) -> bool {
+        self.running
     }
 
-    pub fn iter_input_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
-        self.input.iter_actions()
-    }
+    // pub fn request_reload_input(&self) -> bool {
+    //     self.input.reload_input_mapping
+    // }
 
-    pub fn iter_input_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
-        self.input.iter_axis()
-    }
-
-    pub fn progress(&mut self, events: &Events, requests: &mut Requests, mut delta_time: f64) -> Result<()> {
+    pub fn progress(&mut self, events: &Events, mut dt: f64) -> Result<(), ProgressError> {
 
         // ================= PREPARE STAGE ================== //
 
         // Reset graphics state
-        self.renderer.prepare()?;
+        self.renderer.prepare();
 
         // Compute delta time
-        if delta_time > MAXIMUM_TIMESTEP {
-            delta_time = MAXIMUM_TIMESTEP; // Slowing down
+        if dt > MAXIMUM_TIMESTEP {
+            dt = MAXIMUM_TIMESTEP; // Slowing down
         }
         // Integrate time
-        self.accumulator += delta_time;
-        self.time += delta_time;
+        self.accumulator += dt;
+        self.time += dt;
         // Compute number of fixed updates
         let fixed_update_count = (self.accumulator / FIXED_TIMESTEP) as u32;
         self.accumulator -= fixed_update_count as f64 * FIXED_TIMESTEP;
@@ -281,9 +309,7 @@ impl Engine {
         // Dispatch system events
         for event in &events.system {
             match event {
-                SystemEvent::Shutdown => {
-                    requests.shutdown = true;
-                },
+                SystemEvent::Shutdown => self.running = true,
             }
         }
 
@@ -298,31 +324,27 @@ impl Engine {
                 input: &mut self.input,
                 renderer: &mut self.renderer,
                 events,
-                delta_time,
+                delta_time: dt,
                 time: self.time,
                 fixed_delta_time: FIXED_TIMESTEP,
             },
             &mut self.script,
             fixed_update_count,
-        )?;
-
-        // ================= REQUESTS STAGE ================= //
-
-        // Check input requests
-        if self.input.reload_input_mapping {
-            requests.reload_input_mapping = true;
-            self.input.reload_input_mapping = false;
-        }
+        ).map_err(|_| ProgressError::ECSError)?;
 
         Ok(())
     }
 
-    pub fn update_renderer(&mut self, backend: &mut impl RendererBackend, reset: bool) -> Result<()> {
+    pub fn synchronize_input(&mut self, backend: &mut impl InputBackend) -> Result<(), InputBackendError> {
+        self.input.synchronize_backend(backend)
+    }
+    
+    pub fn synchronize_renderer(&mut self, backend: &mut impl RendererBackend, reset: bool) -> Result<(), RendererBackendError> {
         if reset {
             backend.reset()?;
-            self.renderer.reset(&mut self.ecs)?;
+            self.renderer.reset(&mut self.ecs);
         }
-        self.renderer.update_backend(backend, &self.asset, &mut self.ecs)?;
+        self.renderer.synchronize_backend(backend, &self.asset, &mut self.ecs)?;
         Ok(())
     }
 }

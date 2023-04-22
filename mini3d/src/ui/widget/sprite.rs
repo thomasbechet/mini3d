@@ -1,4 +1,3 @@
-use anyhow::Result;
 use glam::IVec2;
 use serde::{Serialize, Deserialize};
 
@@ -45,13 +44,12 @@ impl Widget for UISprite {
 
     fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool { false }
 
-    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) -> Result<()> {
+    fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
         let extent = IRect::new(
             self.position.x + offset.x, self.position.y + offset.y,
             self.texture_extent.width(), self.texture_extent.height()
         );
         gfx.blit_texture(self.texture, extent, self.texture_extent, self.color, TextureWrapMode::Clamp, 5);
-        Ok(())
     }
 
     fn extent(&self) -> IRect {

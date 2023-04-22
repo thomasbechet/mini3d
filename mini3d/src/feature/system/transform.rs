@@ -1,7 +1,6 @@
-use anyhow::Result;
 use glam::Mat4;
 
-use crate::{feature::component::{local_to_world::LocalToWorld, hierarchy::Hierarchy, transform::Transform}, ecs::{entity::Entity, view::{ComponentViewRef, ComponentViewMut, ComponentView}}, context::SystemContext};
+use crate::{feature::component::{local_to_world::LocalToWorld, hierarchy::Hierarchy, transform::Transform}, ecs::{entity::Entity, view::{ComponentViewRef, ComponentViewMut, ComponentView}, system::SystemResult}, context::SystemContext};
 
 pub fn recursive_propagate(
     entity: Entity, 
@@ -31,7 +30,7 @@ pub fn recursive_propagate(
     }
 }
 
-pub fn propagate(ctx: &mut SystemContext) -> Result<()> {
+pub fn propagate(ctx: &mut SystemContext) -> SystemResult {
     
     let world = ctx.world.active();
     let transforms = world.view::<Transform>(Transform::UID)?;

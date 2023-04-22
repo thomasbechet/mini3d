@@ -1,4 +1,4 @@
-use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color, rasterizer, graphics::TextureWrapMode}, math::rect::IRect, anyhow::Result, glam::{IVec2, UVec2}};
+use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color, rasterizer, graphics::TextureWrapMode}, math::rect::IRect, glam::{IVec2, UVec2}};
 
 use crate::context::WGPUContext;
 
@@ -89,7 +89,7 @@ impl GraphicsRenderPass {
         }
     }
 
-    pub(crate) fn write_buffers(&mut self, context: &WGPUContext) -> Result<()> {
+    pub(crate) fn write_buffers(&mut self, context: &WGPUContext) {
         if self.blit_buffer.size() < (std::mem::size_of::<GPUBlitData>() * self.blit_transfer.len()) as u64 {
             self.blit_buffer = create_vertex_buffer::<GPUBlitData>(context, self.blit_transfer.len() * 2);
         }
@@ -98,10 +98,9 @@ impl GraphicsRenderPass {
         }
         context.queue.write_buffer(&self.blit_buffer, 0, bytemuck::cast_slice(&self.blit_transfer));
         context.queue.write_buffer(&self.primitive_buffer, 0, bytemuck::cast_slice(&self.primitive_transfer));
-        Ok(())
     }
 
-    pub(crate) fn begin(&mut self, clear_color: Color) -> Result<()> {
+    pub(crate) fn begin(&mut self, clear_color: Color) {
         self.commands.clear();
         self.blit_transfer.clear();
         self.primitive_transfer.clear();
@@ -113,10 +112,9 @@ impl GraphicsRenderPass {
             b: clear_color[2],
             a: clear_color[3],
         };
-        Ok(())
     }
-    pub(crate) fn end(&mut self) -> Result<()> {
-        Ok(())
+    pub(crate) fn end(&mut self) {
+
     }
 
     fn add_blit(&mut self, pos: IVec2, tex: UVec2, size: UVec2, filtering: Color, alpha_threshold: u8) {
@@ -130,7 +128,7 @@ impl GraphicsRenderPass {
         });
     }
 
-    pub(crate) fn blit_rect(&mut self, texture: TextureHandle, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<()> {
+    pub(crate) fn blit_rect(&mut self, texture: TextureHandle, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) {
         
         let mut blit_count;
 
@@ -212,9 +210,8 @@ impl GraphicsRenderPass {
                 instance_count: blit_count,
             }));
         }
-        Ok(())
     }
-    pub(crate) fn blit_viewport(&mut self, viewport: ViewportHandle, extent: wgpu::Extent3d, position: IVec2) -> Result<()> {
+    pub(crate) fn blit_viewport(&mut self, viewport: ViewportHandle, extent: wgpu::Extent3d, position: IVec2) {
         let size = UVec2::new(extent.width, extent.height);
         self.add_blit(position, UVec2::ZERO, size, Color::WHITE, 0);
         self.commands.push(GraphicsCommand::Viewport(ViewportBatch { 
@@ -222,7 +219,6 @@ impl GraphicsRenderPass {
             blit_index: self.blit_transfer.len() as u32 - 1,
         }));
         self.depth += DEPTH_INCREMENT;
-        Ok(())
     }
     fn add_triangles_primitive_command(&mut self, vertex_count: u32) {
         let mut new_command_required = true;
@@ -263,7 +259,7 @@ impl GraphicsRenderPass {
             }));
         }
     }
-    pub(crate) fn fill_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
+    pub(crate) fn fill_rect(&mut self, extent: IRect, color: Color) {
         let color: [f32; 4] = color.into();
         let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
@@ -274,9 +270,8 @@ impl GraphicsRenderPass {
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x + 1, extent.br().y + 1], depth, color });
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y + 1], depth, color });
         self.add_triangles_primitive_command(6);
-        Ok(())
     }
-    pub(crate) fn draw_rect(&mut self, extent: IRect, color: Color) -> Result<()> {
+    pub(crate) fn draw_rect(&mut self, extent: IRect, color: Color) {
         let color: [f32; 4] = color.into();
         let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
@@ -289,9 +284,8 @@ impl GraphicsRenderPass {
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x, extent.tr().y], depth, color });
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x, extent.br().y + 1], depth, color });
         self.add_lines_primitive_command(8);
-        Ok(())
     }
-    pub(crate) fn draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) -> Result<()> {
+    pub(crate) fn draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) {
         let color: [f32; 4] = color.into();
         let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
@@ -304,16 +298,14 @@ impl GraphicsRenderPass {
             vertex_count += 1;
         });
         self.add_points_primitive_command(vertex_count);
-        Ok(())
     }
-    pub(crate) fn draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<()> {
+    pub(crate) fn draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) {
         self.draw_line((x, y0).into(), (x, y1).into(), color)
     }
-    pub(crate) fn draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) -> Result<()> {
+    pub(crate) fn draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) {
         self.draw_line((x0, y).into(), (x1, y).into(), color)
     }
-    pub(crate) fn scissor(&mut self, extent: IRect) -> Result<()> {
+    pub(crate) fn scissor(&mut self, extent: IRect) {
         self.commands.push(GraphicsCommand::Scissor(extent));
-        Ok(())
     }
 }
