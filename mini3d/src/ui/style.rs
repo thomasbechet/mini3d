@@ -1,25 +1,14 @@
-use std::{error::Error, fmt::Display};
-
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Serialize, Error};
 
 use crate::{uid::UID, math::rect::IRect, renderer::{graphics::{TextureWrapMode, Graphics}, color::Color}};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum UIImageStyleError {
+    #[error("Invalid margin")]
     InvalidMargin,
 }
 
-impl Error for UIImageStyleError {}
-
-impl Display for UIImageStyleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidMargin => write!(f, "Invalid margin"),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Clone, Copy)]
 pub struct UIMargin {
     pub top: u32,
     pub bottom: u32,
@@ -38,7 +27,7 @@ impl UIMargin {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Clone, Copy)]
 pub struct UIImageStyle {
     texture: UID,
     extent: IRect,
@@ -144,7 +133,7 @@ impl UIImageStyle {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Clone, Copy)]
 pub enum UIBoxStyle {
     Color(Color),
     Image(UIImageStyle),

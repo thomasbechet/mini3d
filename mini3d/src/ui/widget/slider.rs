@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UISlider {
     
 }

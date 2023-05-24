@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::uid::UID;
 
 use super::user::UIUser;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Direction {
     Up = 0,
     Down = 1,
@@ -19,7 +19,7 @@ pub enum UIEvent {
     FloatChanged { user: UID, id: UID, value: f32 },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub(crate) enum Event {
     PrimaryJustPressed,
     PrimaryJustReleased,

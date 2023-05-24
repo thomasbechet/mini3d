@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use core::cell::RefCell;
-use serde::{Serialize, Deserialize};
+
+use mini3d_derive::Serialize;
 
 use crate::{uid::UID, feature::asset::system_group::SystemGroup, registry::{RegistryManager, error::RegistryError}};
 
@@ -12,13 +13,13 @@ pub enum Invocation {
     NextFrame,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct SystemGroupEntry {
     group: SystemGroup,
     enabled: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct ProcedureEntry {
     name: String,
     groups: Vec<(UID, i32)>,
@@ -33,7 +34,7 @@ impl ProcedureEntry {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize)]
 pub(crate) struct Scheduler {
     groups: HashMap<UID, SystemGroupEntry>,
     procedures: HashMap<UID, ProcedureEntry>,
@@ -79,12 +80,12 @@ impl Scheduler {
     }
 
     pub(crate) fn enable_group(&mut self, group: UID) -> Result<(), SchedulerError> {
-        self.groups.get_mut(&group).ok_or_else(|| SchedulerError::GroupNotFound { uid: group })?.enabled = true;
+        self.groups.get_mut(&group).ok_or(SchedulerError::GroupNotFound { uid: group })?.enabled = true;
         Ok(())
     }
 
     pub(crate) fn disable_group(&mut self, group: UID) -> Result<(), SchedulerError> {
-        self.groups.get_mut(&group).ok_or_else(|| SchedulerError::GroupNotFound { uid: group })?.enabled = false;
+        self.groups.get_mut(&group).ok_or(SchedulerError::GroupNotFound { uid: group })?.enabled = false;
         Ok(())
     }
 }

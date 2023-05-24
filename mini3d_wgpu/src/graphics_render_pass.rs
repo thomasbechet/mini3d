@@ -261,7 +261,7 @@ impl GraphicsRenderPass {
     }
     pub(crate) fn fill_rect(&mut self, extent: IRect, color: Color) {
         let color: [f32; 4] = color.into();
-        let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
+        let depth = (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y + 1], depth, color });
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tl().x, extent.tl().y], depth, color });
@@ -273,7 +273,7 @@ impl GraphicsRenderPass {
     }
     pub(crate) fn draw_rect(&mut self, extent: IRect, color: Color) {
         let color: [f32; 4] = color.into();
-        let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
+        let depth = (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tl().x, extent.tl().y], depth, color });
         self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x, extent.tr().y], depth, color });
@@ -287,7 +287,7 @@ impl GraphicsRenderPass {
     }
     pub(crate) fn draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) {
         let color: [f32; 4] = color.into();
-        let depth = ((self.depth as f32) - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
+        let depth = (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
         // self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [x0.x, x0.y], depth, color });
         // self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [x1.x, x1.y], depth, color });

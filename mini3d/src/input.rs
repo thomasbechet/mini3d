@@ -1,41 +1,32 @@
-use std::{collections::{HashMap, HashSet}, error::Error, fmt::Display};
+use std::collections::{HashMap, HashSet};
+use mini3d_derive::{Serialize, Error};
 
-use serde::{Serialize, Deserialize, Serializer, Deserializer, ser::SerializeTuple, de::Visitor};
-
-use crate::{event::input::{InputEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable}};
+use crate::serialize::{Serialize, DecoderError, Decoder};
+use crate::{event::input::{InputEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable}, serialize::{Encoder, EncoderError}};
 
 use self::backend::{InputBackend, InputBackendError};
 
 pub mod backend;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum InputError {
+    #[error("Action with UID {uid} not found")]
     ActionNotFound { uid: UID },
+    #[error("Axis with UID {uid} not found")]
     AxisNotFound { uid: UID },
+    #[error("Text with UID {uid} not found")]
     TextNotFound { uid: UID },
+    #[error("Duplicated table: {name}")]
     DuplicatedTable { name: String },
+    #[error("Duplicated action: {name}")]
     DuplicatedAction { name: String },
+    #[error("Duplicated axis: {name}")]
     DuplicatedAxis { name: String },
+    #[error("Table validation error")]
     TableValidationError,
 }
 
-impl Error for InputError {}
-
-impl Display for InputError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InputError::ActionNotFound { uid } => write!(f, "Action with UID {} not found", uid),
-            InputError::AxisNotFound { uid } => write!(f, "Axis with UID {} not found", uid),
-            InputError::TextNotFound { uid } => write!(f, "Text with UID {} not found", uid),
-            InputError::DuplicatedTable { name } => write!(f, "Duplicated table: {}", name),
-            InputError::DuplicatedAction { name } => write!(f, "Duplicated action: {}", name),
-            InputError::DuplicatedAxis { name } => write!(f, "Duplicated axis: {}", name),
-            InputError::TableValidationError => write!(f, "Table validation error"),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Clone, Copy)]
 pub struct InputActionState {
     pressed: bool,
     was_pressed: bool,
@@ -60,7 +51,7 @@ impl InputActionState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Clone, Copy)]
 pub struct InputAxisState {
     pub value: f32,
     pub range: InputAxisRange,
@@ -86,7 +77,7 @@ impl InputAxisState {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct InputTextState {
     pub value: String,
 }
@@ -137,33 +128,18 @@ impl InputManager {
         }
     }
 
-    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut tuple = serializer.serialize_tuple(3)?;
-        tuple.serialize_element(&self.tables)?;
-        tuple.serialize_element(&self.actions)?;
-        tuple.serialize_element(&self.axis)?;
-        tuple.end()
+    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.tables.serialize(encoder)?;
+        self.actions.serialize(encoder)?;
+        self.axis.serialize(encoder)?;
+        Ok(())
     }
 
-    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
-        struct InputVisitor<'a> {
-            manager: &'a mut InputManager,
-        }
-        impl<'de, 'a> Visitor<'de> for InputVisitor<'a> {
-            type Value = ();
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Input manager data")
-            }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where A: serde::de::SeqAccess<'de> {
-                use serde::de::Error;
-                self.manager.tables = seq.next_element()?.ok_or_else(|| Error::custom("Expect tables"))?;
-                self.manager.actions = seq.next_element()?.ok_or_else(|| Error::custom("Expect actions"))?;
-                self.manager.axis = seq.next_element()?.ok_or_else(|| Error::custom("Expect axis"))?;
-                Ok(())
-            }
-        }
-        deserializer.deserialize_tuple(3, InputVisitor { manager: self })
+    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+        self.tables = HashMap::deserialize(decoder, &Default::default())?;
+        self.actions = HashMap::deserialize(decoder, &Default::default())?;
+        self.axis = HashMap::deserialize(decoder, &Default::default())?;
+        Ok(())
     }
 
     pub(crate) fn synchronize_backend(&mut self, backend: &mut impl InputBackend) -> Result<(), InputBackendError> {

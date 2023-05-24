@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::{free_fly::FreeFly, ui::UI}, ecs::system::SystemResult};
+use mini3d::{context::SystemContext, math::rect::IRect, renderer::{SCREEN_CENTER, color::Color}, feature::component::{free_fly::FreeFly, ui::UI}, ecs::system::SystemResult, registry::component::Component};
 
 use crate::{input::CommonAction, component::os::OS};
 

@@ -270,7 +270,7 @@ impl WGPURenderer {
             &self.vertex_allocator, 
             &self.flat_pipeline, 
             &self.forward_mesh_pass, 
-            &mut self.statistics, 
+            &mut self.statistics,
             &mut encoder
         );
 
@@ -431,43 +431,43 @@ impl RendererBackend for WGPURenderer {
         Ok(())
     }
     fn canvas_blit_texture(&mut self, texture: TextureHandle, extent: IRect, tex_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.blit_rect(texture, extent, tex_extent, filtering, wrap_mode, alpha_threshold);
         Ok(())
     }
     fn canvas_blit_viewport(&mut self, handle: ViewportHandle, position: IVec2) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
-        let viewport = self.viewports.get(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
+        let viewport = self.viewports.get(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.blit_viewport(handle, viewport.extent, position);
         Ok(())
     }
     fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.fill_rect(extent, color);
         Ok(())
     }
     fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.draw_rect(extent, color);
         Ok(())
     }
     fn canvas_draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.draw_line(x0, x1, color);
         Ok(())
     }
     fn canvas_draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.draw_vline(x, y0, y1, color);
         Ok(())
     }
     fn canvas_draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         canvas.render_pass.draw_hline(y, x0, x1, color);
         Ok(())
     }
     fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererBackendError> {
-        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let canvas = self.canvases.get_mut(&self.current_canvas.unwrap()).ok_or(RendererBackendError::ResourceNotFound)?;
         if let Some(extent) = extent {
             canvas.render_pass.scissor(extent);
         } else {
@@ -484,16 +484,16 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererBackendError> { 
-        self.viewports.remove(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        self.viewports.remove(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         Ok(()) 
     }
     fn viewport_set_camera(&mut self, handle: ViewportHandle, camera: Option<SceneCameraHandle>) -> Result<(), RendererBackendError> { 
-        let viewport = self.viewports.get_mut(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let viewport = self.viewports.get_mut(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         viewport.camera= camera;
         Ok(())
     }
     fn viewport_set_resolution(&mut self, handle: ViewportHandle, resolution: UVec2) -> Result<(), RendererBackendError> { 
-        let viewport = self.viewports.get_mut(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let viewport = self.viewports.get_mut(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         viewport.resize(&self.context, resolution);
         Ok(())
     }
@@ -506,11 +506,11 @@ impl RendererBackend for WGPURenderer {
         Ok(handle)
     }
     fn scene_camera_remove(&mut self, handle: SceneCameraHandle) -> Result<(), RendererBackendError> {
-        self.cameras.remove(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        self.cameras.remove(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         Ok(())
     }
     fn scene_camera_update(&mut self, handle: SceneCameraHandle, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) -> Result<(), RendererBackendError> {
-        let camera = self.cameras.get_mut(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let camera = self.cameras.get_mut(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         camera.update(eye, forward, up, fov);
         Ok(())
     }
@@ -521,13 +521,13 @@ impl RendererBackend for WGPURenderer {
         // Generate the handle
         let handle: SceneModelHandle = self.generator.next().into();
         // Insert model (empty by default)
-        let mesh = self.meshes.get(&mesh_handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let mesh = self.meshes.get(&mesh_handle).ok_or(RendererBackendError::ResourceNotFound)?;
         self.models.insert(handle, Model { mesh: mesh_handle, model_index, objects: vec![None; mesh.submeshes.len()] });
         // Return handle
         Ok(handle)
     }
     fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<(), RendererBackendError> {
-        let model = self.models.remove(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let model = self.models.remove(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         for object in model.objects.iter().flatten() {
             self.remove_object(*object);
         }
@@ -536,8 +536,8 @@ impl RendererBackend for WGPURenderer {
     }
     fn scene_model_set_material(&mut self, handle: SceneModelHandle, index: usize, material: MaterialHandle) -> Result<(), RendererBackendError> {
         // Check input
-        let model = self.models.get(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
-        let mesh = self.meshes.get(&model.mesh).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let model = self.models.get(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
+        let mesh = self.meshes.get(&model.mesh).ok_or(RendererBackendError::ResourceNotFound)?;
         if index >= model.objects.len() { return Err(RendererBackendError::InvalidMatrialIndex); }
         // Get model info
         let submesh = *mesh.submeshes.get(index).unwrap();
@@ -553,7 +553,7 @@ impl RendererBackend for WGPURenderer {
         Ok(())
     }
     fn scene_model_transfer_matrix(&mut self, handle: SceneModelHandle, mat: Mat4) -> Result<(), RendererBackendError> {
-        let model = self.models.get(&handle).ok_or_else(|| RendererBackendError::ResourceNotFound)?;
+        let model = self.models.get(&handle).ok_or(RendererBackendError::ResourceNotFound)?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())
     }

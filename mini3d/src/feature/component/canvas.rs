@@ -1,22 +1,15 @@
 use glam::UVec2;
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition, ComponentProperty}};
+use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Component)]
+#[component(name = "canvas")]
 pub struct Canvas {
     pub resolution: UVec2,
     pub clear_color: Color,
     pub graphics: Graphics,
     pub visible: bool,
-    #[serde(skip)]
+    #[serialize(skip)]
     pub(crate) handle: Option<SceneCanvasHandle>,
-}
-
-impl Component for Canvas {}
-
-impl Canvas {
-    pub const NAME: &'static str = "canvas";
-    pub const UID: UID = UID::new(Canvas::NAME);
 }

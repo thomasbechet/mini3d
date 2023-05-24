@@ -1,22 +1,23 @@
 use glam::{Mat4, Vec3, Vec4};
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
-
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Clone, Component)]
 pub struct LocalToWorld {
     pub matrix: Mat4,
-    #[serde(skip)]
+    #[serialize(skip)]
     pub(crate) dirty: bool,
 }
 
-impl Component for LocalToWorld {}
+impl Default for LocalToWorld {
+    fn default() -> Self {
+        Self {
+            matrix: Mat4::IDENTITY,
+            dirty: true,
+        }
+    }
+}
 
 impl LocalToWorld {
-
-    pub const NAME: &'static str = "local_to_world";
-    pub const UID: UID = UID::new(LocalToWorld::NAME);
 
     pub fn translation(&self) -> Vec3 {
         self.matrix.w_axis.truncate()

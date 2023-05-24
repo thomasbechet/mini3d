@@ -1,11 +1,11 @@
 use glam::Vec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{uid::UID, context::input::InputContext, input::InputError};
 
 use super::{event::Direction, user::UIUser};
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize)]
 pub struct UIController {
 
     selection_move: Option<(UID, UID, UID, UID)>,

@@ -1,20 +1,11 @@
-use std::{error::Error, fmt::Display};
+use mini3d_derive::Error;
 
 use crate::{feature::asset::input_table::InputTable, uid::UID};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum InputBackendError {
+    #[error("Unknown error")]
     Unknown,
-}
-
-impl Error for InputBackendError {}
-
-impl Display for InputBackendError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InputBackendError::Unknown => write!(f, "Unknown error"),
-        }
-    }
 }
 
 #[allow(unused_variables)]

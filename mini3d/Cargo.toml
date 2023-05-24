@@ -5,8 +5,6 @@ authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-glam = { version = "0.21.3", features = ["serde"] }
-serde = "1.0.144"
-serde_json = "1.0.91"
-erased-serde = "0.3.23"
+mini3d_derive = { path = "../mini3d_derive" }
+glam = { version = "0.21.3" }
 rapier3d = "0.16.1"

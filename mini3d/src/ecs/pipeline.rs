@@ -11,7 +11,7 @@ impl CompiledSystemPipeline {
     pub(crate) fn build<'a>(registry: &SystemRegistry, systems: impl Iterator<Item = &'a UID>) -> Result<Self, RegistryError> {
         let mut codes = Vec::new();
         for uid in systems {
-            let system = registry.get(uid).ok_or_else(|| RegistryError::SystemDefinitionNotFound { uid: *uid })?;
+            let system = registry.get(uid).ok_or(RegistryError::SystemDefinitionNotFound { uid: *uid })?;
             codes.push(system.code);
         }
         Ok(Self { systems: codes })

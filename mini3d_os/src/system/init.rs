@@ -1,4 +1,4 @@
-use mini3d::{context::SystemContext, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, script_storage::ScriptStorage, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::{procedure::Procedure, system::SystemResult}, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::parser::Parser, prng::PCG32, registry::error::RegistryError};
+use mini3d::{context::SystemContext, feature::{asset::{font::Font, input_table::{InputTable, InputAction, InputAxis, InputAxisRange}, material::Material, model::Model, mesh::Mesh, texture::Texture, system_group::{SystemGroup, SystemPipeline}, ui_stylesheet::UIStyleSheet, script::Script}, component::{lifecycle::Lifecycle, transform::Transform, local_to_world::LocalToWorld, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, hierarchy::Hierarchy, camera::Camera, viewport::Viewport, ui::{UIRenderTarget, UI}}}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_RESOLUTION}, ecs::{procedure::Procedure, system::SystemResult}, glam::{Vec3, Quat, IVec2}, event::asset::ImportAssetEvent, ui::{widget::{button::{UIButton, UIButtonStyle}, sprite::UISprite, textbox::UITextBox, layout::Navigation, checkbox::{UICheckBox, UICheckBoxStyle}, label::UILabel}, controller::UIController, self, style::{UIBoxStyle, UIMargin, UIImageStyle}}, uid::UID, math::rect::IRect, engine::Engine, script::frontend::parser::Parser, prng::PCG32, registry::{error::RegistryError, asset::Asset, component::Component}};
 
 use crate::{input::{CommonAction, CommonAxis}, asset::DefaultAsset, component::os::OS};
 
@@ -319,7 +319,6 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
             pitch: 0.0,
         })?;
         world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
-        world.add(e, ScriptStorage::UID, ScriptStorage::default())?;
         world.add(e, Hierarchy::UID, Hierarchy::default())?;
 
         let cam = world.create();

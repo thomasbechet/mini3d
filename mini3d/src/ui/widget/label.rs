@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{uid::UID, renderer::graphics::Graphics, ui::event::{EventContext, Event}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UILabel {
     position: IVec2,
     text: String,

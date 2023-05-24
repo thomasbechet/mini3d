@@ -1,14 +1,10 @@
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
-
-#[derive(Serialize, Deserialize)]
+#[derive(Component)]
+#[component(name = "life_cycle")]
 pub struct Lifecycle {
     pub alive: bool,
 }
-
-impl Component for Lifecycle {}
 
 impl Lifecycle {
     
@@ -21,7 +17,8 @@ impl Lifecycle {
     }
 }
 
-impl Lifecycle {
-    pub const NAME: &'static str = "life_cycle";
-    pub const UID: UID = UID::new(Lifecycle::NAME);
+impl Default for Lifecycle {
+    fn default() -> Self {
+        Self::alive()
+    }
 }

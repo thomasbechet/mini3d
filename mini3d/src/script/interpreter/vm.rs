@@ -16,11 +16,9 @@ impl VirtualMachine {
     const INITIAL_STACK_SIZE: usize = 1024;
 
     pub fn new(program: Program) -> VirtualMachine {
-        let mut stack = Vec::with_capacity(Self::INITIAL_STACK_SIZE);
-        stack.resize(Self::INITIAL_STACK_SIZE, 0);
-        VirtualMachine {
+        Self {
             program,
-            stack,
+            stack: vec![0; Self::INITIAL_STACK_SIZE],
             sp: -1, // Will be incremented to 0 when the first value is pushed
             ip: -1, // Will be incremented to 0 when the first instruction is executed
         }

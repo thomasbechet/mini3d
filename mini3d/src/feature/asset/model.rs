@@ -1,16 +1,9 @@
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Asset;
 
-use crate::{uid::UID, registry::asset::Asset};
+use crate::uid::UID;
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Asset)]
 pub struct Model {
     pub mesh: UID,
     pub materials: Vec<UID>,
-}
-
-impl Asset for Model {}
-
-impl Model {
-    pub const NAME: &'static str = "model";
-    pub const UID: UID = UID::new(Model::NAME);
 }

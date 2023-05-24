@@ -1,4 +1,4 @@
-use crate::{feature::component::{camera::Camera, static_mesh::StaticMesh, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, context::SystemContext, ecs::system::SystemResult};
+use crate::{feature::component::{camera::Camera, static_mesh::StaticMesh, lifecycle::Lifecycle, viewport::Viewport, canvas::Canvas}, context::SystemContext, ecs::system::SystemResult, registry::component::Component};
 
 pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> SystemResult {
 

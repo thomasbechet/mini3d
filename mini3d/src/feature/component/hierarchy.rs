@@ -1,41 +1,25 @@
-use std::{error::Error, fmt::Display};
+use mini3d_derive::{Component, Error};
 
-use serde::{Serialize, Deserialize};
+use crate::ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}};
 
-use crate::{ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}}, uid::UID, registry::component::Component};
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum HierarchyError {
+    #[error("Circular reference")]
     CircularReference,
+    #[error("Child not found")]
     ChildNotFound,
+    #[error("Parent without child")]
     ParentWithoutChild,
 }
 
-impl Error for HierarchyError {}
-
-impl Display for HierarchyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HierarchyError::CircularReference => write!(f, "Circular reference"),
-            HierarchyError::ChildNotFound => write!(f, "Child not found"),
-            HierarchyError::ParentWithoutChild => write!(f, "Parent without child"),
-        }
-    }
-}
-
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Component)]
 pub struct Hierarchy {
     parent: Option<Entity>,
     first_child: Option<Entity>,
     next_sibling: Option<Entity>,
 }
 
-impl Component for Hierarchy {}
-
 impl Hierarchy {
-
-    pub const NAME: &'static str = "hierarchy";
-    pub const UID: UID = UID::new(Hierarchy::NAME);
 
     pub fn parent(&self) -> Option<Entity> {
         self.parent

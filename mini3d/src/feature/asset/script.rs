@@ -1,15 +1,6 @@
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Asset;
 
-use crate::{registry::asset::Asset, uid::UID};
-
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Asset)]
 pub struct Script {
     pub source: String,
-}
-
-impl Asset for Script {}
-
-impl Script {
-    pub const NAME: &'static str = "script";
-    pub const UID: UID = UID::new(Script::NAME);
 }

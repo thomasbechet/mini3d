@@ -1,13 +1,11 @@
-use std::{error::Error, fmt::Display};
-
 use glam::{IVec2, Vec2};
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{renderer::{graphics::Graphics, color::Color, SCREEN_VIEWPORT, SCREEN_CENTER}, math::rect::IRect, uid::UID};
 
 use super::event::{Event, Direction};
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 pub(crate) enum InteractionMode {
     Disabled,
     Selection,
@@ -47,7 +45,7 @@ fn render_cursor(position: IVec2, gfx: &mut Graphics, _time: f64) {
     gfx.draw_vline(position.x, position.y - 1, position.y + 1, Color::WHITE);
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UIUser {
     
     pub(crate) name: String,

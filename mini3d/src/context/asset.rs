@@ -9,8 +9,8 @@ pub struct AssetContext<'a> {
 
 impl<'a> AssetContext<'a> {
 
-    pub fn set_default<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
-        self.manager.set_default::<A>(asset, uid)
+    pub fn set_default(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
+        self.manager.set_default(asset, uid)
     }
 
     pub fn get<A: Asset>(&'_ self, asset: UID, uid: UID) -> Result<Option<&'_ A>, AssetError> {

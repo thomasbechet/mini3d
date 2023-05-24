@@ -1,22 +1,16 @@
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{renderer::backend::SceneCameraHandle, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition, ComponentProperty}};
+use crate::renderer::backend::SceneCameraHandle;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Component)]
+#[component(name = "camera")]
 pub struct Camera {
     pub fov: f32,
-    #[serde(skip)]
+    #[serialize(skip)]
     pub(crate) handle: Option<SceneCameraHandle>,
 }
 
-impl Component for Camera {}
-
 impl Camera {
-    
-    pub const NAME: &'static str = "camera";
-    pub const UID: UID = UID::new(Camera::NAME);
-
     pub fn with_fov(mut self, fov: f32) -> Self {
         self.fov = fov;
         self

@@ -12,8 +12,10 @@ pub mod registry;
 pub mod physics;
 pub mod prng;
 pub mod script;
-pub mod serialization;
+pub mod serialize;
 pub mod ui;
 pub mod uid;
+pub mod version;
 
 pub use glam;
+extern crate self as mini3d;

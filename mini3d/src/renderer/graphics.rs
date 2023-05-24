@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{uid::UID, math::rect::IRect, asset::AssetManager, ecs::entity::Entity};
 
 use super::{color::Color, backend::{RendererBackend, ViewportHandle, SceneCanvasHandle, RendererBackendError}, RendererResourceManager};
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize)]
 pub enum TextureWrapMode {
     Clamp,
     Repeat,
     Mirror,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 enum Command {
     Print { 
         position: IVec2, 
@@ -43,7 +43,7 @@ enum Command {
     Scissor { extent: Option<IRect> },
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize)]
 pub struct Graphics {
     commands: Vec<Command>,
     text_buffer: String,

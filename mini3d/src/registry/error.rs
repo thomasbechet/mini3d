@@ -1,28 +1,19 @@
-use std::{fmt::Display, error::Error};
+use mini3d_derive::Error;
 
 use crate::uid::UID;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RegistryError {
+    #[error("Duplicated asset definition: {name}")]
     DuplicatedAssetDefinition { name: String },
+    #[error("Duplicated component definition: {name}")]
     DuplicatedComponentDefinition { name: String },
+    #[error("Duplicated system definition: {name}")]
     DuplicatedSystemDefinition { name: String },
+    #[error("Asset definition not found: {uid}")]
     AssetDefinitionNotFound { uid: UID },
+    #[error("Component definition not found: {uid}")]
     ComponentDefinitionNotFound { uid: UID },
+    #[error("System definition not found: {uid}")]
     SystemDefinitionNotFound { uid: UID },
-}
-
-impl Error for RegistryError {}
-
-impl Display for RegistryError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RegistryError::DuplicatedAssetDefinition { name } => write!(f, "Duplicated asset definition: {}", name),
-            RegistryError::DuplicatedComponentDefinition { name } => write!(f, "Duplicated component definition: {}", name),
-            RegistryError::DuplicatedSystemDefinition { name } => write!(f, "Duplicated system definition {}", name),
-            RegistryError::AssetDefinitionNotFound { uid } => write!(f, "Asset definition not found: {}", uid),
-            RegistryError::ComponentDefinitionNotFound { uid } => write!(f, "Component definition not found: {}", uid),
-            RegistryError::SystemDefinitionNotFound { uid } => write!(f, "System definition not found: {}", uid),
-        }
-    }
 }

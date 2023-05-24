@@ -1,8 +1,8 @@
 use std::collections::{HashMap, VecDeque, HashSet};
 use core::cell::RefCell;
-use serde::{Serialize, ser::{SerializeTuple, SerializeSeq}, de::{SeqAccess, DeserializeSeed, Visitor}, Serializer, Deserializer};
+use crate::serialize::{Serialize, EncoderError, Decoder, DecoderError};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext, event::EventContext}, event::Events};
+use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext, event::EventContext}, event::Events, serialize::Encoder};
 
 use self::{world::World, scheduler::Scheduler, procedure::Procedure, pipeline::CompiledSystemPipeline, error::ECSError};
 
@@ -108,102 +108,38 @@ impl ECSManager {
 
     const MAIN_WORLD: &'static str = "main";
 
-    pub(crate) fn save_state<S: Serializer>(&self, registry: &RegistryManager, serializer: S) -> Result<S::Ok, S::Error> {
-        struct WorldsSerialize<'a> {
-            registry: &'a ComponentRegistry,
-            worlds: &'a HashMap<UID, RefCell<Box<World>>>,
+    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        // Scheduler
+        self.scheduler.serialize(encoder)?;
+        // Next frame system invocations
+        self.next_frame_system_invocations.serialize(encoder)?;
+        // Next frame procedures
+        self.next_frame_procedures.serialize(encoder)?;
+        // Worlds
+        encoder.write_u32(self.worlds.borrow().len() as u32)?;
+        for world in self.worlds.borrow().values() {
+            world.borrow().serialize(encoder)?;
         }
-        impl<'a> Serialize for WorldsSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                struct WorldSerialize<'a> {
-                    registry:  &'a ComponentRegistry,
-                    world: &'a World,
-                }
-                impl<'a> Serialize for WorldSerialize<'a> {
-                    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                        self.world.serialize(serializer, self.registry)
-                    }
-                }
-                let mut seq = serializer.serialize_seq(Some(self.worlds.len()))?;
-                for world in self.worlds.values() {
-                    seq.serialize_element(&WorldSerialize { registry: self.registry, world: &world.borrow() })?;
-                }
-                seq.end()
-            }
-        }
-        let mut tuple = serializer.serialize_tuple(4)?;
-        tuple.serialize_element(&self.scheduler)?;
-        tuple.serialize_element(&WorldsSerialize { registry: &registry.components, worlds: &self.worlds.borrow() })?;
-        tuple.serialize_element(&self.next_frame_procedures)?;
-        tuple.serialize_element(&self.active_world)?;
-        tuple.end()
+        // Active world
+        self.active_world.serialize(encoder)?;
+        Ok(())
     }
 
-    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, registry: &RegistryManager, deserializer: D) -> Result<(), D::Error> {
-        struct ECSVisitor<'a> {
-            registry: &'a ComponentRegistry,
-            manager: &'a mut ECSManager,
+    pub(crate) fn load_state(&mut self, registry: &ComponentRegistry, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+        // Scheduler
+        self.scheduler = Scheduler::deserialize(decoder, &Default::default())?;
+        // Next frame system invocations
+        self.next_frame_system_invocations = Vec::<UID>::deserialize(decoder, &Default::default())?;
+        // Next frame procedures
+        self.next_frame_procedures = VecDeque::<UID>::deserialize(decoder, &Default::default())?;
+        // Worlds
+        let worlds_count = decoder.read_u32()?;
+        for _ in 0..worlds_count {
+            let world = World::deserialize(registry, decoder)?;
+            self.worlds.borrow_mut().insert(UID::new(&world.name), RefCell::new(Box::new(world)));
         }
-        impl<'de, 'a> Visitor<'de> for ECSVisitor<'a> {
-            type Value = ();
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("ECS Manager")
-            }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where A: SeqAccess<'de>, {
-                use serde::de::Error;
-                struct WorldsDeserializeSeed<'a> {
-                    registry: &'a ComponentRegistry,
-                }
-                impl<'a, 'de> DeserializeSeed<'de> for WorldsDeserializeSeed<'a> {
-                    type Value = RefCell<HashMap<UID, RefCell<Box<World>>>>;
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        struct WorldsVisitor<'a> {
-                            registry: &'a ComponentRegistry,
-                        }
-                        impl<'a, 'de> Visitor<'de> for WorldsVisitor<'a> {
-                            type Value = RefCell<HashMap<UID, RefCell<Box<World>>>>;
-                            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                                formatter.write_str("Worlds")
-                            }
-                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                                where A: SeqAccess<'de>, {
-                                struct WorldDeserializeSeed<'a> {
-                                    registry: &'a ComponentRegistry,
-                                }
-                                impl<'a, 'de> DeserializeSeed<'de> for WorldDeserializeSeed<'a> {
-                                    type Value = RefCell<Box<World>>;
-                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                                        where D: Deserializer<'de> {
-                                        Ok(RefCell::new(Box::new(World::deserialize(self.registry, deserializer)?)))
-                                    }
-                                }
-                                let mut worlds = HashMap::new();
-                                while let Some(world) = seq.next_element_seed(WorldDeserializeSeed { registry: self.registry })? {
-                                    let uid: UID = world.borrow().name.as_str().into();
-                                    if worlds.contains_key(&uid) {
-                                        return Err(A::Error::custom(format!("Duplicate world name: {}", uid)));
-                                    }
-                                    worlds.insert(uid, world);
-                                }
-                                Ok(RefCell::new(worlds))
-                            }
-                        }
-                        deserializer.deserialize_seq(WorldsVisitor { registry: self.registry })
-                    }
-                }
-                self.manager.scheduler = seq.next_element()?.ok_or_else(|| A::Error::custom("Expect scheduler"))?;
-                self.manager.worlds = seq.next_element_seed(WorldsDeserializeSeed { registry: self.registry })?.ok_or_else(|| A::Error::custom("Expect worlds"))?;
-                self.manager.next_frame_procedures = seq.next_element()?.ok_or_else(|| A::Error::custom("Expect next frame procedures"))?;
-                self.manager.active_world = seq.next_element()?.ok_or_else(|| A::Error::custom("Expect active world"))?;
-                Ok(())
-            }
-        }
-        self.worlds.borrow_mut().clear();
-        self.scheduler = Default::default();
-        deserializer.deserialize_tuple(4, ECSVisitor { manager: self, registry: &registry.components })?;
+        // Active world
+        self.active_world = UID::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 

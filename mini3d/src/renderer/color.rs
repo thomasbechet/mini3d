@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Color(u32);
 
 impl Debug for Color {

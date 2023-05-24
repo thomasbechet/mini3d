@@ -1,12 +1,9 @@
-use serde::de::{Visitor, DeserializeSeed};
-use serde::ser::SerializeTuple;
-use serde::{Serializer, Deserializer, Serialize};
+use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
 use crate::disk::backend::DiskBackend;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::ecs::system::SystemCallback;
-use crate::feature::asset::input_table::{InputTable, InputAction, InputAxis};
 use crate::feature::{asset, component, system};
 use crate::input::backend::{InputBackend, InputBackendError};
 use crate::physics::PhysicsManager;
@@ -18,29 +15,18 @@ use crate::renderer::RendererManager;
 use crate::renderer::backend::{RendererBackend, RendererBackendError};
 use crate::event::Events;
 use crate::event::system::SystemEvent;
-use crate::input::{InputManager, InputActionState, InputAxisState};
+use crate::input::InputManager;
 use crate::script::ScriptManager;
+use crate::serialize::{EncoderError, Serialize, DecoderError, Decoder};
 use crate::uid::UID;
 use core::cell::RefCell;
-use std::cell::Ref;
-use std::error::Error;
-use std::fmt::Display;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ProgressError {
+    #[error("System error")]
     SystemError,
+    #[error("ECS error")]
     ECSError,
-}
-
-impl Error for ProgressError {}
-
-impl Display for ProgressError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ProgressError::SystemError => write!(f, "System error"),
-            ProgressError::ECSError => write!(f, "ECS error"),
-        }
-    }
 }
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
@@ -88,7 +74,6 @@ impl Engine {
         registry.components.define_static::<component::static_mesh::StaticMesh>(component::static_mesh::StaticMesh::NAME)?;
         registry.components.define_static::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
         registry.components.define_static::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
-        registry.components.define_static::<component::script_storage::ScriptStorage>(component::script_storage::ScriptStorage::NAME)?;
         registry.components.define_static::<component::transform::Transform>(component::transform::Transform::NAME)?;
         registry.components.define_static::<component::local_to_world::LocalToWorld>(component::local_to_world::LocalToWorld::NAME)?;
         registry.components.define_static::<component::hierarchy::Hierarchy>(component::hierarchy::Hierarchy::NAME)?;
@@ -131,119 +116,26 @@ impl Engine {
         self.ecs.invoke(system)
     }
 
-    pub fn save_state<S: Serializer>(&mut self, serializer: S) -> Result<S::Ok, S::Error> {
-        struct AssetManagerSerialize<'a> {
-            manager: &'a AssetManager,
-        }
-        impl<'a> Serialize for AssetManagerSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                self.manager.save_state(serializer)
-            }
-        }
-        struct RendererManagerSerialize<'a> {
-            manager: &'a RendererManager,
-        }
-        impl<'a> Serialize for RendererManagerSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                self.manager.save_state(serializer)
-            }
-        }
-        struct ECSManagerSerialize<'a> {
-            manager: &'a ECSManager,
-            registry: &'a RegistryManager,
-        }
-        impl<'a> Serialize for ECSManagerSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                self.manager.save_state(self.registry, serializer)
-            }
-        }
-        struct InputManagerSerialize<'a> {
-            manager: &'a InputManager,
-        }
-        impl<'a> Serialize for InputManagerSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                self.manager.save_state(serializer)
-            }
-        }
-        let mut tuple = serializer.serialize_tuple(6)?;
-        tuple.serialize_element(&AssetManagerSerialize { manager: &self.asset })?;
-        tuple.serialize_element(&RendererManagerSerialize { manager: &self.renderer })?;
-        tuple.serialize_element(&ECSManagerSerialize { manager: &self.ecs, registry: &self.registry.borrow() })?;
-        tuple.serialize_element(&InputManagerSerialize { manager: &self.input })?;
-        tuple.serialize_element(&self.accumulator)?;
-        tuple.serialize_element(&self.time)?;
-        tuple.end()
+    pub fn save_state(&self) -> Result<Box<[u8]>, EncoderError> {
+        let mut buffer = Vec::new();
+        self.asset.save_state(&mut buffer)?;
+        self.renderer.save_state(&mut buffer)?;
+        self.ecs.save_state(&mut buffer)?;
+        self.input.save_state(&mut buffer)?;
+        self.accumulator.serialize(&mut buffer)?;
+        self.time.serialize(&mut buffer)?;
+        self.running.serialize(&mut buffer)?;
+        Ok(buffer.into_boxed_slice())
     }
 
-    pub fn load_state<'de, D: Deserializer<'de>>(&'de mut self, deserializer: D) -> Result<(), D::Error> {
-        struct EngineVisitor<'a> {
-            engine: &'a mut Engine,
-        }
-        impl<'de, 'a: 'de> Visitor<'de> for EngineVisitor<'a> {
-            type Value = ();
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Engine")
-            }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where A: serde::de::SeqAccess<'de> {
-                use serde::de::Error;
-                struct AssetManagerDeserializeSeed<'a> {
-                    manager: &'a mut AssetManager,
-                    registry: Ref<'a, RegistryManager>,
-                }
-                impl<'de, 'a> DeserializeSeed<'de> for AssetManagerDeserializeSeed<'a> {
-                    type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        self.manager.load_state(&self.registry.assets, deserializer)
-                    }
-                }
-                struct RendererManagerDeserializeSeed<'a> {
-                    manager: &'a mut RendererManager,
-                }
-                impl<'de, 'a> DeserializeSeed<'de> for RendererManagerDeserializeSeed<'a> {
-                    type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        self.manager.load_state(deserializer)
-                    }
-                }
-                struct ECSManagerDeserializeSeed<'a> {
-                    manager: &'a mut ECSManager,
-                    registry: Ref<'a, RegistryManager>,
-                }
-                impl<'de, 'a> DeserializeSeed<'de> for ECSManagerDeserializeSeed<'a> {
-                    type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        self.manager.load_state(&self.registry, deserializer)
-                    }
-                }
-                struct InputManagerDeserializeSeed<'a> {
-                    manager: &'a mut InputManager,
-                }
-                impl<'de, 'a> DeserializeSeed<'de> for InputManagerDeserializeSeed<'a> {
-                    type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        self.manager.load_state(deserializer)
-                    }
-                }
-                seq.next_element_seed(AssetManagerDeserializeSeed { manager: &mut self.engine.asset, registry: self.engine.registry.borrow() })?;
-                seq.next_element_seed(RendererManagerDeserializeSeed { manager: &mut self.engine.renderer })?;
-                seq.next_element_seed(ECSManagerDeserializeSeed { manager: &mut self.engine.ecs, registry: self.engine.registry.borrow() })?;
-                seq.next_element_seed(InputManagerDeserializeSeed { manager: &mut self.engine.input })?;
-                self.engine.accumulator = seq.next_element()?.ok_or_else(|| Error::custom("Expect accumulator"))?;
-                self.engine.time = seq.next_element()?.ok_or_else(|| Error::custom("Expect time"))?;
-                self.engine.renderer.reset(&mut self.engine.ecs);
-                Ok(())
-            }
-        }
-        deserializer.deserialize_tuple(6, EngineVisitor { engine: self })?;
+    pub fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+        self.asset.load_state(&self.registry.borrow().assets, decoder)?;
+        self.renderer.load_state(decoder)?;
+        self.ecs.load_state(&self.registry.borrow().components, decoder)?;
+        self.input.load_state(decoder)?;
+        self.accumulator = Serialize::deserialize(decoder, &Default::default())?;
+        self.time = Serialize::deserialize(decoder, &Default::default())?;
+        self.running = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
@@ -259,25 +151,9 @@ impl Engine {
         self.registry.borrow_mut().assets.define_static::<A>(name)
     }
 
-    // pub fn iter_input_tables(&self) -> impl Iterator<Item = &InputTable> {
-    //     self.input.iter_tables()
-    // }
-
-    // pub fn iter_input_actions(&self) -> impl Iterator<Item = (&InputAction, &InputActionState)> {
-    //     self.input.iter_actions()
-    // }
-
-    // pub fn iter_input_axis(&self) -> impl Iterator<Item = (&InputAxis, &InputAxisState)> {
-    //     self.input.iter_axis()
-    // }
-
     pub fn is_running(&self) -> bool {
         self.running
     }
-
-    // pub fn request_reload_input(&self) -> bool {
-    //     self.input.reload_input_mapping
-    // }
 
     pub fn progress(&mut self, events: &Events, mut dt: f64) -> Result<(), ProgressError> {
 

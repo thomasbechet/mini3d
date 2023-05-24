@@ -1,14 +1,14 @@
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
-use crate::feature::asset::{font::Font, mesh::Mesh, material::Material, model::Model, texture::Texture, script::Script};
+use crate::{feature::asset::{font::Font, mesh::Mesh, material::Material, model::Model, texture::Texture, script::Script}, registry::asset::Asset};
 
-#[derive(Serialize, Deserialize)]
-pub struct AssetImportEntry<T> {
+#[derive(Serialize)]
+pub struct AssetImportEntry<A: Asset> {
     pub name: String,
-    pub data: T,
+    pub data: A,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub enum ImportAssetEvent {
     Font(AssetImportEntry<Font>),
     Material(AssetImportEntry<Material>),

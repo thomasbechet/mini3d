@@ -199,8 +199,7 @@ impl MeshPass {
         // Create sorted batches from object pass
         {
             // Collect batches info (old batches are erased)
-            self.batches = self.pass_objects.iter()
-                .map(|(id, _)| RenderBatch {
+            self.batches = self.pass_objects.keys().map(|id| RenderBatch {
                     // TODO: use key to change draw order ?
                     submesh: objects.get(id).unwrap().submesh,
                     material: objects.get(id).unwrap().material,

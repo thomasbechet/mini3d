@@ -1,18 +1,9 @@
+use mini3d_derive::Component;
 use rapier3d::prelude::RigidBodyHandle;
-use serde::{Serialize, Deserialize};
-use serde_json::json;
 
-use crate::{uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
-
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Component)]
+#[component(name = "rigid_body")]
 pub struct RigidBody {
-    #[serde(skip)]
+    #[serialize(skip)]
     pub(crate) rigid_body_handle: Option<RigidBodyHandle>,    
-}
-
-impl Component for RigidBody {}
-
-impl RigidBody {
-    pub const NAME: &'static str = "rigid_body";
-    pub const UID: UID = UID::new(RigidBody::NAME);
 }

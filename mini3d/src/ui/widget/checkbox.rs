@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, uid::UID, ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct UICheckBoxStyle {
     checked: UIBoxStyle,
     unchecked: UIBoxStyle,
@@ -29,7 +29,7 @@ impl Default for UICheckBoxStyle {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UICheckBox {
     extent: IRect,
     checked: bool,

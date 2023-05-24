@@ -19,7 +19,7 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
         for i in (1..Self::MAX_LOOKAHEAD).rev() {
             self.peeks[i] = self.peeks[i - 1];
         }
-        self.peeks[0] = self.lexer.next_token().map_err(|e| ParserError::Lexer(e))?;
+        self.peeks[0] = self.lexer.next_token().map_err(ParserError::Lexer)?;
         Ok(())
     }
 
@@ -102,12 +102,12 @@ impl<'s: 'a, 'a> Parser<'s, 'a> {
             },
             TokenKind::Integer => {
                 self.consume()?;
-                let value = next.span.slice(self.source).parse().map_err(|e| ParserError::IntegerParseError(e))?;
+                let value = next.span.slice(self.source).parse().map_err(ParserError::IntegerParseError)?;
                 self.ast.add(ASTNode::Literal(Literal::Integer(value)))
             },
             TokenKind::Float => {
                 self.consume()?;
-                let value = next.span.slice(self.source).parse().map_err(|e| ParserError::FloatParseError(e))?;
+                let value = next.span.slice(self.source).parse().map_err(ParserError::FloatParseError)?;
                 self.ast.add(ASTNode::Literal(Literal::Float(value)))
             },
             TokenKind::String => {

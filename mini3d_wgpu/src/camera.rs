@@ -24,7 +24,7 @@ impl Camera {
 
     pub(crate) fn projection(&self, aspect_ratio: f32) -> Mat4 {
         let fov_x = f32::to_radians(self.fov);
-        let inv_aspect_ration = 1.0 / aspect_ratio as f32;
+        let inv_aspect_ration = 1.0 / aspect_ratio;
         let fov_y = 2.0 * f32::atan(inv_aspect_ration * f32::tan(fov_x * 0.5));
         Mat4::perspective_rh(fov_y, aspect_ratio, 0.5, 300.0)
     }

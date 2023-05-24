@@ -1,40 +1,28 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Asset, Error};
 
-use crate::{ui::widget::{button::UIButtonStyle, checkbox::UICheckBoxStyle}, uid::UID, registry::asset::Asset};
+use crate::{ui::widget::{button::UIButtonStyle, checkbox::UICheckBoxStyle}, uid::UID};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum UIStyleSheetError {
+    #[error("Duplicated button style: {uid}")]
     DuplicatedButtonStyle { uid: UID },
+    #[error("Duplicated checkbox style: {uid}")]
     DuplicatedCheckboxStyle { uid: UID },
+    #[error("Button style not found: {uid}")]
     ButtonStyleNotFound { uid: UID },
+    #[error("Checkbox style not found: {uid}")]
     CheckboxStyleNotFound { uid: UID },
 }
 
-impl Error for UIStyleSheetError {}
-
-impl std::fmt::Display for UIStyleSheetError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UIStyleSheetError::DuplicatedButtonStyle { uid } => write!(f, "Button style already exists: {}", uid),
-            UIStyleSheetError::DuplicatedCheckboxStyle { uid } => write!(f, "Checkbox style already exists: {}", uid),
-            UIStyleSheetError::ButtonStyleNotFound { uid } => write!(f, "Button style not found: {}", uid),
-            UIStyleSheetError::CheckboxStyleNotFound { uid } => write!(f, "Checkbox style not found: {}", uid),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Asset, Clone)]
 pub struct UIStyleSheet {
     pub(crate) buttons: HashMap<UID, UIButtonStyle>,
     pub(crate) checkboxes: HashMap<UID, UICheckBoxStyle>,
 }
 
 impl UIStyleSheet {
-
-    pub const NAME: &'static str = "ui_stylesheet";
-    pub const UID: UID = UID::new(UIStyleSheet::NAME);
 
     pub(crate) fn merge(&mut self, other: &Self) -> Result<(), UIStyleSheetError> {
         for (uid, style) in &other.buttons {
@@ -80,5 +68,3 @@ impl Default for UIStyleSheet {
         stylesheet
     }
 }
-
-impl Asset for UIStyleSheet {}

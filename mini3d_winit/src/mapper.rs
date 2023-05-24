@@ -6,6 +6,39 @@ use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton, ElementState};
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub(crate) struct InputUID(UID);
+
+impl InputUID {
+    fn new(name: &str) -> Self {
+        Self(UID::new(name))
+    }
+}
+
+impl From<UID> for InputUID {
+    fn from(uid: UID) -> Self {
+        Self(uid)
+    }
+}
+
+impl From<&InputUID> for UID {
+    fn from(uid: &InputUID) -> Self {
+        uid.0
+    }
+}
+
+impl Serialize for InputUID {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+        serializer.serialize_u64(self.0.into())
+    }
+}
+
+impl<'de> Deserialize<'de> for InputUID {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
+        u64::deserialize(deserializer).map(|uid| Self(UID::from(uid)))
+    }
+}
+
 struct KeyToAction {
     uid: UID,
 }
@@ -79,8 +112,8 @@ pub(crate) struct MapAxisInput {
 pub(crate) struct InputProfile {
     pub(crate) name: String,
     pub(crate) active: bool,
-    pub(crate) actions: HashMap<UID, MapActionInput>,
-    pub(crate) axis: HashMap<UID, MapAxisInput>,
+    pub(crate) actions: HashMap<InputUID, MapActionInput>,
+    pub(crate) axis: HashMap<InputUID, MapAxisInput>,
 }
 
 #[derive(Default)]
@@ -114,26 +147,26 @@ impl InputMapper {
             name: "Default".to_string(), 
             active: true,
             actions: HashMap::from([
-                (CommonAction::UP.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::Z }) }),
-                (CommonAction::LEFT.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::Q }) }),
-                (CommonAction::DOWN.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::S }) }),
-                (CommonAction::RIGHT.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::D }) }),
-                (CommonAction::CHANGE_CONTROL_MODE.into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::F }) }),
-                ("switch_mode".into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::C }) }),
-                ("roll_left".into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::A }) }),
-                ("roll_right".into(), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::E }) }),
+                (InputUID::new(CommonAction::UP), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::Z }) }),
+                (InputUID::new(CommonAction::LEFT), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::Q }) }),
+                (InputUID::new(CommonAction::DOWN), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::S }) }),
+                (InputUID::new(CommonAction::RIGHT), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::D }) }),
+                (InputUID::new(CommonAction::CHANGE_CONTROL_MODE), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::F }) }),
+                (InputUID::new("switch_mode"), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::C }) }),
+                (InputUID::new("roll_left"), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::A }) }),
+                (InputUID::new("roll_right"), MapActionInput { button: Some(Button::Keyboard { code: VirtualKeyCode::E }) }),
             ]),
             axis: HashMap::from([
-                (CommonAxis::CURSOR_X.into(), MapAxisInput { axis: Some((Axis::MousePositionX, 0.0)), ..Default::default() }),
-                (CommonAxis::CURSOR_Y.into(), MapAxisInput { axis: Some((Axis::MousePositionY, 0.0)), ..Default::default() }),
-                (CommonAxis::VIEW_X.into(), MapAxisInput { axis: Some((Axis::MouseMotionX, 0.01)), ..Default::default() }),
-                (CommonAxis::VIEW_Y.into(), MapAxisInput { axis: Some((Axis::MouseMotionY, 0.01)), ..Default::default() }),
-                (CommonAxis::MOVE_FORWARD.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::Z }, 1.0)), ..Default::default() }),
-                (CommonAxis::MOVE_BACKWARD.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::S }, 1.0)), ..Default::default() }),
-                (CommonAxis::MOVE_LEFT.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::Q }, 1.0)), ..Default::default() }),
-                (CommonAxis::MOVE_RIGHT.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::D }, 1.0)), ..Default::default() }),
-                (CommonAxis::MOVE_UP.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::X }, 1.0)), ..Default::default() }),
-                (CommonAxis::MOVE_DOWN.into(), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::W }, 1.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::CURSOR_X), MapAxisInput { axis: Some((Axis::MousePositionX, 0.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::CURSOR_Y), MapAxisInput { axis: Some((Axis::MousePositionY, 0.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::VIEW_X), MapAxisInput { axis: Some((Axis::MouseMotionX, 0.01)), ..Default::default() }),
+                (InputUID::new(CommonAxis::VIEW_Y), MapAxisInput { axis: Some((Axis::MouseMotionY, 0.01)), ..Default::default() }),
+                (InputUID::new(CommonAxis::MOVE_FORWARD), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::Z }, 1.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::MOVE_BACKWARD), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::S }, 1.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::MOVE_LEFT), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::Q }, 1.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::MOVE_RIGHT), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::D }, 1.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::MOVE_UP), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::X }, 1.0)), ..Default::default() }),
+                (InputUID::new(CommonAxis::MOVE_DOWN), MapAxisInput { button: Some((Button::Keyboard { code: VirtualKeyCode::W }, 1.0)), ..Default::default() }),
             ]),
         });
 
@@ -201,10 +234,10 @@ impl InputMapper {
         for profile in self.profiles.values_mut() {
             for table in self.tables.values() {
                 for action in table.actions.iter() {
-                    profile.actions.entry(action.uid()).or_insert_with(Default::default);
+                    profile.actions.entry(action.uid().into()).or_insert_with(Default::default);
                 }
                 for axis in table.axis.iter() {
-                    profile.axis.entry(axis.uid()).or_insert_with(Default::default);
+                    profile.axis.entry(axis.uid().into()).or_insert_with(Default::default);
                 }
             }
         }
@@ -237,14 +270,14 @@ impl InputMapper {
                     if let Some(button) = &action.button {
                         match button {
                             Button::Keyboard { code } => {
-                                self.key_to_action.entry(*code).or_insert_with(Default::default).push(KeyToAction { uid: *uid });
+                                self.key_to_action.entry(*code).or_insert_with(Default::default).push(KeyToAction { uid: uid.into() });
                             },
                             Button::Mouse { button } => {
-                                self.mouse_button_to_action.entry(*button).or_insert_with(Default::default).push(MouseButtonToAction { uid: *uid });
+                                self.mouse_button_to_action.entry(*button).or_insert_with(Default::default).push(MouseButtonToAction { uid: uid.into() });
                             },
                             Button::Controller { id, button } => {
                                 self.controllers_button_to_action.entry(*id).or_insert_with(Default::default).entry(*button).or_insert_with(Default::default)
-                                    .push(ControllerButtonToAction { uid: *uid });
+                                    .push(ControllerButtonToAction { uid: uid.into() });
                             },
                         }
                     }
@@ -253,40 +286,40 @@ impl InputMapper {
                     if let Some((b, value)) = &axis.button {
                         match b {
                             Button::Keyboard { code } => {
-                                self.key_to_axis.entry(*code).or_insert_with(Default::default).push(KeyToAxis { uid: *uid, value: *value });
+                                self.key_to_axis.entry(*code).or_insert_with(Default::default).push(KeyToAxis { uid: uid.into(), value: *value });
                             },
                             Button::Mouse { button } => {
-                                self.mouse_button_to_axis.entry(*button).or_insert_with(Default::default).push(MouseButtonToAxis { uid: *uid, value: *value });
+                                self.mouse_button_to_axis.entry(*button).or_insert_with(Default::default).push(MouseButtonToAxis { uid: uid.into(), value: *value });
                             },
                             Button::Controller { id, button } => {
                                 self.controllers_button_to_axis.entry(*id).or_insert_with(Default::default).entry(*button).or_insert_with(Default::default)
-                                    .push(ControllerButtonToAxis { uid: *uid, value: *value });
+                                    .push(ControllerButtonToAxis { uid: uid.into(), value: *value });
                             },
                         }
                     }
                     if let Some((a, scale)) = &axis.axis {
                         match a {
                             Axis::MousePositionX => {
-                                self.mouse_position_x_to_axis.push(MousePositionToAxis { uid: *uid });
+                                self.mouse_position_x_to_axis.push(MousePositionToAxis { uid: uid.into() });
                             },
                             Axis::MousePositionY => {
-                                self.mouse_position_y_to_axis.push(MousePositionToAxis { uid: *uid });
+                                self.mouse_position_y_to_axis.push(MousePositionToAxis { uid: uid.into() });
                             },
                             Axis::MouseMotionX => {
-                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { uid: *uid, scale: *scale });
+                                self.mouse_motion_x_to_axis.push(MouseMotionToAxis { uid: uid.into(), scale: *scale });
                             },
                             Axis::MouseMotionY => {
-                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { uid: *uid, scale: *scale });
+                                self.mouse_motion_y_to_axis.push(MouseMotionToAxis { uid: uid.into(), scale: *scale });
                             },
                             Axis::MouseWheelX => {
-                                self.mouse_wheel_x_to_axis.push(MouseWheelToAxis { uid: *uid, scale: *scale });
+                                self.mouse_wheel_x_to_axis.push(MouseWheelToAxis { uid: uid.into(), scale: *scale });
                             },
                             Axis::MouseWheelY => {
-                                self.mouse_wheel_y_to_axis.push(MouseWheelToAxis { uid: *uid, scale: *scale });
+                                self.mouse_wheel_y_to_axis.push(MouseWheelToAxis { uid: uid.into(), scale: *scale });
                             },
                             Axis::Controller { id, axis: ax } => {
                                 self.controllers_axis_to_axis.entry(*id).or_insert_with(Default::default).entry(*ax).or_insert_with(Default::default)
-                                    .push(ControllerAxisToAxis { uid: *uid, scale: *scale })
+                                    .push(ControllerAxisToAxis { uid: uid.into(), scale: *scale })
                             }
                         }
                     }
@@ -347,10 +380,10 @@ impl InputMapper {
 
     pub(crate) fn dispatch_mouse_wheel(&self, delta: (f32, f32), events: &mut Events) {
         for axis in &self.mouse_wheel_x_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.0 as f32 * axis.scale }));
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.0 * axis.scale }));
         }
         for axis in &self.mouse_wheel_y_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.1 as f32 * axis.scale }));
+            events.input.push(InputEvent::Axis(InputAxisEvent { axis: axis.uid, value: delta.1 * axis.scale }));
         }
     }
 

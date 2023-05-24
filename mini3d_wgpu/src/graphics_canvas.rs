@@ -44,7 +44,7 @@ impl GraphicsCanvas {
     
     fn write_global_buffer(&self, context: &WGPUContext) {
         let global_data = GPUGlobalData {
-            resolution: [self.extent.width as u32, self.extent.height as u32],
+            resolution: [self.extent.width, self.extent.height],
         };
         context.queue.write_buffer(&self.global_buffer, 0, bytemuck::bytes_of(&global_data));
     }

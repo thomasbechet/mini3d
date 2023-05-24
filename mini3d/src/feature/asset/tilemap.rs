@@ -1,18 +1,11 @@
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Asset;
 
-use crate::{uid::UID, registry::asset::Asset};
+use crate::uid::UID;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Asset)]
 pub struct Tilemap {
     pub tileset: UID,
     pub tiles: Vec<u32>,
     pub width: u32,
     pub height: u32,
-}
-
-impl Asset for Tilemap {}
-
-impl Tilemap {
-    pub const NAME: &'static str = "tilemap";
-    pub const UID: UID = UID::new(Tilemap::NAME);
 }

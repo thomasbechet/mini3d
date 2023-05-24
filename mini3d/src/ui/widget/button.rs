@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, renderer::{graphics::Graphics, color::Color}, math::rect::IRect, uid::UID, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct UIButtonStyle {
     normal: UIBoxStyle,
     pressed: UIBoxStyle,
@@ -31,7 +31,7 @@ impl Default for UIButtonStyle {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UIButton {
     pressed: bool,
     hovered: bool,

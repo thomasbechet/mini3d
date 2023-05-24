@@ -1,5 +1,3 @@
-use serde::{Serialize, Deserialize};
-
 // pub struct EntityResolver {
 //     map: HashMap<hecs::Entity, hecs::Entity>,
 // }
@@ -8,7 +6,9 @@ use serde::{Serialize, Deserialize};
 //     fn resolve(&mut self, resolver: &EntityResolver) -> Result<()>;
 // }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+use crate::serialize::{Serialize, Decoder, Encoder, EncoderError, DecoderError};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Entity(pub(crate) u32);
 
 pub(crate) type EntityVersion = u8;
@@ -37,4 +37,18 @@ impl Entity {
     //         self.0 = *handle;
     //     }
     // }
+}
+
+impl Serialize for Entity {
+    
+    type Header = ();
+    
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u32(self.0)?;
+        Ok(())
+    }
+    
+    fn deserialize(decoder: &mut impl Decoder, _header: &Self::Header) -> Result<Self, DecoderError> {
+        Ok(Self(decoder.read_u32()?))
+    }
 }

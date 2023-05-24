@@ -1,27 +1,20 @@
 use glam::UVec2;
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{renderer::backend::ViewportHandle, ecs::{entity::Entity}, uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
+use crate::{renderer::backend::ViewportHandle, ecs::{entity::Entity}};
 
-fn default_as_true() -> bool { true }
-
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Component)]
+#[component(name = "viewport")]
 pub struct Viewport {
     pub(crate) camera: Option<Entity>,
     pub(crate) resolution: UVec2,
-    #[serde(skip)]
+    #[serialize(skip)]
     pub(crate) handle: Option<ViewportHandle>,
-    #[serde(skip, default = "default_as_true")]
+    #[serialize(skip, default = true)]
     pub(crate) out_of_date: bool,
 }
 
-impl Component for Viewport {}
-
 impl Viewport {
-
-    pub const NAME: &'static str = "viewport";
-    pub const UID: UID = UID::new(Viewport::NAME);
 
     pub fn new(resolution: UVec2, camera: Option<Entity>) -> Self {
         Self { camera, resolution, handle: None, out_of_date: true }

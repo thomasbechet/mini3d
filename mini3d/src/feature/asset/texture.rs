@@ -1,8 +1,6 @@
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Serialize, Asset};
 
-use crate::{registry::asset::Asset, uid::UID};
-
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 pub enum TextureFormat {
     R,
     RG,
@@ -10,17 +8,10 @@ pub enum TextureFormat {
     RGBA,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Asset)]
 pub struct Texture {
     pub data: Vec<u8>,
     pub format: TextureFormat,
     pub width: u32,
     pub height: u32,
-}
-
-impl Asset for Texture {}
-
-impl Texture {
-    pub const NAME: &'static str = "texture";
-    pub const UID: UID = UID::new(Texture::NAME);
 }

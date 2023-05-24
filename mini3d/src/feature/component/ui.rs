@@ -1,63 +1,49 @@
-use std::{collections::HashMap, error::Error, fmt::Display};
+use std::collections::HashMap;
 
 use glam::{IVec2, UVec2};
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Component, Error};
 
-use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::{UIStyleSheet, UIStyleSheetError}, registry::component::{Component, EntityResolver, ComponentDefinition}};
+use crate::{ui::{widget::{layout::UILayout, Widget}, event::{UIEvent, EventContext, Event}, user::{UIUser, InteractionMode}}, ecs::{entity::Entity}, uid::UID, renderer::{color::Color, graphics::Graphics, SCREEN_VIEWPORT}, math::rect::IRect, feature::asset::ui_stylesheet::{UIStyleSheet, UIStyleSheetError}};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum UIError {
+    #[error("Duplicated user: {name}")]
     DuplicatedUser { name: String },
+    #[error("User not found: {uid}")]
     UserNotFound { uid: UID },
+    #[error("UIStyleSheetError: {0}")]
     UIStyleSheetError(UIStyleSheetError),
 }
 
-impl Error for UIError {}
-
-impl Display for UIError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UIError::DuplicatedUser { name } => write!(f, "Duplicated user: {}", name),
-            UIError::UserNotFound { uid } => write!(f, "User not found: {}", uid),
-            UIError::UIStyleSheetError(e) => write!(f, "UIStyleSheetError: {}", e),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Component)]
 pub enum UIRenderTarget {
     Screen { offset: IVec2 },
     Canvas { offset: IVec2, canvas: Entity },
     Texture { offset: IVec2, texture: Entity },
 }
 
-impl Component for UIRenderTarget {}
-
-impl UIRenderTarget {
-    pub const NAME: &'static str = "ui_render_target";
-    pub const UID: UID = UID::new(UIRenderTarget::NAME);
+impl Default for UIRenderTarget {
+    fn default() -> Self {
+        Self::Screen { offset: IVec2::ZERO }
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Component)]
+#[component(name = "ui")]
 pub struct UI {
 
     root: UILayout,
     users: HashMap<UID, UIUser>,
     stylesheet: UIStyleSheet,
 
-    #[serde(skip)]
+    #[serialize(skip)]
     events: Vec<UIEvent>,
 
     resolution: UVec2,
     background_color: Option<Color>,
 }
 
-impl Component for UI {}
-
 impl UI {
-
-    pub const NAME: &'static str = "ui";
-    pub const UID: UID = UID::new(UI::NAME);
 
     pub fn new(resolution: UVec2, stylesheet: UIStyleSheet) -> Self {
         Self {
@@ -157,15 +143,15 @@ impl UI {
     }
 
     pub fn remove_user(&mut self, uid: UID) -> Result<(), UIError> {
-        self.users.remove(&uid).ok_or_else(|| UIError::UserNotFound { uid })?;
+        self.users.remove(&uid).ok_or(UIError::UserNotFound { uid })?;
         Ok(())
     }
 
     pub fn user(&mut self, uid: UID) -> Result<&mut UIUser, UIError> {
-        self.users.get_mut(&uid).ok_or_else(|| UIError::UserNotFound { uid })
+        self.users.get_mut(&uid).ok_or(UIError::UserNotFound { uid })
     }
 
     pub fn add_styles(&mut self, stylesheet: &UIStyleSheet) -> Result<(), UIError> {
-        self.stylesheet.merge(stylesheet).map_err(|e| UIError::UIStyleSheetError(e))
+        self.stylesheet.merge(stylesheet).map_err(UIError::UIStyleSheetError)
     }
 }

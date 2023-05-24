@@ -108,15 +108,15 @@ impl WindowGUI {
                             match request.source {
                                 RecordSource::ActionButton { uid, previous } => {
                                     mapper.profiles.get_mut(&request.profile).unwrap()
-                                        .actions.get_mut(&uid).unwrap().button = previous;
+                                        .actions.get_mut(&uid.into()).unwrap().button = previous;
                                 },
                                 RecordSource::AxisButton { uid, previous } => {
                                     mapper.profiles.get_mut(&request.profile).unwrap()
-                                        .axis.get_mut(&uid).unwrap().button = previous;
+                                        .axis.get_mut(&uid.into()).unwrap().button = previous;
                                 },
                                 RecordSource::AxisAxis { uid, previous } => {
                                     mapper.profiles.get_mut(&request.profile).unwrap()
-                                        .axis.get_mut(&uid).unwrap().axis = previous;
+                                        .axis.get_mut(&uid.into()).unwrap().axis = previous;
                                 },
                             }
                             window.set_focus(false);
@@ -124,11 +124,11 @@ impl WindowGUI {
                         } else if *state == ElementState::Pressed {
                             match request.source {
                                 RecordSource::ActionButton { uid, .. } => {
-                                    let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid).unwrap();
+                                    let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid.into()).unwrap();
                                     action.button = Some(Button::Keyboard { code: *keycode });
                                 },
                                 RecordSource::AxisButton { uid, .. } => {
-                                    let axis = mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
+                                    let axis = mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid.into()).unwrap();
                                     axis.button = Some((Button::Keyboard { code: *keycode }, 1.0));
                                 },
                                 _ => {}
@@ -141,11 +141,11 @@ impl WindowGUI {
                         if *state == ElementState::Pressed {
                             match request.source {
                                 RecordSource::ActionButton { uid, .. } => {
-                                    let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid).unwrap();
+                                    let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid.into()).unwrap();
                                     action.button = Some(Button::Mouse { button: *button });
                                 },
                                 RecordSource::AxisButton { uid, .. } => {
-                                    let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
+                                    let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid.into()).unwrap();
                                     axis.button = Some((Button::Mouse { button: *button }, 1.0));
                                 },
                                 _ => {}
@@ -179,11 +179,11 @@ impl WindowGUI {
                 gilrs::EventType::ButtonPressed(button, _) => {
                     match request.source {
                         RecordSource::ActionButton { uid, .. } => {
-                            let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid).unwrap();
+                            let action = &mut mapper.profiles.get_mut(&request.profile).unwrap().actions.get_mut(&uid.into()).unwrap();
                             action.button = Some(Button::Controller { id, button: *button });
                         },
                         RecordSource::AxisButton { uid, .. } => {
-                            let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
+                            let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid.into()).unwrap();
                             axis.button = Some((Button::Controller { id, button: *button }, 1.0));
                         },
                         _ => {}
@@ -194,7 +194,7 @@ impl WindowGUI {
                 gilrs::EventType::AxisChanged(ax, value, _) => {
                     if f32::abs(*value) > 0.6 {
                         if let RecordSource::AxisAxis { uid, .. } = request.source {
-                            let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid).unwrap();
+                            let axis = &mut mapper.profiles.get_mut(&request.profile).unwrap().axis.get_mut(&uid.into()).unwrap();
                             let scale: f32 = if *value > 0.0 { 1.0 } else { -1.0 };
                             axis.axis = Some((Axis::Controller { id, axis: *ax }, scale));
                         }
@@ -366,9 +366,9 @@ impl WindowGUI {
 
         // Compute central widget
         self.central_viewport = Vec4::new(
-            0.0, menu_height as f32,
+            0.0, menu_height,
             window.handle.inner_size().width as f32,
-            window.handle.inner_size().height as f32 - menu_height as f32,
+            window.handle.inner_size().height as f32 - menu_height,
         );
         
     }
@@ -480,7 +480,7 @@ fn ui_input_table(
                 .body(|mut body| {
                     input_table.actions.iter().for_each(|action| {
                         let uid = action.uid();
-                        if let Some(map_action) = profile.actions.get_mut(&uid) {
+                        if let Some(map_action) = profile.actions.get_mut(&uid.into()) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
                                     row.col(|ui| { ui.label(uid.to_string()); });
@@ -572,7 +572,7 @@ fn ui_input_table(
                 .body(|mut body| {
                     input_table.axis.iter().for_each(|axis| {
                         let uid = axis.uid();
-                        if let Some(map_axis) = profile.axis.get_mut(&uid) {
+                        if let Some(map_axis) = profile.axis.get_mut(&uid.into()) {
                             body.row(20.0, |mut row| {
                                 if desc.show_uid {
                                     row.col(|ui| { ui.label(uid.to_string()); });

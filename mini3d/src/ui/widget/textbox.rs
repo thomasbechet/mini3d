@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui::event::{EventContext, Event}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UITextBox {
     extent: IRect,
     focused: bool,

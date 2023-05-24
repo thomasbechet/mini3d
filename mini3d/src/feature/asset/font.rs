@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use glam::{IVec2, UVec2};
-use serde::{Serialize, Deserialize};
-
-use crate::{math::rect::IRect, registry::asset::Asset, uid::UID};
+use mini3d_derive::Asset;
+use crate::math::rect::IRect;
 
 use super::texture::{Texture, TextureFormat};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Asset)]
 pub struct Font {
     pub glyph_size: UVec2,
     pub data: Vec<u8>,
@@ -26,13 +25,6 @@ impl Default for Font {
             glyph_locations,
         }
     }
-}
-
-impl Asset for Font {}
-
-impl Font {
-    pub const NAME: &'static str = "font";
-    pub const UID: UID = UID::new(Font::NAME);
 }
 
 pub struct FontAtlas {

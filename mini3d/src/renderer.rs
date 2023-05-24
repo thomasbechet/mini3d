@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet, hash_map};
 
 use glam::{UVec2, uvec2};
-use serde::{Serialize, Deserialize, Serializer, ser::SerializeTuple, Deserializer, de::Visitor};
-
-use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, static_mesh::StaticMesh, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, model::Model}}, ecs::{ECSManager, entity::Entity, view::ComponentView}};
+use mini3d_derive::Serialize;
+use crate::serialize::{Serialize, Decoder, DecoderError};
+use crate::{math::rect::IRect, asset::AssetManager, uid::UID, feature::{component::{local_to_world::LocalToWorld, camera::Camera, static_mesh::StaticMesh, viewport::Viewport, canvas::Canvas}, asset::{material::Material, mesh::Mesh, texture::Texture, font::{Font, FontAtlas}, model::Model}}, ecs::{ECSManager, entity::Entity, view::ComponentView}, registry::{asset::Asset, component::Component}, serialize::{Encoder, EncoderError}};
 
 use self::{backend::{RendererBackend, BackendMaterialDescriptor, TextureHandle, MeshHandle, MaterialHandle, SceneCameraHandle, SceneModelHandle, SceneCanvasHandle, ViewportHandle, SceneHandle, RendererBackendError}, graphics::Graphics, color::Color};
 
@@ -46,7 +46,7 @@ pub enum RendererModelDescriptor {
     FromAsset(UID),
 }
 
-#[derive(Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Serialize)]
 pub struct RendererStatistics {
     pub triangle_count: usize,
     pub draw_count: usize,
@@ -324,29 +324,14 @@ impl RendererManager {
         self.graphics.clear();
     }
 
-    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut tuple = serializer.serialize_tuple(1)?;
-        tuple.serialize_element(&self.graphics)?;
-        tuple.end()
+    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.graphics.serialize(encoder)?;
+        Ok(())
     }
 
-    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, deserializer: D) -> Result<(), D::Error> {
-        struct RendererVisitor<'a> {
-            manager: &'a mut RendererManager,
-        }
-        impl<'de, 'a> Visitor<'de> for RendererVisitor<'a> {
-            type Value = ();
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Renderer manager data")
-            }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where A: serde::de::SeqAccess<'de> {
-                use serde::de::Error;
-                self.manager.graphics = seq.next_element()?.ok_or_else(|| Error::missing_field("graphics"))?;
-                Ok(())
-            }
-        }
-        deserializer.deserialize_tuple(1, RendererVisitor { manager: self })
+    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+        self.graphics = Graphics::deserialize(decoder, &Default::default())?;
+        Ok(())
     }
 
     pub fn graphics(&mut self) -> &mut Graphics {

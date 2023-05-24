@@ -1,4 +1,4 @@
-use crate::{context::{SystemContext, error::ContextError}, ecs::{entity::Entity, system::SystemResult}, feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}};
+use crate::{context::{SystemContext, error::ContextError}, ecs::{entity::Entity, system::SystemResult}, feature::component::{lifecycle::Lifecycle, hierarchy::Hierarchy}, registry::component::Component};
 
 pub fn run(ctx: &mut SystemContext) -> SystemResult {
 

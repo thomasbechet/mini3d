@@ -1,26 +1,21 @@
 use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Asset, Serialize};
 
-use crate::{registry::asset::Asset, uid::UID, ecs::entity::Entity};
+use crate::ecs::entity::Entity;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct EntityPrefab {
-    components: HashMap<UID, serde_json::Value>, // True serde component serialization
+    
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Asset)]
 pub struct Prefab {
     pub(crate) entities: HashMap<Entity, EntityPrefab>,
     pub(crate) names: HashMap<String, Entity>,
 }
 
-impl Asset for Prefab {}
-
 impl Prefab {
-
-    pub const NAME: &'static str = "prefab";
-    pub const UID: UID = UID::new(Prefab::NAME);
 
     pub fn empty() -> Self {
         Self { entities: HashMap::new(), names: HashMap::new() }

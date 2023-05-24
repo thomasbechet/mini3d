@@ -1,41 +1,33 @@
 use std::any::Any;
 use std::collections::{HashMap, HashSet, hash_map};
-use std::error::Error;
-use std::fmt::{self, Display};
-use std::marker::PhantomData;
+use core::result::Result;
 
-use serde::de::{Visitor, self, DeserializeSeed};
-use serde::ser::{SerializeSeq, SerializeTuple};
-use serde::{Serialize, Deserialize, Deserializer, Serializer};
+use mini3d_derive::Error;
 
 use crate::registry::asset::{Asset, AssetRegistry};
+use crate::serialize::{Serialize, Encoder, EncoderError, Decoder, DecoderError};
 use crate::uid::UID;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum AssetError {
+    #[error("Duplicated asset entry: {name}")]
     DuplicatedAssetEntry { name: String },
+    #[error("Duplicated asset type: {uid}")]
+    DuplicatedAssetType { uid: UID },
+    #[error("Invalid asset type cast")]
     InvalidAssetTypeCast,
+    #[error("Asset not found: {uid}")]
     AssetNotFound { uid: UID },
+    #[error("Asset type not found: {uid}")]
     AssetTypeNotFound { uid: UID },
+    #[error("Bundle not found: {uid}")]
     BundleNotFound { uid: UID },
+    #[error("Duplicated bundle entry: {name}")]
     DuplicatedBundleEntry { name: String },
+    #[error("Deserialization error")]
     DeserializationError,
-}
-
-impl Error for AssetError {}
-
-impl Display for AssetError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AssetError::DuplicatedAssetEntry { name } => write!(f, "Duplicated asset entry: {}", name),
-            AssetError::InvalidAssetTypeCast => write!(f, "Invalid asset type cast"),
-            AssetError::AssetNotFound { uid } => write!(f, "Asset not found: {}", uid),
-            AssetError::AssetTypeNotFound { uid } => write!(f, "Asset type not found: {}", uid),
-            AssetError::BundleNotFound { uid } => write!(f, "Bundle not found: {}", uid),
-            AssetError::DuplicatedBundleEntry { name } => write!(f, "Duplicated bundle entry: {}", name),
-            AssetError::DeserializationError => write!(f, "Deserialization error"), 
-        }
-    }
+    #[error("Serialization error")]
+    SerializationError,
 }
 
 pub struct AssetEntry<A> {
@@ -51,34 +43,19 @@ impl<A: Asset> AssetEntry<A> {
 }
 
 impl<A: Asset> Serialize for AssetEntry<A> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer {
-        let mut tuple = serializer.serialize_tuple(2)?;
-        tuple.serialize_element(&self.name)?;
-        tuple.serialize_element(&self.asset)?;
-        tuple.end()
-    }
-}
 
-impl<'de, A: Asset> Deserialize<'de> for AssetEntry<A> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de> {
-        struct AssetEntryVisitor<A> { marker: PhantomData<A> }
-        impl<'de, A: Deserialize<'de>> Visitor<'de> for AssetEntryVisitor<A> {
-            type Value = AssetEntry<A>;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Asset entry")
-            }
-            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
-                where S: de::SeqAccess<'de> {
-                let name: String = seq.next_element()?.ok_or_else(|| de::Error::missing_field("name"))?;
-                let asset: A = seq.next_element()?.ok_or_else(|| de::Error::missing_field("asset"))?;
-                Ok(AssetEntry { name, asset, bundle: UID::from(0) })
-            }
-        }
-        deserializer.deserialize_tuple(2, AssetEntryVisitor::<A> { marker: PhantomData })
+    type Header = A::Header;
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.name.serialize(encoder)?;
+        self.asset.serialize(encoder)?;
+        Ok(())
+    }
+
+    fn deserialize(decoder: &mut impl Decoder, header: &Self::Header) -> Result<Self, DecoderError> {
+        let name = String::deserialize(decoder, &Default::default())?;
+        let asset = A::deserialize(decoder, header)?;
+        Ok(AssetEntry { name, asset, bundle: UID::default() })
     }
 }
 
@@ -96,8 +73,8 @@ pub(crate) trait AnyAssetContainer: Any {
     fn merge(&mut self, other: &mut dyn AnyAssetContainer) -> Result<(), AssetError>;
     fn collect_uids(&self) -> HashSet<UID>;
     fn clear(&mut self);
-    fn serialize_entries<'a>(&'a self, set: &'a HashSet<UID>) -> Box<dyn erased_serde::Serialize + 'a>;
-    fn deserialize_entries<'de>(&mut self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'de>) -> Result<(), AssetError>;
+    fn serialize_entries(&self, set: &HashSet<UID>, encoder: &mut dyn Encoder) -> Result<(), AssetError>;
+    fn deserialize_entries(&mut self, bundle: UID, decoder: &mut dyn Decoder) -> Result<(), AssetError>;
 }
 
 impl<A: Asset> AnyAssetContainer for AssetContainer<A> {
@@ -107,7 +84,7 @@ impl<A: Asset> AnyAssetContainer for AssetContainer<A> {
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
 
     fn merge(&mut self, other: &mut dyn AnyAssetContainer) -> Result<(), AssetError> {
-        let other: &mut AssetContainer<A> = other.as_any_mut().downcast_mut().ok_or_else(|| AssetError::InvalidAssetTypeCast)?;
+        let other: &mut AssetContainer<A> = other.as_any_mut().downcast_mut().ok_or(AssetError::InvalidAssetTypeCast)?;
         for (uid, entry) in other.0.drain() {
             if self.0.contains_key(&uid) { return Err(AssetError::DuplicatedAssetEntry { name: entry.name }); }
             self.0.insert(uid, entry);
@@ -123,51 +100,23 @@ impl<A: Asset> AnyAssetContainer for AssetContainer<A> {
         self.0.clear();
     }
 
-    fn serialize_entries<'a>(&'a self, set: &'a HashSet<UID>) -> Box<dyn erased_serde::Serialize + 'a> {
-        struct AssetRegistrySerialize<'a, A: Asset> {
-            set: &'a HashSet<UID>,
-            registry: &'a AssetContainer<A>,
+    fn serialize_entries(&self, set: &HashSet<UID>, mut encoder: &mut dyn Encoder) -> Result<(), AssetError> {
+        A::Header::default().serialize(&mut encoder).map_err(|_| AssetError::SerializationError)?;
+        encoder.write_u32(set.len() as u32).map_err(|_| AssetError::SerializationError)?;
+        for uid in set {
+            let entry = self.0.get(uid).ok_or(AssetError::AssetNotFound { uid: *uid })?;
+            entry.serialize(&mut encoder).map_err(|_| AssetError::SerializationError)?;
         }
-        impl<'a, A: Asset> Serialize for AssetRegistrySerialize<'a, A> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer
-            {
-                use serde::ser::Error;
-                let mut seq = serializer.serialize_seq(Some(self.set.len()))?;
-                for uid in self.set {
-                    let entry = self.registry.0.get(uid).ok_or_else(|| Error::custom("Entry not found"))?;
-                    seq.serialize_element(entry)?;
-                }
-                seq.end()
-            }
-        }
-        Box::new(AssetRegistrySerialize::<'a, A> { set, registry: self })
+        Ok(())
     }
 
-    fn deserialize_entries<'a>(&mut self, bundle: UID, deserializer: &mut dyn erased_serde::Deserializer<'a>) -> Result<(), AssetError> {
-        struct AssetEntryVisitor<A> { marker: PhantomData<A> }
-        impl<'de, A: Asset> Visitor<'de> for AssetEntryVisitor<A> {
-            type Value = Vec<AssetEntry<A>>;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Sequence of asset entry")
-            }
-            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
-                where S: de::SeqAccess<'de>
-            {
-                let mut entries: Self::Value = Default::default();
-                while let Some(entry) = seq.next_element::<AssetEntry<A>>()? {
-                    entries.push(entry);
-                }
-                Ok(entries)
-            }
-        }
-        // Parse entries
-        let mut entries = deserializer.deserialize_seq(AssetEntryVisitor::<A> { marker: PhantomData }).map_err(|e| AssetError::DeserializationError)?;
-        // Build the registry
-        for mut entry in entries.drain(..) {
-            let asset = UID::new(&entry.name);
+    fn deserialize_entries(&mut self, bundle: UID, mut decoder: &mut dyn Decoder) -> Result<(), AssetError> {
+        let header = A::Header::deserialize(&mut decoder, &Default::default()).map_err(|_| AssetError::DeserializationError)?;
+        let len = decoder.read_u32().map_err(|_| AssetError::DeserializationError)? as usize;
+        for _ in 0..len {
+            let mut entry = AssetEntry::<A>::deserialize(&mut decoder, &header).map_err(|_| AssetError::DeserializationError)?;
             entry.bundle = bundle;
-            self.0.insert(asset, entry);
+            self.0.insert(entry.uid(), entry);
         }
         Ok(())
     }
@@ -180,101 +129,22 @@ pub struct ImportAssetBundle {
 
 impl ImportAssetBundle {
 
-    pub(crate) fn deserialize<'a, D: Deserializer<'a>>(registry: &AssetRegistry, deserializer: D) -> Result<ImportAssetBundle, D::Error> {
-        struct ImportAssetBundleVisitor<'a> {
-            registry: &'a AssetRegistry,
-        }
-        impl<'de, 'a> Visitor<'de> for ImportAssetBundleVisitor<'a> {
-            type Value = ImportAssetBundle;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Import asset bundle")
+    pub(crate) fn deserialize(registry: &AssetRegistry, decoder: &mut impl Decoder) -> Result<ImportAssetBundle, AssetError> {
+        let name = String::deserialize(decoder, &Default::default()).map_err(|_| AssetError::DeserializationError)?;
+        let bundle = UID::new(&name);
+        let len = decoder.read_u32().map_err(|_| AssetError::DeserializationError)? as usize;
+        let mut containers: HashMap<UID, Box<dyn AnyAssetContainer>> = Default::default();
+        for _ in 0..len {
+            let asset = UID::deserialize(decoder, &()).map_err(|_| AssetError::DeserializationError)?;
+            let definition = registry.get(asset).map_err(|_| AssetError::AssetTypeNotFound { uid: asset })?;
+            let mut container = definition.reflection.create_container();
+            container.deserialize_entries(bundle, decoder)?;
+            if containers.contains_key(&asset) {
+                return Err(AssetError::DuplicatedAssetType { uid: asset });
             }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where A: de::SeqAccess<'de> 
-            {
-                struct ContainersDeserializeSeed<'a> {
-                    registry: &'a AssetRegistry,
-                    bundle: UID,
-                }
-                impl<'de, 'a> DeserializeSeed<'de> for ContainersDeserializeSeed<'a> {
-                    type Value = HashMap<UID, Box<dyn AnyAssetContainer>>;
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        struct ContainersVisitor<'a> {
-                            registry: &'a AssetRegistry,
-                            bundle: UID,
-                        }
-                        impl<'de, 'a> Visitor<'de> for ContainersVisitor<'a> {
-                            type Value = HashMap<UID, Box<dyn AnyAssetContainer>>;
-                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter.write_str("Containers")
-                            }
-                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                                where A: de::SeqAccess<'de> {
-                                struct AssetContainerDeserializeSeed<'a> {
-                                    registry: &'a AssetRegistry,
-                                    bundle: UID,
-                                }
-                                impl<'de, 'a> DeserializeSeed<'de> for AssetContainerDeserializeSeed<'a> {
-                                    type Value = (UID, Box<dyn AnyAssetContainer>);
-                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                                        where D: Deserializer<'de> {
-                                        struct AssetContainerVisitor<'a> {
-                                            registry: &'a AssetRegistry,
-                                            bundle: UID,
-                                        }
-                                        impl<'de, 'a> Visitor<'de> for AssetContainerVisitor<'a> {
-                                            type Value = (UID, Box<dyn AnyAssetContainer>);
-                                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                                formatter.write_str("Container")
-                                            }
-                                            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
-                                                where S: de::SeqAccess<'de> {
-                                                struct ContainerDeserializeSeed<'a> {
-                                                    container: &'a mut dyn AnyAssetContainer,
-                                                    bundle: UID,
-                                                }
-                                                impl<'de, 'a> DeserializeSeed<'de> for ContainerDeserializeSeed<'a> {
-                                                    type Value = ();
-                                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                                                        where D: Deserializer<'de> {
-                                                        let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-                                                        self.container.deserialize_entries(self.bundle, &mut deserializer).map_err(Error::custom)
-                                                    }
-                                                }
-                                                let asset: UID = seq.next_element()?.ok_or_else(|| Error::missing_field("uid"))?;
-                                                let definition = self.registry.get(asset).map_err(|e| Error::custom("Asset type not defined"))?;
-                                                let mut container = definition.reflection.create_container();
-                                                seq.next_element_seed(ContainerDeserializeSeed { container: container.as_mut(), bundle: self.bundle })?
-                                                    .ok_or_else(|| Error::missing_field("asset entries"))?;
-                                                Ok((asset, container))
-                                            }
-                                        }
-                                        deserializer.deserialize_tuple(2, AssetContainerVisitor { registry: self.registry, bundle: self.bundle })
-                                    }
-                                }
-                                let mut hashmap: Self::Value = Default::default();
-                                while let Some((asset, container)) = seq.next_element_seed(AssetContainerDeserializeSeed { registry: self.registry, bundle: self.bundle })? {
-                                    if hashmap.contains_key(&asset) {
-                                        return Err(Error::custom("Container already exists"));
-                                    }
-                                    hashmap.insert(asset, container);
-                                }
-                                Ok(hashmap)
-                            }
-                        }
-                        deserializer.deserialize_seq(ContainersVisitor { registry: self.registry, bundle: self.bundle })
-                    }
-                }
-                use serde::de::Error;
-                let name: String = seq.next_element()?.ok_or_else(|| Error::missing_field("name"))?;
-                let bundle: UID = name.as_str().into();
-                let containers = seq.next_element_seed(ContainersDeserializeSeed { registry: self.registry, bundle })?
-                    .ok_or_else(|| Error::missing_field("name"))?;
-                Ok(ImportAssetBundle { name, containers })
-            }
+            containers.insert(asset, container);
         }
-        deserializer.deserialize_tuple(2, ImportAssetBundleVisitor { registry })
+        Ok(ImportAssetBundle { name, containers })
     }
 }
 
@@ -301,7 +171,7 @@ impl AssetManager {
     #[inline]
     fn container<A: Asset>(&'_ self, asset: UID) -> Result<Option<&'_ AssetContainer<A>>, AssetError> {
         if let Some(container) = self.containers.get(&asset) {
-            return Ok(Some(container.as_any().downcast_ref().ok_or_else(|| AssetError::InvalidAssetTypeCast)?));
+            return Ok(Some(container.as_any().downcast_ref().ok_or(AssetError::InvalidAssetTypeCast)?));
         }
         Ok(None)
     }
@@ -309,111 +179,43 @@ impl AssetManager {
     #[inline]
     fn container_mut<A: Asset>(&'_ mut self, asset: UID) -> Result<Option<&'_ mut AssetContainer<A>>, AssetError> {
         if let Some(container) = self.containers.get_mut(&asset) {
-            return Ok(Some(container.as_any_mut().downcast_mut().ok_or_else(|| AssetError::InvalidAssetTypeCast)?));
+            return Ok(Some(container.as_any_mut().downcast_mut().ok_or(AssetError::InvalidAssetTypeCast)?));
         }
         Ok(None)
     }
 
-    pub(crate) fn save_state<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        struct BundlesSerialize<'a> {
-            manager: &'a AssetManager,
+    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u32(self.bundles.len() as u32)?;
+        for uid in self.bundles.keys() {
+            self.serialize_bundle(*uid, encoder).map_err(|_| EncoderError::Unsupported)?;
         }
-        impl<'a> Serialize for BundlesSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                struct BundleSerialize<'a> {
-                    manager: &'a AssetManager,
-                    uid: UID,
-                }
-                impl<'a> Serialize for BundleSerialize<'a> {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                        where S: Serializer {
-                        self.manager.serialize_bundle(self.uid, serializer)
-                    }
-                }
-                let mut seq = serializer.serialize_seq(Some(self.manager.bundles.len()))?;
-                for uid in self.manager.bundles.keys() {
-                    seq.serialize_element(&BundleSerialize { uid: *uid, manager: self.manager })?;
-                }
-                seq.end()
-            }
-        }
-        let mut tuple = serializer.serialize_tuple(2)?;
-        tuple.serialize_element(&BundlesSerialize { manager: self })?;
-        tuple.serialize_element(&self.defaults)?;
-        tuple.end()
-    }
-
-    pub(crate) fn load_state<'de, D: Deserializer<'de>>(&mut self, registry: &AssetRegistry, deserializer: D) -> Result<(), D::Error> {
-        struct AssetManagerVisitor<'a> {
-            registry: &'a AssetRegistry,
-            manager: &'a mut AssetManager,
-        }
-        impl<'de, 'a> Visitor<'de> for AssetManagerVisitor<'a> {
-            type Value = ();
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Asset manager")
-            }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                where A: de::SeqAccess<'de> {
-                struct BundlesDeserializeSeed<'a> {
-                    registry: &'a AssetRegistry,
-                    manager: &'a mut AssetManager,
-                }
-                impl<'de, 'a> DeserializeSeed<'de> for BundlesDeserializeSeed<'a> {
-                    type Value = ();
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                        where D: Deserializer<'de> {
-                        struct BundlesVisitor<'a> {
-                            registry: &'a AssetRegistry,
-                            manager: &'a mut AssetManager,
-                        }
-                        impl<'de, 'a> Visitor<'de> for BundlesVisitor<'a> {
-                            type Value = ();
-                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter.write_str("Bundles")
-                            }
-                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-                                where A: de::SeqAccess<'de> {
-                                use serde::de::Error;
-                                struct BundleDeserializeSeed<'a> {
-                                    registry: &'a AssetRegistry,
-                                }
-                                impl<'de, 'a> DeserializeSeed<'de> for BundleDeserializeSeed<'a> {
-                                    type Value = ImportAssetBundle;
-                                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                                        where D: Deserializer<'de> {
-                                        ImportAssetBundle::deserialize(self.registry, deserializer)
-                                    }
-                                }
-                                while let Some(import) = seq.next_element_seed(BundleDeserializeSeed {registry: self.registry })? {
-                                    self.manager.import_bundle(import).map_err(Error::custom)?;
-                                }
-                                Ok(())
-                            }
-                        }
-                        self.manager.bundles.clear();
-                        self.manager.containers.clear();
-                        self.manager.defaults.clear();
-                        deserializer.deserialize_seq(BundlesVisitor { registry: self.registry, manager: self.manager })
-                    }
-                }
-                seq.next_element_seed(BundlesDeserializeSeed { registry: self.registry, manager: self.manager })?;
-                self.manager.defaults = seq.next_element()?.expect("Expect defaults");
-                for asset in self.manager.defaults.keys() {
-                    if self.manager.containers.get(asset).is_none() {
-                        return Err(de::Error::custom("Asset type not found for default"));
-                    }
-                }
-                Ok(())
-            }
-        }
-        deserializer.deserialize_tuple(2, AssetManagerVisitor { registry, manager: self })?;
+        self.defaults.serialize(encoder)?;
         Ok(())
     }
 
-    pub(crate) fn set_default<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
-        *self.defaults.get_mut(&asset).ok_or_else(|| AssetError::AssetNotFound { uid })? = uid;
+    pub(crate) fn load_state(&mut self, registry: &AssetRegistry, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+
+        self.bundles.clear();
+        self.containers.clear();
+        self.defaults.clear();
+        
+        let bundle_count = decoder.read_u32()?;
+        for _ in 0..bundle_count {
+            let import = ImportAssetBundle::deserialize(registry, decoder).map_err(|_| DecoderError::CorruptedData)?;
+            self.import_bundle(import).map_err(|_| DecoderError::CorruptedData)?;
+        }
+        
+        self.defaults = HashMap::deserialize(decoder, &Default::default())?;
+        for asset in self.defaults.keys() {
+            if self.containers.get(asset).is_none() {
+                return Err(DecoderError::CorruptedData);
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn set_default(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
+        *self.defaults.get_mut(&asset).ok_or(AssetError::AssetNotFound { uid })? = uid;
         Ok(())
     }
 
@@ -445,41 +247,16 @@ impl AssetManager {
         Ok(uid)
     }
 
-    pub(crate) fn serialize_bundle<S: Serializer>(&self, uid: UID, serializer: S) -> Result<S::Ok, S::Error> {
-        struct BundleSerialize<'a> {
-            manager: &'a AssetManager,
-            assets: &'a HashMap<UID, HashSet<UID>>,
-        }
-        impl<'a> Serialize for BundleSerialize<'a> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where S: Serializer {
-                struct ContainerSerialize<'a> {
-                    asset: UID,
-                    container: &'a dyn AnyAssetContainer,
-                    set: &'a HashSet<UID>,
-                }
-                impl<'a> Serialize for ContainerSerialize<'a> {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                        where S: Serializer {
-                        let mut tuple = serializer.serialize_tuple(2)?;
-                        tuple.serialize_element(&self.asset)?;
-                        tuple.serialize_element(&self.container.serialize_entries(self.set))?;
-                        tuple.end()
-                    }
-                }
-                let mut seq = serializer.serialize_seq(Some(self.assets.len()))?;
-                for (asset, set) in self.assets {
-                    let container = self.manager.containers.get(asset).unwrap();
-                    seq.serialize_element(&ContainerSerialize { asset: *asset, container: container.as_ref(), set })?;
-                }
-                seq.end()
-            }
-        }
+    pub(crate) fn serialize_bundle(&self, uid: UID, encoder: &mut impl Encoder) -> Result<(), AssetError> {
         let bundle = self.bundles.get(&uid).expect("Bundle not found");
-        let mut tuple = serializer.serialize_tuple(2)?;
-        tuple.serialize_element(&bundle.name)?;
-        tuple.serialize_element(&BundleSerialize { manager: self, assets: &bundle.assets })?;
-        tuple.end()
+        bundle.name.serialize(encoder).map_err(|_| AssetError::SerializationError)?;
+        encoder.write_u32(bundle.assets.len() as u32).map_err(|_| AssetError::SerializationError)?;
+        for (asset, set) in &bundle.assets {
+            asset.serialize(encoder).map_err(|_| AssetError::SerializationError)?;
+            let container = self.containers.get(asset).unwrap();
+            container.serialize_entries(set, encoder)?;
+        }
+        Ok(())
     }
 
     pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<(), AssetError> {
@@ -510,7 +287,7 @@ impl AssetManager {
             },
         };
         // Downcast the container
-        let container = container.as_any_mut().downcast_mut::<AssetContainer<A>>().ok_or_else(|| AssetError::InvalidAssetTypeCast)?;
+        let container = container.as_any_mut().downcast_mut::<AssetContainer<A>>().ok_or(AssetError::InvalidAssetTypeCast)?;
         // Check if asset already exists
         let uid = UID::new(name);
         if container.0.contains_key(&uid) { return Err(AssetError::DuplicatedAssetEntry { name: name.to_owned() }); }
@@ -525,8 +302,8 @@ impl AssetManager {
 
     pub(crate) fn remove<A: Asset>(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
         // Get the container
-        let container = self.containers.get_mut(&asset).ok_or_else(|| AssetError::AssetTypeNotFound { uid: asset })?
-            .as_any_mut().downcast_mut::<AssetContainer<A>>().ok_or_else(|| AssetError::InvalidAssetTypeCast)?;
+        let container = self.containers.get_mut(&asset).ok_or(AssetError::AssetTypeNotFound { uid: asset })?
+            .as_any_mut().downcast_mut::<AssetContainer<A>>().ok_or(AssetError::InvalidAssetTypeCast)?;
         // Remove the asset
         if let Some(entry) = container.0.remove(&uid) {
             self.bundles.get_mut(&entry.bundle).expect("Bundle not found")
@@ -539,12 +316,12 @@ impl AssetManager {
     }
 
     pub(crate) fn transfer<A: Asset>(&mut self, asset: UID, uid: UID, dst_bundle: UID) -> Result<(), AssetError> {
-        let src_bundle = self.container::<A>(asset)?.ok_or_else(|| AssetError::AssetTypeNotFound { uid: asset })?
-            .0.get(&uid).ok_or_else(|| AssetError::AssetNotFound { uid })?.bundle;
+        let src_bundle = self.container::<A>(asset)?.ok_or(AssetError::AssetTypeNotFound { uid: asset })?
+            .0.get(&uid).ok_or(AssetError::AssetNotFound { uid })?.bundle;
         if !self.bundles.contains_key(&dst_bundle) { return Err(AssetError::BundleNotFound { uid: dst_bundle }); }
         if src_bundle == dst_bundle { return Ok(()); }
-        self.bundles.get_mut(&src_bundle).ok_or_else(|| AssetError::BundleNotFound { uid: src_bundle })?
-            .assets.get_mut(&asset).ok_or_else(|| AssetError::AssetNotFound { uid })?
+        self.bundles.get_mut(&src_bundle).ok_or(AssetError::BundleNotFound { uid: src_bundle })?
+            .assets.get_mut(&asset).ok_or(AssetError::AssetNotFound { uid })?
             .remove(&uid);
         self.bundles.get_mut(&dst_bundle)
             .unwrap().assets.entry(asset).or_insert_with(Default::default).insert(uid);

@@ -1,22 +1,15 @@
 use glam::{Mat4, Vec3, Quat};
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{uid::UID, registry::component::{Component, EntityResolver, ComponentDefinition}};
-
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Component)]
+#[component(name = "transform")]
 pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: Vec3,
 }
 
-impl Component for Transform {}
-
 impl Transform {
-
-    pub const NAME: &'static str = "transform";
-    pub const UID: UID = UID::new(Transform::NAME);
 
     pub fn from_translation(translation: Vec3) -> Self {
         Self {

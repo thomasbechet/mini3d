@@ -1,13 +1,13 @@
-use std::{collections::HashMap, error::Error, fmt::Display};
+use std::collections::HashMap;
 
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Serialize, Error};
 
 use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, user::InteractionMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::{button::UIButton, checkbox::UICheckBox, label::UILabel, slider::UISlider, sprite::UISprite, Widget, textbox::UITextBox, viewport::UIViewport};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub(crate) enum WidgetVariant {
     Button(UIButton),
     Checkbox(UICheckBox),
@@ -70,7 +70,7 @@ impl Widget for WidgetVariant {
     fn is_selectable(&self) -> bool { true }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize)]
 pub struct Navigation {
     pub up: Option<UID>,
     pub down: Option<UID>,
@@ -89,7 +89,7 @@ impl Navigation {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 struct WidgetEntry {
     name: String,
     z_index: i32,
@@ -97,22 +97,13 @@ struct WidgetEntry {
     widget: WidgetVariant,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum UILayoutError {
+    #[error("Widget not found: {uid}")]
     WidgetNotFound { uid: UID },
 }
 
-impl Error for UILayoutError {}
-
-impl Display for UILayoutError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UILayoutError::WidgetNotFound { uid } => write!(f, "Widget not found: {}", uid),
-        }
-    }
-}
-
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize)]
 pub struct UILayout {
     widgets: HashMap<UID, WidgetEntry>,
     default_target: Option<UID>,
@@ -196,7 +187,7 @@ impl UILayout {
     }
 
     pub fn set_navigation(&mut self, widget: UID, navigation: Navigation) -> Result<(), UILayoutError> {
-        self.widgets.get_mut(&widget).ok_or_else(|| UILayoutError::WidgetNotFound { uid: widget })?.navigation = navigation;
+        self.widgets.get_mut(&widget).ok_or(UILayoutError::WidgetNotFound { uid: widget })?.navigation = navigation;
         Ok(())
     }
 }

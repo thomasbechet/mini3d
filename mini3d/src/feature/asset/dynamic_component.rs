@@ -1,9 +1,6 @@
-use glam::{Vec2, Vec3, Vec4, Quat};
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
-use crate::ecs::entity::Entity;
-
-#[derive(Serialize, Deserialize, Clone, Hash)]
+#[derive(Serialize, Clone, Hash)]
 pub enum FieldType {
     String,
     Integer,
@@ -17,7 +14,7 @@ pub enum FieldType {
 }
 
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct DynamicComponent {
 
 }

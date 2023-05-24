@@ -1,6 +1,6 @@
 use glam::{Quat, Vec3};
 
-use crate::{feature::component::{rotator::Rotator, transform::Transform}, context::SystemContext, ecs::system::SystemResult};
+use crate::{feature::component::{rotator::Rotator, transform::Transform}, context::SystemContext, ecs::system::SystemResult, registry::component::Component};
 
 pub fn run(ctx: &mut SystemContext) -> SystemResult {
     let world = ctx.world.active();

@@ -1,10 +1,10 @@
-use std::{collections::HashSet, error::Error, fmt::Display};
+use std::collections::HashSet;
 
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Serialize, Asset, Error};
 
-use crate::{uid::UID, registry::asset::Asset};
+use crate::uid::UID;
 
-#[derive(Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Serialize)]
 pub enum InputAxisRange {
     Clamped { min: f32, max: f32 },
     Normalized { norm: f32 },
@@ -13,7 +13,7 @@ pub enum InputAxisRange {
     Infinite,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 pub struct InputAxis {
     pub name: String,
     pub display_name: String,
@@ -28,7 +28,7 @@ impl InputAxis {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 pub struct InputAction {
     pub name: String,
     pub display_name: String,
@@ -42,7 +42,7 @@ impl InputAction {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Asset)]
 pub struct InputTable {
     pub name: String,
     pub display_name: String,
@@ -51,11 +51,7 @@ pub struct InputTable {
     pub axis: Vec<InputAxis>,
 }
 
-impl Asset for InputTable {}
-
 impl InputTable {
-    pub const NAME: &'static str = "input_table";
-    pub const UID: UID = UID::new(InputTable::NAME);
 
     pub fn validate(&self) -> Result<(), InputTableValidationError> {
         let mut unique = HashSet::new();
@@ -74,19 +70,10 @@ impl InputTable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum InputTableValidationError {
+    #[error("Duplicated action")]
     DuplicatedAction,
+    #[error("Duplicated axis")]
     DuplicatedAxis,
-}
-
-impl Error for InputTableValidationError {}
-
-impl Display for InputTableValidationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InputTableValidationError::DuplicatedAction => write!(f, "Duplicated action"),
-            InputTableValidationError::DuplicatedAxis => write!(f, "Duplicated axis"),
-        }
-    }
 }

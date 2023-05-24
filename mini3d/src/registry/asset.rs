@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize};
-
-use crate::{uid::UID, asset::{AnyAssetContainer, AssetContainer}};
+use crate::{uid::UID, asset::{AnyAssetContainer, AssetContainer}, serialize::Serialize};
 
 use super::error::RegistryError;
 
-pub trait Asset: Serialize + for<'de> Deserialize<'de> + 'static {}
+pub trait Asset: Sized + Serialize + 'static {
+    const NAME: &'static str;
+    const UID: UID = UID::new(Self::NAME);
+}
 
 pub(crate) trait AnyAssetDefinitionReflection {
     fn create_container(&self) -> Box<dyn AnyAssetContainer>;
@@ -18,7 +19,7 @@ pub(crate) struct AssetDefinitionReflection<A: Asset> {
 
 impl<A: Asset> AnyAssetDefinitionReflection for AssetDefinitionReflection<A> {
     fn create_container(&self) -> Box<dyn AnyAssetContainer> {
-        Box::new(AssetContainer::<A>::default())
+        Box::<AssetContainer<A>>::default()
     }
 }
 
@@ -49,6 +50,6 @@ impl AssetRegistry {
     // TODO: support dynamic assets ???
 
     pub(crate) fn get(&self, uid: UID) -> Result<&AssetDefinition, RegistryError> {
-        self.assets.get(&uid).ok_or_else(|| RegistryError::AssetDefinitionNotFound { uid })
+        self.assets.get(&uid).ok_or(RegistryError::AssetDefinitionNotFound { uid })
     }
 }

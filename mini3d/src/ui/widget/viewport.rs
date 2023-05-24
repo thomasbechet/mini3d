@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{renderer::graphics::Graphics, uid::UID, ecs::entity::Entity, math::rect::IRect, ui::event::{EventContext, Event}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UIViewport {
     pub position: IVec2,
     pub world: UID,

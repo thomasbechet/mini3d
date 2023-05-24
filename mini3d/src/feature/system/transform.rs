@@ -1,6 +1,6 @@
 use glam::Mat4;
 
-use crate::{feature::component::{local_to_world::LocalToWorld, hierarchy::Hierarchy, transform::Transform}, ecs::{entity::Entity, view::{ComponentViewRef, ComponentViewMut, ComponentView}, system::SystemResult}, context::SystemContext};
+use crate::{feature::component::{local_to_world::LocalToWorld, hierarchy::Hierarchy, transform::Transform}, ecs::{entity::Entity, view::{ComponentViewRef, ComponentViewMut, ComponentView}, system::SystemResult}, context::SystemContext, registry::component::Component};
 
 pub fn recursive_propagate(
     entity: Entity, 

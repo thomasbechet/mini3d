@@ -1,51 +1,35 @@
-use std::{error::Error, fmt::Display, num::{ParseIntError, ParseFloatError}};
+use std::num::{ParseIntError, ParseFloatError};
+
+use mini3d_derive::Error;
 
 use super::lexer::TokenKind;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LexerError {
+    #[error("Unterminated string")]
     UnterminatedString,
+    #[error("Malformed number")]
     MalformedNumber,
+    #[error("Invalid character: {c}")]
     InvalidCharacter { c: char },
 }
 
-impl Error for LexerError {}
-
-impl Display for LexerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UnterminatedString => write!(f, "Unterminated string"),
-            Self::MalformedNumber => write!(f, "Malformed number"),
-            Self::InvalidCharacter { c } => write!(f, "Invalid character: {}", c),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ParserError {
+    #[error("Lexer error: {0}")]
     Lexer(LexerError),
+    #[error("Unexpected token: expected {expected:?}, got {got:?}")]
     UnexpectedToken { expected: TokenKind, got: TokenKind },
+    #[error("Invalid atom expression: got {got:?}")]
     InvalidAtomExpression { got: TokenKind },
+    #[error("Integer parse error: {0}")]
     IntegerParseError(ParseIntError),
+    #[error("Float parse error: {0}")]
     FloatParseError(ParseFloatError),
+    #[error("Unexpected binary operator")]
     UnexpectedBinaryOperator,
+    #[error("Unexpected import statement")]
     UnexpectedImportStatement,
+    #[error("Identifier as statement")]
     IdentifierAsStatement,
-}
-
-impl Error for ParserError {}
-
-impl Display for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Lexer(error) => write!(f, "Lexer error: {}", error),
-            Self::UnexpectedToken { expected, got } => write!(f, "Unexpected token: expected {:?}, got {:?}", expected, got),
-            Self::InvalidAtomExpression { got } => write!(f, "Invalid atom expression: got {:?}", got),
-            Self::IntegerParseError(error) => write!(f, "Integer parse error: {}", error),
-            Self::FloatParseError(error) => write!(f, "Float parse error: {}", error),
-            Self::UnexpectedBinaryOperator => write!(f, "Unexpected binary operator"),
-            Self::UnexpectedImportStatement => write!(f, "Unexpected import statement"),
-            Self::IdentifierAsStatement => write!(f, "Identifier as statement"),
-        }
-    }
 }

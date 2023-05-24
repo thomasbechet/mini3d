@@ -1,30 +1,21 @@
-use std::{collections::{BTreeMap}, error::Error, fmt::Display};
+use std::collections::BTreeMap;
 
 use glam::{Vec2, Vec3, Vec4, Quat};
-use serde::{Serialize, Deserialize};
+use mini3d_derive::{Error, Component, Serialize};
 
-use crate::{registry::component::{Component, EntityResolver}, uid::UID};
+use crate::uid::UID;
 
-use super::{entity::Entity, error::ECSError};
+use super::entity::Entity;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum MemberAccessError {
+    #[error("Member not found")]
     NotFound,
+    #[error("Wrong type")]
     WrongType,
 }
 
-impl Error for MemberAccessError {}
-
-impl Display for MemberAccessError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MemberAccessError::NotFound => write!(f, "Member not found"),
-            MemberAccessError::WrongType => write!(f, "Wrong type"),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Value {
     Null(()),
     Boolean(bool),
@@ -39,7 +30,7 @@ pub enum Value {
     Object(Box<Vec<UID>>),
 }
 
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Clone, Component)]
 pub struct DynamicComponent {
     values: BTreeMap<UID, (String, Value)>,
 }
@@ -96,11 +87,11 @@ impl DynamicComponent {
     }
 
     pub fn get_value(&self, uid: UID) -> Result<&Value, MemberAccessError> {
-        Ok(&self.values.get(&uid).ok_or_else(|| MemberAccessError::NotFound)?.1)
+        Ok(&self.values.get(&uid).ok_or(MemberAccessError::NotFound)?.1)
     }
 
     pub fn list_keys_uid(&self, uid: UID) -> Result<impl Iterator<Item = &str>, MemberAccessError> {
-        if let (_, Value::Object(childs)) = self.values.get(&uid).ok_or_else(|| MemberAccessError::NotFound)? {
+        if let (_, Value::Object(childs)) = self.values.get(&uid).ok_or(MemberAccessError::NotFound)? {
             Ok(childs.iter().map(|uid| self.values.get(uid).unwrap().0.as_str()))
         } else {
             Err(MemberAccessError::WrongType)
@@ -168,6 +159,6 @@ impl DynamicComponent {
     }
 }
 
-impl Component for DynamicComponent {
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> { Ok(()) }
-}
+// impl Component for DynamicComponent {
+//     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> { Ok(()) }
+// }

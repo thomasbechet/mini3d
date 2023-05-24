@@ -1,11 +1,5 @@
-use std::{any::Any, marker::PhantomData, fmt};
-
-use serde::{de::{Visitor, self}, Deserializer, Serializer, ser::SerializeTuple};
-
-use crate::{registry::component::Component};
-
-use std::cell::RefCell;
-
+use crate::{registry::component::Component, serialize::{EncoderError, Serialize, Encoder, Decoder, DecoderError}};
+use core::{any::Any, cell::RefCell};
 use super::{entity::Entity, sparse::PagedVector, reference::{ComponentRef, ComponentMut}, error::ECSError};
 
 pub(crate) struct ComponentContainer<C: Component> {
@@ -15,39 +9,6 @@ pub(crate) struct ComponentContainer<C: Component> {
 }
 
 impl<C: Component> ComponentContainer<C> {
-
-    pub(crate) fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut seq = serializer.serialize_tuple(2)?;
-        seq.serialize_element(&self.entities)?;
-        seq.serialize_element(&self.components)?;
-        seq.end()
-    }
-
-    pub(crate) fn deserialize<'a, D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
-        struct ContainerVisitor<C: Component> { marker: PhantomData<C> }
-        impl<'de, C: Component> Visitor<'de> for ContainerVisitor<C> {
-            type Value = ComponentContainer<C>;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Component container")
-            }
-            fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error>
-                where S: de::SeqAccess<'de> {
-                use serde::de::Error;
-                let entities: Vec<Entity> = seq.next_element()?.ok_or_else(|| Error::custom("Expect entities"))?;
-                let components: Vec<C> = seq.next_element()?.ok_or_else(|| Error::custom("Expect components"))?;
-                let mut container = ComponentContainer::<C> {
-                    components: RefCell::new(components),
-                    entities,
-                    indices: PagedVector::new(),
-                };
-                for (index, entity) in container.entities.iter().enumerate() {
-                    container.indices.set(entity.key(), index);
-                }
-                Ok(container)
-            }
-        }
-        deserializer.deserialize_tuple(2, ContainerVisitor::<C> { marker: PhantomData })
-    }
 
     pub(crate) fn new() -> Self {
         Self {
@@ -104,6 +65,47 @@ impl<C: Component> ComponentContainer<C> {
             }
         })
     }
+
+    pub(crate) fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        // Write header
+        C::Header::default().serialize(encoder)?;
+        // Write entity count
+        encoder.write_u32(self.entities.len() as u32)?;
+        // Write components
+        for component in self.components.borrow().iter() {
+            component.serialize(encoder)?;
+        }
+        // Write entities
+        for entity in self.entities.iter() {
+            encoder.write_u32(entity.key())?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn deserialize(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+        // Reset container
+        let mut components = self.components.borrow_mut();
+        components.clear();
+        self.entities.clear();
+        // Read header
+        let header = C::Header::deserialize(decoder, &Default::default())?;
+        // Read entity count
+        let count = decoder.read_u32()?;
+        // Read components
+        for _ in 0..count {
+            let component = C::deserialize(decoder, &header)?;
+            components.push(component);
+        }
+        // Read entities
+        for _ in 0..count {
+            self.entities.push(Entity(decoder.read_u32()?));
+        }
+        // Update indices
+        for (index, entity) in self.entities.iter().enumerate() {
+            self.indices.set(entity.key(), index);
+        }
+        Ok(())
+    }
 }
 
 pub(crate) trait AnyComponentContainer {
@@ -113,7 +115,8 @@ pub(crate) trait AnyComponentContainer {
     fn contains(&self, entity: Entity) -> bool;
     fn len(&self) -> usize;
     fn remove(&mut self, entity: Entity);
-    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<(), ECSError>;
+    fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
+    fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
 }
 
 impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
@@ -129,5 +132,6 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     }
     fn len(&self) -> usize { self.len() }
     fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }
-    fn patch(&mut self, entity: Entity, value: serde_json::Value) -> Result<(), ECSError> { self.patch(entity, value) }
+    fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> { self.serialize(&mut encoder) }
+    fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> { self.deserialize(&mut decoder) }
 }

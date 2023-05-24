@@ -1,76 +1,49 @@
-use std::{error::Error, fmt::Display};
+use mini3d_derive::Error;
 
 use crate::{uid::UID, registry::error::RegistryError};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ECSError {
+    #[error("System not found: {uid}")]
     SystemNotFound { uid: UID },
+    #[error("Container already borrowed mutably")]
     ContainerBorrowMut,
+    #[error("System error")]
     SystemError,
+    #[error("Registry error")]
     RegistryError,
 }
 
-impl Error for ECSError {}
-
-impl Display for ECSError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ECSError::SystemNotFound { uid } => write!(f, "System not found: {}", uid),
-            ECSError::ContainerBorrowMut => write!(f, "Container already borrowed mutably"),
-            ECSError::SystemError => write!(f, "System error"),
-            ECSError::RegistryError => write!(f, "Registry error"),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SchedulerError {
+    #[error("Group not found: {uid}")]
     GroupNotFound { uid: UID },
+    #[error("Duplicated group: {name}")]
     DuplicatedGroup { name: String },
 }
 
-impl Error for SchedulerError {}
-
-impl Display for SchedulerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SchedulerError::GroupNotFound { uid } => write!(f, "Group not found: {}", uid),
-            SchedulerError::DuplicatedGroup { name } => write!(f, "Duplicated group: {}", name),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum WorldError {
+    #[error("Registry error: {0}")]
     Registry(RegistryError),
+    #[error("Duplicated world: {name}")]
     DuplicatedWorld { name: String },
+    #[error("World not found: {uid}")]
     WorldNotFound { uid: UID },
+    #[error("Change to removed world: {uid}")]
     ChangeToRemovedWorld { uid: UID },
+    #[error("Remove and change same world: {uid}")]
     RemoveAndChangeSameWorld { uid: UID },
+    #[error("Component container not found: {uid}")]
     ComponentContainerNotFound { uid: UID },
+    #[error("Component type mismatch: {uid}")]
     ComponentTypeMismatch { uid: UID },
+    #[error("Singleton type mismatch: {uid}")]
     SingletonTypeMismatch { uid: UID },
+    #[error("Singleton not found: {uid}")]
     SingletonNotFound { uid: UID },
+    #[error("Duplicated singleton: {uid}")]
     DuplicatedSingleton { uid: UID },
+    #[error("Container already borrowed mutably")]
     ContainerBorrowMut,
-}
-
-impl Error for WorldError {}
-
-impl Display for WorldError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WorldError::Registry(err) => write!(f, "Registry error: {}", err),
-            WorldError::DuplicatedWorld { name } => write!(f, "Duplicated world: {}", name),
-            WorldError::WorldNotFound { uid } => write!(f, "World not found: {}", uid),
-            WorldError::ChangeToRemovedWorld { uid } => write!(f, "Change to removed world: {}", uid),
-            WorldError::RemoveAndChangeSameWorld { uid } => write!(f, "Remove and change same world: {}", uid),
-            WorldError::ComponentContainerNotFound { uid } => write!(f, "Component container not found: {}", uid),
-            WorldError::ComponentTypeMismatch { uid } => write!(f, "Component type mismatch: {}", uid),
-            WorldError::SingletonTypeMismatch { uid } => write!(f, "Singleton type mismatch: {}", uid),
-            WorldError::SingletonNotFound { uid } => write!(f, "Singleton not found: {}", uid),
-            WorldError::DuplicatedSingleton { uid } => write!(f, "Duplicated singleton: {}", uid),
-            WorldError::ContainerBorrowMut => write!(f, "Container already borrowed mutably"),
-        }
-    }
 }

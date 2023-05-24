@@ -1,18 +1,9 @@
-use std::{error::Error, fmt::Display};
+use mini3d_derive::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum DiskBackendError {
+    #[error("Unknown error")]
     Unknown,
-}
-
-impl Error for DiskBackendError {}
-
-impl Display for DiskBackendError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DiskBackendError::Unknown => write!(f, "Unknown error"),
-        }
-    }
 }
 
 #[allow(unused_variables)]

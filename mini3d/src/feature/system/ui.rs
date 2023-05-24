@@ -1,4 +1,4 @@
-use crate::{context::SystemContext, feature::component::{ui::{UIRenderTarget, UI}, canvas::Canvas}, ecs::system::SystemResult};
+use crate::{context::SystemContext, feature::component::{ui::{UIRenderTarget, UI}, canvas::Canvas}, ecs::system::SystemResult, registry::component::Component};
 
 pub fn update(ctx: &mut SystemContext) -> SystemResult {
     let world = ctx.world.active();
@@ -25,7 +25,7 @@ pub fn render(ctx: &mut SystemContext) -> SystemResult {
                 ui.render(ctx.renderer.graphics(), offset, ctx.time.global())?;
             },
             UIRenderTarget::Canvas { offset, canvas } => {
-                let canvas = canvases.get_mut(canvas).ok_or_else(|| "Canvas entity not found")?;
+                let canvas = canvases.get_mut(canvas).ok_or("Canvas entity not found")?;
                 ui.render(&mut canvas.graphics, offset, ctx.time.global())?;
             },
             UIRenderTarget::Texture { offset: _, texture: _ } => {},

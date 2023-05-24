@@ -1,11 +1,11 @@
 use glam::IVec2;
-use serde::{Serialize, Deserialize};
+use mini3d_derive::Serialize;
 
 use crate::{uid::UID, renderer::{color::Color, graphics::{Graphics, TextureWrapMode}}, math::rect::IRect, ui::event::{Event, EventContext}, feature::asset::ui_stylesheet::UIStyleSheet};
 
 use super::Widget;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UISprite {
     texture: UID,
     color: Color,

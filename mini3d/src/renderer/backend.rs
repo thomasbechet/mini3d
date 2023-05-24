@@ -1,28 +1,18 @@
-use std::{error::Error, fmt::Display};
-
 use glam::{Mat4, Vec3, IVec2, UVec2};
+use mini3d_derive::Error;
 
 use crate::{uid::UID, feature::asset::{texture::Texture, mesh::Mesh}, math::rect::IRect};
 
 use super::{RendererStatistics, color::Color, graphics::TextureWrapMode};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RendererBackendError {
+    #[error("Resource not found")]
     ResourceNotFound,
+    #[error("Invalid material index")]
     InvalidMatrialIndex,
+    #[error("Max resources reached")]
     MaxResourcesReached,
-}
-
-impl Error for RendererBackendError {}
-
-impl Display for RendererBackendError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RendererBackendError::ResourceNotFound => write!(f, "Resource not found"),
-            RendererBackendError::InvalidMatrialIndex => write!(f, "Invalid material index"),
-            RendererBackendError::MaxResourcesReached => write!(f, "Max resources reached"),
-        }
-    }
 }
 
 macro_rules! define_handle {

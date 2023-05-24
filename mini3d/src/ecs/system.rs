@@ -1,7 +1,17 @@
-use std::error::Error;
+use core::fmt::Display;
 
 use crate::context::SystemContext;
 
-pub type SystemResult = Result<(), Box<dyn Error>>;
+pub trait SystemError: Display {}
+
+pub type SystemResult = Result<(), Box<dyn SystemError>>;
 
 pub type SystemCallback = fn(&mut SystemContext) -> SystemResult;
+
+impl SystemError for &str {}
+impl SystemError for String {}
+impl From<&str> for Box<dyn SystemError> {
+    fn from(error: &str) -> Self {
+        Box::new(error.to_string())
+    }
+}

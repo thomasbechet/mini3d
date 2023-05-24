@@ -2,10 +2,12 @@ use std::{time::{SystemTime, Instant}, path::Path, fs::File, io::{Read, Write}};
 
 use gui::{WindowGUI, WindowControl};
 use mapper::InputMapper;
-use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::script::Script};
+use mini3d::{event::{Events, system::SystemEvent, input::{InputEvent, InputTextEvent}, asset::{ImportAssetEvent, AssetImportEntry}}, engine::Engine, glam::Vec2, renderer::SCREEN_RESOLUTION, feature::asset::script::Script, serialize::{SliceDecoder, Serialize}};
+use mini3d_derive::Serialize;
 use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
+// use serde::Serialize;
 use utils::{compute_fixed_viewport, ViewportMode};
 use virtual_disk::VirtualDisk;
 use window::Window;
@@ -313,10 +315,8 @@ fn main_run() {
 
                     {
                         let mut file = File::create("assets/state.bin").unwrap();
-                        let mut bytes: Vec<u8> = Default::default();
-                        let mut bincode_serializer = bincode::Serializer::new(&mut bytes, bincode::options());
-                        engine.save_state(&mut bincode_serializer).expect("Failed to serialize");
-                        bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
+                        let bytes = engine.save_state().unwrap();
+                        let bytes = miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 10);
                         file.write_all(&bytes).unwrap();
                     }
                     
@@ -351,8 +351,8 @@ fn main_run() {
                         let mut bytes: Vec<u8> = Default::default();
                         file.read_to_end(&mut bytes).expect("Failed to read to end");
                         let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
-                        let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-                        engine.load_state(&mut deserializer).expect("Failed to load state");
+                        let mut decoder = SliceDecoder::new(&bytes);
+                        engine.load_state(&mut decoder).expect("Failed to load state");
                     }
 
                     // {
@@ -394,7 +394,33 @@ fn main_run() {
     });
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+struct Test {
+    a: i32,
+    // #[serialize(skip)]
+    b: i32,
+}
+
 fn main() {
+    // {
+    //     {
+    //         let mut file = File::create("assets/state.bin").unwrap();
+    //         let mut bytes = Vec::new();
+    //         let vec = vec![Test {a: 1, b: 2}, Test {a: 3, b: 4}];
+    //         <Test as mini3d::serialize::Serialize>::Header::default().serialize(&mut bytes).unwrap();
+    //         vec.serialize(&mut bytes).unwrap();
+    //         file.write_all(&bytes).unwrap();
+    //     }
+    //     {
+    //         let mut file = File::open("assets/state.bin").expect("Failed to open file");
+    //         let mut bytes: Vec<u8> = Default::default();
+    //         file.read_to_end(&mut bytes).expect("Failed to read to end");
+    //         let mut decoder = SliceDecoder::new(&bytes);
+    //         let header = <Test as mini3d::serialize::Serialize>::Header::deserialize(&mut decoder, &Default::default()).unwrap();
+    //         let vec = Vec::<Test>::deserialize(&mut decoder, &header).unwrap();
+    //         println!("{:?}", vec);
+    //     }
+    // }
     main_run();
     // 2 * 4 + 1 * 5
     // let program = Program::empty()

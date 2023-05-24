@@ -1,26 +1,18 @@
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+use mini3d_derive::Component;
 
-use crate::{uid::UID, renderer::backend::SceneModelHandle, registry::component::{Component, EntityResolver, ComponentDefinition}};
+use crate::{uid::UID, renderer::backend::SceneModelHandle};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Component)]
 pub struct StaticMesh {
     pub model: UID,
-    #[serde(skip)]
+    #[serialize(skip)]
     pub changed: bool,
-    #[serde(skip)]
+    #[serialize(skip)]
     pub(crate) handle: Option<SceneModelHandle>,
 }
-
-impl Component for StaticMesh {}
 
 impl StaticMesh {
     pub fn new(model: UID) -> Self {
         Self { model, changed: false, handle: None }
     }
-}
-
-impl StaticMesh {
-    pub const NAME: &'static str = "static_mesh";
-    pub const UID: UID = UID::new(StaticMesh::NAME);
 }
