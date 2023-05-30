@@ -1,6 +1,6 @@
 import 'myscript' as myscript
 
-function add(a: int, b: float): int
+export function add(a: int, b: float): int
     return a + int(b)
 end
 

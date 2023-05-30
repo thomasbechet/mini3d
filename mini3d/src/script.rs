@@ -1,5 +1,4 @@
-pub mod backend;
-pub mod frontend;
+pub mod compiler;
 pub mod interpreter;
 
 #[derive(Default)]

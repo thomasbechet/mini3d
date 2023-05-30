@@ -1,6 +1,9 @@
-use super::lexer::TokenKind;
+use super::{
+    symbol::{BlockId, SymbolId},
+    token::{Span, TokenKind},
+};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BinaryOperator {
     Addition,
     Subtraction,
@@ -37,22 +40,30 @@ impl From<TokenKind> for BinaryOperator {
 }
 
 impl BinaryOperator {
-
     pub fn precedence(&self) -> u32 {
         match self {
             Self::Addition | Self::Subtraction => 1,
             Self::Multiplication | Self::Division => 2,
-            Self::Equal | Self::NotEqual | Self::LessEqual | Self::GreaterEqual | 
-            Self::Less | Self::Greater | Self::And | Self::Or => 3,
+            Self::Equal
+            | Self::NotEqual
+            | Self::LessEqual
+            | Self::GreaterEqual
+            | Self::Less
+            | Self::Greater
+            | Self::And
+            | Self::Or => 3,
         }
     }
 
     pub fn is_left_associative(&self) -> bool {
-        matches!(self, Self::Addition | Self::Subtraction | Self::Multiplication | Self::Division)
+        matches!(
+            self,
+            Self::Addition | Self::Subtraction | Self::Multiplication | Self::Division
+        )
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UnaryOperator {
     Minus,
     Not,
@@ -68,65 +79,64 @@ impl From<TokenKind> for UnaryOperator {
     }
 }
 
-#[derive(Debug)]
-pub enum Literal<'a> {
+#[derive(Debug, PartialEq)]
+pub enum Literal {
     Integer(i32),
     Float(f32),
-    String(&'a str),
+    String(Span),
     Boolean(bool),
     Nil,
 }
 
-#[derive(Debug)]
-pub enum ASTPrimitive {
-    Boolean,
-    Integer,
-    Float,
-    String,
-    Entity,
-    Object,
-}
-
-impl ASTPrimitive {
-
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "bool" => Some(Self::Boolean),
-            "int" => Some(Self::Integer),
-            "float" => Some(Self::Float),
-            "string" => Some(Self::String),
-            "entity" => Some(Self::Entity),
-            "object" => Some(Self::Object),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ASTNode<'a> {
+#[derive(Debug, PartialEq)]
+pub enum ASTNode {
     Program,
-    Import { path: &'a str, identifier: &'a str, },
+    Import {
+        path: Span,
+        symbol: SymbolId,
+    },
     CompoundStatement, // STMT-0, STMT-1, STMT-2, ...
-    Literal(Literal<'a>),
-    Identifier(&'a str),
-    MemberLookup(&'a str), // PARENT-0
+    Literal(Literal),
+    Identifier {
+        span: Span,
+        symbol: SymbolId,
+    },
+    MemberLookup {
+        span: Span,
+    }, // PARENT-0
     ReturnStatement, // EXPR
-    IfStatement, // CONDITION-0, BODY-0, CONDITION-1, BODY-1, ...
+    IfStatement,     // CONDITION-0, BODY-0, CONDITION-1, BODY-1, ...
     IfBody,
     ForStatement, // IDENTIFIER-0, GENERATOR-0, BODY-0
     ForBody,
-    CommentStatement(&'a str),
-    FunctionDeclaration { identifier: &'a str, return_type: Option<ASTPrimitive>, }, // ARG-0, ARG-1, ..., COMPOUNT-STMT
-    FunctionArgument { identifier: &'a str, arg_type: Option<ASTPrimitive>, },
-    VariableDeclaration { identifier: &'a str, var_type: Option<ASTPrimitive>, }, // EXPR
+    CommentStatement {
+        span: Span,
+    },
+    FunctionDeclaration {
+        span: Span,
+        symbol: SymbolId,
+        function_block: BlockId,
+    }, // ARG-0, ARG-1, ..., COMPOUNT-STMT
+    FunctionArgument {
+        span: Span,
+        symbol: SymbolId,
+    },
+    VariableDeclaration {
+        span: Span,
+        symbol: SymbolId,
+    }, // EXPR
+    ConstantDeclaration {
+        span: Span,
+        symbol: SymbolId,
+    }, // EXPR (const)
     Call,
-    Assignment, // IDENTIFIER-0, EXPR-0
+    Assignment,                     // IDENTIFIER-0, EXPR-0
     BinaryOperator(BinaryOperator), // LEFT-EXPR-0, RIGHT-EXPR-1
-    UnaryOperator(UnaryOperator), // EXPR
+    UnaryOperator(UnaryOperator),   // EXPR
 }
 
-pub struct ASTEntry<'a> {
-    pub(crate) node: ASTNode<'a>,
+pub struct ASTEntry {
+    pub(crate) node: ASTNode,
     pub(crate) parent: Option<ASTNodeId>,
     pub(crate) first_child: Option<ASTNodeId>,
     pub(crate) last_child: Option<ASTNodeId>,
@@ -137,11 +147,11 @@ pub(crate) type ASTNodeId = usize;
 
 pub struct ASTChildIterator<'a> {
     next: Option<ASTNodeId>,
-    ast: &'a AST<'a>,
+    ast: &'a AST,
 }
 
 impl<'a> Iterator for ASTChildIterator<'a> {
-    type Item = (ASTNodeId, &'a ASTNode<'a>);
+    type Item = (ASTNodeId, &'a ASTNode);
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next) = self.next {
@@ -153,14 +163,14 @@ impl<'a> Iterator for ASTChildIterator<'a> {
     }
 }
 
-pub struct AST<'a> {
+pub struct AST {
     root: ASTNodeId,
-    entries: Vec<ASTEntry<'a>>,
+    entries: Vec<ASTEntry>,
+    strings: String,
 }
 
-impl<'a> AST<'a> {
-
-    pub(crate) fn new() -> Self {        
+impl AST {
+    pub(crate) fn new() -> Self {
         Self {
             root: 0,
             entries: vec![ASTEntry {
@@ -170,6 +180,7 @@ impl<'a> AST<'a> {
                 last_child: None,
                 next_sibling: None,
             }],
+            strings: String::new(),
         }
     }
 
@@ -177,7 +188,7 @@ impl<'a> AST<'a> {
         self.root
     }
 
-    pub(crate) fn add(&mut self, node: ASTNode<'a>) -> ASTNodeId {
+    pub(crate) fn add(&mut self, node: ASTNode) -> ASTNodeId {
         let node = ASTEntry {
             node,
             parent: None,
@@ -200,12 +211,16 @@ impl<'a> AST<'a> {
         self.entries[child].parent = Some(parent);
     }
 
-    pub(crate) fn iter_childs(&'a self, node: ASTNodeId) -> ASTChildIterator<'a> {
+    pub(crate) fn iter_childs(&self, node: ASTNodeId) -> ASTChildIterator {
         let next = self.entries[node].first_child;
         ASTChildIterator { next, ast: self }
     }
 
-    pub(crate) fn get_mut(&mut self, node: ASTNodeId) -> Option<&mut ASTNode<'a>> {
+    pub(crate) fn get(&self, node: ASTNodeId) -> Option<&ASTNode> {
+        self.entries.get(node).map(|e| &e.node)
+    }
+
+    pub(crate) fn get_mut(&mut self, node: ASTNodeId) -> Option<&mut ASTNode> {
         self.entries.get_mut(node).map(|e| &mut e.node)
     }
 
