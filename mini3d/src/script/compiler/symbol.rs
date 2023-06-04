@@ -1,39 +1,19 @@
 use crate::uid::UID;
 
-#[derive(Debug, PartialEq)]
-pub(crate) enum PrimitiveType {
-    Boolean,
-    Integer,
-    Float,
-    String,
-    Entity,
-    Object,
-}
-
-impl PrimitiveType {
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "bool" => Some(Self::Boolean),
-            "int" => Some(Self::Integer),
-            "float" => Some(Self::Float),
-            "string" => Some(Self::String),
-            "entity" => Some(Self::Entity),
-            "object" => Some(Self::Object),
-            _ => None,
-        }
-    }
-}
+use super::{
+    primitive::Primitive,
+    string::{StringId, StringTable},
+};
 
 pub(crate) type SymbolId = u16;
 pub(crate) type BlockId = u16;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum SymbolKind {
-    Function { return_type: Option<PrimitiveType> },
-    Variable { var_type: Option<PrimitiveType> },
-    Constant { const_type: Option<PrimitiveType> },
+    Function { return_type: Option<Primitive> },
+    Variable { var_type: Option<Primitive> },
+    Constant { const_type: Option<Primitive> },
     Import,
-    Undefined,
 }
 
 #[derive(Debug)]
@@ -45,9 +25,16 @@ pub(crate) struct BlockEntry {
 
 #[derive(Debug)]
 pub(crate) struct Symbol {
-    pub(crate) ident: UID,
-    pub(crate) kind: SymbolKind,
+    pub(crate) hash: UID,
+    pub(crate) kind: Option<SymbolKind>,
+    pub(crate) ident: StringId,
     pub(crate) block: BlockId,
+}
+
+impl Symbol {
+    pub(crate) fn is_defined(&self) -> bool {
+        self.kind.is_some()
+    }
 }
 
 #[derive(Debug)]
@@ -66,17 +53,25 @@ pub(crate) struct SymbolTable {
 impl SymbolTable {
     pub(crate) const GLOBAL_BLOCK: BlockId = 0;
 
-    pub(crate) fn declare_symbol(
+    pub(crate) fn clear(&mut self) {
+        self.symbols.clear();
+        self.blocks.clear();
+    }
+
+    pub(crate) fn add_symbol(
         &mut self,
-        ident: &str,
-        kind: SymbolKind,
+        strings: &StringTable,
+        ident: StringId,
+        kind: Option<SymbolKind>,
         block: BlockId,
     ) -> SymbolId {
         // Prepare entry
+        let value = strings.slice(ident);
         let mut entry = SymbolEntry {
             symbol: Symbol {
-                ident: ident.into(),
+                hash: value.into(),
                 kind,
+                ident,
                 block,
             },
             previous_in_block: None,
@@ -101,7 +96,7 @@ impl SymbolTable {
         self.symbols.len() as u16 - 1
     }
 
-    pub(crate) fn define_block(&mut self, parent: Option<BlockId>) -> BlockId {
+    pub(crate) fn add_block(&mut self, parent: Option<BlockId>) -> BlockId {
         // Compute previous_scope_symbol
         let previous_scope_symbol = parent.and_then(|p| {
             let parent = self.blocks.get(p as usize).unwrap();
@@ -117,12 +112,17 @@ impl SymbolTable {
         self.blocks.len() as u16 - 1
     }
 
-    pub(crate) fn find_in_block(&self, ident: &str, block: BlockId) -> Option<SymbolId> {
+    pub(crate) fn find_in_block(
+        &self,
+        strings: &StringTable,
+        ident: StringId,
+        block: BlockId,
+    ) -> Option<SymbolId> {
         let mut entry = self.blocks.get(block as usize).unwrap().last;
         loop {
             if let Some(id) = entry {
                 let symbol = &self.symbols[id as usize].symbol;
-                if symbol.ident == ident.into() {
+                if symbol.hash == strings.slice(ident).into() {
                     return Some(id);
                 }
                 entry = self.symbols[id as usize].previous_in_block;
@@ -132,18 +132,22 @@ impl SymbolTable {
         }
     }
 
-    pub(crate) fn lookup(&mut self, ident: &str, block: BlockId) -> SymbolId {
+    pub(crate) fn find_in_scope(
+        &self,
+        strings: &StringTable,
+        ident: StringId,
+        block: BlockId,
+    ) -> Option<SymbolId> {
         let mut entry = self.blocks.get(block as usize).unwrap().last;
         loop {
             if let Some(id) = entry {
                 let symbol = &self.symbols[id as usize].symbol;
-                if symbol.ident == ident.into() {
-                    return id;
+                if symbol.hash == strings.slice(ident).into() {
+                    return Some(id);
                 }
                 entry = self.symbols[id as usize].previous_in_scope;
             } else {
-                // Symbol not found declare as undefined
-                return self.declare_symbol(ident, SymbolKind::Undefined, block);
+                return None;
             }
         }
     }
@@ -156,14 +160,15 @@ impl SymbolTable {
         &mut self.symbols.get_mut(id as usize).unwrap().symbol
     }
 
-    pub(crate) fn get_ident(&self, id: SymbolId) -> UID {
-        self.symbols.get(id as usize).unwrap().symbol.ident
-    }
-
-    pub(crate) fn print(&self, source: &str) {
+    pub(crate) fn print(&self, strings: &StringTable) {
         println!("SYMBOLS:");
         for (i, entry) in self.symbols.iter().enumerate() {
-            println!("- [{}] {:?}", i, entry.symbol);
+            println!(
+                "- [{}] '{}' {:?}",
+                i,
+                strings.slice(entry.symbol.ident),
+                entry.symbol
+            );
         }
         println!("BLOCKS:");
         for (i, block) in self.blocks.iter().enumerate() {

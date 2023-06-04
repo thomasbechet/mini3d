@@ -1,7 +1,6 @@
 use super::{
-    ast::{ASTNode, AST},
     error::SemanticError,
-    symbol::{SymbolId, SymbolKind, SymbolTable},
+    symbol::{SymbolId, SymbolTable},
 };
 
 pub(crate) struct SemanticAnalysis;
@@ -14,7 +13,7 @@ pub(crate) struct SemanticAnalysis;
 impl SemanticAnalysis {
     pub(crate) fn check_undefined_symbols(table: &SymbolTable) -> Result<(), SemanticError> {
         for (id, symbol) in table.symbols.iter().enumerate() {
-            if symbol.symbol.kind == SymbolKind::Undefined {
+            if !symbol.symbol.is_defined() {
                 return Err(SemanticError::UndefinedSymbol(id as SymbolId));
             }
         }

@@ -1,8 +1,6 @@
 use self::{
-    error::{CompilationError, SyntaxError},
-    lexical::Lexer,
-    semantic::SemanticAnalysis,
-    syntax::SyntaxAnalysis,
+    ast::AST, error::CompileError, lexical::Lexer, semantic::SemanticAnalysis, string::StringTable,
+    symbol::SymbolTable, syntax::SyntaxAnalysis,
 };
 
 use super::interpreter::program::Program;
@@ -10,23 +8,53 @@ use super::interpreter::program::Program;
 pub mod ast;
 pub mod error;
 pub mod lexical;
+pub mod literal;
+pub mod operator;
+pub mod primitive;
 pub mod semantic;
+pub mod stream;
+pub mod string;
 pub mod symbol;
 pub mod syntax;
 pub mod token;
 
-pub struct Compiler {}
+pub struct Compiler {
+    lexer: Lexer,
+    ast: AST,
+    symtab: SymbolTable,
+    strings: StringTable,
+}
 
 impl Compiler {
-    pub fn compile(source: &str, parse_comments: bool) -> Result<Program, CompilationError> {
+    pub fn new(parse_comments: bool) -> Self {
+        Self {
+            lexer: Lexer::new(parse_comments),
+            ast: AST::new(),
+            symtab: Default::default(),
+            strings: Default::default(),
+        }
+    }
+
+    pub fn compile(&mut self, source: &str) -> Result<Program, CompileError> {
+        // Prepare resources
+        self.lexer.clear();
+        self.ast.clear();
+        self.symtab.clear();
+        self.strings.clear();
         // Lexical analysis
-        let lexer = Lexer::new(source);
         // Syntax analysis
-        let (ast, symtab) = SyntaxAnalysis::evaluate(lexer, parse_comments)?;
-        ast.print();
-        symtab.print(source);
+        SyntaxAnalysis::evaluate(
+            &mut self.ast,
+            &mut self.symtab,
+            &mut self.strings,
+            &mut self.lexer,
+            source,
+        )?;
+        self.ast.print();
+        self.symtab.print(&self.strings);
+        self.strings.print();
         // Semantic analysis
-        SemanticAnalysis::check_undefined_symbols(&symtab)?;
+        SemanticAnalysis::check_undefined_symbols(&self.symtab)?;
         // Code generation
         // Optimization
         Ok(Program::empty())

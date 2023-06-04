@@ -5,75 +5,59 @@ use super::{
     token::{Span, TokenKind},
 };
 
+#[derive(Debug)]
 pub enum LexicalError {
     UnterminatedString { span: Span },
     MalformedNumber { span: Span },
     IllegalCharacter { span: Span, c: char },
+    IntegerParseError { span: Span, error: ParseIntError },
+    FloatParseError { span: Span, error: ParseFloatError },
 }
 
+#[derive(Debug)]
 pub enum SyntaxError {
-    UnexpectedToken {
-        span: Span,
-        expected: TokenKind,
-        got: TokenKind,
-    },
-    InvalidAtomExpression {
-        span: Span,
-        got: TokenKind,
-    },
-    IntegerParseError {
-        span: Span,
-        error: ParseIntError,
-    },
-    FloatParseError {
-        span: Span,
-        error: ParseFloatError,
-    },
-    UnexpectedBinaryOperator {
-        span: Span,
-    },
-    UnexpectedImportStatement {
-        span: Span,
-    },
-    IdentifierAsStatement {
-        span: Span,
-    },
-    DuplicatedArgument {
-        span: Span,
-    },
+    UnexpectedToken { span: Span, got: TokenKind },
+    FunctionDeclarationOutsideOfGlobalScope { span: Span },
+    InvalidAtomExpression { span: Span, got: TokenKind },
+    UnexpectedBinaryOperator { span: Span },
+    IdentifierAsStatement { span: Span },
+    DuplicatedArgument { span: Span },
+    SymbolAlreadyDefined { span: Span },
 }
 
+#[derive(Debug)]
 pub enum SemanticError {
     TypeMistmatch,
     UndefinedSymbol(SymbolId),
     MultipleDefinitions,
 }
 
-pub enum CompilationError {
+#[derive(Debug)]
+pub enum CompileError {
     Lexical(LexicalError),
     Syntax(SyntaxError),
     Semantic(SemanticError),
 }
 
-impl From<LexicalError> for CompilationError {
+impl From<LexicalError> for CompileError {
     fn from(e: LexicalError) -> Self {
-        CompilationError::Lexical(e)
+        CompileError::Lexical(e)
     }
 }
 
-impl From<SyntaxError> for CompilationError {
+impl From<SyntaxError> for CompileError {
     fn from(e: SyntaxError) -> Self {
-        CompilationError::Syntax(e)
+        CompileError::Syntax(e)
     }
 }
 
-impl From<SemanticError> for CompilationError {
+impl From<SemanticError> for CompileError {
     fn from(e: SemanticError) -> Self {
-        CompilationError::Semantic(e)
+        CompileError::Semantic(e)
     }
 }
 
-impl CompilationError {
+impl CompileError {
     // pub(crate) fn message(&self, source: &str) -> String {
     //     match self {
     //         CompilationError::Lexical(e) => {}

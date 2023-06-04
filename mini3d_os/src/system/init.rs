@@ -634,12 +634,9 @@ fn init_system(ctx: &mut SystemContext) -> SystemResult {
         .get::<Script>(Script::UID, "test".into())?
         .expect("Script not registered");
     println!("Script: {:?}", script.source);
-    // let mut tokenizer = Lexer::new(&script.source);
-    // while let Some(token) = tokenizer.next_token()? {
-    //     println!("Token: {:?}", token);
-    // }
-    if let Result::Err(e) = Compiler::compile(&script.source, false) {
-        // println!("Error: {:?}", e.to_string(&script.source));
+    let mut compiler = Compiler::new(false);
+    if let Result::Err(e) = compiler.compile(&script.source) {
+        println!("Error: {:?}", e);
     } else {
         println!("SUCCESS");
     }

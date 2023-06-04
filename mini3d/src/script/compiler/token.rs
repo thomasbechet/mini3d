@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use super::{literal::Literal, primitive::Primitive, string::StringId};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     Import,
@@ -16,9 +18,8 @@ pub enum TokenKind {
     Colon,
     Dot,
     Identifier,
-    Integer,
-    Float,
-    String,
+    Primitive,
+    Literal,
     Plus,
     Minus,
     Multiply,
@@ -45,9 +46,6 @@ pub enum TokenKind {
     In,
     While,
     Function,
-    True,
-    False,
-    Nil,
     Break,
     Continue,
     Return,
@@ -84,53 +82,118 @@ impl TokenKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Span {
-    pub(crate) offset: u32,
-    pub(crate) len: u32,
+#[derive(Debug, Clone, Copy)]
+pub struct Location {
     pub(crate) line: u32,
     pub(crate) column: u32,
 }
 
-impl Span {
-    pub(crate) fn new(offset: usize, len: usize, line: usize, column: usize) -> Self {
-        Self {
-            offset: offset as u32,
-            len: len as u32,
-            line: line as u32,
-            column: column as u32,
+impl Location {
+    pub(crate) fn new(line: u32, column: u32) -> Self {
+        Self { line, column }
+    }
+
+    fn min(&self, other: &Self) -> Self {
+        if self.line < other.line {
+            *self
+        } else if self.line > other.line {
+            *other
+        } else if self.column < other.column {
+            *self
+        } else {
+            *other
         }
     }
 
-    pub(crate) fn slice<'a>(&self, source: &'a str) -> &'a str {
-        &source[self.offset as usize..(self.offset + self.len) as usize]
-    }
-
-    pub(crate) fn string_content_slice<'a>(&self, source: &'a str) -> &'a str {
-        &source[self.offset as usize + 1..(self.offset + self.len) as usize - 1]
-    }
-
-    pub(crate) fn comment_content_slice<'a>(&self, source: &'a str) -> &'a str {
-        &source[self.offset as usize + 2..(self.offset + self.len) as usize]
-    }
-
-    pub(crate) fn end(&self) -> u32 {
-        self.offset + self.len
-    }
-
-    pub(crate) fn join(&self, other: &Self) -> Self {
-        let offset = self.offset.min(other.offset);
-        let end = self.end().max(other.end());
-        let (line, column) = if self.offset < other.offset {
-            (self.line, self.column)
+    fn max(&self, other: &Self) -> Self {
+        if self.line > other.line {
+            *self
+        } else if self.line < other.line {
+            *other
+        } else if self.column > other.column {
+            *self
         } else {
-            (other.line, other.column)
-        };
+            *other
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Span {
+    pub(crate) start: Location,
+    pub(crate) stop: Location,
+}
+
+impl Span {
+    pub(crate) fn join(&self, other: &Self) -> Self {
         Self {
-            offset,
-            len: end - offset,
-            line,
-            column,
+            start: self.start.min(&other.start),
+            stop: self.stop.max(&other.stop),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TokenValue {
+    Literal(Literal),
+    Identifier(StringId),
+    Primitive(Primitive),
+    Comment(StringId),
+    None,
+}
+
+impl From<TokenValue> for bool {
+    fn from(value: TokenValue) -> Self {
+        match value {
+            TokenValue::Literal(Literal::Boolean(value)) => value,
+            _ => panic!("TokenValue is not a boolean"),
+        }
+    }
+}
+
+impl From<TokenValue> for u32 {
+    fn from(value: TokenValue) -> Self {
+        match value {
+            TokenValue::Literal(Literal::Integer(value)) => value,
+            _ => panic!("TokenValue is not an integer"),
+        }
+    }
+}
+
+impl From<TokenValue> for f32 {
+    fn from(value: TokenValue) -> Self {
+        match value {
+            TokenValue::Literal(Literal::Float(value)) => value,
+            _ => panic!("TokenValue is not a float"),
+        }
+    }
+}
+
+impl From<TokenValue> for StringId {
+    fn from(value: TokenValue) -> Self {
+        match value {
+            TokenValue::Literal(Literal::String(value)) => value,
+            TokenValue::Identifier(value) => value,
+            TokenValue::Comment(value) => value,
+            _ => panic!("TokenValue is not a string, identifier or comment"),
+        }
+    }
+}
+
+impl From<TokenValue> for Literal {
+    fn from(value: TokenValue) -> Self {
+        match value {
+            TokenValue::Literal(value) => value,
+            _ => panic!("TokenValue is not a literal type"),
+        }
+    }
+}
+
+impl From<TokenValue> for Primitive {
+    fn from(value: TokenValue) -> Self {
+        match value {
+            TokenValue::Primitive(value) => value,
+            _ => panic!("TokenValue is not a primitive type"),
         }
     }
 }
@@ -139,17 +202,43 @@ impl Span {
 pub(crate) struct Token {
     pub(crate) kind: TokenKind,
     pub(crate) span: Span,
+    pub(crate) value: TokenValue,
 }
 
 impl Token {
-    pub(crate) fn new(kind: TokenKind, span: Span) -> Self {
-        Self { kind, span }
-    }
-
     pub(crate) fn eof() -> Self {
         Self {
             kind: TokenKind::EOF,
-            span: Span::new(0, 0, 0, 0),
+            span: Span {
+                start: Location::new(0, 0),
+                stop: Location::new(0, 0),
+            },
+            value: TokenValue::None,
+        }
+    }
+
+    pub(crate) fn single(kind: TokenKind, location: Location) -> Self {
+        Self {
+            kind,
+            span: Span {
+                start: location,
+                stop: location,
+            },
+            value: TokenValue::None,
+        }
+    }
+
+    pub(crate) fn double(kind: TokenKind, location: Location) -> Self {
+        Self {
+            kind,
+            span: Span {
+                start: location,
+                stop: Location {
+                    line: location.line,
+                    column: location.column + 1,
+                },
+            },
+            value: TokenValue::None,
         }
     }
 }
