@@ -1,7 +1,7 @@
 use std::num::{ParseFloatError, ParseIntError};
 
-use super::{
-    symbol::SymbolId,
+use super::source::{
+    symbol::SourceSymbolId,
     token::{Span, TokenKind},
 };
 
@@ -17,18 +17,22 @@ pub enum LexicalError {
 #[derive(Debug)]
 pub enum SyntaxError {
     UnexpectedToken { span: Span, got: TokenKind },
+    NonStatementToken { span: Span, got: TokenKind },
     FunctionDeclarationOutsideOfGlobalScope { span: Span },
+    ExportedConstantOutsideOfGlobalScope { span: Span },
+    MissingConstantType { span: Span },
     InvalidAtomExpression { span: Span, got: TokenKind },
     UnexpectedBinaryOperator { span: Span },
     IdentifierAsStatement { span: Span },
     DuplicatedArgument { span: Span },
     SymbolAlreadyDefined { span: Span },
+    ModuleNotFound { span: Span },
 }
 
 #[derive(Debug)]
 pub enum SemanticError {
     TypeMistmatch,
-    UndefinedSymbol(SymbolId),
+    UndefinedSymbol(SourceSymbolId),
     MultipleDefinitions,
 }
 
@@ -37,6 +41,8 @@ pub enum CompileError {
     Lexical(LexicalError),
     Syntax(SyntaxError),
     Semantic(SemanticError),
+    ScriptNotFound,
+    ModuleNotFound,
 }
 
 impl From<LexicalError> for CompileError {

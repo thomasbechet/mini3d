@@ -33,7 +33,7 @@ use mini3d::{
     prng::PCG32,
     registry::{asset::Asset, component::Component, error::RegistryError},
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
-    script::compiler::Compiler,
+    script::{compiler::Compiler, frontend::module::ModuleKind},
     ui::{
         self,
         controller::UIController,
@@ -634,8 +634,9 @@ fn init_system(ctx: &mut SystemContext) -> SystemResult {
         .get::<Script>(Script::UID, "test".into())?
         .expect("Script not registered");
     println!("Script: {:?}", script.source);
-    let mut compiler = Compiler::new(false);
-    if let Result::Err(e) = compiler.compile(&script.source) {
+    let mut compiler = Compiler::default();
+    compiler.add_module("test".into(), ModuleKind::Source, "test".into());
+    if let Result::Err(e) = compiler.compile("test".into(), &mut ctx.asset) {
         println!("Error: {:?}", e);
     } else {
         println!("SUCCESS");

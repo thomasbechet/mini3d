@@ -1,11 +1,17 @@
-use super::{
-    error::{CompileError, LexicalError},
-    literal::Literal,
-    primitive::Primitive,
+use crate::script::{
+    frontend::{
+        error::{CompileError, LexicalError},
+        mir::primitive::PrimitiveType,
+    },
     string::{StringId, StringTable},
+};
+
+use super::{
+    literal::Literal,
     token::{Location, Span, Token, TokenKind, TokenValue},
 };
 
+#[derive(Default)]
 pub(crate) struct Lexer {
     peeks: Vec<Token>,
     buffer: String,
@@ -152,6 +158,7 @@ impl Lexer {
         // Check if identifier is a keyword
         let keyword = match self.buffer.as_str() {
             "import" => Some(TokenKind::Import),
+            "export" => Some(TokenKind::Export),
             "let" => Some(TokenKind::Let),
             "const" => Some(TokenKind::Const),
             "if" => Some(TokenKind::If),
@@ -204,12 +211,20 @@ impl Lexer {
             } else {
                 // Check if identifier is a primitive type
                 let primitive = match self.buffer.as_str() {
-                    "bool" => Some(Primitive::Boolean),
-                    "int" => Some(Primitive::Integer),
-                    "float" => Some(Primitive::Float),
-                    "string" => Some(Primitive::String),
-                    "entity" => Some(Primitive::Entity),
-                    "object" => Some(Primitive::Object),
+                    "bool" => Some(PrimitiveType::Boolean),
+                    "int" => Some(PrimitiveType::Integer),
+                    "float" => Some(PrimitiveType::Float),
+                    "vec2" => Some(PrimitiveType::Vec2),
+                    "ivec2" => Some(PrimitiveType::IVec2),
+                    "vec3" => Some(PrimitiveType::Vec3),
+                    "ivec3" => Some(PrimitiveType::IVec3),
+                    "vec4" => Some(PrimitiveType::Vec4),
+                    "ivec4" => Some(PrimitiveType::IVec4),
+                    "mat4" => Some(PrimitiveType::Mat4),
+                    "quat" => Some(PrimitiveType::Quat),
+                    "string" => Some(PrimitiveType::String),
+                    "entity" => Some(PrimitiveType::Entity),
+                    "object" => Some(PrimitiveType::Object),
                     _ => None,
                 };
                 if let Some(primitive) = primitive {

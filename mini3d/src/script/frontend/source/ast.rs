@@ -1,57 +1,88 @@
+use crate::script::string::StringId;
+
 use super::{
     literal::Literal,
     operator::{BinaryOperator, UnaryOperator},
-    string::StringId,
-    symbol::{BlockId, SymbolId},
+    symbol::{SourceBlockId, SourceSymbolId},
     token::Span,
 };
 
 #[derive(Debug)]
-pub enum ASTNode {
+pub(crate) enum ASTNode {
     Program,
     Import {
         path: Span,
-        symbol: SymbolId,
+        symbol: SourceSymbolId,
     },
-    CompoundStatement, // STMT-0, STMT-1, STMT-2, ...
+    Compound, // STMT-0, STMT-1, STMT-2, ...
     Literal(Literal),
     Identifier {
         span: Span,
-        symbol: SymbolId,
+        symbol: SourceSymbolId,
     },
     MemberLookup {
         span: Span,
+        ident: StringId,
     }, // PARENT-0
-    ReturnStatement, // EXPR
-    IfStatement,     // CONDITION-0, BODY-0, CONDITION-1, BODY-1, ...
+    Return, // EXPR
+    If,     // CONDITION-0, BODY-0, CONDITION-1, BODY-1, ...
     IfBody,
-    ForStatement, // IDENTIFIER-0, GENERATOR-0, BODY-0
+    For, // IDENTIFIER-0, GENERATOR-0, BODY-0
     ForBody,
-    CommentStatement {
+    Comment {
         span: Span,
         value: StringId,
     },
     FunctionDeclaration {
         span: Span,
-        symbol: SymbolId,
-        function_block: BlockId,
+        symbol: SourceSymbolId,
+        function_block: SourceBlockId,
     }, // ARG-0, ARG-1, ..., COMPOUNT-STMT
     FunctionArgument {
         span: Span,
-        symbol: SymbolId,
+        symbol: SourceSymbolId,
     },
     VariableDeclaration {
         span: Span,
-        symbol: SymbolId,
+        symbol: SourceSymbolId,
     }, // EXPR
     ConstantDeclaration {
         span: Span,
-        symbol: SymbolId,
+        symbol: SourceSymbolId,
     }, // EXPR (const)
     Call,
     Assignment,                     // IDENTIFIER-0, EXPR-0
     BinaryOperator(BinaryOperator), // LEFT-EXPR-0, RIGHT-EXPR-1
     UnaryOperator(UnaryOperator),   // EXPR
+}
+
+impl ASTNode {
+    pub(crate) fn is_expression(&self) -> bool {
+        matches!(
+            self,
+            Self::Literal(_)
+                | Self::Identifier { .. }
+                | Self::MemberLookup { .. }
+                | Self::Call
+                | Self::BinaryOperator(_)
+                | Self::UnaryOperator(_)
+        )
+    }
+
+    pub(crate) fn is_statement(&self) -> bool {
+        matches!(
+            self,
+            Self::Compound
+                | Self::Return
+                | Self::If
+                | Self::For
+                | Self::FunctionDeclaration { .. }
+                | Self::VariableDeclaration { .. }
+                | Self::ConstantDeclaration { .. }
+                | Self::Assignment
+                | Self::Import { .. }
+        )
+    }
 }
 
 pub struct ASTEntry {
@@ -64,7 +95,7 @@ pub struct ASTEntry {
 
 pub(crate) type ASTNodeId = usize;
 
-pub struct ASTChildIterator<'a> {
+pub(crate) struct ASTChildIterator<'a> {
     next: Option<ASTNodeId>,
     ast: &'a AST,
 }
@@ -82,14 +113,18 @@ impl<'a> Iterator for ASTChildIterator<'a> {
     }
 }
 
+pub(crate) trait ASTVisitor {
+    fn accept(&self, node: &ASTNode) -> bool;
+    fn visit(&mut self, node: ASTNodeId, ast: &mut AST) -> bool;
+}
+
 pub struct AST {
     root: ASTNodeId,
     entries: Vec<ASTEntry>,
-    strings: String,
 }
 
-impl AST {
-    pub(crate) fn new() -> Self {
+impl Default for AST {
+    fn default() -> Self {
         Self {
             root: 0,
             entries: vec![ASTEntry {
@@ -99,10 +134,11 @@ impl AST {
                 last_child: None,
                 next_sibling: None,
             }],
-            strings: String::new(),
         }
     }
+}
 
+impl AST {
     pub(crate) fn clear(&mut self) {
         self.root = 0;
         self.entries.clear();
@@ -113,7 +149,6 @@ impl AST {
             last_child: None,
             next_sibling: None,
         });
-        self.strings.clear();
     }
 
     pub(crate) fn root(&self) -> ASTNodeId {
@@ -148,8 +183,30 @@ impl AST {
         ASTChildIterator { next, ast: self }
     }
 
+    pub(crate) fn get(&self, node: ASTNodeId) -> Option<&ASTNode> {
+        self.entries.get(node).map(|e| &e.node)
+    }
+
     pub(crate) fn get_mut(&mut self, node: ASTNodeId) -> Option<&mut ASTNode> {
         self.entries.get_mut(node).map(|e| &mut e.node)
+    }
+
+    fn visit_node_df(&mut self, node: ASTNodeId, visitor: &mut impl ASTVisitor) {
+        let mut visit_childs = true;
+        if visitor.accept(&self.entries[node].node) {
+            visit_childs = visitor.visit(node, self);
+        }
+        if visit_childs {
+            let mut current = self.entries[node].first_child;
+            while let Some(child) = current {
+                self.visit_node_df(child, visitor);
+                current = self.entries[child].next_sibling;
+            }
+        }
+    }
+
+    pub(crate) fn visit_df(&mut self, visitor: &mut impl ASTVisitor) {
+        self.visit_node_df(self.root(), visitor);
     }
 
     fn print_node(&self, node: ASTNodeId, indent: usize) {

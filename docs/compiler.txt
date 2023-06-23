@@ -1,0 +1,27 @@
+PARSE_SOURCE(export only?):
+- FOR IMPORTS
+    - IF from a import *
+    - IF from a import a, b, c
+        PARSE_SOURCE(a, true)
+    - IF import a
+        PARSE_SOURCE(a, true)
+
+from 'hello' import *
+from 'hello' import a
+import 'hello' as a
+
+file1:
+------------------------
+function f0()
+    print('hello')
+end
+export function f1()
+    f0()
+end
+
+file2:
+------------------------
+from file1 import *
+function f0() end
+f1()
+f0()

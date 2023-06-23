@@ -1,10 +1,16 @@
 use std::fmt::Display;
 
-use super::{literal::Literal, primitive::Primitive, string::StringId};
+use crate::{
+    script::{frontend::mir::primitive::PrimitiveType, string::StringId},
+    uid::UID,
+};
+
+use super::literal::Literal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     Import,
+    Export,
     As,
     Comment,
     Space,
@@ -137,7 +143,7 @@ impl Span {
 pub(crate) enum TokenValue {
     Literal(Literal),
     Identifier(StringId),
-    Primitive(Primitive),
+    Primitive(PrimitiveType),
     Comment(StringId),
     None,
 }
@@ -189,7 +195,7 @@ impl From<TokenValue> for Literal {
     }
 }
 
-impl From<TokenValue> for Primitive {
+impl From<TokenValue> for PrimitiveType {
     fn from(value: TokenValue) -> Self {
         match value {
             TokenValue::Primitive(value) => value,

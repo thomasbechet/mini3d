@@ -1,4 +1,4 @@
-use super::string::StringId;
+use crate::script::string::StringId;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Literal {

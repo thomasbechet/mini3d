@@ -1,2 +1,2 @@
-let x: int = true + 4.0 + 2
-int(4.0)
+let a = 4
+let x = 1 + 2 + a
