@@ -88,7 +88,7 @@ impl TokenKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Location {
     pub(crate) line: u32,
     pub(crate) column: u32,

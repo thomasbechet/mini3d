@@ -626,8 +626,8 @@ fn setup_scheduler(ctx: &mut SystemContext) -> SystemResult {
 
 fn init_system(ctx: &mut SystemContext) -> SystemResult {
     setup_assets(ctx)?;
-    setup_world(ctx)?;
-    setup_scheduler(ctx)?;
+    // setup_world(ctx)?;
+    // setup_scheduler(ctx)?;
 
     let script = ctx
         .asset

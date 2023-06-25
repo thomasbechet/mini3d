@@ -12,12 +12,22 @@ use super::{
     ast::AST, lexer::Lexer, parser::Parser, stream::SourceStream, symbol::SourceSymbolTable,
 };
 
-#[derive(Default)]
 pub(crate) struct SourceCompiler {
     symbols: SourceSymbolTable,
     ast: AST,
     lexer: Lexer,
     strings: StringTable,
+}
+
+impl Default for SourceCompiler {
+    fn default() -> Self {
+        Self {
+            symbols: Default::default(),
+            ast: Default::default(),
+            lexer: Lexer::new(false),
+            strings: Default::default(),
+        }
+    }
 }
 
 impl SourceCompiler {

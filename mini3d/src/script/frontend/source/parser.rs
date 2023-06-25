@@ -180,7 +180,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
             self.consume()?;
             let next = self.peek(0)?;
             if next.kind == TokenKind::Function {
-                Ok(Some(self.parse_function_declaration(block, true)?))
+                Ok(Some(self.parse_function_declaration(block)?))
             } else if next.kind == TokenKind::Const {
                 Ok(Some(self.parse_constant_declaration(block, true)?))
             } else {
@@ -193,7 +193,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         } else if next.kind == TokenKind::Const {
             Ok(Some(self.parse_constant_declaration(block, false)?))
         } else if next.kind == TokenKind::Function {
-            Ok(Some(self.parse_function_declaration(block, false)?))
+            Ok(Some(self.parse_function_declaration(block)?))
         } else if next.kind == TokenKind::Return {
             Ok(Some(self.parse_return_statement(block)?))
         } else if next.kind == TokenKind::If {
@@ -294,7 +294,6 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
     fn parse_function_declaration(
         &mut self,
         block: SourceBlockId,
-        export: bool,
     ) -> Result<ASTNodeId, CompileError> {
         if block != SourceSymbolTable::GLOBAL_BLOCK {
             return Err(SyntaxError::FunctionDeclarationOutsideOfGlobalScope {
@@ -527,5 +526,34 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         };
         parser.parse()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_basic() {
+        let mut strings = StringTable::default();
+        let mut symbols = SourceSymbolTable::default();
+        let mut source = SourceStream::new(
+            r#"
+        let x = 1 + 2 * 3
+        function y(a, b)
+            return a + b
+        end
+        "#,
+        );
+        let mut ast = AST::default();
+        Parser::<SourceStream>::evaluate(
+            &mut ast,
+            &mut symbols,
+            &mut strings,
+            &mut Lexer::new(false),
+            &mut source,
+        )
+        .unwrap();
+        ast.print();
     }
 }

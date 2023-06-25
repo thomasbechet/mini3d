@@ -11,7 +11,6 @@ use super::{
     token::{Location, Span, Token, TokenKind, TokenValue},
 };
 
-#[derive(Default)]
 pub(crate) struct Lexer {
     peeks: Vec<Token>,
     buffer: String,
@@ -31,12 +30,6 @@ impl Lexer {
             char_peek: None,
             parse_comments,
         }
-    }
-
-    pub(crate) fn clear(&mut self) {
-        self.peeks.clear();
-        self.buffer.clear();
-        self.char_peek = None;
     }
 
     fn flush_buffer(&mut self, strings: &mut StringTable) -> StringId {
@@ -462,6 +455,32 @@ impl Lexer {
             self.parse_token(chars, strings)
         } else {
             Ok(self.peeks.remove(0))
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::script::frontend::source::stream::SourceStream;
+    #[test]
+    fn test_multiple_lines() {
+        let mut script = SourceStream::new("let x = 2 + 2\nlet y = 3 + 3");
+        let mut lexer = Lexer::new(false);
+        let mut strings = StringTable::default();
+        for _ in 0..2 {
+            let token = lexer.next(&mut script, &mut strings).unwrap();
+            assert_eq!(token.kind, TokenKind::Let);
+            let token = lexer.next(&mut script, &mut strings).unwrap();
+            assert_eq!(token.kind, TokenKind::Identifier);
+            let token = lexer.next(&mut script, &mut strings).unwrap();
+            assert_eq!(token.kind, TokenKind::Assign);
+            let token = lexer.next(&mut script, &mut strings).unwrap();
+            assert_eq!(token.kind, TokenKind::Literal);
+            let token = lexer.next(&mut script, &mut strings).unwrap();
+            assert_eq!(token.kind, TokenKind::Plus);
+            let token = lexer.next(&mut script, &mut strings).unwrap();
+            assert_eq!(token.kind, TokenKind::Literal);
         }
     }
 }

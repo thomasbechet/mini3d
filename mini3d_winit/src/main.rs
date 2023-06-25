@@ -113,6 +113,7 @@ fn main_run() {
         .push(&mut events);
     let script = std::fs::read_to_string("assets/script.ms").expect("Failed to load.");
     events.asset.push(ImportAssetEvent::Script(AssetImportEntry { name: "test".to_string(), data: Script { source: script } }));
+    events.system.push(SystemEvent::Shutdown);
 
     // Enter loop
     event_loop.run(move |event, _, control_flow| {
