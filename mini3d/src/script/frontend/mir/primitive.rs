@@ -1,14 +1,6 @@
-use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
-
-use crate::{
-    ecs::entity::Entity,
-    script::{
-        frontend::{
-            error::CompileError,
-            source::operator::{BinaryOperator, UnaryOperator},
-        },
-        string::StringId,
-    },
+use crate::script::frontend::{
+    error::CompileError,
+    source::operator::{BinaryOperator, UnaryOperator},
 };
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -64,22 +56,4 @@ impl PrimitiveType {
             },
         }
     }
-}
-
-#[derive(Debug)]
-pub(crate) enum PrimitiveValue {
-    Boolean(bool),
-    Integer(i32),
-    Float(f32),
-    Vec2(Vec2),
-    IVec2(IVec2),
-    Vec3(Vec3),
-    IVec3(IVec3),
-    Vec4(Vec4),
-    IVec4(IVec4),
-    Mat4(Mat4),
-    Quat(Quat),
-    String(StringId),
-    Entity(Entity),
-    Object(u32),
 }

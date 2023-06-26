@@ -1,12 +1,11 @@
 use crate::{
     script::{
+        constant::ConstantId,
         frontend::{
             error::{CompileError, SyntaxError},
             export::ExportId,
-            mir::primitive::{PrimitiveType, PrimitiveValue},
-            module::ModuleId,
+            mir::primitive::PrimitiveType,
         },
-        string::{StringId, StringTable},
     },
     uid::UID,
 };
@@ -51,11 +50,11 @@ pub(crate) enum SourceSymbol {
         var_type: Option<PrimitiveType>,
     },
     Constant {
-        value: Option<PrimitiveValue>,
+        value: Option<ConstantId>,
     },
     Import(ExportId),
     Module {
-        path: StringId,
+        path: ConstantId,
     },
 }
 
@@ -68,7 +67,7 @@ pub(crate) struct SourceBlockEntry {
 
 #[derive(Debug)]
 pub(crate) struct SourceSymbolEntry {
-    pub(crate) ident: StringId,
+    pub(crate) ident: ConstantId,
     pub(crate) hash: UID,
     pub(crate) block: SourceBlockId,
     pub(crate) symbol: Option<SourceSymbol>,

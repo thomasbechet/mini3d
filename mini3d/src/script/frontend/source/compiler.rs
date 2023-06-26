@@ -1,11 +1,11 @@
 use crate::script::{
+    constant::StringTable,
     frontend::{
         error::CompileError,
         export::ExportTable,
         mir::mir::MIR,
         module::{ModuleId, ModuleTable},
     },
-    string::StringTable,
 };
 
 use super::{

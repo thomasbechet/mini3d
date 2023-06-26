@@ -12,7 +12,6 @@ pub struct VirtualMachine {
 }
 
 impl VirtualMachine {
-
     const INITIAL_STACK_SIZE: usize = 1024;
 
     pub fn new(program: Program) -> VirtualMachine {
@@ -72,70 +71,70 @@ impl VirtualMachine {
                 Opcode::LOAD => {
                     let addr = self.pop();
                     self.push(self.stack[addr as usize]);
-                },
+                }
                 Opcode::STORE => {
                     let addr = self.pop();
                     let value = self.pop();
                     self.stack[addr as usize] = value;
-                },
+                }
                 Opcode::PUSHC => {
                     unimplemented!();
-                },
+                }
                 Opcode::PUSHLB => {
                     let byte = self.next_byte();
                     self.push(byte as Word);
-                },
+                }
                 Opcode::PUSHLH => {
                     let half = self.next_half();
                     self.push(half as Word);
-                },
+                }
                 Opcode::PUSHLW => {
                     let word = self.next_word();
                     self.push(word);
-                },
+                }
                 Opcode::POP => {
                     self.pop();
-                },
+                }
                 Opcode::ADDF => {
                     let a = f32::from_bits(self.pop());
                     let b = f32::from_bits(self.pop());
                     self.push((a + b).to_bits());
-                },
+                }
                 Opcode::SUBF => {
                     let a = f32::from_bits(self.pop());
                     let b = f32::from_bits(self.pop());
                     self.push((a - b).to_bits());
-                },
+                }
                 Opcode::MULF => {
                     let a = f32::from_bits(self.pop());
                     let b = f32::from_bits(self.pop());
                     self.push((a * b).to_bits());
-                },
+                }
                 Opcode::DIVF => {
                     let a = f32::from_bits(self.pop());
                     let b = f32::from_bits(self.pop());
                     self.push((a / b).to_bits());
-                },
+                }
                 Opcode::ADDI => {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(a + b);
-                },
+                }
                 Opcode::SUBI => {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(a - b);
-                },
+                }
                 Opcode::MULI => {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(a * b);
-                },
+                }
                 Opcode::DIVI => {
                     let a = self.pop();
                     let b = self.pop();
                     self.push(a / b);
-                },
+                }
                 Opcode::INT => {
                     break;
                 }

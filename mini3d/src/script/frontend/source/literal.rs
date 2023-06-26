@@ -1,4 +1,4 @@
-use crate::script::string::StringId;
+use crate::script::constant::ConstantId;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Literal {
@@ -6,5 +6,5 @@ pub enum Literal {
     Boolean(bool),
     Integer(u32),
     Float(f32),
-    String(StringId),
+    String(ConstantId),
 }

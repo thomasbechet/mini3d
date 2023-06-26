@@ -1,5 +1,3 @@
-use crate::script::string::StringId;
-
 use super::{
     literal::Literal,
     operator::{BinaryOperator, UnaryOperator},

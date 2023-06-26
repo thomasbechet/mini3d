@@ -1,9 +1,6 @@
-use crate::uid::UID;
+use crate::{script::constant::ConstantId, uid::UID};
 
-use super::{
-    mir::primitive::{PrimitiveType, PrimitiveValue},
-    module::ModuleId,
-};
+use super::{mir::primitive::PrimitiveType, module::ModuleId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ExportId(u32);
@@ -18,7 +15,7 @@ pub(crate) enum Export {
         next_arg: Option<ExportId>,
     },
     Constant {
-        value: PrimitiveValue,
+        value: ConstantId,
     },
 }
 

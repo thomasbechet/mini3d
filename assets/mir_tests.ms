@@ -5,11 +5,4 @@ end
 
 main:
 .L0:
-    ld %0, a
-    add %1, %0, 2
-    ld %0, b
-    add %0, %1, %0
-    st %0, x
-.L1:
     
-.L2:

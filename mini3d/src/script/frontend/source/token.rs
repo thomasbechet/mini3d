@@ -1,9 +1,6 @@
 use std::fmt::Display;
 
-use crate::{
-    script::{frontend::mir::primitive::PrimitiveType, string::StringId},
-    uid::UID,
-};
+use crate::script::{constant::ConstantId, frontend::mir::primitive::PrimitiveType};
 
 use super::literal::Literal;
 
@@ -142,9 +139,9 @@ impl Span {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum TokenValue {
     Literal(Literal),
-    Identifier(StringId),
+    Identifier(ConstantId),
     Primitive(PrimitiveType),
-    Comment(StringId),
+    Comment(ConstantId),
     None,
 }
 
@@ -175,7 +172,7 @@ impl From<TokenValue> for f32 {
     }
 }
 
-impl From<TokenValue> for StringId {
+impl From<TokenValue> for ConstantId {
     fn from(value: TokenValue) -> Self {
         match value {
             TokenValue::Literal(Literal::String(value)) => value,

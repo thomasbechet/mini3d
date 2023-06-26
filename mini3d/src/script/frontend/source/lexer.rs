@@ -1,9 +1,9 @@
 use crate::script::{
+    constant::{StringId, StringTable},
     frontend::{
         error::{CompileError, LexicalError},
         mir::primitive::PrimitiveType,
     },
-    string::{StringId, StringTable},
 };
 
 use super::{

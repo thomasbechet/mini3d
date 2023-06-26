@@ -1,9 +1,6 @@
-use crate::script::{
-    frontend::{
-        error::{CompileError, SyntaxError},
-        mir::primitive::PrimitiveType,
-    },
-    string::StringTable,
+use crate::script::frontend::{
+    error::{CompileError, SyntaxError},
+    mir::primitive::PrimitiveType,
 };
 
 use super::{
