@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use crate::script::{constant::ConstantId, frontend::mir::primitive::PrimitiveType};
+use crate::script::mir::primitive::PrimitiveType;
 
-use super::literal::Literal;
+use super::{literal::Literal, strings::StringId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
@@ -21,7 +21,7 @@ pub enum TokenKind {
     Colon,
     Dot,
     Identifier,
-    Primitive,
+    PrimitiveType,
     Literal,
     Plus,
     Minus,
@@ -139,9 +139,9 @@ impl Span {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum TokenValue {
     Literal(Literal),
-    Identifier(ConstantId),
-    Primitive(PrimitiveType),
-    Comment(ConstantId),
+    Identifier(StringId),
+    PrimitiveType(PrimitiveType),
+    Comment(StringId),
     None,
 }
 
@@ -172,7 +172,7 @@ impl From<TokenValue> for f32 {
     }
 }
 
-impl From<TokenValue> for ConstantId {
+impl From<TokenValue> for StringId {
     fn from(value: TokenValue) -> Self {
         match value {
             TokenValue::Literal(Literal::String(value)) => value,
@@ -195,7 +195,7 @@ impl From<TokenValue> for Literal {
 impl From<TokenValue> for PrimitiveType {
     fn from(value: TokenValue) -> Self {
         match value {
-            TokenValue::Primitive(value) => value,
+            TokenValue::PrimitiveType(value) => value,
             _ => panic!("TokenValue is not a primitive type"),
         }
     }

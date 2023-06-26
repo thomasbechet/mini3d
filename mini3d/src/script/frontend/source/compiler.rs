@@ -1,19 +1,16 @@
 use crate::script::{
-    constant::StringTable,
-    frontend::{
-        error::CompileError,
-        export::ExportTable,
-        mir::mir::MIR,
-        module::{ModuleId, ModuleTable},
-    },
+    frontend::error::CompileError,
+    interpreter::program::Program,
+    module::{Module, ModuleId, ModuleTable},
 };
 
 use super::{
-    ast::AST, lexer::Lexer, parser::Parser, stream::SourceStream, symbol::SourceSymbolTable,
+    ast::AST, lexer::Lexer, parser::Parser, stream::SourceStream, strings::StringTable,
+    symbol::SymbolTable,
 };
 
 pub(crate) struct SourceCompiler {
-    symbols: SourceSymbolTable,
+    symbols: SymbolTable,
     ast: AST,
     lexer: Lexer,
     strings: StringTable,
@@ -31,20 +28,20 @@ impl Default for SourceCompiler {
 }
 
 impl SourceCompiler {
-    pub(crate) fn collect_dependencies_and_exports(
+    pub(crate) fn resolve_dependencies_and_exports(
         &mut self,
         stream: &SourceStream,
-        exports: &mut ExportTable,
-        modules: &mut ModuleTable,
-        compilation_unit: &mut Vec<ModuleId>,
+        module: &mut Module,
     ) -> Result<(), CompileError> {
+        if !module.mir.exports.is_complete() {
+            // TODO: Resolve dependencies and exports
+        }
         Ok(())
     }
 
-    pub(crate) fn compile(
+    pub(crate) fn generate_mir(
         &mut self,
-        exports: &ExportTable,
-        mir: &mut MIR,
+        module: &mut Module,
         source: &str,
     ) -> Result<(), CompileError> {
         // Generate AST
@@ -58,5 +55,13 @@ impl SourceCompiler {
         self.ast.print();
         // Generate MIR
         Ok(())
+    }
+
+    pub(crate) fn generate_program(
+        &mut self,
+        module: ModuleId,
+        modules: &mut ModuleTable,
+    ) -> Result<Program, CompileError> {
+        Ok(Program::empty())
     }
 }

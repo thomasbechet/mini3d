@@ -1,7 +1,8 @@
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
-use super::frontend::mir::primitive::PrimitiveType;
 use crate::serialize::{Serialize, SliceDecoder};
+
+use super::primitive::PrimitiveType;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConstantId(u32);
@@ -108,7 +109,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_str(&self, value: &str) -> ConstantId {
+    pub(crate) fn add_str(&mut self, value: &str) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::String,
@@ -120,7 +121,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_vec2(&self, value: Vec2) -> ConstantId {
+    pub(crate) fn add_vec2(&mut self, value: Vec2) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::Vec2,
@@ -130,7 +131,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_ivec2(&self, value: IVec2) -> ConstantId {
+    pub(crate) fn add_ivec2(&mut self, value: IVec2) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::IVec2,
@@ -140,7 +141,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_vec3(&self, value: Vec3) -> ConstantId {
+    pub(crate) fn add_vec3(&mut self, value: Vec3) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::Vec3,
@@ -150,7 +151,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_ivec3(&self, value: IVec3) -> ConstantId {
+    pub(crate) fn add_ivec3(&mut self, value: IVec3) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::IVec3,
@@ -160,7 +161,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_vec4(&self, value: Vec4) -> ConstantId {
+    pub(crate) fn add_vec4(&mut self, value: Vec4) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::Vec4,
@@ -170,7 +171,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_ivec4(&self, value: IVec4) -> ConstantId {
+    pub(crate) fn add_ivec4(&mut self, value: IVec4) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::IVec4,
@@ -180,7 +181,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_mat4(&self, value: Mat4) -> ConstantId {
+    pub(crate) fn add_mat4(&mut self, value: Mat4) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::Mat4,
@@ -190,7 +191,7 @@ impl ConstantTable {
         ConstantId(id)
     }
 
-    pub(crate) fn add_quat(&self, value: Quat) -> ConstantId {
+    pub(crate) fn add_quat(&mut self, value: Quat) -> ConstantId {
         let id = self.entries.len() as u32;
         self.entries.push(ConstantEntry {
             ty: PrimitiveType::Quat,

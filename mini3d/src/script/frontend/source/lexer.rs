@@ -1,13 +1,11 @@
 use crate::script::{
-    constant::{StringId, StringTable},
-    frontend::{
-        error::{CompileError, LexicalError},
-        mir::primitive::PrimitiveType,
-    },
+    frontend::error::{CompileError, LexicalError},
+    mir::primitive::PrimitiveType,
 };
 
 use super::{
     literal::Literal,
+    strings::{StringId, StringTable},
     token::{Location, Span, Token, TokenKind, TokenValue},
 };
 
@@ -223,9 +221,9 @@ impl Lexer {
                 if let Some(primitive) = primitive {
                     self.buffer.clear();
                     Ok(Token {
-                        kind: TokenKind::Primitive,
+                        kind: TokenKind::PrimitiveType,
                         span,
-                        value: TokenValue::Primitive(primitive),
+                        value: TokenValue::PrimitiveType(primitive),
                     })
                 } else {
                     let id = self.flush_buffer(strings);

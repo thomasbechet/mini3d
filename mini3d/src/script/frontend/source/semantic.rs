@@ -2,7 +2,7 @@ use crate::script::frontend::{error::SemanticError, source::ast::ASTVisitor};
 
 use super::{
     ast::{ASTNode, ASTNodeId, AST},
-    symbol::SourceSymbolTable,
+    symbol::SymbolTable,
 };
 
 pub(crate) struct SemanticAnalysis;
@@ -13,7 +13,7 @@ pub(crate) struct SemanticAnalysis;
 // //
 
 impl SemanticAnalysis {
-    pub(crate) fn check_undefined_symbols(symtab: &SourceSymbolTable) -> Result<(), SemanticError> {
+    pub(crate) fn check_undefined_symbols(symtab: &SymbolTable) -> Result<(), SemanticError> {
         for (id, entry) in symtab.symbols.iter().enumerate() {
             if entry.symbol.is_none() {
                 return Err(SemanticError::UndefinedSymbol(id.into()));
@@ -28,7 +28,7 @@ impl SemanticAnalysis {
     // }
 
     fn eval_expression_type(
-        symtab: &SourceSymbolTable,
+        symtab: &SymbolTable,
         ast: &AST,
         node: ASTNodeId,
     ) -> Result<(), SemanticError> {
@@ -45,7 +45,7 @@ impl SemanticAnalysis {
         Ok(())
     }
 
-    pub(crate) fn infer_function_return_types(symtab: &mut SourceSymbolTable, ast: &mut AST) {
+    pub(crate) fn infer_function_return_types(symtab: &mut SymbolTable, ast: &mut AST) {
         struct Visitor;
         impl ASTVisitor for Visitor {
             fn accept(&self, node: &ASTNode) -> bool {

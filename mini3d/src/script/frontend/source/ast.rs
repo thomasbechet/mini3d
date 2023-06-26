@@ -1,7 +1,8 @@
 use super::{
     literal::Literal,
     operator::{BinaryOperator, UnaryOperator},
-    symbol::{SourceBlockId, SourceSymbolId},
+    strings::StringId,
+    symbol::{BlockId, SymbolId},
     token::Span,
 };
 
@@ -10,13 +11,13 @@ pub(crate) enum ASTNode {
     Program,
     Import {
         path: Span,
-        symbol: SourceSymbolId,
+        symbol: SymbolId,
     },
     Compound, // STMT-0, STMT-1, STMT-2, ...
     Literal(Literal),
     Identifier {
         span: Span,
-        symbol: SourceSymbolId,
+        symbol: SymbolId,
     },
     MemberLookup {
         span: Span,
@@ -33,20 +34,20 @@ pub(crate) enum ASTNode {
     },
     FunctionDeclaration {
         span: Span,
-        symbol: SourceSymbolId,
-        function_block: SourceBlockId,
+        symbol: SymbolId,
+        function_block: BlockId,
     }, // ARG-0, ARG-1, ..., COMPOUNT-STMT
     FunctionArgument {
         span: Span,
-        symbol: SourceSymbolId,
+        symbol: SymbolId,
     },
     VariableDeclaration {
         span: Span,
-        symbol: SourceSymbolId,
+        symbol: SymbolId,
     }, // EXPR
     ConstantDeclaration {
         span: Span,
-        symbol: SourceSymbolId,
+        symbol: SymbolId,
     }, // EXPR (const)
     Call,
     Assignment,                     // IDENTIFIER-0, EXPR-0

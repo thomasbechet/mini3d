@@ -1,50 +1,49 @@
 use crate::{
     script::{
-        constant::ConstantId,
-        frontend::{
-            error::{CompileError, SyntaxError},
-            export::ExportId,
-            mir::primitive::PrimitiveType,
-        },
+        frontend::error::{CompileError, SyntaxError},
+        mir::{constant::ConstantId, export::ExportId, primitive::PrimitiveType},
     },
     uid::UID,
 };
 
-use super::token::Span;
+use super::{
+    strings::{StringId, StringTable},
+    token::Span,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct SourceSymbolId(u32);
+pub struct SymbolId(u32);
 
-impl From<usize> for SourceSymbolId {
+impl From<usize> for SymbolId {
     fn from(value: usize) -> Self {
         Self(value as u32)
     }
 }
 
-impl SourceSymbolId {
+impl SymbolId {
     fn index(self) -> usize {
         self.0 as usize
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct SourceBlockId(u32);
+pub(crate) struct BlockId(u32);
 
-impl SourceBlockId {
+impl BlockId {
     fn index(self) -> usize {
         self.0 as usize
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum SourceSymbol {
+pub(crate) enum Symbol {
     Function {
         return_type: Option<PrimitiveType>,
-        first_arg: Option<SourceSymbolId>,
+        first_arg: Option<SymbolId>,
     },
     FunctionArgument {
         arg_type: PrimitiveType,
-        next_arg: Option<SourceSymbolId>,
+        next_arg: Option<SymbolId>,
     },
     Variable {
         var_type: Option<PrimitiveType>,
@@ -52,39 +51,42 @@ pub(crate) enum SourceSymbol {
     Constant {
         value: Option<ConstantId>,
     },
-    Import(ExportId),
+    Import {
+        module: UID,
+        id: ExportId,
+    },
     Module {
-        path: ConstantId,
+        path: StringId,
     },
 }
 
 #[derive(Debug)]
 pub(crate) struct SourceBlockEntry {
-    parent: Option<SourceBlockId>,
-    last: Option<SourceSymbolId>,
-    previous_scope_symbol: Option<SourceSymbolId>,
+    parent: Option<BlockId>,
+    last: Option<SymbolId>,
+    previous_scope_symbol: Option<SymbolId>,
 }
 
 #[derive(Debug)]
-pub(crate) struct SourceSymbolEntry {
-    pub(crate) ident: ConstantId,
+pub(crate) struct SymbolEntry {
+    pub(crate) ident: StringId,
     pub(crate) hash: UID,
-    pub(crate) block: SourceBlockId,
-    pub(crate) symbol: Option<SourceSymbol>,
-    pub(crate) previous_in_block: Option<SourceSymbolId>,
-    pub(crate) previous_in_scope: Option<SourceSymbolId>,
+    pub(crate) block: BlockId,
+    pub(crate) symbol: Option<Symbol>,
+    pub(crate) previous_in_block: Option<SymbolId>,
+    pub(crate) previous_in_scope: Option<SymbolId>,
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct SourceSymbolTable {
-    pub(crate) symbols: Vec<SourceSymbolEntry>,
+pub(crate) struct SymbolTable {
+    pub(crate) symbols: Vec<SymbolEntry>,
     pub(crate) blocks: Vec<SourceBlockEntry>,
     pub(crate) symbol_state: usize,
     pub(crate) block_state: usize,
 }
 
-impl SourceSymbolTable {
-    pub(crate) const GLOBAL_BLOCK: SourceBlockId = SourceBlockId(0);
+impl SymbolTable {
+    pub(crate) const GLOBAL_BLOCK: BlockId = BlockId(0);
 
     pub(crate) fn clear(&mut self) {
         self.symbols.clear();
@@ -101,12 +103,12 @@ impl SourceSymbolTable {
         &mut self,
         strings: &StringTable,
         ident: StringId,
-        block: SourceBlockId,
-        symbol: Option<SourceSymbol>,
-    ) -> SourceSymbolId {
+        block: BlockId,
+        symbol: Option<Symbol>,
+    ) -> SymbolId {
         // Prepare entry
-        let value = strings.slice(ident);
-        let mut entry = SourceSymbolEntry {
+        let value = strings.get(ident);
+        let mut entry = SymbolEntry {
             symbol,
             hash: value.into(),
             ident,
@@ -130,18 +132,18 @@ impl SourceSymbolTable {
 
         // Add symbol
         self.symbols.push(entry);
-        SourceSymbolId(self.symbols.len() as u32 - 1)
+        SymbolId(self.symbols.len() as u32 - 1)
     }
 
     pub(crate) fn define_symbol(
         &mut self,
         strings: &StringTable,
         ident: StringId,
-        block: SourceBlockId,
+        block: BlockId,
         span: Span,
-        symbol: SourceSymbol,
+        symbol: Symbol,
         allow_shadowing: bool,
-    ) -> Result<SourceSymbolId, CompileError> {
+    ) -> Result<SymbolId, CompileError> {
         let exist = self.find_in_scope(strings, ident, block).is_some();
         if exist && !allow_shadowing {
             return Err(SyntaxError::SymbolAlreadyDefined { span }.into());
@@ -149,7 +151,7 @@ impl SourceSymbolTable {
         Ok(self.add_symbol(strings, ident, block, Some(symbol)))
     }
 
-    pub(crate) fn get_mut(&mut self, id: SourceSymbolId) -> Option<&mut SourceSymbol> {
+    pub(crate) fn get_mut(&mut self, id: SymbolId) -> Option<&mut Symbol> {
         self.symbols
             .get_mut(id.0 as usize)
             .and_then(|s| s.symbol.as_mut())
@@ -159,8 +161,8 @@ impl SourceSymbolTable {
         &mut self,
         strings: &StringTable,
         ident: StringId,
-        block: SourceBlockId,
-    ) -> SourceSymbolId {
+        block: BlockId,
+    ) -> SymbolId {
         if let Some(id) = self.find_in_scope(strings, ident, block) {
             id
         } else {
@@ -168,7 +170,7 @@ impl SourceSymbolTable {
         }
     }
 
-    pub(crate) fn add_block(&mut self, parent: Option<SourceBlockId>) -> SourceBlockId {
+    pub(crate) fn add_block(&mut self, parent: Option<BlockId>) -> BlockId {
         // Compute previous_scope_symbol
         let previous_scope_symbol = parent.and_then(|p| {
             let parent = self.blocks.get(p.index()).unwrap();
@@ -181,20 +183,20 @@ impl SourceSymbolTable {
             last: None,
             previous_scope_symbol,
         });
-        SourceBlockId(self.blocks.len() as u32 - 1)
+        BlockId(self.blocks.len() as u32 - 1)
     }
 
     pub(crate) fn find_in_block(
         &self,
         strings: &StringTable,
         ident: StringId,
-        block: SourceBlockId,
-    ) -> Option<SourceSymbolId> {
+        block: BlockId,
+    ) -> Option<SymbolId> {
         let mut entry = self.blocks.get(block.index()).unwrap().last;
         loop {
             if let Some(id) = entry {
                 let symbol = self.symbols.get(id.index()).unwrap();
-                if symbol.hash == strings.slice(ident).into() {
+                if symbol.hash == strings.get(ident).into() {
                     return Some(id);
                 }
                 entry = self.symbols[id.index()].previous_in_block;
@@ -208,13 +210,13 @@ impl SourceSymbolTable {
         &self,
         strings: &StringTable,
         ident: StringId,
-        block: SourceBlockId,
-    ) -> Option<SourceSymbolId> {
+        block: BlockId,
+    ) -> Option<SymbolId> {
         let mut entry = self.blocks.get(block.index()).unwrap().last;
         loop {
             if let Some(id) = entry {
                 let symbol = &self.symbols.get(id.index()).unwrap();
-                if symbol.hash == strings.slice(ident).into() {
+                if symbol.hash == strings.get(ident).into() {
                     return Some(id);
                 }
                 entry = self.symbols[id.index()].previous_in_scope;
@@ -230,7 +232,7 @@ impl SourceSymbolTable {
             println!(
                 "- [{}] '{}' {:?}",
                 i,
-                strings.slice(entry.ident),
+                strings.get(entry.ident),
                 entry.symbol
             );
         }

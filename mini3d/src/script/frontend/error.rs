@@ -1,7 +1,7 @@
 use std::num::{ParseFloatError, ParseIntError};
 
 use super::source::{
-    symbol::SourceSymbolId,
+    symbol::SymbolId,
     token::{Span, TokenKind},
 };
 
@@ -32,7 +32,7 @@ pub enum SyntaxError {
 #[derive(Debug)]
 pub enum SemanticError {
     TypeMistmatch,
-    UndefinedSymbol(SourceSymbolId),
+    UndefinedSymbol(SymbolId),
     MultipleDefinitions,
 }
 

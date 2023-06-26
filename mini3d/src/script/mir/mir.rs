@@ -1,9 +1,10 @@
-use crate::{
-    script::constant::{ConstantId, ConstantTable},
-    uid::UID,
-};
+use crate::uid::UID;
 
-use super::primitive::PrimitiveType;
+use super::{
+    constant::{ConstantId, ConstantTable},
+    export::ExportTable,
+    primitive::PrimitiveType,
+};
 
 pub(crate) type LocalId = u16;
 pub(crate) type BasicBlockId = u16;
@@ -124,8 +125,9 @@ pub(crate) struct Function {
 pub(crate) struct MIR {
     pub(crate) functions: Vec<Function>,
     pub(crate) blocks: Vec<BasicBlock>,
-    pub(crate) constants: ConstantTable,
     pub(crate) locals: Vec<Local>,
+    pub(crate) constants: ConstantTable,
+    pub(crate) exports: ExportTable,
 }
 
 impl MIR {
@@ -282,11 +284,11 @@ mod test {
     #[test]
     fn test_print() {
         let mut mir = MIR::default();
+        let lhs = mir.constants.add_f32(1.0);
+        let rhs = mir.constants.add_f32(1.0);
         let constants = ConstantTable::default();
         let entry = mir.add_function("__main".to_string(), 0.into());
         let dst = mir.add_local(PrimitiveType::Float);
-        let lhs = mir.add_constant(&PrimitiveValue::Float(1.0), &strings);
-        let rhs = mir.add_constant(&PrimitiveValue::Float(1.0), &strings);
         mir.add_instruction(
             entry,
             Instruction::Add {
