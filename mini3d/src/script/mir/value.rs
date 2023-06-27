@@ -5,16 +5,16 @@ use crate::serialize::{Serialize, SliceDecoder};
 use super::primitive::PrimitiveType;
 
 #[derive(Debug, Clone, Copy)]
-pub struct ConstantId(u32);
+pub struct ValueId(u16);
 
-struct ConstantEntry {
+struct ValueEntry {
     ty: PrimitiveType,
     data: u32,
 }
 
 pub(crate) struct ConstantFormatter<'a> {
-    id: ConstantId,
-    table: &'a ConstantTable,
+    id: ValueId,
+    table: &'a ValueTable,
 }
 
 impl<'a> core::fmt::Display for ConstantFormatter<'a> {
@@ -39,18 +39,18 @@ impl<'a> core::fmt::Display for ConstantFormatter<'a> {
 }
 
 #[derive(Default)]
-pub(crate) struct ConstantTable {
-    entries: Vec<ConstantEntry>,
+pub(crate) struct ValueTable {
+    entries: Vec<ValueEntry>,
     data: Vec<u8>,
 }
 
-impl ConstantTable {
+impl ValueTable {
     pub(crate) fn clear(&mut self) {
         self.entries.clear();
         self.data.clear();
     }
 
-    pub(crate) fn remove(&mut self, id: ConstantId) {
+    pub(crate) fn remove(&mut self, id: ValueId) {
         let entry = self.entries.remove(id.0 as usize);
         match entry.ty {
             PrimitiveType::String => {}
@@ -59,7 +59,7 @@ impl ConstantTable {
         // TODO: remove from data
     }
 
-    pub(crate) fn import(&mut self, id: ConstantId, table: &ConstantTable) -> ConstantId {
+    pub(crate) fn import(&mut self, id: ValueId, table: &ValueTable) -> ValueId {
         let ty = table.entries[id.0 as usize].ty;
         match ty {
             PrimitiveType::Boolean => self.add_bool(table.read_bool(id)),
@@ -78,148 +78,148 @@ impl ConstantTable {
         }
     }
 
-    pub(crate) fn format(&self, id: ConstantId) -> ConstantFormatter {
+    pub(crate) fn format(&self, id: ValueId) -> ConstantFormatter {
         ConstantFormatter { id, table: self }
     }
 
-    pub(crate) fn add_bool(&mut self, value: bool) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_bool(&mut self, value: bool) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Boolean,
             data: value as u32,
         });
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_u32(&mut self, value: u32) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_u32(&mut self, value: u32) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Integer,
             data: value,
         });
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_f32(&mut self, value: f32) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_f32(&mut self, value: f32) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Float,
             data: value.to_bits(),
         });
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_str(&mut self, value: &str) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_str(&mut self, value: &str) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::String,
             data: self.data.len() as u32,
         });
         self.data
             .extend_from_slice(&(value.len() as u32).to_be_bytes());
         self.data.extend_from_slice(value.as_bytes());
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_vec2(&mut self, value: Vec2) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_vec2(&mut self, value: Vec2) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Vec2,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_ivec2(&mut self, value: IVec2) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_ivec2(&mut self, value: IVec2) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::IVec2,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_vec3(&mut self, value: Vec3) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_vec3(&mut self, value: Vec3) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Vec3,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_ivec3(&mut self, value: IVec3) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_ivec3(&mut self, value: IVec3) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::IVec3,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_vec4(&mut self, value: Vec4) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_vec4(&mut self, value: Vec4) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Vec4,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_ivec4(&mut self, value: IVec4) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_ivec4(&mut self, value: IVec4) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::IVec4,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_mat4(&mut self, value: Mat4) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_mat4(&mut self, value: Mat4) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Mat4,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn add_quat(&mut self, value: Quat) -> ConstantId {
-        let id = self.entries.len() as u32;
-        self.entries.push(ConstantEntry {
+    pub(crate) fn add_quat(&mut self, value: Quat) -> ValueId {
+        let id = self.entries.len() as u16;
+        self.entries.push(ValueEntry {
             ty: PrimitiveType::Quat,
             data: self.data.len() as u32,
         });
         value.serialize(&mut self.data);
-        ConstantId(id)
+        ValueId(id)
     }
 
-    pub(crate) fn read_bool(&self, id: ConstantId) -> bool {
+    pub(crate) fn read_bool(&self, id: ValueId) -> bool {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Boolean);
         entry.data != 0
     }
 
-    pub(crate) fn read_u32(&self, id: ConstantId) -> u32 {
+    pub(crate) fn read_u32(&self, id: ValueId) -> u32 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Integer);
         entry.data
     }
 
-    pub(crate) fn read_f32(&self, id: ConstantId) -> f32 {
+    pub(crate) fn read_f32(&self, id: ValueId) -> f32 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Float);
         f32::from_bits(entry.data)
     }
 
-    pub(crate) fn read_str(&self, id: ConstantId) -> &str {
+    pub(crate) fn read_str(&self, id: ValueId) -> &str {
         let entry = &self.entries[id.0 as usize];
         let start = entry.data as usize + core::mem::size_of::<u32>();
         let len = u32::from_be_bytes(
@@ -230,7 +230,7 @@ impl ConstantTable {
         core::str::from_utf8(&self.data[start..start + len]).unwrap()
     }
 
-    pub(crate) fn read_vec2(&self, id: ConstantId) -> Vec2 {
+    pub(crate) fn read_vec2(&self, id: ValueId) -> Vec2 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Vec2);
         Vec2::deserialize(
@@ -240,7 +240,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_ivec2(&self, id: ConstantId) -> IVec2 {
+    pub(crate) fn read_ivec2(&self, id: ValueId) -> IVec2 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::IVec2);
         IVec2::deserialize(
@@ -250,7 +250,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_vec3(&self, id: ConstantId) -> Vec3 {
+    pub(crate) fn read_vec3(&self, id: ValueId) -> Vec3 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Vec3);
         Vec3::deserialize(
@@ -260,7 +260,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_ivec3(&self, id: ConstantId) -> IVec3 {
+    pub(crate) fn read_ivec3(&self, id: ValueId) -> IVec3 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::IVec3);
         IVec3::deserialize(
@@ -270,7 +270,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_vec4(&self, id: ConstantId) -> Vec4 {
+    pub(crate) fn read_vec4(&self, id: ValueId) -> Vec4 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Vec4);
         Vec4::deserialize(
@@ -280,7 +280,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_ivec4(&self, id: ConstantId) -> IVec4 {
+    pub(crate) fn read_ivec4(&self, id: ValueId) -> IVec4 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::IVec4);
         IVec4::deserialize(
@@ -290,7 +290,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_mat4(&self, id: ConstantId) -> Mat4 {
+    pub(crate) fn read_mat4(&self, id: ValueId) -> Mat4 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Mat4);
         Mat4::deserialize(
@@ -300,7 +300,7 @@ impl ConstantTable {
         .unwrap()
     }
 
-    pub(crate) fn read_quat(&self, id: ConstantId) -> Quat {
+    pub(crate) fn read_quat(&self, id: ValueId) -> Quat {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::Quat);
         Quat::deserialize(

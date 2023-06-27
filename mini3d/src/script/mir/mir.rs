@@ -1,39 +1,47 @@
 use crate::uid::UID;
 
 use super::{
-    constant::{ConstantId, ConstantTable},
-    export::ExportTable,
     primitive::PrimitiveType,
+    value::{ValueId, ValueTable},
 };
 
 pub(crate) type LocalId = u16;
+pub(crate) type InstructionId = u16;
+pub(crate) type ConstantId = u16;
 pub(crate) type BasicBlockId = u16;
 pub(crate) type FunctionId = u16;
 
 #[derive(Clone, Copy)]
 pub(crate) enum Operand {
-    Constant(ConstantId),
+    Value(ValueId),
     Local(LocalId),
+    Constant(ConstantId),
 }
 
 struct OperandFormatter<'a> {
     operand: Operand,
-    constants: &'a ConstantTable,
+    constants: &'a Vec<Constant>,
+    values: &'a ValueTable,
 }
 
 impl<'a> OperandFormatter<'a> {
-    fn new(operand: Operand, constants: &'a ConstantTable) -> Self {
-        Self { operand, constants }
+    fn new(operand: Operand, constants: &'a Vec<Constant>, values: &'a ValueTable) -> Self {
+        Self {
+            operand,
+            constants,
+            values,
+        }
     }
 }
 
 impl<'a> core::fmt::Display for OperandFormatter<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.operand {
-            Operand::Constant(id) => {
-                write!(f, "{}", self.constants.format(id))
+            Operand::Value(id) => {
+                write!(f, "{}", self.values.format(id))
             }
             Operand::Local(id) => write!(f, "%{}", id),
+            Operand::Constant(id) => write!(f, ""),
         }
     }
 }
@@ -65,7 +73,7 @@ pub(crate) enum Terminator {
 
 pub(crate) enum Instruction {
     Call {
-        function: u16,
+        function: FunctionId,
     },
     CallParameter {
         value: Operand,
@@ -114,20 +122,44 @@ pub(crate) struct Local {
     id: LocalId,
 }
 
-pub(crate) struct Function {
-    pub(crate) name: String,
-    pub(crate) module: UID,
-    pub(crate) entry: BasicBlockId,
+pub(crate) enum Function {
+    Internal {
+        return_ty: Option<PrimitiveType>,
+        first_arg: Option<FunctionId>,
+        entry: Option<BasicBlockId>,
+        export: bool,
+    },
+    Argument {
+        ty: PrimitiveType,
+        next_arg: Option<FunctionId>,
+    },
+    External {
+        module: UID,
+        uid: UID,
+    },
+}
+
+pub(crate) enum Constant {
+    Internal {
+        ty: PrimitiveType,
+        value: Option<ValueId>,
+        expression: Option<InstructionId>,
+        export: bool,
+    },
+    External {
+        module: UID,
+        uid: UID,
+    },
 }
 
 #[derive(Default)]
 #[warn(clippy::upper_case_acronyms)]
 pub(crate) struct MIR {
-    pub(crate) functions: Vec<Function>,
+    pub(crate) values: ValueTable,
     pub(crate) blocks: Vec<BasicBlock>,
     pub(crate) locals: Vec<Local>,
-    pub(crate) constants: ConstantTable,
-    pub(crate) exports: ExportTable,
+    pub(crate) functions: Vec<Function>,
+    pub(crate) constants: Vec<Constant>,
 }
 
 impl MIR {
@@ -187,33 +219,33 @@ impl MIR {
             Instruction::Add { dst, lhs, rhs } => {
                 println!(
                     "    add {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants),
-                    OperandFormatter::new(*lhs, &self.constants),
-                    OperandFormatter::new(*rhs, &self.constants),
+                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
+                    OperandFormatter::new(*lhs, &self.constants, &self.values),
+                    OperandFormatter::new(*rhs, &self.constants, &self.values),
                 );
             }
             Instruction::Sub { dst, lhs, rhs } => {
                 println!(
                     "    sub {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants),
-                    OperandFormatter::new(*lhs, &self.constants),
-                    OperandFormatter::new(*rhs, &self.constants),
+                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
+                    OperandFormatter::new(*lhs, &self.constants, &self.values),
+                    OperandFormatter::new(*rhs, &self.constants, &self.values),
                 );
             }
             Instruction::Mul { dst, lhs, rhs } => {
                 println!(
                     "    mul {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants),
-                    OperandFormatter::new(*lhs, &self.constants),
-                    OperandFormatter::new(*rhs, &self.constants),
+                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
+                    OperandFormatter::new(*lhs, &self.constants, &self.values),
+                    OperandFormatter::new(*rhs, &self.constants, &self.values),
                 );
             }
             Instruction::Div { dst, lhs, rhs } => {
                 println!(
                     "    div {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants),
-                    OperandFormatter::new(*lhs, &self.constants),
-                    OperandFormatter::new(*rhs, &self.constants),
+                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
+                    OperandFormatter::new(*lhs, &self.constants, &self.values),
+                    OperandFormatter::new(*rhs, &self.constants, &self.values),
                 );
             }
             Instruction::ReadComponent => todo!(),
@@ -239,9 +271,9 @@ impl MIR {
                     Branch::GreaterEqual => print!("    bge"),
                 }
                 println!(
-                    "{} {} .L{} .L{}",
-                    OperandFormatter::new(*lhs, &self.constants),
-                    OperandFormatter::new(*rhs, &self.constants),
+                    " {} {} .L{} .L{}",
+                    OperandFormatter::new(*lhs, &self.constants, &self.values),
+                    OperandFormatter::new(*rhs, &self.constants, &self.values),
                     true_block,
                     false_block,
                 );
@@ -251,7 +283,10 @@ impl MIR {
             }
             Terminator::Return { value } => {
                 if let Some(value) = value {
-                    println!("    ret {}", OperandFormatter::new(*value, &self.constants),);
+                    println!(
+                        "    ret {}",
+                        OperandFormatter::new(*value, &self.constants, &self.values),
+                    );
                 } else {
                     println!("    ret");
                 }
@@ -284,17 +319,17 @@ mod test {
     #[test]
     fn test_print() {
         let mut mir = MIR::default();
-        let lhs = mir.constants.add_f32(1.0);
-        let rhs = mir.constants.add_f32(1.0);
-        let constants = ConstantTable::default();
+        let lhs = mir.values.add_f32(1.0);
+        let rhs = mir.values.add_f32(1.0);
+        let values = ValueTable::default();
         let entry = mir.add_function("__main".to_string(), 0.into());
         let dst = mir.add_local(PrimitiveType::Float);
         mir.add_instruction(
             entry,
             Instruction::Add {
                 dst,
-                lhs: Operand::Constant(lhs),
-                rhs: Operand::Constant(rhs),
+                lhs: Operand::Value(lhs),
+                rhs: Operand::Value(rhs),
             },
         );
         mir.print();
