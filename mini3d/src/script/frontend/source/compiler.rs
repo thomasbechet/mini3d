@@ -1,4 +1,5 @@
 use crate::script::{
+    compiler::CompilationUnit,
     frontend::error::CompileError,
     interpreter::program::Program,
     module::{Module, ModuleId, ModuleTable},
@@ -28,20 +29,10 @@ impl Default for SourceCompiler {
 }
 
 impl SourceCompiler {
-    pub(crate) fn resolve_dependencies_and_exports(
-        &mut self,
-        stream: &SourceStream,
-        module: &mut Module,
-    ) -> Result<(), CompileError> {
-        if !module.mir.exports.is_complete() {
-            // TODO: Resolve dependencies and exports
-        }
-        Ok(())
-    }
-
     pub(crate) fn generate_mir(
         &mut self,
         module: &mut Module,
+        compilation_unit: &mut CompilationUnit,
         source: &str,
     ) -> Result<(), CompileError> {
         // Generate AST
@@ -55,13 +46,5 @@ impl SourceCompiler {
         self.ast.print();
         // Generate MIR
         Ok(())
-    }
-
-    pub(crate) fn generate_program(
-        &mut self,
-        module: ModuleId,
-        modules: &mut ModuleTable,
-    ) -> Result<Program, CompileError> {
-        Ok(Program::empty())
     }
 }

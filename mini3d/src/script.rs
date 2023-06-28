@@ -1,5 +1,6 @@
 use self::compiler::Compiler;
 
+pub mod backend;
 pub mod compiler;
 pub mod frontend;
 pub mod interpreter;

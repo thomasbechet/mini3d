@@ -15,7 +15,6 @@ pub(crate) struct Module {
     pub(crate) kind: ModuleKind,
     pub(crate) asset: UID,
     pub(crate) mir: MIR,
-    pub(crate) dependencies: Vec<ModuleId>,
 }
 
 #[derive(Default)]
@@ -30,7 +29,6 @@ impl ModuleTable {
             kind,
             asset,
             mir: Default::default(),
-            dependencies: Vec::new(),
         });
         id
     }

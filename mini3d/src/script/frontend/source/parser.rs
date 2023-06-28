@@ -264,7 +264,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
             .ok_or(SyntaxError::MissingConstantType { span: token.span })?;
         self.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0, block)?;
-        let symbol = Symbol::Constant { value: None };
+        let symbol = Symbol::Constant { const_type };
         let symbol_id = self.symbols.define_symbol(
             self.strings,
             token.value.into(),
@@ -484,10 +484,10 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
     fn parse(&mut self) -> Result<(), CompileError> {
         let global_block = self.symbols.add_block(None);
 
-        // while self.peek(0)?.kind == TokenKind::Import {
-        //     let import = self.parse_import(global_block)?;
-        //     self.ast.append_child(self.ast.root(), import);
-        // }
+        while self.peek(0)?.kind == TokenKind::Import {
+            let import = self.parse_import(global_block)?;
+            self.ast.append_child(self.ast.root(), import);
+        }
 
         while let Some(stmt) = self.parse_statement(global_block, TokenKind::EOF)? {
             self.ast.append_child(self.ast.root(), stmt);

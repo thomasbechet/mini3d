@@ -1,50 +1,15 @@
-use crate::uid::UID;
-
 use super::{
+    data::{DataId, DataTable},
+    instruction::{Instruction, InstructionKind, Operand},
     primitive::PrimitiveType,
-    value::{ValueId, ValueTable},
+    slotmap::{SlotId, SlotMap},
 };
 
-pub(crate) type LocalId = u16;
-pub(crate) type InstructionId = u16;
-pub(crate) type ConstantId = u16;
-pub(crate) type BasicBlockId = u16;
-pub(crate) type FunctionId = u16;
-
-#[derive(Clone, Copy)]
-pub(crate) enum Operand {
-    Value(ValueId),
-    Local(LocalId),
-    Constant(ConstantId),
-}
-
-struct OperandFormatter<'a> {
-    operand: Operand,
-    constants: &'a Vec<Constant>,
-    values: &'a ValueTable,
-}
-
-impl<'a> OperandFormatter<'a> {
-    fn new(operand: Operand, constants: &'a Vec<Constant>, values: &'a ValueTable) -> Self {
-        Self {
-            operand,
-            constants,
-            values,
-        }
-    }
-}
-
-impl<'a> core::fmt::Display for OperandFormatter<'a> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self.operand {
-            Operand::Value(id) => {
-                write!(f, "{}", self.values.format(id))
-            }
-            Operand::Local(id) => write!(f, "%{}", id),
-            Operand::Constant(id) => write!(f, ""),
-        }
-    }
-}
+pub(crate) type BasicBlockId = SlotId<BasicBlock>;
+pub(crate) type FunctionId = SlotId<Function>;
+pub(crate) type ConstantId = SlotId<Constant>;
+pub(crate) type LocalId = SlotId<Local>;
+pub(crate) type InstructionId = SlotId<Instruction>;
 
 pub(crate) enum Branch {
     Equal,
@@ -71,120 +36,83 @@ pub(crate) enum Terminator {
     },
 }
 
-pub(crate) enum Instruction {
-    Call {
-        function: FunctionId,
-    },
-    CallParameter {
-        value: Operand,
-    },
-    Phi {
-        dst: LocalId,
-    },
-    PhiParameter {
-        block: BasicBlockId,
-        value: Operand,
-    },
-    Add {
-        dst: LocalId,
-        lhs: Operand,
-        rhs: Operand,
-    },
-    Sub {
-        dst: LocalId,
-        lhs: Operand,
-        rhs: Operand,
-    },
-    Mul {
-        dst: LocalId,
-        lhs: Operand,
-        rhs: Operand,
-    },
-    Div {
-        dst: LocalId,
-        lhs: Operand,
-        rhs: Operand,
-    },
-    ReadComponent,
-    WriteComponent,
-}
-
 #[derive(Default)]
 pub(crate) struct BasicBlock {
+    first: InstructionId,
+    last: InstructionId,
     predecessors: Vec<BasicBlockId>,
-    instructions: Vec<Instruction>,
     terminator: Option<Terminator>,
     sealed: bool,
 }
 
 pub(crate) struct Local {
     ty: PrimitiveType,
-    id: LocalId,
 }
 
 pub(crate) enum Function {
     Internal {
-        return_ty: Option<PrimitiveType>,
-        first_arg: Option<FunctionId>,
-        entry: Option<BasicBlockId>,
+        name: DataId,
+        return_ty: PrimitiveType,
+        first_arg: FunctionId,
+        entry_block: BasicBlockId,
         export: bool,
     },
-    Argument {
-        ty: PrimitiveType,
-        next_arg: Option<FunctionId>,
-    },
     External {
-        module: UID,
-        uid: UID,
+        module: DataId,
+        name: DataId,
+    },
+    Argument {
+        name: DataId,
+        ty: PrimitiveType,
+        next_arg: FunctionId,
     },
 }
 
 pub(crate) enum Constant {
     Internal {
+        name: DataId,
         ty: PrimitiveType,
-        value: Option<ValueId>,
-        expression: Option<InstructionId>,
+        value: Option<DataId>,
+        expression_block: BasicBlockId,
         export: bool,
     },
     External {
-        module: UID,
-        uid: UID,
+        module: DataId,
+        name: DataId,
     },
 }
 
 #[derive(Default)]
 #[warn(clippy::upper_case_acronyms)]
 pub(crate) struct MIR {
-    pub(crate) values: ValueTable,
-    pub(crate) blocks: Vec<BasicBlock>,
-    pub(crate) locals: Vec<Local>,
-    pub(crate) functions: Vec<Function>,
-    pub(crate) constants: Vec<Constant>,
+    pub(crate) instructions: SlotMap<Instruction>,
+    pub(crate) basic_blocks: SlotMap<BasicBlock>,
+    pub(crate) functions: SlotMap<Function>,
+    pub(crate) constants: SlotMap<Constant>,
+    pub(crate) data: DataTable,
 }
 
 impl MIR {
-    pub(crate) fn add_local(&mut self, ty: PrimitiveType) -> LocalId {
-        let id = self.locals.len() as LocalId;
-        self.locals.push(Local { ty, id });
-        id
-    }
+    // pub(crate) fn add_local(&mut self, ty: PrimitiveType) -> LocalId {
+    //     let id = self.locals.len() as LocalId;
+    //     self.locals.push(Local { ty, id });
+    //     id
+    // }
 
     fn add_basic_block(&mut self) -> BasicBlockId {
-        let id = self.blocks.len() as BasicBlockId;
-        self.blocks.push(BasicBlock::default());
-        id
+        self.basic_blocks.add(BasicBlock::default())
     }
 
-    pub(crate) fn add_function(&mut self, name: String, module: UID) -> BasicBlockId {
-        let entry = self.add_basic_block();
-        self.functions.len() as FunctionId;
-        self.functions.push(Function {
-            name,
-            module,
-            entry,
-        });
-        entry
-    }
+    // pub(crate) fn add_function(&mut self, name: String, module: UID) -> BasicBlockId {
+    //     let entry = self.add_basic_block();
+    //     self.functions.len() as FunctionId;
+    //     self.functions.push(Function {
+    //         name,
+    //         module,
+    //         entry,
+    //     });
+    //     entry
+    // }
 
     pub(crate) fn add_branch(
         &mut self,
@@ -202,136 +130,161 @@ impl MIR {
             true_block,
             false_block,
         };
-        self.blocks[block as usize].terminator = Some(terminator);
+        self.basic_blocks.get_mut(block).terminator = Some(terminator);
         (true_block, false_block)
     }
 
-    pub(crate) fn add_instruction(&mut self, block: BasicBlockId, instruction: Instruction) {
-        self.blocks[block as usize].instructions.push(instruction);
+    pub(crate) fn add_instruction(
+        &mut self,
+        block: BasicBlockId,
+        kind: InstructionKind,
+        op0: Operand,
+        op1: Operand,
+        op2: Operand,
+    ) -> InstructionId {
+        let id = self.instructions.add(Instruction {
+            kind,
+            op0,
+            op1,
+            op2,
+            next: InstructionId::null(),
+            prev: InstructionId::null(),
+        });
+        if self.basic_blocks.get(block).last.is_null() {
+            let block = self.basic_blocks.get_mut(block);
+            block.first = id;
+            block.last = id;
+        } else {
+            let block = self.basic_blocks.get_mut(block);
+            self.instructions.get_mut(block.last).next = id;
+            self.instructions.get_mut(id).prev = block.last;
+            block.last = id;
+        }
+        id
     }
 
-    fn print_instruction(&self, instruction: &Instruction) {
-        match instruction {
-            Instruction::Call { function } => todo!(),
-            Instruction::CallParameter { value } => todo!(),
-            Instruction::Phi { dst } => todo!(),
-            Instruction::PhiParameter { block, value } => todo!(),
-            Instruction::Add { dst, lhs, rhs } => {
-                println!(
-                    "    add {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
-                    OperandFormatter::new(*lhs, &self.constants, &self.values),
-                    OperandFormatter::new(*rhs, &self.constants, &self.values),
-                );
-            }
-            Instruction::Sub { dst, lhs, rhs } => {
-                println!(
-                    "    sub {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
-                    OperandFormatter::new(*lhs, &self.constants, &self.values),
-                    OperandFormatter::new(*rhs, &self.constants, &self.values),
-                );
-            }
-            Instruction::Mul { dst, lhs, rhs } => {
-                println!(
-                    "    mul {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
-                    OperandFormatter::new(*lhs, &self.constants, &self.values),
-                    OperandFormatter::new(*rhs, &self.constants, &self.values),
-                );
-            }
-            Instruction::Div { dst, lhs, rhs } => {
-                println!(
-                    "    div {} {} {}",
-                    OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.values),
-                    OperandFormatter::new(*lhs, &self.constants, &self.values),
-                    OperandFormatter::new(*rhs, &self.constants, &self.values),
-                );
-            }
-            Instruction::ReadComponent => todo!(),
-            Instruction::WriteComponent => todo!(),
-        }
-    }
+    // fn print_instruction(&self, instruction: &Instruction) {
+    //     match instruction {
+    //         Instruction::Call { function } => todo!(),
+    //         Instruction::CallParameter { value } => todo!(),
+    //         Instruction::Phi { dst } => todo!(),
+    //         Instruction::PhiParameter { block, value } => todo!(),
+    //         Instruction::Add { dst, lhs, rhs } => {
+    //             println!(
+    //                 "    add {} {} {}",
+    //                 OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.data),
+    //                 OperandFormatter::new(*lhs, &self.constants, &self.data),
+    //                 OperandFormatter::new(*rhs, &self.constants, &self.data),
+    //             );
+    //         }
+    //         Instruction::Sub { dst, lhs, rhs } => {
+    //             println!(
+    //                 "    sub {} {} {}",
+    //                 OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.data),
+    //                 OperandFormatter::new(*lhs, &self.constants, &self.data),
+    //                 OperandFormatter::new(*rhs, &self.constants, &self.data),
+    //             );
+    //         }
+    //         Instruction::Mul { dst, lhs, rhs } => {
+    //             println!(
+    //                 "    mul {} {} {}",
+    //                 OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.data),
+    //                 OperandFormatter::new(*lhs, &self.constants, &self.data),
+    //                 OperandFormatter::new(*rhs, &self.constants, &self.data),
+    //             );
+    //         }
+    //         Instruction::Div { dst, lhs, rhs } => {
+    //             println!(
+    //                 "    div {} {} {}",
+    //                 OperandFormatter::new(Operand::Local(*dst), &self.constants, &self.data),
+    //                 OperandFormatter::new(*lhs, &self.constants, &self.data),
+    //                 OperandFormatter::new(*rhs, &self.constants, &self.data),
+    //             );
+    //         }
+    //         Instruction::ReadComponent => todo!(),
+    //         Instruction::WriteComponent => todo!(),
+    //     }
+    // }
 
-    fn print_terminator(&self, terminator: &Terminator) {
-        match terminator {
-            Terminator::Branch {
-                branch,
-                lhs,
-                rhs,
-                true_block,
-                false_block,
-            } => {
-                match branch {
-                    Branch::Equal => print!("    beq"),
-                    Branch::NotEqual => print!("    bne"),
-                    Branch::Less => print!("    blt"),
-                    Branch::LessEqual => print!("    ble"),
-                    Branch::Greater => print!("    bgt"),
-                    Branch::GreaterEqual => print!("    bge"),
-                }
-                println!(
-                    " {} {} .L{} .L{}",
-                    OperandFormatter::new(*lhs, &self.constants, &self.values),
-                    OperandFormatter::new(*rhs, &self.constants, &self.values),
-                    true_block,
-                    false_block,
-                );
-            }
-            Terminator::Jump { block } => {
-                println!("    jmp .L{}", block);
-            }
-            Terminator::Return { value } => {
-                if let Some(value) = value {
-                    println!(
-                        "    ret {}",
-                        OperandFormatter::new(*value, &self.constants, &self.values),
-                    );
-                } else {
-                    println!("    ret");
-                }
-            }
-        }
-    }
+    // fn print_terminator(&self, terminator: &Terminator) {
+    //     match terminator {
+    //         Terminator::Branch {
+    //             branch,
+    //             lhs,
+    //             rhs,
+    //             true_block,
+    //             false_block,
+    //         } => {
+    //             match branch {
+    //                 Branch::Equal => print!("    beq"),
+    //                 Branch::NotEqual => print!("    bne"),
+    //                 Branch::Less => print!("    blt"),
+    //                 Branch::LessEqual => print!("    ble"),
+    //                 Branch::Greater => print!("    bgt"),
+    //                 Branch::GreaterEqual => print!("    bge"),
+    //             }
+    //             println!(
+    //                 " {} {} .L{} .L{}",
+    //                 OperandFormatter::new(*lhs, &self.constants, &self.data),
+    //                 OperandFormatter::new(*rhs, &self.constants, &self.data),
+    //                 true_block,
+    //                 false_block,
+    //             );
+    //         }
+    //         Terminator::Jump { block } => {
+    //             println!("    jmp .L{}", block);
+    //         }
+    //         Terminator::Return { value } => {
+    //             if let Some(value) = value {
+    //                 println!(
+    //                     "    ret {}",
+    //                     OperandFormatter::new(*value, &self.constants, &self.data),
+    //                 );
+    //             } else {
+    //                 println!("    ret");
+    //             }
+    //         }
+    //     }
+    // }
 
-    fn print_block(&self, block: BasicBlockId) {
-        println!(".L{}:", block);
-        let block = &self.blocks[block as usize];
-        for instruction in &block.instructions {
-            self.print_instruction(instruction);
-        }
-        if let Some(terminator) = &block.terminator {
-            self.print_terminator(terminator);
-        }
-    }
+    // fn print_block(&self, block: BasicBlockId) {
+    //     println!(".L{}:", block);
+    //     let block = &self.blocks[block as usize];
+    //     for instruction in &block.instructions {
+    //         self.print_instruction(instruction);
+    //     }
+    //     if let Some(terminator) = &block.terminator {
+    //         self.print_terminator(terminator);
+    //     }
+    // }
 
-    pub(crate) fn print(&self) {
-        for function in &self.functions {
-            println!("{}:", function.name);
-            self.print_block(function.entry);
-        }
-    }
+    // pub(crate) fn print(&self) {
+    //     for function in &self.functions {
+    //         println!("{}:", function.name);
+    //         self.print_block(function.entry);
+    //     }
+    // }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_print() {
-        let mut mir = MIR::default();
-        let lhs = mir.values.add_f32(1.0);
-        let rhs = mir.values.add_f32(1.0);
-        let values = ValueTable::default();
-        let entry = mir.add_function("__main".to_string(), 0.into());
-        let dst = mir.add_local(PrimitiveType::Float);
-        mir.add_instruction(
-            entry,
-            Instruction::Add {
-                dst,
-                lhs: Operand::Value(lhs),
-                rhs: Operand::Value(rhs),
-            },
-        );
-        mir.print();
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     #[test]
+//     fn test_print() {
+//         let mut mir = MIR::default();
+//         let lhs = mir.data.add_f32(1.0);
+//         let rhs = mir.data.add_f32(1.0);
+//         let values = ValueTable::default();
+//         let entry = mir.add_function("__main".to_string(), 0.into());
+//         let dst = mir.add_local(PrimitiveType::Float);
+//         mir.add_instruction(
+//             entry,
+//             Instruction::Add {
+//                 dst,
+//                 lhs: Operand::Value(lhs),
+//                 rhs: Operand::Value(rhs),
+//             },
+//         );
+//         mir.print();
+//     }
+// }

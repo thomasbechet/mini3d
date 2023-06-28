@@ -1,7 +1,8 @@
 use crate::{
     script::{
         frontend::error::{CompileError, SyntaxError},
-        mir::{primitive::PrimitiveType, value::ValueId},
+        mir::primitive::PrimitiveType,
+        module::ModuleId,
     },
     uid::UID,
 };
@@ -49,11 +50,11 @@ pub(crate) enum Symbol {
         var_type: Option<PrimitiveType>,
     },
     Constant {
-        value: Option<ValueId>,
+        const_type: PrimitiveType,
     },
     Import {
-        module: UID,
-        id: ExportId,
+        module: ModuleId,
+        ident: StringId,
     },
     Module {
         path: StringId,

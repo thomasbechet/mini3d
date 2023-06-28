@@ -481,4 +481,17 @@ mod test {
             assert_eq!(token.kind, TokenKind::Literal);
         }
     }
+
+    #[test]
+    fn test_eof() {
+        let mut script = SourceStream::new("end");
+        let mut lexer = Lexer::new(false);
+        let mut strings = StringTable::default();
+        let token = lexer.next(&mut script, &mut strings).unwrap();
+        assert_eq!(token.kind, TokenKind::End);
+        let token = lexer.next(&mut script, &mut strings).unwrap();
+        assert_eq!(token.kind, TokenKind::EOF);
+        let token = lexer.next(&mut script, &mut strings).unwrap();
+        assert_eq!(token.kind, TokenKind::EOF);
+    }
 }
