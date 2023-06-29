@@ -38,42 +38,42 @@ impl Lexer {
 
     fn peek_char(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
     ) -> Option<(char, Location)> {
         if self.char_peek.is_some() {
             self.char_peek
         } else {
-            self.char_peek = self.next_char(chars);
+            self.char_peek = self.next_char(stream);
             self.char_peek
         }
     }
 
     fn next_char(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
     ) -> Option<(char, Location)> {
         if let Some(c) = self.char_peek {
             self.char_peek = None;
             Some(c)
         } else {
-            chars.next()
+            stream.next()
         }
     }
 
     fn consume_comment(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         strings: &mut StringTable,
     ) -> Result<Option<Token>, CompileError> {
-        let start_location = self.peek_char(chars).unwrap().1;
+        let start_location = self.peek_char(stream).unwrap().1;
         if self.parse_comments {
             let mut stop_location = start_location;
-            while let Some((c, loc)) = self.peek_char(chars) {
+            while let Some((c, loc)) = self.peek_char(stream) {
                 self.buffer.push(c);
                 if loc.line != start_location.line {
                     break;
                 }
-                self.next_char(chars).unwrap();
+                self.next_char(stream).unwrap();
                 stop_location = loc;
             }
             let id = self.flush_buffer(strings);
@@ -87,11 +87,11 @@ impl Lexer {
             }))
         } else {
             let previous_line = start_location.line;
-            while let Some((_, loc)) = self.peek_char(chars) {
+            while let Some((_, loc)) = self.peek_char(stream) {
                 if loc.line != previous_line {
                     break;
                 }
-                self.next_char(chars).unwrap();
+                self.next_char(stream).unwrap();
             }
             Ok(None)
         }
@@ -99,12 +99,12 @@ impl Lexer {
 
     fn consume_string(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         strings: &mut StringTable,
     ) -> Result<Token, CompileError> {
-        let start_location = self.next_char(chars).unwrap().1;
+        let start_location = self.next_char(stream).unwrap().1;
         let mut stop_location = start_location;
-        while let Some((c, loc)) = self.next_char(chars) {
+        while let Some((c, loc)) = self.next_char(stream) {
             stop_location = loc;
             if c == '\'' {
                 // Check for end of string
@@ -132,23 +132,24 @@ impl Lexer {
 
     fn consume_identifier(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         strings: &mut StringTable,
     ) -> Result<Token, CompileError> {
-        let start_location = self.peek_char(chars).unwrap().1;
+        let start_location = self.peek_char(stream).unwrap().1;
         let mut stop_location = start_location;
-        while let Some((c, loc)) = self.peek_char(chars) {
+        while let Some((c, loc)) = self.peek_char(stream) {
             if !is_identifier_character(c) {
                 break;
             }
             stop_location = loc;
-            self.next_char(chars).unwrap();
+            self.next_char(stream).unwrap();
             self.buffer.push(c);
         }
 
         // Check if identifier is a keyword
         let keyword = match self.buffer.as_str() {
             "import" => Some(TokenKind::Import),
+            "from" => Some(TokenKind::From),
             "export" => Some(TokenKind::Export),
             "let" => Some(TokenKind::Let),
             "const" => Some(TokenKind::Const),
@@ -239,12 +240,12 @@ impl Lexer {
 
     fn consume_number(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
     ) -> Result<Token, CompileError> {
-        let start_location = self.peek_char(chars).unwrap().1;
+        let start_location = self.peek_char(stream).unwrap().1;
         let mut stop_location = start_location;
         let mut has_dot = false;
-        while let Some((c, loc)) = self.peek_char(chars) {
+        while let Some((c, loc)) = self.peek_char(stream) {
             if c == '.' || c.is_ascii_digit() {
                 self.buffer.push(c);
                 stop_location = loc;
@@ -263,7 +264,7 @@ impl Lexer {
                     }
                 }
                 // Consume character and append to buffer
-                self.next_char(chars).unwrap();
+                self.next_char(stream).unwrap();
             } else if is_identifier_character(c) {
                 return Err(LexicalError::MalformedNumber {
                     span: Span {
@@ -307,40 +308,40 @@ impl Lexer {
         }
     }
 
-    fn consume_spaces(&mut self, chars: &mut impl Iterator<Item = (char, Location)>) {
-        while let Some((c, _)) = self.peek_char(chars) {
+    fn consume_spaces(&mut self, stream: &mut impl Iterator<Item = (char, Location)>) {
+        while let Some((c, _)) = self.peek_char(stream) {
             if !c.is_whitespace() {
                 break;
             }
-            self.next_char(chars);
+            self.next_char(stream);
         }
     }
 
     fn consume_single_char_token(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         kind: TokenKind,
         loc: Location,
     ) -> Result<Token, CompileError> {
-        self.next_char(chars).unwrap();
+        self.next_char(stream).unwrap();
         Ok(Token::single(kind, loc))
     }
 
     fn parse_token(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         strings: &mut StringTable,
     ) -> Result<Token, CompileError> {
-        while let Some((c, loc)) = self.peek_char(chars) {
+        while let Some((c, loc)) = self.peek_char(stream) {
             match c {
-                '+' => return self.consume_single_char_token(chars, TokenKind::Plus, loc),
+                '+' => return self.consume_single_char_token(stream, TokenKind::Plus, loc),
                 '-' => {
-                    self.next_char(chars).unwrap();
-                    if let Some((next, _)) = self.peek_char(chars) {
+                    self.next_char(stream).unwrap();
+                    if let Some((next, _)) = self.peek_char(stream) {
                         if next == '-' {
                             // Comment detected
-                            self.next_char(chars).unwrap(); // Skip second '-' character
-                            let comment = self.consume_comment(chars, strings)?;
+                            self.next_char(stream).unwrap(); // Skip second '-' character
+                            let comment = self.consume_comment(stream, strings)?;
                             if self.parse_comments {
                                 return Ok(comment.unwrap());
                             }
@@ -351,53 +352,53 @@ impl Lexer {
                         return Ok(Token::single(TokenKind::Minus, loc));
                     }
                 }
-                '*' => return self.consume_single_char_token(chars, TokenKind::Multiply, loc),
-                '/' => return self.consume_single_char_token(chars, TokenKind::Divide, loc),
-                '(' => return self.consume_single_char_token(chars, TokenKind::LeftParen, loc),
-                ')' => return self.consume_single_char_token(chars, TokenKind::RightParen, loc),
-                '[' => return self.consume_single_char_token(chars, TokenKind::LeftBracket, loc),
-                ']' => return self.consume_single_char_token(chars, TokenKind::RightBracket, loc),
-                '{' => return self.consume_single_char_token(chars, TokenKind::LeftBrace, loc),
-                '}' => return self.consume_single_char_token(chars, TokenKind::RightBrace, loc),
-                ',' => return self.consume_single_char_token(chars, TokenKind::Comma, loc),
-                ':' => return self.consume_single_char_token(chars, TokenKind::Colon, loc),
-                '.' => return self.consume_single_char_token(chars, TokenKind::Dot, loc),
+                '*' => return self.consume_single_char_token(stream, TokenKind::Multiply, loc),
+                '/' => return self.consume_single_char_token(stream, TokenKind::Divide, loc),
+                '(' => return self.consume_single_char_token(stream, TokenKind::LeftParen, loc),
+                ')' => return self.consume_single_char_token(stream, TokenKind::RightParen, loc),
+                '[' => return self.consume_single_char_token(stream, TokenKind::LeftBracket, loc),
+                ']' => return self.consume_single_char_token(stream, TokenKind::RightBracket, loc),
+                '{' => return self.consume_single_char_token(stream, TokenKind::LeftBrace, loc),
+                '}' => return self.consume_single_char_token(stream, TokenKind::RightBrace, loc),
+                ',' => return self.consume_single_char_token(stream, TokenKind::Comma, loc),
+                ':' => return self.consume_single_char_token(stream, TokenKind::Colon, loc),
+                '.' => return self.consume_single_char_token(stream, TokenKind::Dot, loc),
                 '=' => {
-                    self.next_char(chars).unwrap();
-                    if let Some((next, _)) = self.peek_char(chars) {
+                    self.next_char(stream).unwrap();
+                    if let Some((next, _)) = self.peek_char(stream) {
                         if next == '=' {
                             // Double equal detected
-                            self.next_char(chars).unwrap(); // Skip second '=' character
+                            self.next_char(stream).unwrap(); // Skip second '=' character
                             return Ok(Token::double(TokenKind::Equal, loc));
                         }
                     }
                     return Ok(Token::single(TokenKind::Assign, loc));
                 }
                 '<' => {
-                    self.next_char(chars).unwrap();
-                    if let Some((next, _)) = self.peek_char(chars) {
+                    self.next_char(stream).unwrap();
+                    if let Some((next, _)) = self.peek_char(stream) {
                         if next == '=' {
-                            self.next_char(chars).unwrap();
+                            self.next_char(stream).unwrap();
                             return Ok(Token::double(TokenKind::LessEqual, loc));
                         }
                     }
                     return Ok(Token::single(TokenKind::Less, loc));
                 }
                 '>' => {
-                    self.next_char(chars).unwrap();
-                    if let Some((next, _)) = self.peek_char(chars) {
+                    self.next_char(stream).unwrap();
+                    if let Some((next, _)) = self.peek_char(stream) {
                         if next == '=' {
-                            self.next_char(chars).unwrap();
+                            self.next_char(stream).unwrap();
                             return Ok(Token::double(TokenKind::GreaterEqual, loc));
                         }
                     }
                     return Ok(Token::single(TokenKind::Greater, loc));
                 }
                 '!' => {
-                    self.next_char(chars).unwrap();
-                    if let Some((next, _)) = self.peek_char(chars) {
+                    self.next_char(stream).unwrap();
+                    if let Some((next, _)) = self.peek_char(stream) {
                         if next == '=' {
-                            self.next_char(chars).unwrap();
+                            self.next_char(stream).unwrap();
                             return Ok(Token::double(TokenKind::NotEqual, loc));
                         }
                     }
@@ -410,20 +411,20 @@ impl Lexer {
                     }
                     .into());
                 }
-                '\'' => return self.consume_string(chars, strings),
+                '\'' => return self.consume_string(stream, strings),
                 ' ' => {
-                    self.consume_spaces(chars); // Ignore spaces
+                    self.consume_spaces(stream); // Ignore spaces
                 }
                 _ => {
                     if c.is_numeric() {
                         // Try to parse a number
-                        return self.consume_number(chars);
+                        return self.consume_number(stream);
                     } else if is_identifier_character(c) {
                         // Try to parse an identifier
-                        return self.consume_identifier(chars, strings);
+                        return self.consume_identifier(stream, strings);
                     } else {
                         // Simply consume the character
-                        self.next_char(chars).unwrap();
+                        self.next_char(stream).unwrap();
                     }
                 }
             }
@@ -433,12 +434,12 @@ impl Lexer {
 
     pub(crate) fn peek(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         strings: &mut StringTable,
         lookahead: usize,
     ) -> Result<Token, CompileError> {
         while self.peeks.len() <= lookahead {
-            let token = self.parse_token(chars, strings)?;
+            let token = self.parse_token(stream, strings)?;
             self.peeks.push(token);
         }
         Ok(self.peeks[lookahead])
@@ -446,11 +447,11 @@ impl Lexer {
 
     pub(crate) fn next(
         &mut self,
-        chars: &mut impl Iterator<Item = (char, Location)>,
+        stream: &mut impl Iterator<Item = (char, Location)>,
         strings: &mut StringTable,
     ) -> Result<Token, CompileError> {
         if self.peeks.is_empty() {
-            self.parse_token(chars, strings)
+            self.parse_token(stream, strings)
         } else {
             Ok(self.peeks.remove(0))
         }
@@ -463,35 +464,35 @@ mod test {
     use crate::script::frontend::source::stream::SourceStream;
     #[test]
     fn test_multiple_lines() {
-        let mut script = SourceStream::new("let x = 2 + 2\nlet y = 3 + 3");
+        let mut stream = SourceStream::new("let x = 2 + 2\nlet y = 3 + 3");
         let mut lexer = Lexer::new(false);
         let mut strings = StringTable::default();
         for _ in 0..2 {
-            let token = lexer.next(&mut script, &mut strings).unwrap();
+            let token = lexer.next(&mut stream, &mut strings).unwrap();
             assert_eq!(token.kind, TokenKind::Let);
-            let token = lexer.next(&mut script, &mut strings).unwrap();
+            let token = lexer.next(&mut stream, &mut strings).unwrap();
             assert_eq!(token.kind, TokenKind::Identifier);
-            let token = lexer.next(&mut script, &mut strings).unwrap();
+            let token = lexer.next(&mut stream, &mut strings).unwrap();
             assert_eq!(token.kind, TokenKind::Assign);
-            let token = lexer.next(&mut script, &mut strings).unwrap();
+            let token = lexer.next(&mut stream, &mut strings).unwrap();
             assert_eq!(token.kind, TokenKind::Literal);
-            let token = lexer.next(&mut script, &mut strings).unwrap();
+            let token = lexer.next(&mut stream, &mut strings).unwrap();
             assert_eq!(token.kind, TokenKind::Plus);
-            let token = lexer.next(&mut script, &mut strings).unwrap();
+            let token = lexer.next(&mut stream, &mut strings).unwrap();
             assert_eq!(token.kind, TokenKind::Literal);
         }
     }
 
     #[test]
     fn test_eof() {
-        let mut script = SourceStream::new("end");
+        let mut stream = SourceStream::new("end");
         let mut lexer = Lexer::new(false);
         let mut strings = StringTable::default();
-        let token = lexer.next(&mut script, &mut strings).unwrap();
+        let token = lexer.next(&mut stream, &mut strings).unwrap();
         assert_eq!(token.kind, TokenKind::End);
-        let token = lexer.next(&mut script, &mut strings).unwrap();
+        let token = lexer.next(&mut stream, &mut strings).unwrap();
         assert_eq!(token.kind, TokenKind::EOF);
-        let token = lexer.next(&mut script, &mut strings).unwrap();
+        let token = lexer.next(&mut stream, &mut strings).unwrap();
         assert_eq!(token.kind, TokenKind::EOF);
     }
 }

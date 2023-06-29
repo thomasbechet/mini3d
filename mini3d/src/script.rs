@@ -2,6 +2,7 @@ use self::compiler::Compiler;
 
 pub mod backend;
 pub mod compiler;
+pub mod export;
 pub mod frontend;
 pub mod interpreter;
 pub mod mir;

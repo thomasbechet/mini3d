@@ -1,12 +1,21 @@
-use crate::script::{
-    compiler::CompilationUnit,
-    frontend::error::CompileError,
-    interpreter::program::Program,
-    module::{Module, ModuleId, ModuleTable},
+use crate::{
+    context::asset::AssetContext,
+    feature::asset::script::Script,
+    registry::asset::Asset,
+    script::{
+        compiler::CompilationUnit,
+        export::ExportTable,
+        frontend::error::CompileError,
+        module::{Module, ModuleId},
+    },
 };
 
 use super::{
-    ast::AST, lexer::Lexer, parser::Parser, stream::SourceStream, strings::StringTable,
+    ast::AST,
+    lexer::Lexer,
+    parser::{ASTParser, ImportExportParser},
+    stream::SourceStream,
+    strings::StringTable,
     symbol::SymbolTable,
 };
 
@@ -29,19 +38,55 @@ impl Default for SourceCompiler {
 }
 
 impl SourceCompiler {
+    pub(crate) fn resolve_cu_and_exports(
+        &mut self,
+        assets: &AssetContext,
+        module: &mut Module,
+        id: ModuleId,
+        compilation_unit: &mut CompilationUnit,
+        exports: &mut ExportTable,
+    ) -> Result<(), CompileError> {
+        // Build source stream
+        let mut stream = SourceStream::new(
+            &assets
+                .get::<Script>(Script::UID, module.asset)
+                .unwrap()
+                .ok_or(CompileError::ScriptNotFound)?
+                .source,
+        );
+        // Find imports and exports
+        ImportExportParser::<SourceStream>::evaluate(
+            &mut self.strings,
+            &mut self.lexer,
+            &mut stream,
+            compilation_unit,
+            Some(exports),
+            id,
+        )?;
+        Ok(())
+    }
+
     pub(crate) fn generate_mir(
         &mut self,
+        assets: &AssetContext,
+        exports: &ExportTable,
         module: &mut Module,
-        compilation_unit: &mut CompilationUnit,
-        source: &str,
     ) -> Result<(), CompileError> {
+        // Build source stream
+        let mut stream = SourceStream::new(
+            &assets
+                .get::<Script>(Script::UID, module.asset)
+                .unwrap()
+                .ok_or(CompileError::ScriptNotFound)?
+                .source,
+        );
         // Generate AST
-        Parser::<SourceStream>::evaluate(
+        ASTParser::<SourceStream>::evaluate(
             &mut self.ast,
             &mut self.symbols,
             &mut self.strings,
             &mut self.lexer,
-            &mut SourceStream::new(source),
+            &mut stream,
         )?;
         self.ast.print();
         // Generate MIR

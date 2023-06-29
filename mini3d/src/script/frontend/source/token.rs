@@ -7,6 +7,7 @@ use super::{literal::Literal, strings::StringId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     Import,
+    From,
     Export,
     As,
     Comment,
