@@ -36,6 +36,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
             Err(SyntaxError::UnexpectedToken {
                 span: token.span,
                 got: token.kind,
+                expect: kind,
             }
             .into())
         } else {
@@ -162,55 +163,47 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         Ok(lhs)
     }
 
-    fn parse_statement(
-        &mut self,
-        block: BlockId,
-        end_token: TokenKind,
-    ) -> Result<Option<ASTNodeId>, CompileError> {
+    fn parse_statement(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
         let next = self.peek(0)?;
-        if next.kind == end_token {
-            self.consume()?;
-            return Ok(None);
-        }
         if next.kind == TokenKind::Let {
-            Ok(Some(self.parse_variable_declaration(block)?))
+            Ok(self.parse_variable_declaration(block)?)
         } else if next.kind == TokenKind::Export {
             self.consume()?;
             let next = self.peek(0)?;
             if next.kind == TokenKind::Function {
-                Ok(Some(self.parse_function_declaration(block)?))
+                Ok(self.parse_function_declaration(block)?)
             } else if next.kind == TokenKind::Const {
-                Ok(Some(self.parse_constant_declaration(block, true)?))
+                Ok(self.parse_constant_declaration(block, true)?)
             } else {
-                Err(SyntaxError::UnexpectedToken {
+                Err(SyntaxError::UnexpectedExportToken {
                     span: next.span,
                     got: next.kind,
                 }
                 .into())
             }
         } else if next.kind == TokenKind::Const {
-            Ok(Some(self.parse_constant_declaration(block, false)?))
+            Ok(self.parse_constant_declaration(block, false)?)
         } else if next.kind == TokenKind::Function {
-            Ok(Some(self.parse_function_declaration(block)?))
+            Ok(self.parse_function_declaration(block)?)
         } else if next.kind == TokenKind::Return {
-            Ok(Some(self.parse_return_statement(block)?))
+            Ok(self.parse_return_statement(block)?)
         } else if next.kind == TokenKind::If {
-            Ok(Some(self.parse_if_statement(block)?))
+            Ok(self.parse_if_statement(block)?)
         } else if next.kind == TokenKind::Identifier {
             let ident = self.parse_identifier(block)?;
             if self.peek(0)?.kind == TokenKind::Assign {
-                Ok(Some(self.parse_assignment_statement(ident, block)?))
+                Ok(self.parse_assignment_statement(ident, block)?)
             } else if self.peek(0)?.kind == TokenKind::LeftParen {
-                Ok(Some(self.parse_call(ident, block)?))
+                Ok(self.parse_call(ident, block)?)
             } else {
                 Err(SyntaxError::IdentifierAsStatement { span: next.span }.into())
             }
         } else if next.kind == TokenKind::Comment {
             let comment = self.consume()?;
-            Ok(Some(self.ast.add(ASTNode::Comment {
+            Ok(self.ast.add(ASTNode::Comment {
                 span: comment.span,
                 value: comment.value.into(),
-            })))
+            }))
         } else {
             Err(SyntaxError::NonStatementToken {
                 got: next.kind,
@@ -333,9 +326,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
                 }
             }
         }
-        while let Some(stmt) = self.parse_statement(function_block, TokenKind::End)? {
+        while self.peek(0)?.kind != TokenKind::End {
+            let stmt = self.parse_statement(function_block)?;
             self.ast.append_child(function, stmt);
         }
+        self.expect(TokenKind::End)?;
         Ok(function)
     }
 
@@ -380,7 +375,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         block: BlockId,
     ) -> Result<(), CompileError> {
         let body = self.ast.add(ASTNode::IfBody);
-        while let Some(stmt) = self.parse_statement(block, TokenKind::End)? {
+        while ![TokenKind::End, TokenKind::Else, TokenKind::Elif].contains(&self.peek(0)?.kind) {
+            let stmt = self.parse_statement(block)?;
             self.ast.append_child(body, stmt);
         }
         self.ast.append_child(if_node, body);
@@ -423,7 +419,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         // self.ast.append_child(node, )?;
         self.ast.append_child(node, expr);
         self.expect(TokenKind::Do)?;
-        while let Some(stmt) = self.parse_statement(for_block, TokenKind::End)? {
+        while self.peek(0)?.kind != TokenKind::End {
+            let stmt = self.parse_statement(for_block)?;
             self.ast.append_child(node, stmt);
         }
         self.expect(TokenKind::End)?;
@@ -489,9 +486,12 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
             self.ast.append_child(self.ast.root(), import);
         }
 
-        while let Some(stmt) = self.parse_statement(global_block, TokenKind::EOF)? {
+        while self.peek(0)?.kind != TokenKind::EOF {
+            let stmt = self.parse_statement(global_block)?;
             self.ast.append_child(self.ast.root(), stmt);
         }
+
+        self.expect(TokenKind::EOF)?;
 
         Ok(())
     }
@@ -528,6 +528,34 @@ mod test {
         let x = 1 + 2 * 3
         function y(a, b)
             return a + b
+        end
+        "#,
+        );
+        let mut ast = AST::default();
+        Parser::<SourceStream>::evaluate(
+            &mut ast,
+            &mut symbols,
+            &mut strings,
+            &mut Lexer::new(false),
+            &mut source,
+        )
+        .unwrap();
+        ast.print();
+    }
+
+    #[test]
+    fn test_if_body() {
+        let mut strings = StringTable::default();
+        let mut symbols = SymbolTable::default();
+        let mut source = SourceStream::new(
+            r#"
+        let x = 2
+        if x > 3 then
+            print('hello')
+        elif x == 2 then
+            print('yes')
+        else
+            x = 2
         end
         "#,
         );

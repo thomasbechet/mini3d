@@ -16,17 +16,47 @@ pub enum LexicalError {
 
 #[derive(Debug)]
 pub enum SyntaxError {
-    UnexpectedToken { span: Span, got: TokenKind },
-    NonStatementToken { span: Span, got: TokenKind },
-    FunctionDeclarationOutsideOfGlobalScope { span: Span },
-    ExportedConstantOutsideOfGlobalScope { span: Span },
-    MissingConstantType { span: Span },
-    InvalidAtomExpression { span: Span, got: TokenKind },
-    UnexpectedBinaryOperator { span: Span },
-    IdentifierAsStatement { span: Span },
-    DuplicatedArgument { span: Span },
-    SymbolAlreadyDefined { span: Span },
-    ModuleNotFound { span: Span },
+    UnexpectedToken {
+        span: Span,
+        got: TokenKind,
+        expect: TokenKind,
+    },
+    UnexpectedExportToken {
+        span: Span,
+        got: TokenKind,
+    },
+    NonStatementToken {
+        span: Span,
+        got: TokenKind,
+    },
+    FunctionDeclarationOutsideOfGlobalScope {
+        span: Span,
+    },
+    ExportedConstantOutsideOfGlobalScope {
+        span: Span,
+    },
+    MissingConstantType {
+        span: Span,
+    },
+    InvalidAtomExpression {
+        span: Span,
+        got: TokenKind,
+    },
+    UnexpectedBinaryOperator {
+        span: Span,
+    },
+    IdentifierAsStatement {
+        span: Span,
+    },
+    DuplicatedArgument {
+        span: Span,
+    },
+    SymbolAlreadyDefined {
+        span: Span,
+    },
+    ModuleNotFound {
+        span: Span,
+    },
 }
 
 #[derive(Debug)]
