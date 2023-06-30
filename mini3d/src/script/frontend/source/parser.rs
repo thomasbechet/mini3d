@@ -4,7 +4,7 @@ use crate::{
         export::{Export, ExportTable},
         frontend::error::{CompileError, SyntaxError},
         mir::primitive::PrimitiveType,
-        module::ModuleId,
+        module::{ModuleId, ModuleTable},
     },
     uid::UID,
 };
@@ -12,11 +12,12 @@ use crate::{
 use super::{
     ast::{ASTNode, ASTNodeId, AST},
     lexer::Lexer,
+    literal::Literal,
     operator::BinaryOperator,
     stream::SourceStream,
     strings::StringTable,
     symbol::{BlockId, Symbol, SymbolTable},
-    token::{Location, Token, TokenKind},
+    token::{Location, Token, TokenKind, TokenValue},
 };
 
 pub(crate) struct Parser<'a, S: Iterator<Item = (char, Location)>> {
@@ -64,6 +65,14 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         } else {
             Ok(None)
         }
+    }
+
+    fn try_parse_argument(&mut self) -> Result<Option<Token>, CompileError> {
+        if let Some(token) = self.accept(TokenKind::Identifier)? {
+            self.accept(TokenKind::Comma)?;
+            return Ok(Some(token));
+        }
+        Ok(None)
     }
 }
 
@@ -280,9 +289,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             false,
         )?;
         if export && block != SymbolTable::GLOBAL_BLOCK {
-            return Err(
-                SyntaxError::ExportedConstantOutsideOfGlobalScope { span: token.span }.into(),
-            );
+            return Err(SyntaxError::ExportOutsideOfGlobalScope { span: token.span }.into());
         }
         let node = self.ast.add(ASTNode::ConstantDeclaration {
             span: token.span,
@@ -319,14 +326,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             function_block,
         });
         self.parser.expect(TokenKind::LeftParen)?;
-        // First argument
-        if self.parser.peek(0)?.kind != TokenKind::RightParen {
-            let arg = self.parse_function_argument(function_block)?;
-            self.ast.append_child(function, arg);
-        }
-        // Rest of the arguments
-        while self.parser.accept(TokenKind::Comma)?.is_some() {
-            let arg = self.parse_function_argument(function_block)?;
+        // Parse arguments
+        while let Some(token) = self.parser.try_parse_argument()? {
+            let arg = self.parse_function_argument(token, function_block)?;
             self.ast.append_child(function, arg);
         }
         self.parser.expect(TokenKind::RightParen)?;
@@ -347,8 +349,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         Ok(function)
     }
 
-    fn parse_function_argument(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
-        let token = self.parser.expect(TokenKind::Identifier)?;
+    fn parse_function_argument(
+        &mut self,
+        token: Token,
+        block: BlockId,
+    ) -> Result<ASTNodeId, CompileError> {
         let primitive = self.parser.try_parse_primitive_type()?;
         // Check duplicated argument
         if self
@@ -536,50 +541,84 @@ pub(crate) struct ImportExportParser<'a, S: Iterator<Item = (char, Location)>> {
     parser: &'a mut Parser<'a, S>,
     exports: Option<&'a mut ExportTable>,
     compilation_unit: &'a mut CompilationUnit,
+    modules: &'a ModuleTable,
     module: ModuleId,
+    depth: usize,
+    depth_token: TokenKind,
 }
 
 impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
     fn parse(&mut self) -> Result<(), CompileError> {
         loop {
-            // Import or exports can happen outside the global scope which is
-            // illegal. However, the next MIR generation will failed in this
-            // case. So we assume that we can continue the parsing.
+            // Import or exports allowed only in the global scope. If an import/export occur inside a block, it will be ignored.
+            // This will produce a failure during AST generation.
             let token = self.parser.consume()?;
             if token.kind == TokenKind::EOF {
                 break;
-            } else if token.kind == TokenKind::Import {
-            } else if let Some(exports) = self.exports {
-                match token.kind {
-                    TokenKind::From => {
-                        let token = self.parser.expect(TokenKind::Literal)?;
-                        // token.
+            }
+
+            if [TokenKind::Function, TokenKind::If, TokenKind::Do].contains(&token.kind) {
+                // Detect entering in a block
+                self.depth += 1;
+            } else if self.depth > 0 {
+                // Check inside a block
+                if token.kind == TokenKind::End {
+                    self.depth -= 1;
+                }
+            } else if [TokenKind::Import, TokenKind::From].contains(&token.kind) {
+                match self.parser.expect(TokenKind::Literal)?.value {
+                    TokenValue::Literal(Literal::String(path)) => {
+                        let path = self.parser.strings.get(path);
+                        let module = self.modules.find(path.into()).ok_or(CompileError::Syntax(
+                            SyntaxError::ModuleNotFound { span: token.span },
+                        ))?;
+                        self.compilation_unit.add(module);
                     }
-                    TokenKind::Export => {
-                        let token = self.parser.consume()?;
-                        match token.kind {
-                            TokenKind::Const => {
-                                let token = self.parser.expect(TokenKind::Identifier)?;
-                                let name = UID::new(self.parser.strings.get(token.value.into()));
-                                let ty = self.parser.try_parse_primitive_type()?.ok_or(
-                                    CompileError::Syntax(SyntaxError::MissingConstantType {
-                                        span: token.span,
-                                    }),
-                                )?;
-                                exports.add(self.module, name, Export::Constant { ty });
-                            }
-                            TokenKind::Function => {}
-                            _ => {
-                                return Err(CompileError::Syntax(
-                                    SyntaxError::UnexpectedExportToken {
-                                        span: token.span,
-                                        got: token.kind,
-                                    },
-                                ))
-                            }
+                    _ => {
+                        return Err(CompileError::Syntax(SyntaxError::ModuleNotFound {
+                            span: token.span,
+                        }))
+                    }
+                }
+                if token.kind == TokenKind::From {
+                    self.parser.expect(TokenKind::Import)?;
+                    while let Some(_) = self.parser.try_parse_argument()? {}
+                }
+            } else if let Some(exports) = self.exports {
+                if token.kind == TokenKind::Export {
+                    let token = self.parser.consume()?;
+                    match token.kind {
+                        TokenKind::Const => {
+                            let token = self.parser.expect(TokenKind::Identifier)?;
+                            let name = UID::new(self.parser.strings.get(token.value.into()));
+                            let ty = self.parser.try_parse_primitive_type()?.ok_or(
+                                CompileError::Syntax(SyntaxError::MissingConstantType {
+                                    span: token.span,
+                                }),
+                            )?;
+                            exports.add(self.module, name, Export::Constant { ty });
+                        }
+                        TokenKind::Function => {
+                            let token = self.parser.expect(TokenKind::Identifier)?;
+                            let name = UID::new(self.parser.strings.get(token.value.into()));
+                            self.parser.expect(TokenKind::LeftParen)?;
+                            while let Some(token) = self.parser.try_parse_argument()? {}
+                            exports.add(
+                                self.module,
+                                name,
+                                Export::Function {
+                                    ty: (),
+                                    first_arg: (),
+                                },
+                            )
+                        }
+                        _ => {
+                            return Err(CompileError::Syntax(SyntaxError::UnexpectedExportToken {
+                                span: token.span,
+                                got: token.kind,
+                            }))
                         }
                     }
-                    _ => {}
                 }
             }
         }
@@ -603,6 +642,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
             compilation_unit,
             exports,
             module,
+            depth: 0,
+            depth_token: None,
         };
         parser.parse()?;
         Ok(())

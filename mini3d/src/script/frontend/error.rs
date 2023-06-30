@@ -32,7 +32,10 @@ pub enum SyntaxError {
     FunctionDeclarationOutsideOfGlobalScope {
         span: Span,
     },
-    ExportedConstantOutsideOfGlobalScope {
+    ExportOutsideOfGlobalScope {
+        span: Span,
+    },
+    ImportOutsideOfGlobalScope {
         span: Span,
     },
     MissingConstantType {
