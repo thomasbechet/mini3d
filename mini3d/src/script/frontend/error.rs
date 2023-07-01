@@ -1,5 +1,7 @@
 use std::num::{ParseFloatError, ParseIntError};
 
+use crate::script::module::ModuleId;
+
 use super::source::{
     symbol::SymbolId,
     token::{Span, TokenKind},
@@ -41,6 +43,9 @@ pub enum SyntaxError {
     MissingConstantType {
         span: Span,
     },
+    MissingArgumentType {
+        span: Span,
+    },
     InvalidAtomExpression {
         span: Span,
         got: TokenKind,
@@ -57,9 +62,6 @@ pub enum SyntaxError {
     SymbolAlreadyDefined {
         span: Span,
     },
-    ModuleNotFound {
-        span: Span,
-    },
 }
 
 #[derive(Debug)]
@@ -67,6 +69,10 @@ pub enum SemanticError {
     TypeMistmatch,
     UndefinedSymbol(SymbolId),
     MultipleDefinitions,
+    ModuleNotFound { span: Span },
+    ModuleImportNotFound { module: ModuleId, span: Span },
+    ImportSelf { span: Span },
+    MissingImportSymbols { span: Span },
 }
 
 #[derive(Debug)]
@@ -75,7 +81,6 @@ pub enum CompileError {
     Syntax(SyntaxError),
     Semantic(SemanticError),
     ScriptNotFound,
-    ModuleNotFound,
 }
 
 impl From<LexicalError> for CompileError {

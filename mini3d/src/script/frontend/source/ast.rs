@@ -9,10 +9,6 @@ use super::{
 #[derive(Debug)]
 pub(crate) enum ASTNode {
     Program,
-    Import {
-        path: Span,
-        symbol: SymbolId,
-    },
     Compound, // STMT-0, STMT-1, STMT-2, ...
     Literal(Literal),
     Identifier {
@@ -79,7 +75,6 @@ impl ASTNode {
                 | Self::VariableDeclaration { .. }
                 | Self::ConstantDeclaration { .. }
                 | Self::Assignment
-                | Self::Import { .. }
         )
     }
 }
@@ -217,6 +212,7 @@ impl AST {
     }
 
     pub fn print(&self) {
+        println!("AST:");
         self.print_node(self.root(), 0);
     }
 }

@@ -1,7 +1,5 @@
 use crate::uid::UID;
 
-use super::mir::mir::MIR;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModuleKind {
     Source,
@@ -9,12 +7,11 @@ pub enum ModuleKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ModuleId(u32);
+pub struct ModuleId(u32);
 
 pub(crate) struct Module {
     pub(crate) kind: ModuleKind,
     pub(crate) asset: UID,
-    pub(crate) mir: MIR,
 }
 
 #[derive(Default)]
@@ -25,11 +22,7 @@ pub(crate) struct ModuleTable {
 impl ModuleTable {
     pub(crate) fn add(&mut self, asset: UID, kind: ModuleKind) -> ModuleId {
         let id = ModuleId(self.modules.len() as u32);
-        self.modules.push(Module {
-            kind,
-            asset,
-            mir: Default::default(),
-        });
+        self.modules.push(Module { kind, asset });
         id
     }
 
@@ -40,6 +33,10 @@ impl ModuleTable {
             }
         }
         None
+    }
+
+    pub(crate) fn get(&self, module: ModuleId) -> Option<&Module> {
+        self.modules.get(module.0 as usize)
     }
 
     pub(crate) fn get_mut(&mut self, module: ModuleId) -> Option<&mut Module> {

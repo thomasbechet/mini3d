@@ -2,7 +2,7 @@ use crate::{
     script::{
         compiler::CompilationUnit,
         export::{Export, ExportTable},
-        frontend::error::{CompileError, SyntaxError},
+        frontend::error::{CompileError, SemanticError, SyntaxError},
         mir::primitive::PrimitiveType,
         module::{ModuleId, ModuleTable},
     },
@@ -67,12 +67,60 @@ impl<'a, S: Iterator<Item = (char, Location)>> Parser<'a, S> {
         }
     }
 
-    fn try_parse_argument(&mut self) -> Result<Option<Token>, CompileError> {
+    fn parse_identifier_list(
+        &mut self,
+        separator: TokenKind,
+        mut f: impl FnMut((&str, Token)) -> Result<(), CompileError>,
+    ) -> Result<usize, CompileError> {
+        let mut count = 0;
         if let Some(token) = self.accept(TokenKind::Identifier)? {
-            self.accept(TokenKind::Comma)?;
-            return Ok(Some(token));
+            let name = self.strings.get(token.value.into());
+            f((name, token))?;
+            count += 1;
+            while self.accept(separator)?.is_some() {
+                let token = self.expect(TokenKind::Identifier)?;
+                let name = self.strings.get(token.value.into());
+                f((name, token))?;
+                count += 1;
+            }
         }
-        Ok(None)
+        Ok(count)
+    }
+
+    fn parse_function_argument_list(
+        &mut self,
+        separator: TokenKind,
+        mut f: impl FnMut((&str, PrimitiveType, Token)) -> Result<(), CompileError>,
+    ) -> Result<usize, CompileError> {
+        let mut count = 0;
+        if let Some(token) = self.accept(TokenKind::Identifier)? {
+            let ty = self
+                .try_parse_primitive_type()?
+                .ok_or(CompileError::Syntax(SyntaxError::MissingArgumentType {
+                    span: token.span,
+                }))?;
+            let name = match token.value {
+                TokenValue::Identifier(ident) => self.strings.get(ident),
+                _ => unreachable!(),
+            };
+            f((name, ty, token))?;
+            count += 1;
+            while self.accept(separator)?.is_some() {
+                let token = self.expect(TokenKind::Identifier)?;
+                let ty = self
+                    .try_parse_primitive_type()?
+                    .ok_or(CompileError::Syntax(SyntaxError::MissingArgumentType {
+                        span: token.span,
+                    }))?;
+                let name = match token.value {
+                    TokenValue::Identifier(ident) => self.strings.get(ident),
+                    _ => unreachable!(),
+                };
+                f((name, ty, token))?;
+                count += 1;
+            }
+        }
+        Ok(count)
     }
 }
 
@@ -80,6 +128,9 @@ pub(crate) struct ASTParser<'a, S: Iterator<Item = (char, Location)>> {
     parser: &'a mut Parser<'a, S>,
     ast: &'a mut AST,
     symbols: &'a mut SymbolTable,
+    exports: &'a ExportTable,
+    modules: &'a ModuleTable,
+    module: ModuleId,
 }
 
 impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
@@ -100,9 +151,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
 
     fn parse_identifier(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
         let token = self.parser.expect(TokenKind::Identifier)?;
-        let symbol = self
-            .symbols
-            .lookup_symbol(self.parser.strings, token.value.into(), block);
+        let ident = self.parser.strings.get(token.value.into());
+        let symbol = self.symbols.lookup_symbol(ident.into(), token, block);
         let mut node = self.ast.add(ASTNode::Identifier {
             span: token.span,
             symbol,
@@ -249,14 +299,12 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         self.parser.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0, block)?;
         let symbol = self.symbols.define_symbol(
-            self.parser.strings,
-            token.value.into(),
+            self.parser.strings.get(token.value.into()).into(),
+            token,
             block,
-            token.span,
             Symbol::Variable {
                 var_type: primitive,
             },
-            true,
         )?;
         let node = self.ast.add(ASTNode::VariableDeclaration {
             span: token.span,
@@ -273,21 +321,18 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
     ) -> Result<ASTNodeId, CompileError> {
         self.parser.expect(TokenKind::Const)?;
         let token = self.parser.expect(TokenKind::Identifier)?;
+        let ident = UID::new(self.parser.strings.get(token.value.into()));
         let const_type = self
             .parser
             .try_parse_primitive_type()?
             .ok_or(SyntaxError::MissingConstantType { span: token.span })?;
         self.parser.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0, block)?;
-        let symbol = Symbol::Constant { const_type };
-        let symbol_id = self.symbols.define_symbol(
-            self.parser.strings,
-            token.value.into(),
-            block,
-            token.span,
-            symbol,
-            false,
-        )?;
+        let symbol = Symbol::Constant {
+            const_type,
+            exported: None,
+        };
+        let symbol_id = self.symbols.define_symbol(ident, token, block, symbol)?;
         if export && block != SymbolTable::GLOBAL_BLOCK {
             return Err(SyntaxError::ExportOutsideOfGlobalScope { span: token.span }.into());
         }
@@ -308,16 +353,16 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         }
         self.parser.expect(TokenKind::Function)?;
         let token = self.parser.expect(TokenKind::Identifier)?;
+        let ident = self.parser.strings.get(token.value.into());
         let symbol_id = self.symbols.define_symbol(
-            self.parser.strings,
-            token.value.into(),
+            ident.into(),
+            token,
             block,
-            token.span,
             Symbol::Function {
                 return_type: None,
                 first_arg: None,
+                exported: None,
             },
-            false,
         )?;
         let function_block = self.symbols.add_block(Some(block));
         let function = self.ast.add(ASTNode::FunctionDeclaration {
@@ -327,10 +372,24 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         });
         self.parser.expect(TokenKind::LeftParen)?;
         // Parse arguments
-        while let Some(token) = self.parser.try_parse_argument()? {
-            let arg = self.parse_function_argument(token, function_block)?;
-            self.ast.append_child(function, arg);
-        }
+        self.parser
+            .parse_function_argument_list(TokenKind::Comma, |(name, ty, token)| {
+                if self.symbols.find_in_block(name.into(), block).is_some() {
+                    return Err(SyntaxError::DuplicatedArgument { span: token.span }.into());
+                }
+                let symbol = self.symbols.define_symbol(
+                    name.into(),
+                    token,
+                    block,
+                    Symbol::Variable { var_type: Some(ty) },
+                )?;
+                let arg = self.ast.add(ASTNode::FunctionArgument {
+                    span: token.span,
+                    symbol,
+                });
+                self.ast.append_child(function, arg);
+                Ok(())
+            })?;
         self.parser.expect(TokenKind::RightParen)?;
         if let Some(primitive) = self.parser.try_parse_primitive_type()? {
             // Update return type
@@ -347,36 +406,6 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         }
         self.parser.expect(TokenKind::End)?;
         Ok(function)
-    }
-
-    fn parse_function_argument(
-        &mut self,
-        token: Token,
-        block: BlockId,
-    ) -> Result<ASTNodeId, CompileError> {
-        let primitive = self.parser.try_parse_primitive_type()?;
-        // Check duplicated argument
-        if self
-            .symbols
-            .find_in_block(self.parser.strings, token.value.into(), block)
-            .is_some()
-        {
-            return Err(SyntaxError::DuplicatedArgument { span: token.span }.into());
-        }
-        let symbol = self.symbols.define_symbol(
-            self.parser.strings,
-            token.value.into(),
-            block,
-            token.span,
-            Symbol::Variable {
-                var_type: primitive,
-            },
-            true,
-        )?;
-        Ok(self.ast.add(ASTNode::FunctionArgument {
-            span: token.span,
-            symbol,
-        }))
     }
 
     fn parse_return_statement(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
@@ -476,34 +505,100 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         Ok(node)
     }
 
-    fn parse_import(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
+    fn parse_import(&mut self, block: BlockId) -> Result<(), CompileError> {
         self.parser.expect(TokenKind::Import)?;
-        let path = self.parser.expect(TokenKind::Literal)?;
-        self.parser.expect(TokenKind::As)?;
-        let token = self.parser.expect(TokenKind::Identifier)?;
-        let symbol = self.symbols.define_symbol(
-            self.parser.strings,
-            token.value.into(),
-            block,
-            token.span,
-            Symbol::Module {
-                path: token.value.into(),
-            },
-            false,
-        )?;
-        let node = self.ast.add(ASTNode::Import {
-            path: token.span,
-            symbol,
-        });
-        Ok(node)
+        let path_token = self.parser.expect(TokenKind::Literal)?;
+        match path_token.value {
+            TokenValue::Literal(Literal::String(path)) => {
+                let path = self.parser.strings.get(path);
+                let module = self
+                    .modules
+                    .find(path.into())
+                    .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
+                        span: path_token.span,
+                    }))?;
+                if module == self.module {
+                    return Err(CompileError::Semantic(SemanticError::ImportSelf {
+                        span: path_token.span,
+                    }));
+                }
+                self.parser.expect(TokenKind::As)?;
+                let path_token = self.parser.expect(TokenKind::Identifier)?;
+                let ident = self.parser.strings.get(path_token.value.into());
+                self.symbols.define_symbol(
+                    ident.into(),
+                    path_token,
+                    block,
+                    Symbol::Module { module },
+                )?;
+            }
+            _ => {
+                return Err(CompileError::Semantic(SemanticError::ModuleNotFound {
+                    span: path_token.span,
+                }))
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_from(&mut self, block: BlockId) -> Result<(), CompileError> {
+        self.parser.expect(TokenKind::From)?;
+        let path_token = self.parser.expect(TokenKind::Literal)?;
+        match path_token.value {
+            TokenValue::Literal(Literal::String(path)) => {
+                let path = self.parser.strings.get(path);
+                let module = self
+                    .modules
+                    .find(path.into())
+                    .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
+                        span: path_token.span,
+                    }))?;
+                self.parser.expect(TokenKind::Import)?;
+                if let Some(multiply) = self.parser.accept(TokenKind::Multiply)? {
+                    // Import all symbols
+                    self.symbols
+                        .import_all_symbols(block, multiply, module, self.exports)?;
+                } else {
+                    // Import selected symbols
+                    let count =
+                        self.parser
+                            .parse_identifier_list(TokenKind::Comma, |(name, token)| {
+                                let id = self.exports.find(module, name.into()).ok_or(
+                                    CompileError::Semantic(SemanticError::ModuleImportNotFound {
+                                        module,
+                                        span: token.span,
+                                    }),
+                                )?;
+                                self.symbols.import_symbol(block, token, id, self.exports)?;
+                                Ok(())
+                            })?;
+                    if count == 0 {
+                        return Err(CompileError::Semantic(
+                            SemanticError::MissingImportSymbols {
+                                span: path_token.span,
+                            },
+                        ));
+                    }
+                }
+            }
+            _ => {
+                return Err(CompileError::Semantic(SemanticError::ModuleNotFound {
+                    span: path_token.span,
+                }))
+            }
+        }
+        Ok(())
     }
 
     fn parse(&mut self) -> Result<(), CompileError> {
         let global_block = self.symbols.add_block(None);
 
-        while self.parser.peek(0)?.kind == TokenKind::Import {
-            let import = self.parse_import(global_block)?;
-            self.ast.append_child(self.ast.root(), import);
+        while [TokenKind::Import, TokenKind::From].contains(&self.parser.peek(0)?.kind) {
+            match self.parser.peek(0)?.kind {
+                TokenKind::Import => self.parse_import(global_block)?,
+                TokenKind::From => self.parse_from(global_block)?,
+                _ => unreachable!(),
+            }
         }
 
         while self.parser.peek(0)?.kind != TokenKind::EOF {
@@ -522,6 +617,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         strings: &mut StringTable,
         lexer: &mut Lexer,
         source: &mut SourceStream,
+        exports: &ExportTable,
+        modules: &ModuleTable,
+        module: ModuleId,
     ) -> Result<(), CompileError> {
         let mut parser = ASTParser {
             parser: &mut Parser {
@@ -531,6 +629,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             },
             ast,
             symbols,
+            exports,
+            modules,
+            module,
         };
         parser.parse()?;
         Ok(())
@@ -539,12 +640,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
 
 pub(crate) struct ImportExportParser<'a, S: Iterator<Item = (char, Location)>> {
     parser: &'a mut Parser<'a, S>,
-    exports: Option<&'a mut ExportTable>,
+    exports: &'a mut ExportTable,
     compilation_unit: &'a mut CompilationUnit,
     modules: &'a ModuleTable,
     module: ModuleId,
     depth: usize,
-    depth_token: TokenKind,
 }
 
 impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
@@ -569,55 +669,97 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                 match self.parser.expect(TokenKind::Literal)?.value {
                     TokenValue::Literal(Literal::String(path)) => {
                         let path = self.parser.strings.get(path);
-                        let module = self.modules.find(path.into()).ok_or(CompileError::Syntax(
-                            SyntaxError::ModuleNotFound { span: token.span },
-                        ))?;
+                        let module =
+                            self.modules
+                                .find(path.into())
+                                .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
+                                    span: token.span,
+                                }))?;
+                        if module == self.module {
+                            return Err(CompileError::Semantic(SemanticError::ImportSelf {
+                                span: token.span,
+                            }));
+                        }
                         self.compilation_unit.add(module);
                     }
                     _ => {
-                        return Err(CompileError::Syntax(SyntaxError::ModuleNotFound {
+                        return Err(CompileError::Semantic(SemanticError::ModuleNotFound {
                             span: token.span,
                         }))
                     }
                 }
                 if token.kind == TokenKind::From {
                     self.parser.expect(TokenKind::Import)?;
-                    while let Some(_) = self.parser.try_parse_argument()? {}
                 }
-            } else if let Some(exports) = self.exports {
-                if token.kind == TokenKind::Export {
-                    let token = self.parser.consume()?;
-                    match token.kind {
-                        TokenKind::Const => {
-                            let token = self.parser.expect(TokenKind::Identifier)?;
-                            let name = UID::new(self.parser.strings.get(token.value.into()));
-                            let ty = self.parser.try_parse_primitive_type()?.ok_or(
-                                CompileError::Syntax(SyntaxError::MissingConstantType {
+            } else if token.kind == TokenKind::Export {
+                let token = self.parser.consume()?;
+                match token.kind {
+                    TokenKind::Const => {
+                        let token = self.parser.expect(TokenKind::Identifier)?;
+                        let name = UID::new(self.parser.strings.get(token.value.into()));
+                        let ty =
+                            self.parser
+                                .try_parse_primitive_type()?
+                                .ok_or(CompileError::Syntax(SyntaxError::MissingConstantType {
                                     span: token.span,
-                                }),
-                            )?;
-                            exports.add(self.module, name, Export::Constant { ty });
-                        }
-                        TokenKind::Function => {
-                            let token = self.parser.expect(TokenKind::Identifier)?;
-                            let name = UID::new(self.parser.strings.get(token.value.into()));
-                            self.parser.expect(TokenKind::LeftParen)?;
-                            while let Some(token) = self.parser.try_parse_argument()? {}
-                            exports.add(
-                                self.module,
+                                }))?;
+                        self.exports.add(self.module, Export::Constant { name, ty });
+                    }
+                    TokenKind::Function => {
+                        let token = self.parser.expect(TokenKind::Identifier)?;
+                        let name = UID::new(self.parser.strings.get(token.value.into()));
+                        self.parser.expect(TokenKind::LeftParen)?;
+                        let mut first_arg = None;
+                        let mut last_arg = None;
+                        self.parser.parse_function_argument_list(
+                            TokenKind::Comma,
+                            |(name, ty, _)| {
+                                if let Some(last) = last_arg {
+                                    let id = self.exports.add(
+                                        self.module,
+                                        Export::FunctionArgument {
+                                            name: name.into(),
+                                            ty,
+                                            next_arg: None,
+                                        },
+                                    );
+                                    match self.exports.get_mut(last).unwrap() {
+                                        Export::FunctionArgument { next_arg, .. } => {
+                                            *next_arg = Some(id)
+                                        }
+                                        _ => unreachable!(),
+                                    }
+                                    last_arg = Some(id);
+                                } else {
+                                    last_arg = Some(self.exports.add(
+                                        self.module,
+                                        Export::FunctionArgument {
+                                            name: name.into(),
+                                            ty,
+                                            next_arg: None,
+                                        },
+                                    ));
+                                    first_arg = last_arg;
+                                }
+                                Ok(())
+                            },
+                        )?;
+                        self.parser.expect(TokenKind::RightParen)?;
+                        let ty = self.parser.try_parse_primitive_type()?;
+                        self.exports.add(
+                            self.module,
+                            Export::Function {
                                 name,
-                                Export::Function {
-                                    ty: (),
-                                    first_arg: (),
-                                },
-                            )
-                        }
-                        _ => {
-                            return Err(CompileError::Syntax(SyntaxError::UnexpectedExportToken {
-                                span: token.span,
-                                got: token.kind,
-                            }))
-                        }
+                                ty,
+                                first_arg,
+                            },
+                        );
+                    }
+                    _ => {
+                        return Err(CompileError::Syntax(SyntaxError::UnexpectedExportToken {
+                            span: token.span,
+                            got: token.kind,
+                        }))
                     }
                 }
             }
@@ -630,7 +772,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
         lexer: &mut Lexer,
         source: &mut SourceStream,
         compilation_unit: &mut CompilationUnit,
-        exports: Option<&mut ExportTable>,
+        exports: &mut ExportTable,
+        modules: &ModuleTable,
         module: ModuleId,
     ) -> Result<(), CompileError> {
         let mut parser = ImportExportParser {
@@ -641,9 +784,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
             },
             compilation_unit,
             exports,
+            modules,
             module,
             depth: 0,
-            depth_token: None,
         };
         parser.parse()?;
         Ok(())
@@ -652,13 +795,18 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
 
 #[cfg(test)]
 mod test {
+    use crate::script::module::ModuleKind;
+
     use super::*;
 
     #[test]
     fn test_basic() {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
-        let mut source = SourceStream::new(
+        let mut exports = ExportTable::default();
+        let mut modules = ModuleTable::default();
+        let module = modules.add(UID::null(), ModuleKind::Source);
+        let mut stream = SourceStream::new(
             r#"
         let x = 1 + 2 * 3
         function y(a, b)
@@ -672,7 +820,10 @@ mod test {
             &mut symbols,
             &mut strings,
             &mut Lexer::new(false),
-            &mut source,
+            &mut stream,
+            &exports,
+            &modules,
+            module,
         )
         .unwrap();
         ast.print();
@@ -682,6 +833,9 @@ mod test {
     fn test_if_body() {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
+        let mut exports = ExportTable::default();
+        let mut modules = ModuleTable::default();
+        let module = modules.add(UID::null(), ModuleKind::Source);
         let mut source = SourceStream::new(
             r#"
         let x = 2
@@ -701,6 +855,9 @@ mod test {
             &mut strings,
             &mut Lexer::new(false),
             &mut source,
+            &exports,
+            &modules,
+            module,
         )
         .unwrap();
         ast.print();

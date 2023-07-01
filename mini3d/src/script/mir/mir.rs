@@ -52,17 +52,17 @@ pub(crate) struct Local {
 pub(crate) enum Function {
     Internal {
         name: DataId,
-        return_ty: PrimitiveType,
+        return_ty: Option<PrimitiveType>,
         first_arg: FunctionId,
         entry_block: BasicBlockId,
         export: bool,
     },
     External {
-        module: DataId,
+        path: DataId,
         name: DataId,
+        return_ty: Option<PrimitiveType>,
     },
     Argument {
-        name: DataId,
         ty: PrimitiveType,
         next_arg: FunctionId,
     },
@@ -77,8 +77,9 @@ pub(crate) enum Constant {
         export: bool,
     },
     External {
-        module: DataId,
+        path: DataId,
         name: DataId,
+        ty: PrimitiveType,
     },
 }
 

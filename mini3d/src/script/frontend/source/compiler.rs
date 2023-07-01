@@ -6,7 +6,8 @@ use crate::{
         compiler::CompilationUnit,
         export::ExportTable,
         frontend::error::CompileError,
-        module::{Module, ModuleId},
+        mir::mir::MIR,
+        module::{ModuleId, ModuleTable},
     },
 };
 
@@ -38,18 +39,24 @@ impl Default for SourceCompiler {
 }
 
 impl SourceCompiler {
+    fn prepare(&mut self) {
+        self.symbols.clear();
+        self.ast.clear();
+        self.strings.clear();
+    }
+
     pub(crate) fn resolve_cu_and_exports(
         &mut self,
         assets: &AssetContext,
-        module: &mut Module,
-        id: ModuleId,
+        modules: &ModuleTable,
+        module: ModuleId,
         compilation_unit: &mut CompilationUnit,
         exports: &mut ExportTable,
     ) -> Result<(), CompileError> {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(Script::UID, module.asset)
+                .get::<Script>(Script::UID, modules.get(module).unwrap().asset)
                 .unwrap()
                 .ok_or(CompileError::ScriptNotFound)?
                 .source,
@@ -60,8 +67,9 @@ impl SourceCompiler {
             &mut self.lexer,
             &mut stream,
             compilation_unit,
-            Some(exports),
-            id,
+            exports,
+            modules,
+            module,
         )?;
         Ok(())
     }
@@ -70,12 +78,16 @@ impl SourceCompiler {
         &mut self,
         assets: &AssetContext,
         exports: &ExportTable,
-        module: &mut Module,
+        modules: &ModuleTable,
+        module: ModuleId,
+        mir: &mut MIR,
     ) -> Result<(), CompileError> {
+        // Prepare compiler
+        self.prepare();
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(Script::UID, module.asset)
+                .get::<Script>(Script::UID, modules.get(module).unwrap().asset)
                 .unwrap()
                 .ok_or(CompileError::ScriptNotFound)?
                 .source,
@@ -87,8 +99,12 @@ impl SourceCompiler {
             &mut self.strings,
             &mut self.lexer,
             &mut stream,
+            exports,
+            modules,
+            module,
         )?;
         self.ast.print();
+        self.symbols.print(&self.strings);
         // Generate MIR
         Ok(())
     }

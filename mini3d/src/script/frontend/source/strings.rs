@@ -7,6 +7,10 @@ pub(crate) struct StringTable {
 }
 
 impl StringTable {
+    pub(crate) fn clear(&mut self) {
+        self.strings.clear();
+    }
+
     pub(crate) fn add(&mut self, string: &str) -> StringId {
         let start = self.strings.len() as u32;
         self.strings.push_str(string);

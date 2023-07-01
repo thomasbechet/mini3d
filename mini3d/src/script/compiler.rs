@@ -1,6 +1,4 @@
-use crate::{
-    context::asset::AssetContext, feature::asset::script::Script, registry::asset::Asset, uid::UID,
-};
+use crate::{context::asset::AssetContext, uid::UID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -8,6 +6,7 @@ use super::{
     frontend::{
         error::CompileError, node::compiler::NodeCompiler, source::compiler::SourceCompiler,
     },
+    mir::MIRTable,
     module::{ModuleId, ModuleKind, ModuleTable},
 };
 
@@ -41,6 +40,7 @@ impl CompilationUnit {
 #[derive(Default)]
 pub struct Compiler {
     modules: ModuleTable,
+    mirs: MIRTable,
     exports: ExportTable,
     compilation_unit: CompilationUnit,
     source_compiler: SourceCompiler,
@@ -49,11 +49,15 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub fn add_module(&mut self, kind: ModuleKind, asset: UID) {
-        self.modules.add(asset, kind);
+    pub fn add_module(&mut self, kind: ModuleKind, asset: UID) -> ModuleId {
+        let module = self.modules.add(asset, kind);
+        self.mirs.add(module);
+        module
     }
 
-    fn prepare(&mut self) {}
+    fn prepare(&mut self) {
+        self.exports.prepare();
+    }
 
     fn fetch_modules(&mut self, assets: &AssetContext) -> Result<(), CompileError> {
         Ok(())
@@ -61,21 +65,19 @@ impl Compiler {
 
     fn resolve_cu_and_exports(
         &mut self,
-        entry: UID,
+        entry: ModuleId,
         assets: &AssetContext,
     ) -> Result<(), CompileError> {
+        println!("=> Resolve CU and exports");
         // Insert entry module
-        let entry = self
-            .modules
-            .find(entry)
-            .ok_or(CompileError::ModuleNotFound)?;
         self.compilation_unit.add(entry);
         let mut i = 0;
         while i < self.compilation_unit.len() {
-            let module = self.modules.get_mut(self.compilation_unit.get(i)).unwrap();
-            match module.kind {
+            let module = self.compilation_unit.get(i);
+            match self.modules.get(module).unwrap().kind {
                 ModuleKind::Source => self.source_compiler.resolve_cu_and_exports(
                     assets,
+                    &self.modules,
                     module,
                     &mut self.compilation_unit,
                     &mut self.exports,
@@ -88,34 +90,41 @@ impl Compiler {
     }
 
     fn generate_mirs(&mut self, assets: &AssetContext) -> Result<(), CompileError> {
+        println!("=> Generate MIRs");
         for module in self.compilation_unit.modules.iter() {
-            let module = self.modules.get_mut(*module).unwrap();
-            match module.kind {
-                ModuleKind::Source => {
-                    self.source_compiler
-                        .generate_mir(assets, &self.exports, module)?
-                }
+            let mir = self.mirs.get_mut(*module).unwrap();
+            let kind = self.modules.get(*module).unwrap().kind;
+            match kind {
+                ModuleKind::Source => self.source_compiler.generate_mir(
+                    assets,
+                    &self.exports,
+                    &self.modules,
+                    *module,
+                    mir,
+                )?,
                 ModuleKind::Node => unimplemented!(),
             }
         }
         Ok(())
     }
 
-    fn generate_program(&mut self, entry: UID) -> Result<(), CompileError> {
+    fn generate_program(&mut self, entry: ModuleId) -> Result<(), CompileError> {
+        println!("=> Generate program");
         Ok(())
     }
 
-    pub fn compile(&mut self, module: UID, assets: &AssetContext) -> Result<(), CompileError> {
+    pub fn compile(&mut self, entry: ModuleId, assets: &AssetContext) -> Result<(), CompileError> {
         // Reset compiler resources
         self.prepare();
         // Fetch all modules from the asset manager (sequential, acquire cached modules)
         self.fetch_modules(assets)?;
         // Resolve compilation unit and exports (sequential, fast if cached)
-        self.resolve_cu_and_exports(module, assets)?;
+        self.resolve_cu_and_exports(entry, assets)?;
+        self.exports.print();
         // Generate MIRs for all modules in the compilation unit (parallel, fast if cached)
         self.generate_mirs(assets)?;
         // Generate program (sequential, slow)
-        self.generate_program(module)?;
+        self.generate_program(entry)?;
         Ok(())
     }
 }

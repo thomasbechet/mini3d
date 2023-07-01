@@ -631,12 +631,13 @@ fn init_system(ctx: &mut SystemContext) -> SystemResult {
 
     let script = ctx
         .asset
-        .get::<Script>(Script::UID, "test".into())?
+        .get::<Script>(Script::UID, "main".into())?
         .expect("Script not registered");
     println!("Script: {:?}", script.source);
     let mut compiler = Compiler::default();
-    compiler.add_module(ModuleKind::Source, "test".into());
-    if let Result::Err(e) = compiler.compile("test".into(), &mut ctx.asset) {
+    let entry = compiler.add_module(ModuleKind::Source, "main".into());
+    compiler.add_module(ModuleKind::Source, "utils".into());
+    if let Result::Err(e) = compiler.compile(entry, &ctx.asset) {
         println!("Error: {:?}", e);
     } else {
         println!("SUCCESS");
