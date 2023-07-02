@@ -38,8 +38,4 @@ impl ModuleTable {
     pub(crate) fn get(&self, module: ModuleId) -> Option<&Module> {
         self.modules.get(module.0 as usize)
     }
-
-    pub(crate) fn get_mut(&mut self, module: ModuleId) -> Option<&mut Module> {
-        self.modules.get_mut(module.0 as usize)
-    }
 }
