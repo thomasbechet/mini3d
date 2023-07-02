@@ -60,8 +60,19 @@ pub(crate) enum Symbol {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BlockKind {
+    Global,
+    Function,
+    While,
+    For,
+    If,
+    Loop,
+}
+
 #[derive(Debug)]
 pub(crate) struct BlockEntry {
+    kind: BlockKind,
     parent: Option<BlockId>,
     last: Option<SymbolId>,
     previous_scope_symbol: Option<SymbolId>,
@@ -263,7 +274,7 @@ impl SymbolTable {
         }
     }
 
-    pub(crate) fn add_block(&mut self, parent: Option<BlockId>) -> BlockId {
+    pub(crate) fn add_block(&mut self, kind: BlockKind, parent: Option<BlockId>) -> BlockId {
         // Compute previous_scope_symbol
         let previous_scope_symbol = parent.and_then(|p| {
             let parent = self.blocks.get(p.index()).unwrap();
@@ -272,6 +283,7 @@ impl SymbolTable {
 
         // Add scope
         self.blocks.push(BlockEntry {
+            kind,
             parent,
             last: None,
             previous_scope_symbol,
@@ -308,6 +320,26 @@ impl SymbolTable {
                 return None;
             }
         }
+    }
+
+    fn check_in(&self, entry: BlockId, kinds: &[BlockKind]) -> bool {
+        let mut block = Some(entry);
+        while let Some(current) = block {
+            let entry = &self.blocks[current.index()];
+            if kinds.contains(&entry.kind) {
+                return true;
+            }
+            block = entry.parent;
+        }
+        false
+    }
+
+    pub(crate) fn check_in_loop(&self, entry: BlockId) -> bool {
+        self.check_in(entry, &[BlockKind::Loop, BlockKind::While, BlockKind::For])
+    }
+
+    pub(crate) fn check_in_function(&self, entry: BlockId) -> bool {
+        self.check_in(entry, &[BlockKind::Function])
     }
 
     pub(crate) fn print(&self, strings: &StringTable) {

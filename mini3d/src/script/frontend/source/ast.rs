@@ -19,11 +19,23 @@ pub(crate) enum ASTNode {
         span: Span,
         ident: StringId,
     }, // PARENT-0
+    Break,
+    Continue,
     Return, // EXPR
     If,     // CONDITION-0, BODY-0, CONDITION-1, BODY-1, ...
-    IfBody,
-    For, // IDENTIFIER-0, GENERATOR-0, BODY-0
-    ForBody,
+    IfBody {
+        block: BlockId,
+    },
+    For {
+        // IDENTIFIER-0, GENERATOR-0, BODY-0
+        block: BlockId,
+    },
+    While {
+        block: BlockId,
+    },
+    Loop {
+        block: BlockId,
+    },
     Comment {
         span: Span,
         value: StringId,
@@ -52,6 +64,13 @@ pub(crate) enum ASTNode {
 }
 
 impl ASTNode {
+    pub(crate) fn is_loop(&self) -> bool {
+        matches!(
+            self,
+            Self::For { .. } | Self::While { .. } | Self::Loop { .. }
+        )
+    }
+
     pub(crate) fn is_expression(&self) -> bool {
         matches!(
             self,
@@ -70,7 +89,9 @@ impl ASTNode {
             Self::Compound
                 | Self::Return
                 | Self::If
-                | Self::For
+                | Self::For { .. }
+                | Self::While { .. }
+                | Self::Loop { .. }
                 | Self::FunctionDeclaration { .. }
                 | Self::VariableDeclaration { .. }
                 | Self::ConstantDeclaration { .. }

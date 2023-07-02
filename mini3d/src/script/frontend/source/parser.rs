@@ -16,7 +16,7 @@ use super::{
     operator::BinaryOperator,
     stream::SourceStream,
     strings::StringTable,
-    symbol::{BlockId, Symbol, SymbolTable},
+    symbol::{BlockId, BlockKind, Symbol, SymbolTable},
     token::{Location, Token, TokenKind, TokenValue},
 };
 
@@ -265,9 +265,30 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         } else if next.kind == TokenKind::Function {
             Ok(self.parse_function_declaration(block)?)
         } else if next.kind == TokenKind::Return {
+            if !self.symbols.check_in_function(block) {
+                return Err(SyntaxError::ReturnOutsideFunction { span: next.span }.into());
+            }
             Ok(self.parse_return_statement(block)?)
         } else if next.kind == TokenKind::If {
             Ok(self.parse_if_statement(block)?)
+        } else if next.kind == TokenKind::For {
+            Ok(self.parse_for_statement(block)?)
+        } else if next.kind == TokenKind::While {
+            Ok(self.parse_while_statement(block)?)
+        } else if next.kind == TokenKind::Loop {
+            Ok(self.parse_loop_statement(block)?)
+        } else if next.kind == TokenKind::Break {
+            self.parser.consume()?;
+            if !self.symbols.check_in_loop(block) {
+                return Err(SyntaxError::BreakOutsideLoop { span: next.span }.into());
+            }
+            Ok(self.ast.add(ASTNode::Break))
+        } else if next.kind == TokenKind::Continue {
+            self.parser.consume()?;
+            if !self.symbols.check_in_loop(block) {
+                return Err(SyntaxError::ContinueOutsideLoop { span: next.span }.into());
+            }
+            Ok(self.ast.add(ASTNode::Continue))
         } else if next.kind == TokenKind::Identifier {
             let ident = self.parse_identifier(block)?;
             if self.parser.peek(0)?.kind == TokenKind::Assign {
@@ -364,7 +385,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 exported: None,
             },
         )?;
-        let function_block = self.symbols.add_block(Some(block));
+        let function_block = self.symbols.add_block(BlockKind::Function, Some(block));
         let function = self.ast.add(ASTNode::FunctionDeclaration {
             span: token.span,
             symbol: symbol_id,
@@ -421,11 +442,12 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         if_node: ASTNodeId,
         block: BlockId,
     ) -> Result<(), CompileError> {
-        let body = self.ast.add(ASTNode::IfBody);
+        let if_block = self.symbols.add_block(BlockKind::If, Some(block));
+        let body = self.ast.add(ASTNode::IfBody { block: if_block });
         while ![TokenKind::End, TokenKind::Else, TokenKind::Elif]
             .contains(&self.parser.peek(0)?.kind)
         {
-            let stmt = self.parse_statement(block)?;
+            let stmt = self.parse_statement(if_block)?;
             self.ast.append_child(body, stmt);
         }
         self.ast.append_child(if_node, body);
@@ -440,15 +462,14 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         self.ast.append_child(node, condition);
         self.parser.expect(TokenKind::Then)?;
         // If body
-        let if_block = self.symbols.add_block(Some(block));
-        self.parse_and_append_if_body(node, if_block)?;
+        self.parse_and_append_if_body(node, block)?;
         while self.parser.accept(TokenKind::Elif)?.is_some() {
             // Elif condition
             let condition = self.parse_expression(0, block)?;
             self.ast.append_child(node, condition);
             self.parser.expect(TokenKind::Then)?;
             // Elif body
-            self.parse_and_append_if_body(node, if_block)?;
+            self.parse_and_append_if_body(node, block)?;
         }
         if self.parser.accept(TokenKind::Else)?.is_some() {
             // Else body
@@ -460,16 +481,43 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
 
     fn parse_for_statement(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
         self.parser.expect(TokenKind::For)?;
-        let for_block = self.symbols.add_block(Some(block));
+        let for_block = self.symbols.add_block(BlockKind::For, Some(block));
         let token = self.parser.expect(TokenKind::Identifier)?;
         self.parser.expect(TokenKind::In)?;
         let expr = self.parse_expression(0, block)?;
-        let node = self.ast.add(ASTNode::For);
+        let node = self.ast.add(ASTNode::For { block: for_block });
         // self.ast.append_child(node, )?;
         self.ast.append_child(node, expr);
         self.parser.expect(TokenKind::Do)?;
         while self.parser.peek(0)?.kind != TokenKind::End {
             let stmt = self.parse_statement(for_block)?;
+            self.ast.append_child(node, stmt);
+        }
+        self.parser.expect(TokenKind::End)?;
+        Ok(node)
+    }
+
+    fn parse_while_statement(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
+        self.parser.expect(TokenKind::While)?;
+        let while_block = self.symbols.add_block(BlockKind::While, Some(block));
+        let expr = self.parse_expression(0, block)?;
+        let node = self.ast.add(ASTNode::While { block: while_block });
+        self.ast.append_child(node, expr);
+        self.parser.expect(TokenKind::Do)?;
+        while self.parser.peek(0)?.kind != TokenKind::End {
+            let stmt = self.parse_statement(while_block)?;
+            self.ast.append_child(node, stmt);
+        }
+        self.parser.expect(TokenKind::End)?;
+        Ok(node)
+    }
+
+    fn parse_loop_statement(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
+        self.parser.expect(TokenKind::Loop)?;
+        let loop_block = self.symbols.add_block(BlockKind::Loop, Some(block));
+        let node = self.ast.add(ASTNode::Loop { block: loop_block });
+        while self.parser.peek(0)?.kind != TokenKind::End {
+            let stmt = self.parse_statement(loop_block)?;
             self.ast.append_child(node, stmt);
         }
         self.parser.expect(TokenKind::End)?;
@@ -591,7 +639,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
     }
 
     fn parse(&mut self) -> Result<(), CompileError> {
-        let global_block = self.symbols.add_block(None);
+        let global_block = self.symbols.add_block(BlockKind::Global, None);
 
         while [TokenKind::Import, TokenKind::From].contains(&self.parser.peek(0)?.kind) {
             match self.parser.peek(0)?.kind {

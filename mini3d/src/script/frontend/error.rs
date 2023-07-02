@@ -62,11 +62,22 @@ pub enum SyntaxError {
     SymbolAlreadyDefined {
         span: Span,
     },
+    BreakOutsideLoop {
+        span: Span,
+    },
+    ContinueOutsideLoop {
+        span: Span,
+    },
+    ReturnOutsideFunction {
+        span: Span,
+    },
 }
 
 #[derive(Debug)]
 pub enum SemanticError {
-    TypeMistmatch,
+    TypeError,     // Invalid type assignment
+    TypeMistmatch, // Incompatible types in operands
+    TypeViolation, // Assigning value to a constant
     UndefinedSymbol(SymbolId),
     MultipleDefinitions,
     ModuleNotFound { span: Span },
