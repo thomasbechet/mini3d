@@ -149,14 +149,22 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         }
     }
 
-    fn parse_identifier(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
-        let token = self.parser.expect(TokenKind::Identifier)?;
-        let ident = self.parser.strings.get(token.value.into());
-        let symbol = self.symbols.lookup_symbol(ident.into(), token, block);
-        let mut node = self.ast.add(ASTNode::Identifier {
-            span: token.span,
-            symbol,
-        });
+    fn parse_identifier_chain(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
+        let mut node = if let Some(token) = self.parser.accept(TokenKind::PrimitiveType)? {
+            let ty: PrimitiveType = token.value.into();
+            self.ast.add(ASTNode::PrimitiveType {
+                span: token.span,
+                ty,
+            })
+        } else {
+            let token = self.parser.expect(TokenKind::Identifier)?;
+            let ident = self.parser.strings.get(token.value.into());
+            let symbol = self.symbols.lookup_symbol(ident.into(), token, block);
+            self.ast.add(ASTNode::Identifier {
+                span: token.span,
+                symbol,
+            })
+        };
         if self.parser.peek(0)?.kind == TokenKind::Dot {
             node = self.parse_member_lookup(node)?;
         }
@@ -166,8 +174,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
     fn parse_atom(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
         let next = self.parser.peek(0)?;
         let node = match next.kind {
-            TokenKind::Identifier => {
-                let ident = self.parse_identifier(block)?;
+            TokenKind::Identifier | TokenKind::PrimitiveType => {
+                let ident = self.parse_identifier_chain(block)?;
                 if self.parser.peek(0)?.kind == TokenKind::LeftParen {
                     self.parse_call(ident, block)?
                 } else {
@@ -289,8 +297,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 return Err(SyntaxError::ContinueOutsideLoop { span: next.span }.into());
             }
             Ok(self.ast.add(ASTNode::Continue))
-        } else if next.kind == TokenKind::Identifier {
-            let ident = self.parse_identifier(block)?;
+        } else if next.kind == TokenKind::Identifier || next.kind == TokenKind::PrimitiveType {
+            let ident = self.parse_identifier_chain(block)?;
             if self.parser.peek(0)?.kind == TokenKind::Assign {
                 Ok(self.parse_assignment_statement(ident, block)?)
             } else if self.parser.peek(0)?.kind == TokenKind::LeftParen {

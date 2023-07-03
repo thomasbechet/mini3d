@@ -1,3 +1,5 @@
+use crate::script::mir::primitive::PrimitiveType;
+
 use super::{
     literal::Literal,
     operator::{BinaryOperator, UnaryOperator},
@@ -14,6 +16,10 @@ pub(crate) enum ASTNode {
     Identifier {
         span: Span,
         symbol: SymbolId,
+    },
+    PrimitiveType {
+        span: Span,
+        ty: PrimitiveType,
     },
     MemberLookup {
         span: Span,

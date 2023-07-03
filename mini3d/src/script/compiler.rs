@@ -1,4 +1,7 @@
-use crate::{context::asset::AssetContext, uid::UID};
+use crate::{
+    context::{asset::AssetContext, registry::RegistryContext},
+    uid::UID,
+};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -6,6 +9,7 @@ use super::{
     frontend::{
         error::CompileError, node::compiler::NodeCompiler, source::compiler::SourceCompiler,
     },
+    interface::InterfaceTable,
     mir::MIRTable,
     module::{ModuleId, ModuleKind, ModuleTable},
 };
@@ -40,6 +44,7 @@ impl CompilationUnit {
 #[derive(Default)]
 pub struct Compiler {
     modules: ModuleTable,
+    interfaces: InterfaceTable,
     mirs: MIRTable,
     exports: ExportTable,
     compilation_unit: CompilationUnit,
@@ -113,7 +118,12 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn compile(&mut self, entry: ModuleId, assets: &AssetContext) -> Result<(), CompileError> {
+    pub fn compile(
+        &mut self,
+        entry: ModuleId,
+        assets: &AssetContext,
+        registry: &RegistryContext,
+    ) -> Result<(), CompileError> {
         // Reset compiler resources
         self.prepare();
         // Fetch all modules from the asset manager (sequential, acquire cached modules)

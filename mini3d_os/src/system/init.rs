@@ -637,7 +637,7 @@ fn init_system(ctx: &mut SystemContext) -> SystemResult {
     let mut compiler = Compiler::default();
     let entry = compiler.add_module(ModuleKind::Source, "main".into());
     compiler.add_module(ModuleKind::Source, "utils".into());
-    if let Result::Err(e) = compiler.compile(entry, &ctx.asset) {
+    if let Result::Err(e) = compiler.compile(entry, &ctx.asset, &ctx.registry) {
         println!("Error: {:?}", e);
     } else {
         println!("SUCCESS");
