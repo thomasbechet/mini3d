@@ -851,7 +851,7 @@ mod test {
     fn test_basic() {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
-        let mut exports = ExportTable::default();
+        let exports = ExportTable::default();
         let mut modules = ModuleTable::default();
         let module = modules.add(UID::null(), ModuleKind::Source);
         let mut stream = SourceStream::new(
@@ -881,7 +881,7 @@ mod test {
     fn test_if_body() {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
-        let mut exports = ExportTable::default();
+        let exports = ExportTable::default();
         let mut modules = ModuleTable::default();
         let module = modules.add(UID::null(), ModuleKind::Source);
         let mut source = SourceStream::new(
@@ -894,6 +894,12 @@ mod test {
         else
             x = 2
         end
+        "#,
+        );
+        let mut source = SourceStream::new(
+            r#"
+        function test(a: int, b: int) end
+        test(1)
         "#,
         );
         let mut ast = AST::default();
@@ -909,5 +915,6 @@ mod test {
         )
         .unwrap();
         ast.print();
+        symbols.print(&strings);
     }
 }
