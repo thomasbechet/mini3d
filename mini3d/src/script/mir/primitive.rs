@@ -5,6 +5,7 @@ use crate::script::frontend::{
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum PrimitiveType {
+    Nil,
     Boolean,
     Integer,
     Float,

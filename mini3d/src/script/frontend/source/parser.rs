@@ -380,7 +380,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             token,
             block,
             Symbol::Function {
-                return_type: None,
+                return_type: PrimitiveType::Nil,
                 first_arg: None,
                 exported: None,
             },
@@ -417,7 +417,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             if let ASTNode::FunctionDeclaration { symbol, .. } = self.ast.get_mut(function).unwrap()
             {
                 if let Some(Symbol::Function { return_type, .. }) = self.symbols.get_mut(*symbol) {
-                    *return_type = Some(primitive);
+                    *return_type = primitive;
                 }
             }
         }
@@ -562,13 +562,17 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 let module = self
                     .modules
                     .find(path.into())
-                    .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
-                        span: path_token.span,
-                    }))?;
+                    .ok_or(CompileError::Semantic(
+                        SemanticError::ModuleNotFound {
+                            span: path_token.span,
+                        }
+                        .into(),
+                    ))?;
                 if module == self.module {
-                    return Err(CompileError::Semantic(SemanticError::ImportSelf {
+                    return Err(SemanticError::ImportSelf {
                         span: path_token.span,
-                    }));
+                    }
+                    .into());
                 }
                 self.parser.expect(TokenKind::As)?;
                 let path_token = self.parser.expect(TokenKind::Identifier)?;
@@ -581,9 +585,10 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 )?;
             }
             _ => {
-                return Err(CompileError::Semantic(SemanticError::ModuleNotFound {
+                return Err(SemanticError::ModuleNotFound {
                     span: path_token.span,
-                }))
+                }
+                .into())
             }
         }
         Ok(())
@@ -621,18 +626,18 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                                 Ok(())
                             })?;
                     if count == 0 {
-                        return Err(CompileError::Semantic(
-                            SemanticError::MissingImportSymbols {
-                                span: path_token.span,
-                            },
-                        ));
+                        return Err(SemanticError::MissingImportSymbols {
+                            span: path_token.span,
+                        }
+                        .into());
                     }
                 }
             }
             _ => {
-                return Err(CompileError::Semantic(SemanticError::ModuleNotFound {
+                return Err(SemanticError::ModuleNotFound {
                     span: path_token.span,
-                }))
+                }
+                .into())
             }
         }
         Ok(())
@@ -724,17 +729,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                                     span: token.span,
                                 }))?;
                         if module == self.module {
-                            return Err(CompileError::Semantic(SemanticError::ImportSelf {
-                                span: token.span,
-                            }));
+                            return Err(SemanticError::ImportSelf { span: token.span }.into());
                         }
                         self.compilation_unit.add(module);
                     }
-                    _ => {
-                        return Err(CompileError::Semantic(SemanticError::ModuleNotFound {
-                            span: token.span,
-                        }))
-                    }
+                    _ => return Err(SemanticError::ModuleNotFound { span: token.span }.into()),
                 }
                 if token.kind == TokenKind::From {
                     self.parser.expect(TokenKind::Import)?;
@@ -793,7 +792,10 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                             },
                         )?;
                         self.parser.expect(TokenKind::RightParen)?;
-                        let ty = self.parser.try_parse_primitive_type()?;
+                        let ty = self
+                            .parser
+                            .try_parse_primitive_type()?
+                            .unwrap_or(PrimitiveType::Nil);
                         self.exports.add(
                             self.module,
                             Export::Function {
@@ -804,10 +806,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                         );
                     }
                     _ => {
-                        return Err(CompileError::Syntax(SyntaxError::UnexpectedExportToken {
+                        return Err(SyntaxError::UnexpectedExportToken {
                             span: token.span,
                             got: token.kind,
-                        }))
+                        }
+                        .into())
                     }
                 }
             }

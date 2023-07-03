@@ -40,7 +40,7 @@ impl BlockId {
 #[derive(Debug)]
 pub(crate) enum Symbol {
     Function {
-        return_type: Option<PrimitiveType>,
+        return_type: PrimitiveType,
         first_arg: Option<SymbolId>,
         exported: Option<ExportId>,
     },
@@ -258,6 +258,12 @@ impl SymbolTable {
             self.import_symbol(block, token, id, exports)?;
         }
         Ok(())
+    }
+
+    pub(crate) fn get(&self, id: SymbolId) -> Option<&Symbol> {
+        self.symbols
+            .get(id.0 as usize)
+            .and_then(|s| s.symbol.as_ref())
     }
 
     pub(crate) fn get_mut(&mut self, id: SymbolId) -> Option<&mut Symbol> {

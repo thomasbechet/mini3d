@@ -1,8 +1,13 @@
-use crate::script::{export::ExportTable, frontend::error::CompileError};
+use crate::script::{
+    export::ExportTable,
+    frontend::error::{CompileError, SemanticError},
+    mir::primitive::PrimitiveType,
+};
 
 use super::{
     ast::{ASTNode, ASTNodeId, ASTVisitor, AST},
-    symbol::SymbolTable,
+    literal::Literal,
+    symbol::{Symbol, SymbolTable},
 };
 
 struct ValidateExpression {}
@@ -61,6 +66,54 @@ impl ASTVisitor for ValidateStatement {
             _ => return true, // visit children
         }
         false // don't visit children
+    }
+}
+
+// fn evaluate_member_lookup(loopkup: ASTNodeId, ast: &AST)
+
+fn evaluate_expression(
+    expr: ASTNodeId,
+    ast: &AST,
+    symbols: &SymbolTable,
+) -> Result<PrimitiveType, CompileError> {
+    match ast.get(expr).unwrap() {
+        ASTNode::Literal(lit) => match lit {
+            Literal::Nil => Ok(PrimitiveType::Nil),
+            Literal::Boolean(_) => Ok(PrimitiveType::Boolean),
+            Literal::Integer(_) => Ok(PrimitiveType::Integer),
+            Literal::Float(_) => Ok(PrimitiveType::Float),
+            Literal::String(_) => Ok(PrimitiveType::String),
+        },
+        ASTNode::Identifier { symbol, span } => match symbols.get(*symbol).unwrap() {
+            Symbol::Function { return_type, .. } => Ok(*return_type),
+            Symbol::FunctionArgument { arg_type, .. } => Ok(*arg_type),
+            Symbol::Constant { const_type, .. } => Ok(*const_type),
+            Symbol::Variable { var_type } => {
+                if let Some(var_type) = var_type {
+                    Ok(*var_type)
+                } else {
+                    Err(SemanticError::UnresolvedSymbolType(*symbol).into())
+                }
+            }
+            Symbol::Module { .. } => Err(SemanticError::TypeMistmatch { span: *span }.into()),
+        },
+        ASTNode::MemberLookup { .. } => {
+            // TODO
+            Ok(PrimitiveType::Integer)
+        }
+        ASTNode::Call => {
+            // TODO
+            Ok(PrimitiveType::Integer)
+        }
+        ASTNode::BinaryOperator(_) => {
+            // TODO
+            Ok(PrimitiveType::Integer)
+        }
+        ASTNode::UnaryOperator(_) => {
+            // TODO
+            Ok(PrimitiveType::Integer)
+        }
+        _ => unreachable!(),
     }
 }
 

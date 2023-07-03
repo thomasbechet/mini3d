@@ -1,11 +1,4 @@
-from 'utils' import hello
+import 'utils' as utils
 
-function main()
-    while true do
-        break
-    end
-    loop
-        return false
-        continue
-    end
-end
+utils.hello()
+vec3.add(1, 2)

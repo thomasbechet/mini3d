@@ -8,7 +8,7 @@ pub(crate) type ExportId = u32;
 pub(crate) enum Export {
     Function {
         name: UID,
-        ty: Option<PrimitiveType>,
+        ty: PrimitiveType,
         first_arg: Option<ExportId>,
     },
     FunctionArgument {

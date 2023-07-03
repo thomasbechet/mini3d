@@ -75,10 +75,10 @@ pub enum SyntaxError {
 
 #[derive(Debug)]
 pub enum SemanticError {
-    TypeError,     // Invalid type assignment
-    TypeMistmatch, // Incompatible types in operands
-    TypeViolation, // Assigning value to a constant
+    TypeMistmatch { span: Span }, // Incompatible types in operands
+    TypeViolation,                // Assigning value to a constant
     UndefinedSymbol(SymbolId),
+    UnresolvedSymbolType(SymbolId),
     MultipleDefinitions,
     ModuleNotFound { span: Span },
     ModuleImportNotFound { module: ModuleId, span: Span },
