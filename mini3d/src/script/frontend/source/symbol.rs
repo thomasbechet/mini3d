@@ -42,7 +42,7 @@ pub(crate) enum Symbol {
     Function {
         return_type: PrimitiveType,
         first_arg: Option<SymbolId>,
-        external: Option<ExportId>,
+        exported: bool,
     },
     FunctionArgument {
         arg_type: PrimitiveType,
@@ -50,13 +50,16 @@ pub(crate) enum Symbol {
     },
     Constant {
         const_type: PrimitiveType,
-        external: Option<ExportId>,
+        exported: bool,
     },
     Variable {
         var_type: Option<PrimitiveType>,
     },
     Module {
         module: ModuleId,
+    },
+    External {
+        export: ExportId,
     },
 }
 
@@ -151,7 +154,10 @@ impl SymbolTable {
         // Check if symbol already exist in scope
         let found = self.find_in_scope(uid, block);
         match symbol {
-            Symbol::Function { .. } | Symbol::Constant { .. } | Symbol::Module { .. } => {
+            Symbol::Function { .. }
+            | Symbol::Constant { .. }
+            | Symbol::Module { .. }
+            | Symbol::External { .. } => {
                 assert!(block == Self::GLOBAL_BLOCK);
                 if let Some(id) = found {
                     // Constant and function shadowing is not allowed, we must check definition.
@@ -182,67 +188,13 @@ impl SymbolTable {
         exports: &ExportTable,
     ) -> Result<(), CompileError> {
         match exports.get(id).unwrap() {
-            Export::Constant { name, ty } => {
-                let symbol = Symbol::Constant {
-                    const_type: *ty,
-                    external: Some(id),
-                };
-                self.define_symbol(*name, token, block, symbol)?;
+            Export::Constant { name, .. } => {
+                self.define_symbol(*name, token, block, Symbol::External { export: id })?;
             }
-            Export::Function {
-                name,
-                ty,
-                first_arg,
-            } => {
-                // Define function arguments
-                let mut next = *first_arg;
-                let mut previous: Option<SymbolId> = None;
-                let mut first_arg = None;
-                while let Some(arg) = next {
-                    match exports.get(arg).unwrap() {
-                        Export::Argument { name, ty, next_arg } => {
-                            // Add symbol
-                            let id = self.define_symbol(
-                                *name,
-                                token,
-                                block,
-                                Symbol::FunctionArgument {
-                                    arg_type: *ty,
-                                    next_arg: None,
-                                },
-                            )?;
-                            // Update previous argument link
-                            if let Some(previous) = previous {
-                                match self.symbols[previous.0 as usize].symbol.as_mut().unwrap() {
-                                    Symbol::FunctionArgument { next_arg, .. } => {
-                                        *next_arg = Some(id);
-                                    }
-                                    _ => unreachable!(),
-                                }
-                            }
-                            // Keep reference to first argument symbol
-                            if first_arg.is_none() {
-                                first_arg = Some(id);
-                            }
-                            previous = Some(id);
-                            next = *next_arg;
-                        }
-                        _ => unreachable!(),
-                    }
-                }
-                // Define function
-                self.define_symbol(
-                    *name,
-                    token,
-                    block,
-                    Symbol::Function {
-                        return_type: *ty,
-                        first_arg,
-                        external: Some(id),
-                    },
-                )?;
+            Export::Function { name, .. } => {
+                self.define_symbol(*name, token, block, Symbol::External { export: id })?;
             }
-            _ => { /* Ignore function arguments */ }
+            Export::Argument { .. } => {}
         }
         Ok(())
     }

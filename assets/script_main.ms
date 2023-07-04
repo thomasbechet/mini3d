@@ -1,5 +1,5 @@
-import 'utils' as utils
+from 'utils' import *
 
 function test(a: int) 
-    return utils.hello() + a
+    return hello(0) + a
 end

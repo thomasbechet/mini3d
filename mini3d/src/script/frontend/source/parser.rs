@@ -375,10 +375,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             .ok_or(SyntaxError::MissingConstantType { span: token.span })?;
         self.parser.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0, block)?;
-        let symbol = Symbol::Constant {
-            const_type,
-            external: None,
-        };
+        let symbol = Symbol::Constant { const_type };
         let symbol_id = self.symbols.define_symbol(ident, token, block, symbol)?;
         if export && block != SymbolTable::GLOBAL_BLOCK {
             return Err(SyntaxError::ExportOutsideOfGlobalScope { span: token.span }.into());
@@ -408,7 +405,6 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             Symbol::Function {
                 return_type: PrimitiveType::Nil,
                 first_arg: None,
-                external: None,
             },
         )?;
         let function_block = self.symbols.add_block(BlockKind::Function, Some(block));
@@ -798,52 +794,54 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                         let token = self.parser.expect(TokenKind::Identifier)?;
                         let name = UID::new(self.parser.strings.get(token.value.into()));
                         self.parser.expect(TokenKind::LeftParen)?;
-                        let mut first_arg = None;
-                        let mut last_arg = None;
+                        let function_export = self.exports.add(
+                            self.module,
+                            Export::Function {
+                                name,
+                                ty: PrimitiveType::Nil,
+                                first_arg: None,
+                            },
+                        );
+                        let mut previous_arg = None;
                         self.parser.parse_function_argument_list(
                             TokenKind::Comma,
                             |(name, ty, _)| {
-                                if let Some(last) = last_arg {
-                                    let id = self.exports.add(
-                                        self.module,
-                                        Export::Argument {
-                                            name: name.into(),
-                                            ty,
-                                            next_arg: None,
-                                        },
-                                    );
-                                    match self.exports.get_mut(last).unwrap() {
-                                        Export::Argument { next_arg, .. } => *next_arg = Some(id),
+                                let arg = self.exports.add(
+                                    self.module,
+                                    Export::Argument {
+                                        name: name.into(),
+                                        ty,
+                                        next_arg: None,
+                                    },
+                                );
+                                if let Some(previous_arg) = previous_arg {
+                                    match self.exports.get_mut(previous_arg).unwrap() {
+                                        Export::Argument { next_arg, .. } => {
+                                            *next_arg = Some(function_export)
+                                        }
                                         _ => unreachable!(),
                                     }
-                                    last_arg = Some(id);
                                 } else {
-                                    last_arg = Some(self.exports.add(
-                                        self.module,
-                                        Export::Argument {
-                                            name: name.into(),
-                                            ty,
-                                            next_arg: None,
-                                        },
-                                    ));
-                                    first_arg = last_arg;
+                                    match self.exports.get_mut(function_export).unwrap() {
+                                        Export::Function { first_arg, .. } => {
+                                            *first_arg = Some(function_export)
+                                        }
+                                        _ => unreachable!(),
+                                    }
                                 }
+                                previous_arg = Some(arg);
                                 Ok(())
                             },
                         )?;
                         self.parser.expect(TokenKind::RightParen)?;
-                        let ty = self
+                        let function_ty = self
                             .parser
                             .try_parse_primitive_type()?
                             .unwrap_or(PrimitiveType::Nil);
-                        self.exports.add(
-                            self.module,
-                            Export::Function {
-                                name,
-                                ty,
-                                first_arg,
-                            },
-                        );
+                        match self.exports.get_mut(function_export).unwrap() {
+                            Export::Function { ty, .. } => *ty = function_ty,
+                            _ => unreachable!(),
+                        }
                     }
                     _ => {
                         return Err(SyntaxError::UnexpectedExportToken {

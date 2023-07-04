@@ -96,6 +96,7 @@ fn evaluate_expression(
                 }
             }
             Symbol::Module { .. } => Err(SemanticError::TypeMistmatch { span: *span }.into()),
+            Symbol::External { export } => unimplemented!(),
         },
         ASTNode::MemberLookup { .. } => {
             // TODO
