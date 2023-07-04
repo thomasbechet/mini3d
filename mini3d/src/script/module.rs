@@ -1,17 +1,13 @@
 use crate::uid::UID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModuleKind {
-    Source,
-    Node,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId(u32);
 
-pub(crate) struct Module {
-    pub(crate) kind: ModuleKind,
-    pub(crate) asset: UID,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Module {
+    Source { asset: UID },
+    Node { asset: UID },
+    System,
 }
 
 #[derive(Default)]
@@ -20,9 +16,9 @@ pub(crate) struct ModuleTable {
 }
 
 impl ModuleTable {
-    pub(crate) fn add(&mut self, asset: UID, kind: ModuleKind) -> ModuleId {
+    pub(crate) fn add(&mut self, module: Module) -> ModuleId {
         let id = ModuleId(self.modules.len() as u32);
-        self.modules.push(Module { kind, asset });
+        self.modules.push(module);
         id
     }
 

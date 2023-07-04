@@ -11,7 +11,7 @@ pub(crate) enum Export {
         ty: PrimitiveType,
         first_arg: Option<ExportId>,
     },
-    FunctionArgument {
+    Argument {
         name: UID,
         ty: PrimitiveType,
         next_arg: Option<ExportId>,

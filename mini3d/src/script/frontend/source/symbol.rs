@@ -200,7 +200,7 @@ impl SymbolTable {
                 let mut first_arg = None;
                 while let Some(arg) = next {
                     match exports.get(arg).unwrap() {
-                        Export::FunctionArgument { name, ty, next_arg } => {
+                        Export::Argument { name, ty, next_arg } => {
                             // Add symbol
                             let id = self.define_symbol(
                                 *name,

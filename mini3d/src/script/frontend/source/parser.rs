@@ -772,23 +772,21 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                                 if let Some(last) = last_arg {
                                     let id = self.exports.add(
                                         self.module,
-                                        Export::FunctionArgument {
+                                        Export::Argument {
                                             name: name.into(),
                                             ty,
                                             next_arg: None,
                                         },
                                     );
                                     match self.exports.get_mut(last).unwrap() {
-                                        Export::FunctionArgument { next_arg, .. } => {
-                                            *next_arg = Some(id)
-                                        }
+                                        Export::Argument { next_arg, .. } => *next_arg = Some(id),
                                         _ => unreachable!(),
                                     }
                                     last_arg = Some(id);
                                 } else {
                                     last_arg = Some(self.exports.add(
                                         self.module,
-                                        Export::FunctionArgument {
+                                        Export::Argument {
                                             name: name.into(),
                                             ty,
                                             next_arg: None,

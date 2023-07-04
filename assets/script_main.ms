@@ -1,2 +1,6 @@
 import 'utils' as utils
-let utils = 2
+import 'input' as input
+
+if input.is_button_pressed('hello') then
+    print('hello')
+end

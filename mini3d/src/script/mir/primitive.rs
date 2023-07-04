@@ -20,6 +20,7 @@ pub(crate) enum PrimitiveType {
     String,
     Entity,
     Object,
+    UID,
 }
 
 impl PrimitiveType {
