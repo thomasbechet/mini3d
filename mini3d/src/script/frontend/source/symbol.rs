@@ -42,7 +42,7 @@ pub(crate) enum Symbol {
     Function {
         return_type: PrimitiveType,
         first_arg: Option<SymbolId>,
-        exported: Option<ExportId>,
+        external: Option<ExportId>,
     },
     FunctionArgument {
         arg_type: PrimitiveType,
@@ -50,7 +50,7 @@ pub(crate) enum Symbol {
     },
     Constant {
         const_type: PrimitiveType,
-        exported: Option<ExportId>,
+        external: Option<ExportId>,
     },
     Variable {
         var_type: Option<PrimitiveType>,
@@ -157,19 +157,19 @@ impl SymbolTable {
                     // Constant and function shadowing is not allowed, we must check definition.
                     if self.symbols[id.index()].symbol.is_some() {
                         // Already defined
-                        return Err(SyntaxError::SymbolAlreadyDefined { span: token.span }.into());
+                        Err(SyntaxError::SymbolAlreadyDefined { span: token.span }.into())
                     } else {
                         // Update symbol
                         self.symbols[id.index()].symbol = Some(symbol);
-                        return Ok(id);
+                        Ok(id)
                     }
                 } else {
                     // Not defined or declared
-                    return Ok(self.add_symbol(uid, token, block, Some(symbol)));
+                    Ok(self.add_symbol(uid, token, block, Some(symbol)))
                 }
             }
             Symbol::Variable { .. } | Symbol::FunctionArgument { .. } => {
-                return Ok(self.add_symbol(uid, token, block, Some(symbol)));
+                Ok(self.add_symbol(uid, token, block, Some(symbol)))
             }
         }
     }
@@ -185,7 +185,7 @@ impl SymbolTable {
             Export::Constant { name, ty } => {
                 let symbol = Symbol::Constant {
                     const_type: *ty,
-                    exported: Some(id),
+                    external: Some(id),
                 };
                 self.define_symbol(*name, token, block, symbol)?;
             }
@@ -238,7 +238,7 @@ impl SymbolTable {
                     Symbol::Function {
                         return_type: *ty,
                         first_arg,
-                        exported: Some(id),
+                        external: Some(id),
                     },
                 )?;
             }
@@ -357,8 +357,8 @@ impl SymbolTable {
                 strings.get(entry.token.value.into())
             };
             println!(
-                "- [{}] '{}' {:?} UID: {}",
-                i, ident, entry.symbol, entry.uid
+                "- [{}] '{}' {:?} UID: {} BLOCK: {:?}",
+                i, ident, entry.symbol, entry.uid, entry.block
             );
         }
         println!("BLOCKS:");

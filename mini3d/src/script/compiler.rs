@@ -11,7 +11,7 @@ use super::{
     },
     interface::InterfaceTable,
     mir::MIRTable,
-    module::{ModuleId, ModuleKind, ModuleTable},
+    module::{Module, ModuleId, ModuleTable},
 };
 
 #[derive(Default)]
@@ -54,8 +54,8 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub fn add_module(&mut self, kind: ModuleKind, asset: UID) -> ModuleId {
-        let module = self.modules.add(asset, kind);
+    pub fn add_module(&mut self, uid: UID, module: Module) -> ModuleId {
+        let module = self.modules.add(uid, module);
         self.mirs.add(module);
         module
     }
@@ -79,15 +79,17 @@ impl Compiler {
         let mut i = 0;
         while i < self.compilation_unit.len() {
             let module = self.compilation_unit.get(i);
-            match self.modules.get(module).unwrap().kind {
-                ModuleKind::Source => self.source_compiler.resolve_cu_and_exports(
+            match self.modules.get(module).unwrap() {
+                Module::Source { asset } => self.source_compiler.resolve_cu_and_exports(
                     assets,
+                    *asset,
                     &self.modules,
                     module,
                     &mut self.compilation_unit,
                     &mut self.exports,
                 )?,
-                ModuleKind::Node => unimplemented!(),
+                Module::Node { .. } => unimplemented!(),
+                Module::Interface { .. } => unimplemented!(),
             }
             i += 1;
         }
@@ -98,16 +100,17 @@ impl Compiler {
         println!("=> Generate MIRs");
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
-            let kind = self.modules.get(*module).unwrap().kind;
-            match kind {
-                ModuleKind::Source => self.source_compiler.generate_mir(
-                    assets,
+            match self.modules.get(*module).unwrap() {
+                Module::Source { asset } => self.source_compiler.generate_mir(
                     &self.exports,
+                    assets,
+                    *asset,
                     &self.modules,
                     *module,
                     mir,
                 )?,
-                ModuleKind::Node => unimplemented!(),
+                Module::Node { .. } => unimplemented!(),
+                Module::Interface { .. } => unimplemented!(),
             }
         }
         Ok(())

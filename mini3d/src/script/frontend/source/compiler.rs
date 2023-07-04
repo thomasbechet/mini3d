@@ -9,6 +9,7 @@ use crate::{
         mir::mir::MIR,
         module::{ModuleId, ModuleTable},
     },
+    uid::UID,
 };
 
 use super::{
@@ -48,6 +49,7 @@ impl SourceCompiler {
     pub(crate) fn resolve_cu_and_exports(
         &mut self,
         assets: &AssetContext,
+        asset: UID,
         modules: &ModuleTable,
         module: ModuleId,
         compilation_unit: &mut CompilationUnit,
@@ -56,7 +58,7 @@ impl SourceCompiler {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(Script::UID, modules.get(module).unwrap().asset)
+                .get::<Script>(Script::UID, asset)
                 .unwrap()
                 .ok_or(CompileError::ScriptNotFound)?
                 .source,
@@ -76,8 +78,9 @@ impl SourceCompiler {
 
     pub(crate) fn generate_mir(
         &mut self,
-        assets: &AssetContext,
         exports: &ExportTable,
+        assets: &AssetContext,
+        asset: UID,
         modules: &ModuleTable,
         module: ModuleId,
         mir: &mut MIR,
@@ -87,7 +90,7 @@ impl SourceCompiler {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(Script::UID, modules.get(module).unwrap().asset)
+                .get::<Script>(Script::UID, asset)
                 .unwrap()
                 .ok_or(CompileError::ScriptNotFound)?
                 .source,
@@ -103,8 +106,8 @@ impl SourceCompiler {
             modules,
             module,
         )?;
-        self.ast.print();
         self.symbols.print(&self.strings);
+        self.ast.print();
         // Generate MIR
         Ok(())
     }

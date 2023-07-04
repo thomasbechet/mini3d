@@ -50,10 +50,6 @@ pub(crate) enum ASTNode {
         span: Span,
         symbol: SymbolId,
         function_block: BlockId,
-    }, // ARG-0, ARG-1, ..., COMPOUNT-STMT
-    FunctionArgument {
-        span: Span,
-        symbol: SymbolId,
     },
     VariableDeclaration {
         span: Span,

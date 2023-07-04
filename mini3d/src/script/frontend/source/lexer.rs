@@ -204,7 +204,6 @@ impl Lexer {
             } else {
                 // Check if identifier is a primitive type
                 let primitive = match self.buffer.as_str() {
-                    // Nil will not be generated as it is also a literal
                     "bool" => Some(PrimitiveType::Boolean),
                     "int" => Some(PrimitiveType::Integer),
                     "float" => Some(PrimitiveType::Float),

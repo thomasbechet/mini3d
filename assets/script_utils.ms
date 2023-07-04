@@ -1,3 +1,3 @@
-export function hello()
-    print('Hello World')
+export function hello(arg0: int): int
+    return 0
 end

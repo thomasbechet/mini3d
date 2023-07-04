@@ -134,7 +134,7 @@ pub(crate) struct ASTParser<'a, S: Iterator<Item = (char, Location)>> {
 }
 
 impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
-    fn parse_member_lookup(&mut self, child: ASTNodeId) -> Result<ASTNodeId, CompileError> {
+    fn parse_member_lookup_chain(&mut self, child: ASTNodeId) -> Result<ASTNodeId, CompileError> {
         self.parser.expect(TokenKind::Dot)?;
         let token = self.parser.expect(TokenKind::Identifier)?;
         let node = self.ast.add(ASTNode::MemberLookup {
@@ -143,44 +143,61 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         });
         self.ast.append_child(node, child);
         if self.parser.peek(0)?.kind == TokenKind::Dot {
-            self.parse_member_lookup(node)
+            self.parse_member_lookup_chain(node)
         } else {
             Ok(node)
         }
     }
 
-    fn parse_identifier_chain(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
-        let mut node = if let Some(token) = self.parser.accept(TokenKind::PrimitiveType)? {
-            let ty: PrimitiveType = token.value.into();
-            self.ast.add(ASTNode::PrimitiveType {
-                span: token.span,
-                ty,
-            })
-        } else {
-            let token = self.parser.expect(TokenKind::Identifier)?;
-            let ident = self.parser.strings.get(token.value.into());
-            let symbol = self.symbols.lookup_symbol(ident.into(), token, block);
-            self.ast.add(ASTNode::Identifier {
-                span: token.span,
-                symbol,
-            })
-        };
+    fn try_parse_member_lookup_chain(
+        &mut self,
+        node: ASTNodeId,
+    ) -> Result<ASTNodeId, CompileError> {
         if self.parser.peek(0)?.kind == TokenKind::Dot {
-            node = self.parse_member_lookup(node)?;
+            self.parse_member_lookup_chain(node)
+        } else {
+            Ok(node)
         }
-        Ok(node)
+    }
+
+    fn try_parse_call(
+        &mut self,
+        node: ASTNodeId,
+        block: BlockId,
+    ) -> Result<ASTNodeId, CompileError> {
+        if self.parser.peek(0)?.kind == TokenKind::LeftParen {
+            self.parse_call(node, block)
+        } else {
+            Ok(node)
+        }
+    }
+
+    fn parse_identifier(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
+        let token = self.parser.expect(TokenKind::Identifier)?;
+        let ident = self.parser.strings.get(token.value.into());
+        let symbol = self.symbols.lookup_symbol(ident.into(), token, block);
+        Ok(self.ast.add(ASTNode::Identifier {
+            span: token.span,
+            symbol,
+        }))
     }
 
     fn parse_atom(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
         let next = self.parser.peek(0)?;
         let node = match next.kind {
-            TokenKind::Identifier | TokenKind::PrimitiveType => {
-                let ident = self.parse_identifier_chain(block)?;
-                if self.parser.peek(0)?.kind == TokenKind::LeftParen {
-                    self.parse_call(ident, block)?
-                } else {
-                    ident
-                }
+            TokenKind::Identifier => {
+                let node = self.parse_identifier(block)?;
+                let node = self.try_parse_member_lookup_chain(node)?;
+                self.try_parse_call(node, block)?
+            }
+            TokenKind::PrimitiveType => {
+                let token = self.parser.expect(TokenKind::PrimitiveType)?;
+                let node = self.ast.add(ASTNode::PrimitiveType {
+                    span: token.span,
+                    ty: token.value.into(),
+                });
+                let node = self.try_parse_member_lookup_chain(node)?;
+                self.try_parse_call(node, block)?
             }
             TokenKind::Literal => {
                 self.parser.consume()?;
@@ -297,8 +314,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 return Err(SyntaxError::ContinueOutsideLoop { span: next.span }.into());
             }
             Ok(self.ast.add(ASTNode::Continue))
-        } else if next.kind == TokenKind::Identifier || next.kind == TokenKind::PrimitiveType {
-            let ident = self.parse_identifier_chain(block)?;
+        } else if next.kind == TokenKind::Identifier {
+            let ident = self.parse_identifier(block)?;
+            let ident = self.try_parse_member_lookup_chain(ident)?;
             if self.parser.peek(0)?.kind == TokenKind::Assign {
                 Ok(self.parse_assignment_statement(ident, block)?)
             } else if self.parser.peek(0)?.kind == TokenKind::LeftParen {
@@ -359,7 +377,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         let expr = self.parse_expression(0, block)?;
         let symbol = Symbol::Constant {
             const_type,
-            exported: None,
+            external: None,
         };
         let symbol_id = self.symbols.define_symbol(ident, token, block, symbol)?;
         if export && block != SymbolTable::GLOBAL_BLOCK {
@@ -383,40 +401,59 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         self.parser.expect(TokenKind::Function)?;
         let token = self.parser.expect(TokenKind::Identifier)?;
         let ident = self.parser.strings.get(token.value.into());
-        let symbol_id = self.symbols.define_symbol(
+        let function_symbol = self.symbols.define_symbol(
             ident.into(),
             token,
             block,
             Symbol::Function {
                 return_type: PrimitiveType::Nil,
                 first_arg: None,
-                exported: None,
+                external: None,
             },
         )?;
         let function_block = self.symbols.add_block(BlockKind::Function, Some(block));
         let function = self.ast.add(ASTNode::FunctionDeclaration {
             span: token.span,
-            symbol: symbol_id,
+            symbol: function_symbol,
             function_block,
         });
         self.parser.expect(TokenKind::LeftParen)?;
         // Parse arguments
+        let mut previous_argument = None;
         self.parser
             .parse_function_argument_list(TokenKind::Comma, |(name, ty, token)| {
-                if self.symbols.find_in_block(name.into(), block).is_some() {
+                if self
+                    .symbols
+                    .find_in_block(name.into(), function_block)
+                    .is_some()
+                {
                     return Err(SyntaxError::DuplicatedArgument { span: token.span }.into());
                 }
                 let symbol = self.symbols.define_symbol(
                     name.into(),
                     token,
-                    block,
-                    Symbol::Variable { var_type: Some(ty) },
+                    function_block,
+                    Symbol::FunctionArgument {
+                        arg_type: ty,
+                        next_arg: None,
+                    },
                 )?;
-                let arg = self.ast.add(ASTNode::FunctionArgument {
-                    span: token.span,
-                    symbol,
-                });
-                self.ast.append_child(function, arg);
+                if let Some(previous_argument) = previous_argument {
+                    match self.symbols.get_mut(previous_argument).unwrap() {
+                        Symbol::FunctionArgument { next_arg, .. } => {
+                            *next_arg = Some(symbol);
+                        }
+                        _ => unreachable!(),
+                    }
+                } else {
+                    match self.symbols.get_mut(function_symbol).unwrap() {
+                        Symbol::Function { first_arg, .. } => {
+                            *first_arg = Some(symbol);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                previous_argument = Some(symbol);
                 Ok(())
             })?;
         self.parser.expect(TokenKind::RightParen)?;
@@ -570,12 +607,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 let module = self
                     .modules
                     .find(path.into())
-                    .ok_or(CompileError::Semantic(
-                        SemanticError::ModuleNotFound {
-                            span: path_token.span,
-                        }
-                        .into(),
-                    ))?;
+                    .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
+                        span: path_token.span,
+                    }))?;
                 if module == self.module {
                     return Err(SemanticError::ImportSelf {
                         span: path_token.span,
@@ -852,7 +886,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
 
 #[cfg(test)]
 mod test {
-    use crate::script::module::ModuleKind;
+    use crate::script::module::Module;
 
     use super::*;
 
@@ -862,7 +896,7 @@ mod test {
         let mut symbols = SymbolTable::default();
         let exports = ExportTable::default();
         let mut modules = ModuleTable::default();
-        let module = modules.add(UID::null(), ModuleKind::Source);
+        let module = modules.add(UID::null(), Module::Source { asset: UID::null() });
         let mut stream = SourceStream::new(
             r#"
         let x = 1 + 2 * 3
@@ -892,7 +926,7 @@ mod test {
         let mut symbols = SymbolTable::default();
         let exports = ExportTable::default();
         let mut modules = ModuleTable::default();
-        let module = modules.add(UID::null(), ModuleKind::Source);
+        let module = modules.add(UID::null(), Module::Source { asset: UID::null() });
         let mut source = SourceStream::new(
             r#"
         let x = 2
