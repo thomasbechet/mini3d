@@ -275,7 +275,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             self.parser.consume()?;
             let next = self.parser.peek(0)?;
             if next.kind == TokenKind::Function {
-                Ok(self.parse_function_declaration(block)?)
+                Ok(self.parse_function_declaration(block, true)?)
             } else if next.kind == TokenKind::Const {
                 Ok(self.parse_constant_declaration(block, true)?)
             } else {
@@ -288,7 +288,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         } else if next.kind == TokenKind::Const {
             Ok(self.parse_constant_declaration(block, false)?)
         } else if next.kind == TokenKind::Function {
-            Ok(self.parse_function_declaration(block)?)
+            Ok(self.parse_function_declaration(block, false)?)
         } else if next.kind == TokenKind::Return {
             if !self.symbols.check_in_function(block) {
                 return Err(SyntaxError::ReturnOutsideFunction { span: next.span }.into());
@@ -364,7 +364,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
     fn parse_constant_declaration(
         &mut self,
         block: BlockId,
-        export: bool,
+        exported: bool,
     ) -> Result<ASTNodeId, CompileError> {
         self.parser.expect(TokenKind::Const)?;
         let token = self.parser.expect(TokenKind::Identifier)?;
@@ -375,9 +375,12 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             .ok_or(SyntaxError::MissingConstantType { span: token.span })?;
         self.parser.expect(TokenKind::Assign)?;
         let expr = self.parse_expression(0, block)?;
-        let symbol = Symbol::Constant { const_type };
+        let symbol = Symbol::Constant {
+            const_type,
+            exported,
+        };
         let symbol_id = self.symbols.define_symbol(ident, token, block, symbol)?;
-        if export && block != SymbolTable::GLOBAL_BLOCK {
+        if exported && block != SymbolTable::GLOBAL_BLOCK {
             return Err(SyntaxError::ExportOutsideOfGlobalScope { span: token.span }.into());
         }
         let node = self.ast.add(ASTNode::ConstantDeclaration {
@@ -388,7 +391,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         Ok(node)
     }
 
-    fn parse_function_declaration(&mut self, block: BlockId) -> Result<ASTNodeId, CompileError> {
+    fn parse_function_declaration(
+        &mut self,
+        block: BlockId,
+        exported: bool,
+    ) -> Result<ASTNodeId, CompileError> {
         if block != SymbolTable::GLOBAL_BLOCK {
             return Err(SyntaxError::FunctionDeclarationOutsideOfGlobalScope {
                 span: self.parser.peek(0).unwrap().span,
@@ -405,6 +412,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             Symbol::Function {
                 return_type: PrimitiveType::Nil,
                 first_arg: None,
+                exported,
             },
         )?;
         let function_block = self.symbols.add_block(BlockKind::Function, Some(block));

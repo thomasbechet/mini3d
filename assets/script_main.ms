@@ -1,5 +1,1 @@
-from 'utils' import *
-
-function test(a: int) 
-    return hello(0) + a
-end
+let x = vec3.normalize(vec3(1.0))

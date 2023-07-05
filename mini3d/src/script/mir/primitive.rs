@@ -22,6 +22,7 @@ pub(crate) enum PrimitiveType {
     UID,
     // Special types
     Nil,
+    Function,
     ComponentRef,
     Query,
 }
