@@ -4,7 +4,6 @@ use crate::{
     registry::asset::Asset,
     script::{
         compiler::CompilationUnit,
-        export::ExportTable,
         frontend::error::CompileError,
         mir::mir::MIR,
         module::{ModuleId, ModuleTable},
@@ -50,10 +49,9 @@ impl SourceCompiler {
         &mut self,
         assets: &AssetContext,
         asset: UID,
-        modules: &ModuleTable,
+        modules: &mut ModuleTable,
         module: ModuleId,
         compilation_unit: &mut CompilationUnit,
-        exports: &mut ExportTable,
     ) -> Result<(), CompileError> {
         // Build source stream
         let mut stream = SourceStream::new(
@@ -69,7 +67,6 @@ impl SourceCompiler {
             &mut self.lexer,
             &mut stream,
             compilation_unit,
-            exports,
             modules,
             module,
         )?;
@@ -78,7 +75,6 @@ impl SourceCompiler {
 
     pub(crate) fn generate_mir(
         &mut self,
-        exports: &ExportTable,
         assets: &AssetContext,
         asset: UID,
         modules: &ModuleTable,
@@ -102,7 +98,6 @@ impl SourceCompiler {
             &mut self.strings,
             &mut self.lexer,
             &mut stream,
-            exports,
             modules,
             module,
         )?;

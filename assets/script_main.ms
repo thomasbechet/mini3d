@@ -1,1 +1,3 @@
-let x = vec3.normalize(vec3(1.0))
+from 'utils' import *
+
+export const TEST: int = 2

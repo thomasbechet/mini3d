@@ -5,7 +5,6 @@ use crate::{
 
 use super::{
     backend::compiler::BackendCompiler,
-    export::ExportTable,
     frontend::{
         error::CompileError, node::compiler::NodeCompiler, source::compiler::SourceCompiler,
     },
@@ -46,7 +45,6 @@ pub struct Compiler {
     modules: ModuleTable,
     interfaces: InterfaceTable,
     mirs: MIRTable,
-    exports: ExportTable,
     compilation_unit: CompilationUnit,
     source_compiler: SourceCompiler,
     node_compiler: NodeCompiler,
@@ -58,10 +56,6 @@ impl Compiler {
         let module = self.modules.add(uid, module);
         self.mirs.add(module);
         module
-    }
-
-    fn prepare(&mut self) {
-        self.exports.prepare();
     }
 
     fn fetch_modules(&mut self, assets: &AssetContext) -> Result<(), CompileError> {
@@ -83,10 +77,9 @@ impl Compiler {
                 Module::Source { asset } => self.source_compiler.resolve_cu_and_exports(
                     assets,
                     *asset,
-                    &self.modules,
+                    &mut self.modules,
                     module,
                     &mut self.compilation_unit,
-                    &mut self.exports,
                 )?,
                 Module::Node { .. } => unimplemented!(),
                 Module::Interface { .. } => unimplemented!(),
@@ -102,7 +95,6 @@ impl Compiler {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
                 Module::Source { asset } => self.source_compiler.generate_mir(
-                    &self.exports,
                     assets,
                     *asset,
                     &self.modules,
@@ -127,13 +119,11 @@ impl Compiler {
         assets: &AssetContext,
         registry: &RegistryContext,
     ) -> Result<(), CompileError> {
-        // Reset compiler resources
-        self.prepare();
         // Fetch all modules from the asset manager (sequential, acquire cached modules)
         self.fetch_modules(assets)?;
         // Resolve compilation unit and exports (sequential, fast if cached)
         self.resolve_cu_and_exports(entry, assets)?;
-        self.exports.print();
+        self.modules.print();
         // Generate MIRs for all modules in the compilation unit (parallel, fast if cached)
         self.generate_mirs(assets)?;
         // Generate program (sequential, slow)

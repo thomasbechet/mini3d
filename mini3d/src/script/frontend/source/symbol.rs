@@ -1,12 +1,11 @@
 use crate::{
     script::{
-        export::{Export, ExportId, ExportTable},
         frontend::{
             error::{CompileError, SyntaxError},
             source::token::TokenKind,
         },
         mir::primitive::PrimitiveType,
-        module::ModuleId,
+        module::{ModuleId, ModuleSymbol, ModuleSymbolId, ModuleTable},
     },
     uid::UID,
 };
@@ -59,7 +58,7 @@ pub(crate) enum Symbol {
         module: ModuleId,
     },
     External {
-        export: ExportId,
+        smybol: ModuleSymbolId,
     },
 }
 
@@ -184,17 +183,17 @@ impl SymbolTable {
         &mut self,
         block: BlockId,
         token: Token,
-        id: ExportId,
-        exports: &ExportTable,
+        id: ModuleSymbolId,
+        modules: &ModuleTable,
     ) -> Result<(), CompileError> {
-        match exports.get(id).unwrap() {
-            Export::Constant { name, .. } => {
-                self.define_symbol(*name, token, block, Symbol::External { export: id })?;
+        match modules.get_symbol(id).unwrap() {
+            ModuleSymbol::Constant { ident: name, .. } => {
+                self.define_symbol(*name, token, block, Symbol::External { smybol: id })?;
             }
-            Export::Function { name, .. } => {
-                self.define_symbol(*name, token, block, Symbol::External { export: id })?;
+            ModuleSymbol::Function { ident: name, .. } => {
+                self.define_symbol(*name, token, block, Symbol::External { smybol: id })?;
             }
-            Export::Argument { .. } => {}
+            ModuleSymbol::Argument { .. } => {}
         }
         Ok(())
     }
@@ -204,10 +203,10 @@ impl SymbolTable {
         block: BlockId,
         token: Token,
         module: ModuleId,
-        exports: &ExportTable,
+        modules: &ModuleTable,
     ) -> Result<(), CompileError> {
-        for id in exports.iter(module) {
-            self.import_symbol(block, token, id, exports)?;
+        for id in modules.iter_symbols(module) {
+            self.import_symbol(block, token, id, modules)?;
         }
         Ok(())
     }

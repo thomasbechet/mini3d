@@ -1,10 +1,9 @@
 use crate::{
     script::{
         compiler::CompilationUnit,
-        export::{Export, ExportTable},
         frontend::error::{CompileError, SemanticError, SyntaxError},
         mir::primitive::PrimitiveType,
-        module::{ModuleId, ModuleTable},
+        module::{ModuleId, ModuleSymbol, ModuleTable},
     },
     uid::UID,
 };
@@ -128,7 +127,6 @@ pub(crate) struct ASTParser<'a, S: Iterator<Item = (char, Location)>> {
     parser: &'a mut Parser<'a, S>,
     ast: &'a mut AST,
     symbols: &'a mut SymbolTable,
-    exports: &'a ExportTable,
     modules: &'a ModuleTable,
     module: ModuleId,
 }
@@ -656,19 +654,19 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
                 if let Some(multiply) = self.parser.accept(TokenKind::Multiply)? {
                     // Import all symbols
                     self.symbols
-                        .import_all_symbols(block, multiply, module, self.exports)?;
+                        .import_all_symbols(block, multiply, module, self.modules)?;
                 } else {
                     // Import selected symbols
                     let count =
                         self.parser
                             .parse_identifier_list(TokenKind::Comma, |(name, token)| {
-                                let id = self.exports.find(module, name.into()).ok_or(
+                                let id = self.modules.find_symbol(module, name.into()).ok_or(
                                     CompileError::Semantic(SemanticError::ModuleImportNotFound {
                                         module,
                                         span: token.span,
                                     }),
                                 )?;
-                                self.symbols.import_symbol(block, token, id, self.exports)?;
+                                self.symbols.import_symbol(block, token, id, self.modules)?;
                                 Ok(())
                             })?;
                     if count == 0 {
@@ -716,7 +714,6 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         strings: &mut StringTable,
         lexer: &mut Lexer,
         source: &mut SourceStream,
-        exports: &ExportTable,
         modules: &ModuleTable,
         module: ModuleId,
     ) -> Result<(), CompileError> {
@@ -728,7 +725,6 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
             },
             ast,
             symbols,
-            exports,
             modules,
             module,
         };
@@ -739,9 +735,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
 
 pub(crate) struct ImportExportParser<'a, S: Iterator<Item = (char, Location)>> {
     parser: &'a mut Parser<'a, S>,
-    exports: &'a mut ExportTable,
     compilation_unit: &'a mut CompilationUnit,
-    modules: &'a ModuleTable,
+    modules: &'a mut ModuleTable,
     module: ModuleId,
     depth: usize,
 }
@@ -796,16 +791,17 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                                 .ok_or(CompileError::Syntax(SyntaxError::MissingConstantType {
                                     span: token.span,
                                 }))?;
-                        self.exports.add(self.module, Export::Constant { name, ty });
+                        self.modules
+                            .add_symbol(self.module, ModuleSymbol::Constant { ident: name, ty });
                     }
                     TokenKind::Function => {
                         let token = self.parser.expect(TokenKind::Identifier)?;
                         let name = UID::new(self.parser.strings.get(token.value.into()));
                         self.parser.expect(TokenKind::LeftParen)?;
-                        let function_export = self.exports.add(
+                        let function_symbol = self.modules.add_symbol(
                             self.module,
-                            Export::Function {
-                                name,
+                            ModuleSymbol::Function {
+                                ident: name,
                                 ty: PrimitiveType::Nil,
                                 first_arg: None,
                             },
@@ -814,25 +810,25 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                         self.parser.parse_function_argument_list(
                             TokenKind::Comma,
                             |(name, ty, _)| {
-                                let arg = self.exports.add(
+                                let arg = self.modules.add_symbol(
                                     self.module,
-                                    Export::Argument {
-                                        name: name.into(),
+                                    ModuleSymbol::Argument {
+                                        ident: name.into(),
                                         ty,
                                         next_arg: None,
                                     },
                                 );
                                 if let Some(previous_arg) = previous_arg {
-                                    match self.exports.get_mut(previous_arg).unwrap() {
-                                        Export::Argument { next_arg, .. } => {
-                                            *next_arg = Some(function_export)
+                                    match self.modules.get_symbol_mut(previous_arg).unwrap() {
+                                        ModuleSymbol::Argument { next_arg, .. } => {
+                                            *next_arg = Some(arg)
                                         }
                                         _ => unreachable!(),
                                     }
                                 } else {
-                                    match self.exports.get_mut(function_export).unwrap() {
-                                        Export::Function { first_arg, .. } => {
-                                            *first_arg = Some(function_export)
+                                    match self.modules.get_symbol_mut(function_symbol).unwrap() {
+                                        ModuleSymbol::Function { first_arg, .. } => {
+                                            *first_arg = Some(arg)
                                         }
                                         _ => unreachable!(),
                                     }
@@ -846,8 +842,8 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                             .parser
                             .try_parse_primitive_type()?
                             .unwrap_or(PrimitiveType::Nil);
-                        match self.exports.get_mut(function_export).unwrap() {
-                            Export::Function { ty, .. } => *ty = function_ty,
+                        match self.modules.get_symbol_mut(function_symbol).unwrap() {
+                            ModuleSymbol::Function { ty, .. } => *ty = function_ty,
                             _ => unreachable!(),
                         }
                     }
@@ -869,8 +865,7 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
         lexer: &mut Lexer,
         source: &mut SourceStream,
         compilation_unit: &mut CompilationUnit,
-        exports: &mut ExportTable,
-        modules: &ModuleTable,
+        modules: &mut ModuleTable,
         module: ModuleId,
     ) -> Result<(), CompileError> {
         let mut parser = ImportExportParser {
@@ -880,7 +875,6 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                 source,
             },
             compilation_unit,
-            exports,
             modules,
             module,
             depth: 0,
@@ -900,7 +894,6 @@ mod test {
     fn test_basic() {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
-        let exports = ExportTable::default();
         let mut modules = ModuleTable::default();
         let module = modules.add(UID::null(), Module::Source { asset: UID::null() });
         let mut stream = SourceStream::new(
@@ -918,7 +911,6 @@ mod test {
             &mut strings,
             &mut Lexer::new(false),
             &mut stream,
-            &exports,
             &modules,
             module,
         )
@@ -930,7 +922,6 @@ mod test {
     fn test_if_body() {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
-        let exports = ExportTable::default();
         let mut modules = ModuleTable::default();
         let module = modules.add(UID::null(), Module::Source { asset: UID::null() });
         let mut source = SourceStream::new(
@@ -958,7 +949,6 @@ mod test {
             &mut strings,
             &mut Lexer::new(false),
             &mut source,
-            &exports,
             &modules,
             module,
         )

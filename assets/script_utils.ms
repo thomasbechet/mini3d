@@ -1,4 +1,4 @@
-export function hello(arg0: int): int
+export function hello(arg0: int, arg1: int): int
     return 0
 end
 
