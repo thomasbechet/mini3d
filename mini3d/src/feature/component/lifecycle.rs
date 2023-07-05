@@ -1,13 +1,11 @@
 use mini3d_derive::Component;
 
 #[derive(Component)]
-#[component(name = "life_cycle")]
 pub struct Lifecycle {
     pub alive: bool,
 }
 
 impl Lifecycle {
-    
     pub fn alive() -> Self {
         Self { alive: true }
     }

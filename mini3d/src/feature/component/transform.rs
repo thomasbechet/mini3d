@@ -1,8 +1,7 @@
-use glam::{Mat4, Vec3, Quat};
+use glam::{Mat4, Quat, Vec3};
 use mini3d_derive::Component;
 
 #[derive(Default, Component)]
-#[component(name = "transform")]
 pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
@@ -10,7 +9,6 @@ pub struct Transform {
 }
 
 impl Transform {
-
     pub fn from_translation(translation: Vec3) -> Self {
         Self {
             translation,

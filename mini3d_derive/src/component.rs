@@ -1,6 +1,9 @@
-use proc_macro2::{TokenStream, Ident, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Result, Data, DataStruct, Fields, Error, FieldsNamed, Token, FieldsUnnamed, Attribute, Generics, DataEnum, Visibility};
+use syn::{
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields, FieldsNamed, FieldsUnnamed,
+    Generics, Result, Token, Visibility,
+};
 
 use crate::serialize;
 
@@ -9,12 +12,30 @@ pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
             ..
-        }) => derive_struct(&input.ident, &input.vis, &input.attrs, &input.generics, fields),
+        }) => derive_struct(
+            &input.ident,
+            &input.vis,
+            &input.attrs,
+            &input.generics,
+            fields,
+        ),
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(fields),
             ..
-        }) => derive_tuple(&input.ident, &input.vis, &input.attrs, &input.generics, fields),
-        Data::Enum(data) => derive_enum(&input.ident, &input.vis, &input.attrs, &input.generics, data),
+        }) => derive_tuple(
+            &input.ident,
+            &input.vis,
+            &input.attrs,
+            &input.generics,
+            fields,
+        ),
+        Data::Enum(data) => derive_enum(
+            &input.ident,
+            &input.vis,
+            &input.attrs,
+            &input.generics,
+            data,
+        ),
         _ => Err(Error::new(Span::call_site(), "Union not supported")),
     }
 }
@@ -27,7 +48,14 @@ pub(crate) fn camelcase_to_snakecase(name: &str) -> String {
     let mut result = String::new();
     for (i, c) in name.chars().enumerate() {
         if c.is_uppercase() {
-            if i > 0 && (name.chars().nth(i - 1).unwrap().is_lowercase() || name.chars().nth(i + 1).map(|c| c.is_lowercase()).unwrap_or(false)) {
+            if i > 0
+                && (name.chars().nth(i - 1).unwrap().is_lowercase()
+                    || name
+                        .chars()
+                        .nth(i + 1)
+                        .map(|c| c.is_lowercase())
+                        .unwrap_or(false))
+            {
                 result.push('_');
             }
             result.push(c.to_lowercase().next().unwrap());
@@ -39,7 +67,6 @@ pub(crate) fn camelcase_to_snakecase(name: &str) -> String {
 }
 
 impl ComponentMeta {
-
     fn new(ident: &Ident) -> Self {
         Self {
             name: camelcase_to_snakecase(&ident.to_string()),
@@ -75,8 +102,13 @@ impl syn::parse::Parse for ComponentAttribute {
     }
 }
 
-fn derive_struct(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &Generics, fields: &FieldsNamed) -> Result<TokenStream> {
-
+fn derive_struct(
+    ident: &Ident,
+    vis: &Visibility,
+    attrs: &[Attribute],
+    generics: &Generics,
+    fields: &FieldsNamed,
+) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut meta = ComponentMeta::new(ident);
@@ -89,8 +121,8 @@ fn derive_struct(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics:
     let serialize = serialize::derive_struct(ident, vis, attrs, generics, fields)?;
 
     let component_name = meta.name;
-    
-    let q = quote!{
+
+    let q = quote! {
         #serialize
         impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
             const NAME: &'static str = #component_name;
@@ -99,8 +131,13 @@ fn derive_struct(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics:
     Ok(q)
 }
 
-pub(crate) fn derive_tuple(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &Generics, fields: &FieldsUnnamed) -> Result<TokenStream> {
-
+pub(crate) fn derive_tuple(
+    ident: &Ident,
+    vis: &Visibility,
+    attrs: &[Attribute],
+    generics: &Generics,
+    fields: &FieldsUnnamed,
+) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut meta = ComponentMeta::new(ident);
@@ -113,8 +150,8 @@ pub(crate) fn derive_tuple(ident: &Ident, vis: &Visibility, attrs: &[Attribute],
     let serialize = serialize::derive_tuple(ident, vis, attrs, generics, fields)?;
 
     let component_name = meta.name;
-    
-    let q = quote!{
+
+    let q = quote! {
         #serialize
         impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
             const NAME: &'static str = #component_name;
@@ -123,8 +160,13 @@ pub(crate) fn derive_tuple(ident: &Ident, vis: &Visibility, attrs: &[Attribute],
     Ok(q)
 }
 
-fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &Generics, data: &DataEnum) -> Result<TokenStream> {
-
+fn derive_enum(
+    ident: &Ident,
+    vis: &Visibility,
+    attrs: &[Attribute],
+    generics: &Generics,
+    data: &DataEnum,
+) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut meta = ComponentMeta::new(ident);
@@ -137,8 +179,8 @@ fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &
     let serialize = serialize::derive_enum(ident, vis, attrs, generics, data)?;
 
     let component_name = meta.name;
-    
-    let q = quote!{
+
+    let q = quote! {
         #serialize
         impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
             const NAME: &'static str = #component_name;

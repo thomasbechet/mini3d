@@ -1,10 +1,9 @@
 use glam::UVec2;
 use mini3d_derive::Component;
 
-use crate::{renderer::{graphics::Graphics, color::Color, backend::SceneCanvasHandle}};
+use crate::renderer::{backend::SceneCanvasHandle, color::Color, graphics::Graphics};
 
 #[derive(Default, Component)]
-#[component(name = "canvas")]
 pub struct Canvas {
     pub resolution: UVec2,
     pub clear_color: Color,

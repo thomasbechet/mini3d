@@ -3,7 +3,6 @@ use mini3d_derive::Component;
 use crate::renderer::backend::SceneCameraHandle;
 
 #[derive(Component)]
-#[component(name = "camera")]
 pub struct Camera {
     pub fov: f32,
     #[serialize(skip)]
@@ -19,6 +18,9 @@ impl Camera {
 
 impl Default for Camera {
     fn default() -> Self {
-        Self { fov: 110.0, handle: None }
+        Self {
+            fov: 110.0,
+            handle: None,
+        }
     }
 }

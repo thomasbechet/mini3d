@@ -1,10 +1,8 @@
-use mini3d_derive::Component;
 use crate::uid::UID;
+use mini3d_derive::Component;
 
 #[derive(Default, Component)]
-#[component(name = "free_fly")]
 pub struct FreeFly {
-
     // Control if free fly is active
     pub active: bool,
 
@@ -22,7 +20,7 @@ pub struct FreeFly {
     pub move_right: UID,
     pub move_fast: UID,
     pub move_slow: UID,
-    
+
     // View data
     pub free_mode: bool,
     pub yaw: f32,
