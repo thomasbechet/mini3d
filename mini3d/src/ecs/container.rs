@@ -1,6 +1,14 @@
-use crate::{registry::component::Component, serialize::{EncoderError, Serialize, Encoder, Decoder, DecoderError}};
+use super::{
+    entity::Entity,
+    error::ECSError,
+    reference::{ComponentMut, ComponentRef},
+    sparse::PagedVector,
+};
+use crate::{
+    registry::component::Component,
+    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
+};
 use core::{any::Any, cell::RefCell};
-use super::{entity::Entity, sparse::PagedVector, reference::{ComponentRef, ComponentMut}, error::ECSError};
 
 pub(crate) struct ComponentContainer<C: Component> {
     pub(crate) components: RefCell<Vec<C>>,
@@ -9,7 +17,6 @@ pub(crate) struct ComponentContainer<C: Component> {
 }
 
 impl<C: Component> ComponentContainer<C> {
-
     pub(crate) fn new() -> Self {
         Self {
             components: RefCell::new(Vec::with_capacity(128)),
@@ -26,7 +33,8 @@ impl<C: Component> ComponentContainer<C> {
         self.entities.push(entity);
         self.indices.set(entity.key(), self.entities.len() - 1);
         self.components
-            .try_borrow_mut().map_err(|_| ECSError::ContainerBorrowMut)?
+            .try_borrow_mut()
+            .map_err(|_| ECSError::ContainerBorrowMut)?
             .push(component);
         Ok(())
     }
@@ -34,7 +42,8 @@ impl<C: Component> ComponentContainer<C> {
     pub(crate) fn remove(&mut self, entity: Entity) -> Result<(), ECSError> {
         if let Some(index) = self.indices.get(entity.key()).copied() {
             self.components
-                .try_borrow_mut().map_err(|_| ECSError::ContainerBorrowMut)?
+                .try_borrow_mut()
+                .map_err(|_| ECSError::ContainerBorrowMut)?
                 .swap_remove(index);
             self.entities.swap_remove(index);
             let swapped_entity = self.entities[index];
@@ -48,7 +57,10 @@ impl<C: Component> ComponentContainer<C> {
         let components = self.components.borrow();
         self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
-                Some(ComponentRef { components, index: *index })
+                Some(ComponentRef {
+                    components,
+                    index: *index,
+                })
             } else {
                 None
             }
@@ -59,7 +71,10 @@ impl<C: Component> ComponentContainer<C> {
         let components = self.components.borrow_mut();
         self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
-                Some(ComponentMut { components, index: *index })
+                Some(ComponentMut {
+                    components,
+                    index: *index,
+                })
             } else {
                 None
             }
@@ -120,9 +135,15 @@ pub(crate) trait AnyComponentContainer {
 }
 
 impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
-    fn as_any(&self) -> &dyn Any { self }
-    fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
-    fn entity(&self, index: usize) -> Entity { self.entities[index] }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) {
+        self
+    }
+    fn entity(&self, index: usize) -> Entity {
+        self.entities[index]
+    }
     fn contains(&self, entity: Entity) -> bool {
         if let Some(index) = self.indices.get(entity.key()).copied() {
             index < self.entities.len() && self.entities[index] == entity
@@ -130,8 +151,16 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
             false
         }
     }
-    fn len(&self) -> usize { self.len() }
-    fn remove(&mut self, entity: Entity) { self.remove(entity).unwrap(); }
-    fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> { self.serialize(&mut encoder) }
-    fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> { self.deserialize(&mut decoder) }
+    fn len(&self) -> usize {
+        self.len()
+    }
+    fn remove(&mut self, entity: Entity) {
+        self.remove(entity).unwrap();
+    }
+    fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
+        self.serialize(&mut encoder)
+    }
+    fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
+        self.deserialize(&mut decoder)
+    }
 }

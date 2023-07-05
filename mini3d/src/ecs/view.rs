@@ -1,8 +1,11 @@
-use std::{ops::{Index, IndexMut}, cell::{Ref, RefMut}};
+use std::{
+    cell::{Ref, RefMut},
+    ops::{Index, IndexMut},
+};
 
 use crate::registry::component::Component;
 
-use super::{entity::Entity, container::ComponentContainer, sparse::PagedVector};
+use super::{container::ComponentContainer, entity::Entity, sparse::PagedVector};
 
 pub trait ComponentView<C: Component> {
     fn get(&self, entity: Entity) -> Option<&C>;
@@ -19,14 +22,13 @@ pub struct ComponentViewRef<'a, C: Component> {
 }
 
 impl<'a, C: Component> ComponentViewRef<'a, C> {
-
     pub(crate) fn new(container: &'a ComponentContainer<C>) -> Self {
         Self {
             view: Some(ComponentViewRefData {
                 components: container.components.borrow(),
                 entities: &container.entities,
                 indices: &container.indices,
-            })
+            }),
         }
     }
 
@@ -72,18 +74,17 @@ struct ComponentViewMutData<'a, C: Component> {
 }
 
 pub struct ComponentViewMut<'a, C: Component> {
-    view: Option<ComponentViewMutData<'a, C>>
+    view: Option<ComponentViewMutData<'a, C>>,
 }
 
 impl<'a, C: Component> ComponentViewMut<'a, C> {
-
     pub(crate) fn new(container: &'a ComponentContainer<C>) -> Self {
         Self {
             view: Some(ComponentViewMutData {
                 components: container.components.borrow_mut(),
                 entities: &container.entities,
                 indices: &container.indices,
-            })
+            }),
         }
     }
 
@@ -108,7 +109,7 @@ impl<'a, C: Component> ComponentViewMut<'a, C> {
                     None
                 }
             })
-        })  
+        })
     }
 }
 
