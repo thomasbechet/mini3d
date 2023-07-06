@@ -1,9 +1,9 @@
 use glam::UVec2;
-use mini3d_derive::Component;
+use mini3d_derive::{Component, Serialize};
 
 use crate::{ecs::entity::Entity, renderer::backend::ViewportHandle};
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Serialize)]
 pub struct Viewport {
     pub(crate) camera: Option<Entity>,
     pub(crate) resolution: UVec2,

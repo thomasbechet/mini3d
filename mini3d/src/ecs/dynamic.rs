@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use glam::{Vec2, Vec3, Vec4, Quat};
-use mini3d_derive::{Error, Component, Serialize};
+use glam::{Quat, Vec2, Vec3, Vec4};
+use mini3d_derive::{Component, Error, Serialize};
 
 use crate::uid::UID;
 
@@ -57,16 +57,25 @@ macro_rules! define_type {
 }
 
 impl DynamicComponent {
-
     pub const SEPARATOR: char = '.';
 
-    fn set_value(&mut self, uid: UID, key: &str, new_value: Value) -> Result<(), MemberAccessError> {
+    fn set_value(
+        &mut self,
+        uid: UID,
+        key: &str,
+        new_value: Value,
+    ) -> Result<(), MemberAccessError> {
         if let Some((_, value)) = self.values.get_mut(&uid) {
             *value = new_value;
         } else {
             // Build hierarchy
             let mut current_child = uid;
-            for parent_key in key.char_indices().rev().filter(|(_, c)| *c == Self::SEPARATOR).map(|(i, _)| &key[..i]) {
+            for parent_key in key
+                .char_indices()
+                .rev()
+                .filter(|(_, c)| *c == Self::SEPARATOR)
+                .map(|(i, _)| &key[..i])
+            {
                 let parent_uid = UID::new(parent_key);
                 if let Some((_, value)) = self.values.get_mut(&parent_uid) {
                     if let Value::Object(childs) = value {
@@ -76,7 +85,13 @@ impl DynamicComponent {
                     }
                     break; // Exit hierarchy creation
                 } else {
-                    self.values.insert(parent_uid, (parent_key.to_string(), Value::Object(Box::new(vec![current_child]))));
+                    self.values.insert(
+                        parent_uid,
+                        (
+                            parent_key.to_string(),
+                            Value::Object(Box::new(vec![current_child])),
+                        ),
+                    );
                     current_child = parent_uid;
                 }
             }
@@ -91,8 +106,12 @@ impl DynamicComponent {
     }
 
     pub fn list_keys_uid(&self, uid: UID) -> Result<impl Iterator<Item = &str>, MemberAccessError> {
-        if let (_, Value::Object(childs)) = self.values.get(&uid).ok_or(MemberAccessError::NotFound)? {
-            Ok(childs.iter().map(|uid| self.values.get(uid).unwrap().0.as_str()))
+        if let (_, Value::Object(childs)) =
+            self.values.get(&uid).ok_or(MemberAccessError::NotFound)?
+        {
+            Ok(childs
+                .iter()
+                .map(|uid| self.values.get(uid).unwrap().0.as_str()))
         } else {
             Err(MemberAccessError::WrongType)
         }
@@ -109,7 +128,13 @@ impl DynamicComponent {
     pub fn clear_key_uid(&mut self, uid: UID, key: &str) -> Result<(), MemberAccessError> {
         if self.values.remove(&uid).is_some() {
             // Find parent
-            if let Some(parent_key) = key.char_indices().rev().find(|(_, c)| *c == Self::SEPARATOR).map(|(i, _)| &key[..i]) { // Remove child from parent
+            if let Some(parent_key) = key
+                .char_indices()
+                .rev()
+                .find(|(_, c)| *c == Self::SEPARATOR)
+                .map(|(i, _)| &key[..i])
+            {
+                // Remove child from parent
                 let parent_uid = UID::new(parent_key);
                 // Remove child from parent
                 if let Some((_, value)) = self.values.get_mut(&parent_uid) {

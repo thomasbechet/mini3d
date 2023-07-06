@@ -5,8 +5,6 @@ use syn::{
     Generics, Result, Token, Visibility,
 };
 
-use crate::serialize;
-
 pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         Data::Struct(DataStruct {
@@ -118,12 +116,9 @@ fn derive_struct(
         }
     }
 
-    let serialize = serialize::derive_struct(ident, vis, attrs, generics, fields)?;
-
     let component_name = meta.name;
 
     let q = quote! {
-        #serialize
         impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
             const NAME: &'static str = #component_name;
         }
@@ -147,12 +142,9 @@ pub(crate) fn derive_tuple(
         }
     }
 
-    let serialize = serialize::derive_tuple(ident, vis, attrs, generics, fields)?;
-
     let component_name = meta.name;
 
     let q = quote! {
-        #serialize
         impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
             const NAME: &'static str = #component_name;
         }
@@ -176,12 +168,9 @@ fn derive_enum(
         }
     }
 
-    let serialize = serialize::derive_enum(ident, vis, attrs, generics, data)?;
-
     let component_name = meta.name;
 
     let q = quote! {
-        #serialize
         impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
             const NAME: &'static str = #component_name;
         }

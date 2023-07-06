@@ -75,8 +75,4 @@ pub(crate) trait WritePropertyReflection {
     write_property!(UID, write_uid);
 }
 
-pub trait PropertyReflection: ReadPropertyReflection + WritePropertyReflection + 'static {
-    fn properties() -> &'static [Property] {
-        &[]
-    }
-}
+pub trait PropertyReflection: ReadPropertyReflection + WritePropertyReflection {}

@@ -27,6 +27,7 @@ impl EntityResolver {
 pub trait Component: Serialize + PropertyReflection + Default + 'static {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
+    const PROPERTIES: &'static [Property] = &[];
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
         let _ = resolver;
         Ok(())
@@ -58,7 +59,7 @@ impl<C: Component> AnyComponentReflection for ComponentReflection<C> {
     }
 
     fn properties(&self) -> &[Property] {
-        C::properties()
+        C::PROPERTIES
     }
 }
 

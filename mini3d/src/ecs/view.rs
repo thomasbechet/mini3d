@@ -168,6 +168,8 @@ macro_rules! read_write_property {
 
 pub trait AnyComponentRefView {}
 
+pub trait AnyComponentMutView {}
+
 // pub trait AnyComponentRefView {
 
 // }
