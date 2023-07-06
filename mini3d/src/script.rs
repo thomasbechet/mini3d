@@ -7,6 +7,7 @@ pub mod interface;
 pub mod interpreter;
 pub mod mir;
 pub mod module;
+pub mod property;
 
 #[derive(Default)]
 pub(crate) struct ScriptManager {

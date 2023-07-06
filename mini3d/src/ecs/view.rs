@@ -140,3 +140,40 @@ impl<'a, C: Component> IndexMut<Entity> for ComponentViewMut<'a, C> {
         self.get_mut(entity).expect("Entity not found")
     }
 }
+
+macro_rules! read_property {
+    ($type:ty, $read:ident, $write:ident) => {
+        fn $read(&self, entity: Entity, id: ComponentPropertyId) -> Option<$type> {
+            let _ = entity;
+            let _ = id;
+            None
+        }
+    };
+}
+
+macro_rules! read_write_property {
+    ($type:ty, $read:ident, $write:ident) => {
+        fn $read(&self, entity: Entity, id: ComponentPropertyId) -> Option<$type> {
+            let _ = entity;
+            let _ = id;
+            None
+        }
+        fn $write(&mut self, entity: Entity, id: ComponentPropertyId, value: $type) {
+            let _ = entity;
+            let _ = id;
+            let _ = value;
+        }
+    };
+}
+
+pub trait AnyComponentRefView {}
+
+// pub trait AnyComponentRefView {
+
+// }
+
+// pub trait AnyComponentMutView {
+
+// }
+
+// impl AnyComponentView {}
