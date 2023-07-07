@@ -1,8 +1,8 @@
-use mini3d_derive::{Component, Serialize};
+use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::renderer::backend::SceneCameraHandle;
 
-#[derive(Component, Serialize)]
+#[derive(Component, Serialize, Reflect)]
 pub struct Camera {
     pub fov: f32,
     #[serialize(skip)]

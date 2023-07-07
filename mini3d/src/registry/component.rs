@@ -8,7 +8,7 @@ use crate::{
         error::ECSError,
         singleton::{AnyComponentSingleton, ComponentSingleton},
     },
-    script::property::{Property, PropertyReflection},
+    script::reflection::{Property, Reflect},
     serialize::Serialize,
     uid::UID,
 };
@@ -23,11 +23,9 @@ impl EntityResolver {
         Ok(entity)
     }
 }
-
-pub trait Component: Serialize + PropertyReflection + Default + 'static {
+pub trait Component: Serialize + Reflect + Default + 'static {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    const PROPERTIES: &'static [Property] = &[];
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
         let _ = resolver;
         Ok(())

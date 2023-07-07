@@ -37,7 +37,7 @@ macro_rules! write_property {
     };
 }
 
-pub(crate) trait ReadPropertyReflection {
+pub(crate) trait ReflectReadProperty {
     read_property!(bool, read_bool);
     read_property!(u8, read_u8);
     read_property!(i32, read_i32);
@@ -56,7 +56,7 @@ pub(crate) trait ReadPropertyReflection {
     read_property!(UID, read_uid);
 }
 
-pub(crate) trait WritePropertyReflection {
+pub(crate) trait ReflectWriteProperty {
     write_property!(bool, write_bool);
     write_property!(u8, write_u8);
     write_property!(i32, write_i32);
@@ -75,4 +75,6 @@ pub(crate) trait WritePropertyReflection {
     write_property!(UID, write_uid);
 }
 
-pub trait PropertyReflection: ReadPropertyReflection + WritePropertyReflection {}
+pub trait Reflect: ReflectReadProperty + ReflectWriteProperty {
+    const PROPERTIES: &'static [Property];
+}
