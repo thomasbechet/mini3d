@@ -1,18 +1,19 @@
 use std::any::Any;
-use std::cell::{RefCell, Ref, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::ops::{Deref, DerefMut};
 
 use crate::registry::component::Component;
-use crate::serialize::{Serialize, Encoder, EncoderError, Decoder, DecoderError};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 pub(crate) struct ComponentSingleton<C: Component> {
     pub(crate) component: RefCell<C>,
 }
 
 impl<C: Component> ComponentSingleton<C> {
-    
     pub(crate) fn new(component: C) -> Self {
-        Self { component: RefCell::new(component) }
+        Self {
+            component: RefCell::new(component),
+        }
     }
 
     pub(crate) fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -37,8 +38,12 @@ pub(crate) trait AnyComponentSingleton {
 }
 
 impl<C: Component> AnyComponentSingleton for ComponentSingleton<C> {
-    fn as_any(&self) -> &dyn Any { self }
-    fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) {
+        self
+    }
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
         self.serialize(&mut encoder)
     }
@@ -47,29 +52,29 @@ impl<C: Component> AnyComponentSingleton for ComponentSingleton<C> {
     }
 }
 
-pub struct SingletonRef<'a, C: Component> {
+pub struct StaticSingletonRef<'a, C: Component> {
     pub(crate) component: Ref<'a, C>,
 }
 
-impl<C: Component> Deref for SingletonRef<'_, C> {
+impl<C: Component> Deref for StaticSingletonRef<'_, C> {
     type Target = C;
     fn deref(&self) -> &C {
         &self.component
     }
 }
 
-pub struct SingletonMut<'a, C: Component> {
+pub struct StaticSingletonMut<'a, C: Component> {
     pub(crate) component: RefMut<'a, C>,
 }
 
-impl<C: Component> Deref for SingletonMut<'_, C> {
+impl<C: Component> Deref for StaticSingletonMut<'_, C> {
     type Target = C;
     fn deref(&self) -> &C {
         &self.component
     }
 }
 
-impl<C: Component> DerefMut for SingletonMut<'_, C> {
+impl<C: Component> DerefMut for StaticSingletonMut<'_, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.component
     }

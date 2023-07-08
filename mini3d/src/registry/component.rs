@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     ecs::{
-        container::{AnyComponentContainer, ComponentContainer},
+        container::{AnyComponentContainer, StaticComponentContainer},
         dynamic::DynamicComponent,
         entity::Entity,
         error::ECSError,
@@ -23,7 +23,7 @@ impl EntityResolver {
         Ok(entity)
     }
 }
-pub trait Component: Serialize + Reflect + Default + 'static {
+pub trait Component: Default + Serialize + Reflect + 'static {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
@@ -40,7 +40,7 @@ pub(crate) enum ComponentKind {
 pub(crate) trait AnyComponentReflection {
     fn create_container(&self) -> Box<dyn AnyComponentContainer>;
     fn create_singleton(&self) -> Box<dyn AnyComponentSingleton>;
-    fn properties(&self) -> &[Property];
+    fn find_property(&self, name: &str) -> Option<&Property>;
 }
 
 pub(crate) struct ComponentReflection<C: Component> {
@@ -49,15 +49,15 @@ pub(crate) struct ComponentReflection<C: Component> {
 
 impl<C: Component> AnyComponentReflection for ComponentReflection<C> {
     fn create_container(&self) -> Box<dyn AnyComponentContainer> {
-        Box::new(ComponentContainer::<C>::new())
+        Box::new(StaticComponentContainer::<C>::new())
     }
 
     fn create_singleton(&self) -> Box<dyn AnyComponentSingleton> {
         Box::new(ComponentSingleton::<C>::new(C::default()))
     }
 
-    fn properties(&self) -> &[Property] {
-        C::PROPERTIES
+    fn find_property(&self, name: &str) -> Option<&Property> {
+        C::PROPERTIES.iter().find(|p| p.name == name)
     }
 }
 
@@ -108,9 +108,5 @@ impl ComponentRegistry {
             _phantom: std::marker::PhantomData,
         };
         self.define(name, ComponentKind::Dynamic, Box::new(reflection))
-    }
-
-    pub(crate) fn get(&self, uid: UID) -> Option<&ComponentDefinition> {
-        self.definitions.get(&uid)
     }
 }

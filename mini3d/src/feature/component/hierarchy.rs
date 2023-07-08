@@ -1,6 +1,9 @@
-use mini3d_derive::{Component, Error};
+use mini3d_derive::{Component, Error, Reflect, Serialize};
 
-use crate::ecs::{entity::Entity, view::{ComponentViewMut, ComponentView}};
+use crate::ecs::{
+    entity::Entity,
+    view::{StaticComponentView, StaticComponentViewMut},
+};
 
 #[derive(Debug, Error)]
 pub enum HierarchyError {
@@ -12,7 +15,7 @@ pub enum HierarchyError {
     ParentWithoutChild,
 }
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Reflect, Serialize)]
 pub struct Hierarchy {
     parent: Option<Entity>,
     first_child: Option<Entity>,
@@ -20,7 +23,6 @@ pub struct Hierarchy {
 }
 
 impl Hierarchy {
-
     pub fn parent(&self) -> Option<Entity> {
         self.parent
     }
@@ -33,7 +35,10 @@ impl Hierarchy {
         self.next_sibling
     }
 
-    pub fn collect_childs<V: ComponentView<Hierarchy>>(entity: Entity, view: &V) -> Result<Vec<Entity>, HierarchyError> {
+    pub fn collect_childs<V: StaticComponentView<Hierarchy>>(
+        entity: Entity,
+        view: &V,
+    ) -> Result<Vec<Entity>, HierarchyError> {
         if let Some(first_child) = view.get(entity).unwrap().first_child {
             let mut childs = Vec::new();
             childs.push(first_child);
@@ -46,8 +51,11 @@ impl Hierarchy {
         }
     }
 
-    pub fn attach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<(), HierarchyError> {
-
+    pub fn attach(
+        entity: Entity,
+        child: Entity,
+        view: &mut StaticComponentViewMut<Hierarchy>,
+    ) -> Result<(), HierarchyError> {
         // Find the last child
         let mut last_child: Option<Entity> = None;
         if let Some(first_child) = view.get(entity).unwrap().first_child {
@@ -74,8 +82,11 @@ impl Hierarchy {
         Ok(())
     }
 
-    pub fn detach(entity: Entity, child: Entity, view: &mut ComponentViewMut<Hierarchy>) -> Result<(), HierarchyError> {
-        
+    pub fn detach(
+        entity: Entity,
+        child: Entity,
+        view: &mut StaticComponentViewMut<Hierarchy>,
+    ) -> Result<(), HierarchyError> {
         // Find the child
         if let Some(first_child) = view.get(entity).unwrap().first_child {
             if first_child == child {
@@ -91,7 +102,7 @@ impl Hierarchy {
             } else {
                 let mut next_child = first_child;
                 while let Some(next) = view.get(next_child).unwrap().next_sibling {
-                    // Child found 
+                    // Child found
                     if next == child {
                         // Remove child from the linked list
                         if let Some(next_next) = view.get(next).unwrap().next_sibling {

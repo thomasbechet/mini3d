@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use glam::{Quat, Vec2, Vec3, Vec4};
-use mini3d_derive::{Component, Error, Serialize};
+use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::uid::UID;
 
@@ -30,7 +30,7 @@ pub enum Value {
     Object(Box<Vec<UID>>),
 }
 
-#[derive(Default, Clone, Component)]
+#[derive(Default, Clone, Component, Serialize, Reflect)]
 pub struct DynamicComponent {
     values: BTreeMap<UID, (String, Value)>,
 }

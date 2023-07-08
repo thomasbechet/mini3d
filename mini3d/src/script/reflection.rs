@@ -37,26 +37,9 @@ macro_rules! write_property {
     };
 }
 
-pub(crate) trait ReflectReadProperty {
-    read_property!(bool, read_bool);
-    read_property!(u8, read_u8);
-    read_property!(i32, read_i32);
-    read_property!(u32, read_u32);
-    read_property!(f32, read_f32);
-    read_property!(f64, read_f64);
-    read_property!(Vec2, read_vec2);
-    read_property!(IVec2, read_ivec2);
-    read_property!(Vec3, read_vec3);
-    read_property!(IVec3, read_ivec3);
-    read_property!(Vec4, read_vec4);
-    read_property!(IVec4, read_ivec4);
-    read_property!(Mat4, read_mat4);
-    read_property!(Quat, read_quat);
-    read_property!(Entity, read_entity);
-    read_property!(UID, read_uid);
-}
+pub trait Reflect {
+    const PROPERTIES: &'static [Property];
 
-pub(crate) trait ReflectWriteProperty {
     write_property!(bool, write_bool);
     write_property!(u8, write_u8);
     write_property!(i32, write_i32);
@@ -73,8 +56,21 @@ pub(crate) trait ReflectWriteProperty {
     write_property!(Quat, write_quat);
     write_property!(Entity, write_entity);
     write_property!(UID, write_uid);
-}
 
-pub trait Reflect: ReflectReadProperty + ReflectWriteProperty {
-    const PROPERTIES: &'static [Property];
+    read_property!(bool, read_bool);
+    read_property!(u8, read_u8);
+    read_property!(i32, read_i32);
+    read_property!(u32, read_u32);
+    read_property!(f32, read_f32);
+    read_property!(f64, read_f64);
+    read_property!(Vec2, read_vec2);
+    read_property!(IVec2, read_ivec2);
+    read_property!(Vec3, read_vec3);
+    read_property!(IVec3, read_ivec3);
+    read_property!(Vec4, read_vec4);
+    read_property!(IVec4, read_ivec4);
+    read_property!(Mat4, read_mat4);
+    read_property!(Quat, read_quat);
+    read_property!(Entity, read_entity);
+    read_property!(UID, read_uid);
 }

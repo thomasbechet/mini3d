@@ -1,7 +1,7 @@
 use glam::{Mat4, Vec3, Vec4};
-use mini3d_derive::Component;
+use mini3d_derive::{Component, Reflect, Serialize};
 
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Serialize, Reflect)]
 pub struct LocalToWorld {
     pub matrix: Mat4,
     #[serialize(skip)]
@@ -18,7 +18,6 @@ impl Default for LocalToWorld {
 }
 
 impl LocalToWorld {
-
     pub fn translation(&self) -> Vec3 {
         self.matrix.w_axis.truncate()
     }

@@ -1,6 +1,6 @@
-use mini3d_derive::Component;
+use mini3d_derive::{Component, Reflect, Serialize};
 
-#[derive(Component)]
+#[derive(Component, Serialize, Reflect)]
 pub struct Lifecycle {
     pub alive: bool,
 }

@@ -8,7 +8,7 @@ use syn::{
 };
 use syn::{Data, DataEnum, DataStruct, DeriveInput, Error, Fields, FieldsNamed, Result};
 
-pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
+pub(crate) fn derive(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
@@ -41,7 +41,7 @@ pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
     }
 }
 
-pub(crate) fn derive_struct(
+fn derive_struct(
     ident: &Ident,
     vis: &Visibility,
     attrs: &[Attribute],
@@ -49,11 +49,14 @@ pub(crate) fn derive_struct(
     fields: &FieldsNamed,
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    Ok(quote! {})
+    Ok(quote! {
+        impl #impl_generics mini3d::script::reflection::Reflect for #ident #ty_generics #where_clause {
+            const PROPERTIES: &'static [mini3d::script::reflection::Property] = &[];
+        }
+    })
 }
 
-pub(crate) fn derive_tuple(
+fn derive_tuple(
     ident: &Ident,
     vis: &Visibility,
     attrs: &[Attribute],
@@ -61,11 +64,14 @@ pub(crate) fn derive_tuple(
     fields: &FieldsUnnamed,
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    Ok(quote! {})
+    Ok(quote! {
+        impl #impl_generics mini3d::script::reflection::Reflect for #ident #ty_generics #where_clause {
+            const PROPERTIES: &'static [mini3d::script::reflection::Property] = &[];
+        }
+    })
 }
 
-pub(crate) fn derive_enum(
+fn derive_enum(
     ident: &Ident,
     vis: &Visibility,
     attrs: &[Attribute],
@@ -73,6 +79,9 @@ pub(crate) fn derive_enum(
     data: &DataEnum,
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    Ok(quote! {})
+    Ok(quote! {
+        impl #impl_generics mini3d::script::reflection::Reflect for #ident #ty_generics #where_clause {
+            const PROPERTIES: &'static [mini3d::script::reflection::Property] = &[];
+        }
+    })
 }

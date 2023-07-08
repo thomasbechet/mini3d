@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use glam::{IVec2, UVec2};
-use mini3d_derive::{Component, Error};
+use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::{
     ecs::entity::Entity,
@@ -26,7 +26,7 @@ pub enum UIError {
     UIStyleSheetError(UIStyleSheetError),
 }
 
-#[derive(Component)]
+#[derive(Component, Serialize, Reflect)]
 pub enum UIRenderTarget {
     Screen { offset: IVec2 },
     Canvas { offset: IVec2, canvas: Entity },
@@ -41,7 +41,7 @@ impl Default for UIRenderTarget {
     }
 }
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Serialize, Reflect)]
 pub struct UI {
     root: UILayout,
     users: HashMap<UID, UIUser>,

@@ -1,8 +1,8 @@
-use mini3d_derive::Component;
+use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{uid::UID, renderer::backend::SceneModelHandle};
+use crate::{renderer::backend::SceneModelHandle, uid::UID};
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Serialize, Reflect)]
 pub struct StaticMesh {
     pub model: UID,
     #[serialize(skip)]
@@ -13,6 +13,10 @@ pub struct StaticMesh {
 
 impl StaticMesh {
     pub fn new(model: UID) -> Self {
-        Self { model, changed: false, handle: None }
+        Self {
+            model,
+            changed: false,
+            handle: None,
+        }
     }
 }

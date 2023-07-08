@@ -1,7 +1,7 @@
 use super::{
     entity::Entity,
     error::ECSError,
-    reference::{ComponentMut, ComponentRef},
+    reference::{StaticComponentMut, StaticComponentRef},
     sparse::PagedVector,
 };
 use crate::{
@@ -10,13 +10,13 @@ use crate::{
 };
 use core::{any::Any, cell::RefCell};
 
-pub(crate) struct ComponentContainer<C: Component> {
+pub(crate) struct StaticComponentContainer<C: Component> {
     pub(crate) components: RefCell<Vec<C>>,
     pub(crate) entities: Vec<Entity>,
     pub(crate) indices: PagedVector<usize>,
 }
 
-impl<C: Component> ComponentContainer<C> {
+impl<C: Component> StaticComponentContainer<C> {
     pub(crate) fn new() -> Self {
         Self {
             components: RefCell::new(Vec::with_capacity(128)),
@@ -53,11 +53,11 @@ impl<C: Component> ComponentContainer<C> {
         Ok(())
     }
 
-    pub(crate) fn get(&self, entity: Entity) -> Option<ComponentRef<'_, C>> {
+    pub(crate) fn get(&self, entity: Entity) -> Option<StaticComponentRef<'_, C>> {
         let components = self.components.borrow();
         self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
-                Some(ComponentRef {
+                Some(StaticComponentRef {
                     components,
                     index: *index,
                 })
@@ -67,11 +67,11 @@ impl<C: Component> ComponentContainer<C> {
         })
     }
 
-    pub(crate) fn get_mut(&self, entity: Entity) -> Option<ComponentMut<'_, C>> {
+    pub(crate) fn get_mut(&self, entity: Entity) -> Option<StaticComponentMut<'_, C>> {
         let components = self.components.borrow_mut();
         self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
-                Some(ComponentMut {
+                Some(StaticComponentMut {
                     components,
                     index: *index,
                 })
@@ -123,6 +123,11 @@ impl<C: Component> ComponentContainer<C> {
     }
 }
 
+pub(crate) struct DynamicComponentContainer {
+    pub(crate) entities: Vec<Entity>,
+    pub(crate) indices: PagedVector<usize>,
+}
+
 pub(crate) trait AnyComponentContainer {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -134,7 +139,7 @@ pub(crate) trait AnyComponentContainer {
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
 }
 
-impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
+impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -162,5 +167,39 @@ impl<C: Component> AnyComponentContainer for ComponentContainer<C> {
     }
     fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
         self.deserialize(&mut decoder)
+    }
+}
+
+impl AnyComponentContainer for DynamicComponentContainer {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn entity(&self, index: usize) -> Entity {
+        todo!()
+    }
+
+    fn contains(&self, entity: Entity) -> bool {
+        todo!()
+    }
+
+    fn len(&self) -> usize {
+        todo!()
+    }
+
+    fn remove(&mut self, entity: Entity) {
+        todo!()
+    }
+
+    fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
+        todo!()
+    }
+
+    fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
+        todo!()
     }
 }
