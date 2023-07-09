@@ -3,6 +3,7 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::ops::{Deref, DerefMut};
 
 use crate::registry::component::Component;
+use crate::script::reflection::ReadProperty;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 pub(crate) struct StaticComponentSingleton<C: Component> {
@@ -35,6 +36,8 @@ pub(crate) trait AnyComponentSingleton {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
+    fn any_view(&self) -> AnyComponentSingletonRef<'_>;
+    fn any_view_mut(&self) -> AnyComponentSingletonMut<'_>;
 }
 
 impl<C: Component> AnyComponentSingleton for StaticComponentSingleton<C> {

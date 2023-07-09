@@ -153,7 +153,7 @@ fn main_run() {
             name: "utils".to_string(),
             data: Script { source: script },
         }));
-    events.system.push(SystemEvent::Shutdown);
+    // events.system.push(SystemEvent::Shutdown);
 
     // Enter loop
     event_loop.run(move |event, _, control_flow| {

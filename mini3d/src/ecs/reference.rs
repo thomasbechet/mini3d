@@ -3,7 +3,10 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::registry::component::Component;
+use crate::{
+    registry::component::Component,
+    script::reflection::{ReadProperty, WriteProperty},
+};
 
 pub struct StaticComponentRef<'a, C: Component> {
     pub(crate) components: Ref<'a, Vec<C>>,
@@ -33,4 +36,12 @@ impl<C: Component> DerefMut for StaticComponentMut<'_, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.components[self.index]
     }
+}
+
+pub struct AnyComponentRef<'a> {
+    pub(crate) component: Box<dyn ReadProperty + 'a>,
+}
+
+pub struct AnyComponentMut<'a> {
+    pub(crate) component: Box<dyn WriteProperty + 'a>,
 }

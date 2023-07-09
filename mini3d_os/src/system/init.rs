@@ -465,7 +465,7 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
         world.add(
             cam,
             Transform::UID,
-            Transform::from_translation(Vec3::new(4.0, -1.0, 0.0)),
+            Transform::from_translation(Vec3::new(0.0, -1.0, 0.0)),
         )?;
         world.add(cam, LocalToWorld::UID, LocalToWorld::default())?;
         world.add(cam, Camera::UID, Camera::default().with_fov(90.0))?;
