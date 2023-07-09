@@ -179,6 +179,31 @@ pub struct AnyStaticComponentViewMut<'a> {
     view: Option<AnyStaticComponentViewMutData<'a>>,
 }
 
+macro_rules! impl_read_write_property {
+    ($type:ty, $read:ident, $write:ident) => {
+        fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
+            match self {
+                Self::Static(view) => {
+                    let data = view.view.as_ref().unwrap();
+                    data.indices.get(entity.key()).copied().and_then(|index| {
+                        if data.entities[index] == entity {
+                            data.components.$read(index, id)
+                        } else {
+                            None
+                        }
+                    })
+                }
+                Self::None => None,
+            }
+        }
+        // fn $write(&mut self, index: usize, id: PropertyId, value: $type) {
+        //     if let Some(c) = self.get_mut(index) {
+        //         c.$write(id, value);
+        //     }
+        // }
+    };
+}
+
 impl<'a> AnyStaticComponentViewMut<'a> {
     pub(crate) fn new<C: Component>(container: &'a StaticComponentContainer<C>) -> Self {
         Self {
@@ -198,15 +223,27 @@ pub enum AnyComponentViewRef<'a> {
 }
 
 impl<'a> AnyComponentViewRef<'a> {
-    fn read_bool(&self, entity: Entity, id: PropertyId) -> bool {
-        match self {
-            Self::Static(view) => view.read_bool(entity, id),
-            Self::None => panic!("Entity not found"),
-        }
-    }
+    impl_read_write_property!(bool, read_bool, write_bool);
+    impl_read_write_property!(u8, read_u8, write_u8);
+    impl_read_write_property!(i32, read_i32, write_i32);
+    impl_read_write_property!(u32, read_u32, write_u32);
+    impl_read_write_property!(f32, read_f32, write_f32);
+    impl_read_write_property!(f64, read_f64, write_f64);
+    impl_read_write_property!(Vec2, read_vec2, write_vec2);
+    impl_read_write_property!(IVec2, read_ivec2, write_ivec2);
+    impl_read_write_property!(Vec3, read_vec3, write_vec3);
+    impl_read_write_property!(IVec3, read_ivec3, write_ivec3);
+    impl_read_write_property!(Vec4, read_vec4, write_vec4);
+    impl_read_write_property!(IVec4, read_ivec4, write_ivec4);
+    impl_read_write_property!(Mat4, read_mat4, write_mat4);
+    impl_read_write_property!(Quat, read_quat, write_quat);
+    impl_read_write_property!(Entity, read_entity, write_entity);
+    impl_read_write_property!(UID, read_uid, write_uid);
 }
 
 pub enum AnyComponentViewMut<'a> {
     Static(AnyStaticComponentViewMut<'a>),
     None,
 }
+
+impl<'a> AnyComponentViewMut<'a> {}
