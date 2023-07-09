@@ -1,20 +1,108 @@
+use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
+
 use super::{
     entity::Entity,
     error::ECSError,
     reference::{StaticComponentMut, StaticComponentRef},
     sparse::PagedVector,
     view::{
-        AnyComponentViewMut, AnyComponentViewRef, StaticComponentViewMut, StaticComponentViewRef,
+        AnyComponentViewMut, AnyComponentViewRef, AnyStaticComponentViewMut,
+        AnyStaticComponentViewRef,
     },
 };
+use crate::script::reflection::PropertyId;
 use crate::{
     registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
+    uid::UID,
 };
 use core::{any::Any, cell::RefCell};
+use std::{
+    cell::Ref,
+    ops::{Deref, DerefMut},
+};
+
+pub(crate) struct StaticComponentVec<C: Component>(Vec<C>);
+
+impl<C: Component> StaticComponentVec<C> {
+    fn with_capacity(size: usize) -> Self {
+        Self(Vec::with_capacity(size))
+    }
+}
+
+impl<C: Component> Deref for StaticComponentVec<C> {
+    type Target = Vec<C>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<C: Component> DerefMut for StaticComponentVec<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+macro_rules! trait_property {
+    ($type:ty, $read:ident, $write:ident) => {
+        fn $read(&self, index: usize, id: PropertyId) -> Option<$type>;
+        fn $write(&mut self, index: usize, id: PropertyId, value: $type);
+    };
+}
+
+macro_rules! impl_property {
+    ($type:ty, $read:ident, $write:ident) => {
+        fn $read(&self, index: usize, id: PropertyId) -> Option<$type> {
+            self.get(index).and_then(|c| c.$read(id))
+        }
+        fn $write(&mut self, index: usize, id: PropertyId, value: $type) {
+            if let Some(c) = self.get_mut(index) {
+                c.$write(id, value);
+            }
+        }
+    };
+}
+
+pub(crate) trait AnyStaticComponentVec {
+    trait_property!(bool, read_bool, write_bool);
+    trait_property!(u8, read_u8, write_u8);
+    trait_property!(i32, read_i32, write_i32);
+    trait_property!(u32, read_u32, write_u32);
+    trait_property!(f32, read_f32, write_f32);
+    trait_property!(f64, read_f64, write_f64);
+    trait_property!(Vec2, read_vec2, write_vec2);
+    trait_property!(IVec2, read_ivec2, write_ivec2);
+    trait_property!(Vec3, read_vec3, write_vec3);
+    trait_property!(IVec3, read_ivec3, write_ivec3);
+    trait_property!(Vec4, read_vec4, write_vec4);
+    trait_property!(IVec4, read_ivec4, write_ivec4);
+    trait_property!(Mat4, read_mat4, write_mat4);
+    trait_property!(Quat, read_quat, write_quat);
+    trait_property!(Entity, read_entity, write_entity);
+    trait_property!(UID, read_uid, write_uid);
+}
+
+impl<C: Component> AnyStaticComponentVec for StaticComponentVec<C> {
+    impl_property!(bool, read_bool, write_bool);
+    impl_property!(u8, read_u8, write_u8);
+    impl_property!(i32, read_i32, write_i32);
+    impl_property!(u32, read_u32, write_u32);
+    impl_property!(f32, read_f32, write_f32);
+    impl_property!(f64, read_f64, write_f64);
+    impl_property!(Vec2, read_vec2, write_vec2);
+    impl_property!(IVec2, read_ivec2, write_ivec2);
+    impl_property!(Vec3, read_vec3, write_vec3);
+    impl_property!(IVec3, read_ivec3, write_ivec3);
+    impl_property!(Vec4, read_vec4, write_vec4);
+    impl_property!(IVec4, read_ivec4, write_ivec4);
+    impl_property!(Mat4, read_mat4, write_mat4);
+    impl_property!(Quat, read_quat, write_quat);
+    impl_property!(Entity, read_entity, write_entity);
+    impl_property!(UID, read_uid, write_uid);
+}
 
 pub(crate) struct StaticComponentContainer<C: Component> {
-    pub(crate) components: RefCell<Vec<C>>,
+    pub(crate) components: RefCell<StaticComponentVec<C>>,
     pub(crate) entities: Vec<Entity>,
     pub(crate) indices: PagedVector<usize>,
 }
@@ -22,7 +110,7 @@ pub(crate) struct StaticComponentContainer<C: Component> {
 impl<C: Component> StaticComponentContainer<C> {
     pub(crate) fn new() -> Self {
         Self {
-            components: RefCell::new(Vec::with_capacity(128)),
+            components: RefCell::new(StaticComponentVec::with_capacity(128)),
             entities: Vec::with_capacity(128),
             indices: PagedVector::new(),
         }
@@ -57,6 +145,7 @@ impl<C: Component> StaticComponentContainer<C> {
     }
 
     pub(crate) fn get(&self, entity: Entity) -> Option<StaticComponentRef<'_, C>> {
+        let r: Ref<dyn AnyStaticComponentVec> = self.components.borrow();
         let components = self.components.borrow();
         self.indices.get(entity.key()).and_then(|index| {
             if self.entities[*index] == entity {
@@ -174,14 +263,10 @@ impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
         self.deserialize(&mut decoder)
     }
     fn any_view(&self) -> AnyComponentViewRef<'_> {
-        AnyComponentViewRef {
-            view: Box::new(StaticComponentViewRef::new(self)),
-        }
+        AnyComponentViewRef::Static(AnyStaticComponentViewRef::new(self))
     }
     fn any_view_mut(&self) -> AnyComponentViewMut<'_> {
-        AnyComponentViewMut {
-            view: Box::new(StaticComponentViewMut::new(self)),
-        }
+        AnyComponentViewMut::Static(AnyStaticComponentViewMut::new(self))
     }
 }
 

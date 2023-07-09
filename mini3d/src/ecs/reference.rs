@@ -5,23 +5,25 @@ use std::{
 
 use crate::{
     registry::component::Component,
-    script::reflection::{ReadProperty, WriteProperty},
+    script::reflection::{ReadProperty, ReadWriteProperty},
 };
 
+use super::container::StaticComponentVec;
+
 pub struct StaticComponentRef<'a, C: Component> {
-    pub(crate) components: Ref<'a, Vec<C>>,
+    pub(crate) components: Ref<'a, StaticComponentVec<C>>,
     pub(crate) index: usize,
 }
 
 impl<C: Component> Deref for StaticComponentRef<'_, C> {
     type Target = C;
     fn deref(&self) -> &C {
-        &self.components[self.index]
+        self.components.get(self.index).unwrap()
     }
 }
 
 pub struct StaticComponentMut<'a, C: Component> {
-    pub(crate) components: RefMut<'a, Vec<C>>,
+    pub(crate) components: RefMut<'a, StaticComponentVec<C>>,
     pub(crate) index: usize,
 }
 
@@ -42,6 +44,22 @@ pub struct AnyComponentRef<'a> {
     pub(crate) component: Box<dyn ReadProperty + 'a>,
 }
 
+impl<'a> Deref for AnyComponentRef<'a> {
+    type Target = dyn ReadProperty + 'a;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.component
+    }
+}
+
 pub struct AnyComponentMut<'a> {
-    pub(crate) component: Box<dyn WriteProperty + 'a>,
+    pub(crate) component: Box<dyn ReadWriteProperty + 'a>,
+}
+
+impl<'a> Deref for AnyComponentMut<'a> {
+    type Target = dyn ReadWriteProperty + 'a;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.component
+    }
 }

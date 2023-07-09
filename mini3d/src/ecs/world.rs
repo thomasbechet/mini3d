@@ -11,6 +11,7 @@ use crate::{
     uid::UID,
 };
 
+use super::reference::AnyComponentRef;
 use super::view::{AnyComponentViewMut, AnyComponentViewRef};
 use super::{
     container::{AnyComponentContainer, StaticComponentContainer},
@@ -217,7 +218,7 @@ impl World {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view())
         } else {
-            Ok(AnyComponentViewRef::none())
+            Ok(AnyComponentViewRef::None)
         }
     }
 
@@ -243,7 +244,7 @@ impl World {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view_mut())
         } else {
-            Ok(AnyComponentViewMut::none())
+            Ok(AnyComponentViewMut::None)
         }
     }
 

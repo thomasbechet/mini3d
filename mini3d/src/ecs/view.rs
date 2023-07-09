@@ -7,14 +7,18 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{registry::component::Component, script::reflection::PropertyId, uid::UID};
 
-use super::{container::StaticComponentContainer, entity::Entity, sparse::PagedVector};
+use super::{
+    container::{AnyStaticComponentVec, StaticComponentContainer, StaticComponentVec},
+    entity::Entity,
+    sparse::PagedVector,
+};
 
 pub trait StaticComponentView<C: Component> {
     fn get(&self, entity: Entity) -> Option<&C>;
 }
 
 struct StaticComponentViewRefData<'a, C: Component> {
-    components: Ref<'a, Vec<C>>,
+    components: Ref<'a, StaticComponentVec<C>>,
     entities: &'a [Entity],
     indices: &'a PagedVector<usize>,
 }
@@ -70,7 +74,7 @@ impl<'a, C: Component> Index<Entity> for StaticComponentViewRef<'a, C> {
 }
 
 struct StaticComponentViewMutData<'a, C: Component> {
-    components: RefMut<'a, Vec<C>>,
+    components: RefMut<'a, StaticComponentVec<C>>,
     entities: &'a [Entity],
     indices: &'a PagedVector<usize>,
 }
@@ -143,192 +147,66 @@ impl<'a, C: Component> IndexMut<Entity> for StaticComponentViewMut<'a, C> {
     }
 }
 
-#[allow(unused)]
-pub trait ReadPropertyView {
-    fn read_bool(&self, entity: Entity, id: PropertyId) -> Option<bool> {
-        None
-    }
-    fn read_u8(&self, entity: Entity, id: PropertyId) -> Option<u8> {
-        None
-    }
-    fn read_i32(&self, entity: Entity, id: PropertyId) -> Option<i32> {
-        None
-    }
-    fn read_u32(&self, entity: Entity, id: PropertyId) -> Option<u32> {
-        None
-    }
-    fn read_f32(&self, entity: Entity, id: PropertyId) -> Option<f32> {
-        None
-    }
-    fn read_f64(&self, entity: Entity, id: PropertyId) -> Option<f64> {
-        None
-    }
-    fn read_vec2(&self, entity: Entity, id: PropertyId) -> Option<Vec2> {
-        None
-    }
-    fn read_ivec2(&self, entity: Entity, id: PropertyId) -> Option<IVec2> {
-        None
-    }
-    fn read_vec3(&self, entity: Entity, id: PropertyId) -> Option<Vec3> {
-        None
-    }
-    fn read_ivec3(&self, entity: Entity, id: PropertyId) -> Option<IVec3> {
-        None
-    }
-    fn read_vec4(&self, entity: Entity, id: PropertyId) -> Option<Vec4> {
-        None
-    }
-    fn read_ivec4(&self, entity: Entity, id: PropertyId) -> Option<IVec4> {
-        None
-    }
-    fn read_mat4(&self, entity: Entity, id: PropertyId) -> Option<Mat4> {
-        None
-    }
-    fn read_quat(&self, entity: Entity, id: PropertyId) -> Option<Quat> {
-        None
-    }
-    fn read_entity(&self, entity: Entity, id: PropertyId) -> Option<Entity> {
-        None
-    }
-    fn read_uid(&self, entity: Entity, id: PropertyId) -> Option<UID> {
-        None
-    }
+struct AnyStaticComponentViewRefData<'a> {
+    components: Ref<'a, dyn AnyStaticComponentVec>,
+    entities: &'a [Entity],
+    indices: &'a PagedVector<usize>,
 }
 
-#[allow(unused)]
-pub trait ReadWritePropertyView: ReadPropertyView {
-    fn as_read_view(&self) -> &dyn ReadPropertyView;
-    fn write_bool(&mut self, entity: Entity, id: PropertyId, value: bool) {}
-    fn write_u8(&mut self, entity: Entity, id: PropertyId, value: u8) {}
-    fn write_i32(&mut self, entity: Entity, id: PropertyId, value: i32) {}
-    fn write_u32(&mut self, entity: Entity, id: PropertyId, value: u32) {}
-    fn write_f32(&mut self, entity: Entity, id: PropertyId, value: f32) {}
-    fn write_f64(&mut self, entity: Entity, id: PropertyId, value: f64) {}
-    fn write_vec2(&mut self, entity: Entity, id: PropertyId, value: Vec2) {}
-    fn write_ivec2(&mut self, entity: Entity, id: PropertyId, value: IVec2) {}
-    fn write_vec3(&mut self, entity: Entity, id: PropertyId, value: Vec3) {}
-    fn write_ivec3(&mut self, entity: Entity, id: PropertyId, value: IVec3) {}
-    fn write_vec4(&mut self, entity: Entity, id: PropertyId, value: Vec4) {}
-    fn write_ivec4(&mut self, entity: Entity, id: PropertyId, value: IVec4) {}
-    fn write_mat4(&mut self, entity: Entity, id: PropertyId, value: Mat4) {}
-    fn write_quat(&mut self, entity: Entity, id: PropertyId, value: Quat) {}
-    fn write_entity(&mut self, entity: Entity, id: PropertyId, value: Entity) {}
-    fn write_uid(&mut self, entity: Entity, id: PropertyId, value: UID) {}
+pub struct AnyStaticComponentViewRef<'a> {
+    view: Option<AnyStaticComponentViewRefData<'a>>,
 }
 
-macro_rules! read_property {
-    ($type:ty, $read:ident) => {
-        fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
-            self.get(entity).and_then(|c| c.$read(id))
+impl<'a> AnyStaticComponentViewRef<'a> {
+    pub(crate) fn new<C: Component>(container: &'a StaticComponentContainer<C>) -> Self {
+        Self {
+            view: Some(AnyStaticComponentViewRefData {
+                components: container.components.borrow(),
+                entities: &container.entities,
+                indices: &container.indices,
+            }),
         }
-    };
-}
-
-macro_rules! write_property {
-    ($type:ty, $write:ident) => {
-        fn $write(&mut self, entity: Entity, id: PropertyId, value: $type) {
-            self.get_mut(entity).map(|c| c.$write(id, value));
-        }
-    };
-}
-
-impl<'a, C: Component> ReadPropertyView for StaticComponentViewRef<'a, C> {
-    read_property!(bool, read_bool);
-    read_property!(u8, read_u8);
-    read_property!(i32, read_i32);
-    read_property!(u32, read_u32);
-    read_property!(f32, read_f32);
-    read_property!(f64, read_f64);
-    read_property!(Vec2, read_vec2);
-    read_property!(IVec2, read_ivec2);
-    read_property!(Vec3, read_vec3);
-    read_property!(IVec3, read_ivec3);
-    read_property!(Vec4, read_vec4);
-    read_property!(IVec4, read_ivec4);
-    read_property!(Mat4, read_mat4);
-    read_property!(Quat, read_quat);
-    read_property!(Entity, read_entity);
-    read_property!(UID, read_uid);
-}
-
-impl<'a, C: Component> ReadPropertyView for StaticComponentViewMut<'a, C> {
-    read_property!(bool, read_bool);
-    read_property!(u8, read_u8);
-    read_property!(i32, read_i32);
-    read_property!(u32, read_u32);
-    read_property!(f32, read_f32);
-    read_property!(f64, read_f64);
-    read_property!(Vec2, read_vec2);
-    read_property!(IVec2, read_ivec2);
-    read_property!(Vec3, read_vec3);
-    read_property!(IVec3, read_ivec3);
-    read_property!(Vec4, read_vec4);
-    read_property!(IVec4, read_ivec4);
-    read_property!(Mat4, read_mat4);
-    read_property!(Quat, read_quat);
-    read_property!(Entity, read_entity);
-    read_property!(UID, read_uid);
-}
-
-impl<'a, C: Component> ReadWritePropertyView for StaticComponentViewMut<'a, C> {
-    fn as_read_view(&self) -> &dyn ReadPropertyView {
-        self
     }
-    write_property!(bool, write_bool);
-    write_property!(u8, write_u8);
-    write_property!(i32, write_i32);
-    write_property!(u32, write_u32);
-    write_property!(f32, write_f32);
-    write_property!(f64, write_f64);
-    write_property!(Vec2, write_vec2);
-    write_property!(IVec2, write_ivec2);
-    write_property!(Vec3, write_vec3);
-    write_property!(IVec3, write_ivec3);
-    write_property!(Vec4, write_vec4);
-    write_property!(IVec4, write_ivec4);
-    write_property!(Mat4, write_mat4);
-    write_property!(Quat, write_quat);
-    write_property!(Entity, write_entity);
-    write_property!(UID, write_uid);
 }
 
-pub struct AnyComponentViewRef<'a> {
-    pub(crate) view: Box<dyn ReadPropertyView + 'a>,
+struct AnyStaticComponentViewMutData<'a> {
+    components: RefMut<'a, dyn AnyStaticComponentVec>,
+    entities: &'a [Entity],
+    indices: &'a PagedVector<usize>,
+}
+
+pub struct AnyStaticComponentViewMut<'a> {
+    view: Option<AnyStaticComponentViewMutData<'a>>,
+}
+
+impl<'a> AnyStaticComponentViewMut<'a> {
+    pub(crate) fn new<C: Component>(container: &'a StaticComponentContainer<C>) -> Self {
+        Self {
+            view: Some(AnyStaticComponentViewMutData {
+                components: container.components.borrow_mut(),
+                entities: &container.entities,
+                indices: &container.indices,
+            }),
+        }
+    }
+}
+
+pub enum AnyComponentViewRef<'a> {
+    Static(AnyStaticComponentViewRef<'a>),
+    // Dynamic(AnyDynamicComponentViewRef<'a>),
+    None,
 }
 
 impl<'a> AnyComponentViewRef<'a> {
-    pub(crate) fn none() -> Self {
-        struct AnyComponentViewRefNone {}
-        impl ReadPropertyView for AnyComponentViewRefNone {}
-        Self {
-            view: Box::new(AnyComponentViewRefNone {}),
+    fn read_bool(&self, entity: Entity, id: PropertyId) -> bool {
+        match self {
+            Self::Static(view) => view.read_bool(entity, id),
+            Self::None => panic!("Entity not found"),
         }
     }
 }
 
-impl<'a> Deref for AnyComponentViewRef<'a> {
-    type Target = dyn ReadPropertyView + 'a;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.view
-    }
-}
-
-pub struct AnyComponentViewMut<'a> {
-    pub(crate) view: Box<dyn ReadWritePropertyView + 'a>,
-}
-
-impl<'a> AnyComponentViewMut<'a> {
-    pub(crate) fn none() -> Self {
-        struct AnyComponentViewMutNone {}
-        impl ReadWritePropertyView for AnyComponentViewMutNone {
-            fn as_read_view(&self) -> &dyn ReadPropertyView {
-                self
-            }
-        }
-        impl ReadPropertyView for AnyComponentViewMutNone {}
-        Self {
-            view: Box::new(AnyComponentViewMutNone {}),
-        }
-    }
+pub enum AnyComponentViewMut<'a> {
+    Static(AnyStaticComponentViewMut<'a>),
+    None,
 }
