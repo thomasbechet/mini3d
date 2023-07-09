@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use crate::math::rect::IRect;
 use glam::{IVec2, UVec2};
 use mini3d_derive::Asset;
-use crate::math::rect::IRect;
+use std::collections::HashMap;
 
 use super::texture::{Texture, TextureFormat};
 
@@ -33,7 +33,6 @@ pub struct FontAtlas {
 }
 
 impl FontAtlas {
-
     pub fn new(font: &Font) -> FontAtlas {
         let glyph_count = font.glyph_locations.len();
         let width = font.glyph_size.x * glyph_count as u32;
@@ -48,15 +47,14 @@ impl FontAtlas {
         let mut extents: HashMap<char, IRect> = Default::default();
         let mut extent = IRect::new(0, 0, font.glyph_size.x, height);
         for (c, location) in &font.glyph_locations {
-
             // Write pixels to texture
             // TODO: optimize me
             for p in 0..(font.glyph_size.x as usize * font.glyph_size.y as usize) {
-
-                let bit_offset = (*location * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + p;
+                let bit_offset =
+                    (*location * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + p;
                 let byte = font.data[bit_offset / 8];
                 let bit_set = byte & (1 << (7 - (p % 8))) != 0;
-                
+
                 let px = (extent.left() + (p as i32 % font.glyph_size.x as i32)) as usize;
                 let py = (extent.top() + (p as i32 / font.glyph_size.x as i32)) as usize;
                 let pi = py * texture.width as usize + px;

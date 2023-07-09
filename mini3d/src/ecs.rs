@@ -1,19 +1,35 @@
-use std::collections::{HashMap, VecDeque, HashSet};
+use crate::serialize::{Decoder, DecoderError, EncoderError, Serialize};
 use core::cell::RefCell;
-use crate::serialize::{Serialize, EncoderError, Decoder, DecoderError};
+use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::{uid::UID, renderer::RendererManager, script::ScriptManager, input::InputManager, asset::AssetManager, registry::{RegistryManager, component::ComponentRegistry}, context::{SystemContext, asset::AssetContext, input::InputContext, procedure::ProcedureContext, renderer::RendererContext, scheduler::SchedulerContext, world::WorldContext, registry::RegistryContext, time::TimeContext, event::EventContext}, event::Events, serialize::Encoder};
+use crate::{
+    asset::AssetManager,
+    context::{
+        asset::AssetContext, event::EventContext, input::InputContext, procedure::ProcedureContext,
+        registry::RegistryContext, renderer::RendererContext, scheduler::SchedulerContext,
+        time::TimeContext, world::WorldContext, SystemContext,
+    },
+    event::Events,
+    input::InputManager,
+    registry::{component::ComponentRegistry, RegistryManager},
+    renderer::RendererManager,
+    script::ScriptManager,
+    serialize::Encoder,
+    uid::UID,
+};
 
-use self::{world::World, scheduler::Scheduler, procedure::Procedure, pipeline::CompiledSystemPipeline, error::ECSError};
+use self::{
+    error::ECSError, pipeline::CompiledSystemPipeline, procedure::Procedure, scheduler::Scheduler,
+    world::World,
+};
 
-pub mod reference;
 pub mod container;
 pub mod entity;
 pub mod error;
 pub mod pipeline;
 pub mod procedure;
 pub mod query;
-pub mod dynamic;
+pub mod reference;
 pub mod scheduler;
 pub mod singleton;
 pub mod sparse;
@@ -30,13 +46,15 @@ pub(crate) struct ECSManager {
 }
 
 impl Default for ECSManager {
-
     fn default() -> Self {
         Self {
             scheduler: Scheduler::default(),
             next_frame_system_invocations: Vec::new(),
             next_frame_procedures: VecDeque::new(),
-            worlds: RefCell::new(HashMap::from([(Self::MAIN_WORLD.into(), RefCell::new(Box::new(World::new(Self::MAIN_WORLD))))])),
+            worlds: RefCell::new(HashMap::from([(
+                Self::MAIN_WORLD.into(),
+                RefCell::new(Box::new(World::new(Self::MAIN_WORLD))),
+            )])),
             active_world: Self::MAIN_WORLD.into(),
         }
     }
@@ -87,11 +105,13 @@ fn create_system_context<'b, 'a: 'b>(
         renderer: RendererContext {
             manager: context.renderer,
         },
-        scheduler: SchedulerContext {
-            scheduler,
-        },
+        scheduler: SchedulerContext { scheduler },
         time: TimeContext {
-            delta: if active_procedure == Procedure::FIXED_UPDATE.into() { context.fixed_delta_time } else { context.delta_time },
+            delta: if active_procedure == Procedure::FIXED_UPDATE.into() {
+                context.fixed_delta_time
+            } else {
+                context.delta_time
+            },
             global: context.time,
         },
         world: WorldContext {
@@ -105,7 +125,6 @@ fn create_system_context<'b, 'a: 'b>(
 }
 
 impl ECSManager {
-
     const MAIN_WORLD: &'static str = "main";
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -125,7 +144,11 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(&mut self, registry: &ComponentRegistry, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+    pub(crate) fn load_state(
+        &mut self,
+        registry: &ComponentRegistry,
+        decoder: &mut impl Decoder,
+    ) -> Result<(), DecoderError> {
         // Scheduler
         self.scheduler = Scheduler::deserialize(decoder, &Default::default())?;
         // Next frame system invocations
@@ -136,7 +159,9 @@ impl ECSManager {
         let worlds_count = decoder.read_u32()?;
         for _ in 0..worlds_count {
             let world = World::deserialize(registry, decoder)?;
-            self.worlds.borrow_mut().insert(UID::new(&world.name), RefCell::new(Box::new(world)));
+            self.worlds
+                .borrow_mut()
+                .insert(UID::new(&world.name), RefCell::new(Box::new(world)));
         }
         // Active world
         self.active_world = UID::deserialize(decoder, &Default::default())?;
@@ -153,14 +178,16 @@ impl ECSManager {
         scripts: &mut ScriptManager,
         fixed_update_count: u32,
     ) -> Result<(), ECSError> {
-
         // Prepare frame
         let mut change_world: Option<UID> = None;
         let mut removed_worlds: HashSet<UID> = Default::default();
         let mut worlds = self.worlds.borrow_mut();
 
         // Collect procedures
-        let mut frame_procedures = self.next_frame_procedures.drain(..).collect::<VecDeque<_>>();
+        let mut frame_procedures = self
+            .next_frame_procedures
+            .drain(..)
+            .collect::<VecDeque<_>>();
         for _ in 0..fixed_update_count {
             frame_procedures.push_back(Procedure::FIXED_UPDATE.into());
         }
@@ -169,41 +196,56 @@ impl ECSManager {
         // Invoke frame systems
         if !self.next_frame_system_invocations.is_empty() {
             // Build context
-            let pipeline = CompiledSystemPipeline::build(&context.registry.borrow_mut().systems, self.next_frame_system_invocations.iter())
-                .map_err(|_| ECSError::RegistryError)?;
-            pipeline.run(&mut create_system_context(
-                &mut context,
-                UID::null(), 
-                self.active_world,
-                &mut self.scheduler,
-                &mut frame_procedures,
-                &mut self.next_frame_procedures, 
-                &mut worlds,
-                &mut change_world,
-                &mut removed_worlds,
-            ), scripts).map_err(|_| ECSError::SystemError)?;
+            let pipeline = CompiledSystemPipeline::build(
+                &context.registry.borrow_mut().systems,
+                self.next_frame_system_invocations.iter(),
+            )
+            .map_err(|_| ECSError::RegistryError)?;
+            pipeline
+                .run(
+                    &mut create_system_context(
+                        &mut context,
+                        UID::null(),
+                        self.active_world,
+                        &mut self.scheduler,
+                        &mut frame_procedures,
+                        &mut self.next_frame_procedures,
+                        &mut worlds,
+                        &mut change_world,
+                        &mut removed_worlds,
+                    ),
+                    scripts,
+                )
+                .map_err(|_| ECSError::SystemError)?;
             self.next_frame_system_invocations.clear();
         }
 
         // Run procedures
         // TODO: protect against infinite loop
         while let Some(procedure) = frame_procedures.pop_front() {
-
             // Build pipeline
-            if let Some(pipeline) = self.scheduler.build_pipeline(procedure, context.registry).map_err(|_| ECSError::RegistryError)? {
-
+            if let Some(pipeline) = self
+                .scheduler
+                .build_pipeline(procedure, context.registry)
+                .map_err(|_| ECSError::RegistryError)?
+            {
                 // Run pipeline
-                pipeline.run(&mut create_system_context(
-                    &mut context,
-                    procedure, 
-                    self.active_world,
-                    &mut self.scheduler,
-                    &mut frame_procedures,
-                    &mut self.next_frame_procedures, 
-                    &mut worlds,
-                    &mut change_world,
-                    &mut removed_worlds
-                ), scripts).map_err(|_| ECSError::RegistryError)?;
+                pipeline
+                    .run(
+                        &mut create_system_context(
+                            &mut context,
+                            procedure,
+                            self.active_world,
+                            &mut self.scheduler,
+                            &mut frame_procedures,
+                            &mut self.next_frame_procedures,
+                            &mut worlds,
+                            &mut change_world,
+                            &mut removed_worlds,
+                        ),
+                        scripts,
+                    )
+                    .map_err(|_| ECSError::RegistryError)?;
             }
 
             // Remove worlds
@@ -214,7 +256,8 @@ impl ECSManager {
             // Change world
             if let Some(world) = change_world {
                 self.active_world = world;
-                self.next_frame_procedures.push_front(Procedure::WORLD_CHANGED.into());
+                self.next_frame_procedures
+                    .push_front(Procedure::WORLD_CHANGED.into());
                 change_world = None;
             }
         }

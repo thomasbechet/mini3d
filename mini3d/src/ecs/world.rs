@@ -11,7 +11,7 @@ use crate::{
     uid::UID,
 };
 
-use super::view::AnyComponentViewRef;
+use super::view::{AnyComponentViewMut, AnyComponentViewRef};
 use super::{
     container::{AnyComponentContainer, StaticComponentContainer},
     entity::Entity,
@@ -19,7 +19,7 @@ use super::{
     query::Query,
     reference::{StaticComponentMut, StaticComponentRef},
     singleton::{
-        AnyComponentSingleton, ComponentSingleton, StaticSingletonMut, StaticSingletonRef,
+        AnyComponentSingleton, StaticComponentSingleton, StaticSingletonMut, StaticSingletonRef,
     },
     view::{StaticComponentViewMut, StaticComponentViewRef},
 };
@@ -213,7 +213,13 @@ impl World {
         }
     }
 
-    // pub(crate) fn view_any(&self, component: UID) -> Result<AnyComponentViewRef, WorldError> {}
+    pub(crate) fn view_any(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
+        if let Some(container) = self.containers.get(&component) {
+            Ok(container.any_view())
+        } else {
+            Ok(AnyComponentViewRef::none())
+        }
+    }
 
     pub(crate) fn view_mut_static<C: Component>(
         &self,
@@ -227,6 +233,17 @@ impl World {
             Ok(StaticComponentViewMut::new(container))
         } else {
             Ok(StaticComponentViewMut::none())
+        }
+    }
+
+    pub(crate) fn view_mut_any(
+        &self,
+        component: UID,
+    ) -> Result<AnyComponentViewMut<'_>, WorldError> {
+        if let Some(container) = self.containers.get(&component) {
+            Ok(container.any_view_mut())
+        } else {
+            Ok(AnyComponentViewMut::none())
         }
     }
 
@@ -253,11 +270,11 @@ impl World {
             return Err(WorldError::DuplicatedSingleton { uid: component });
         }
         self.singletons
-            .insert(component, Box::new(ComponentSingleton::new(data)));
+            .insert(component, Box::new(StaticComponentSingleton::new(data)));
         Ok(())
     }
 
-    pub(crate) fn remove_singleton_static(&mut self, component: UID) -> Result<(), WorldError> {
+    pub(crate) fn remove_singleton(&mut self, component: UID) -> Result<(), WorldError> {
         self.singletons
             .remove(&component)
             .ok_or(WorldError::SingletonNotFound { uid: component })?;
@@ -272,7 +289,7 @@ impl World {
             Ok(Some(StaticSingletonRef {
                 component: singleton
                     .as_any()
-                    .downcast_ref::<ComponentSingleton<C>>()
+                    .downcast_ref::<StaticComponentSingleton<C>>()
                     .ok_or(WorldError::SingletonTypeMismatch { uid: component })?
                     .component
                     .borrow(),
@@ -290,7 +307,7 @@ impl World {
             Ok(Some(StaticSingletonMut {
                 component: singleton
                     .as_any()
-                    .downcast_ref::<ComponentSingleton<C>>()
+                    .downcast_ref::<StaticComponentSingleton<C>>()
                     .ok_or(WorldError::SingletonTypeMismatch { uid: component })?
                     .component
                     .borrow_mut(),

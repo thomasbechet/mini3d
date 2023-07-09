@@ -1,6 +1,6 @@
 use std::{
     cell::{Ref, RefMut},
-    ops::{Index, IndexMut},
+    ops::{Deref, Index, IndexMut},
 };
 
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
@@ -143,42 +143,77 @@ impl<'a, C: Component> IndexMut<Entity> for StaticComponentViewMut<'a, C> {
     }
 }
 
-pub(crate) trait AnyComponentViewRef {
-    fn read_bool(&self, entity: Entity, id: PropertyId) -> Option<bool>;
-    fn read_u8(&self, entity: Entity, id: PropertyId) -> Option<u8>;
-    fn read_i32(&self, entity: Entity, id: PropertyId) -> Option<i32>;
-    fn read_u32(&self, entity: Entity, id: PropertyId) -> Option<u32>;
-    fn read_f32(&self, entity: Entity, id: PropertyId) -> Option<f32>;
-    fn read_f64(&self, entity: Entity, id: PropertyId) -> Option<f64>;
-    fn read_vec2(&self, entity: Entity, id: PropertyId) -> Option<Vec2>;
-    fn read_ivec2(&self, entity: Entity, id: PropertyId) -> Option<IVec2>;
-    fn read_vec3(&self, entity: Entity, id: PropertyId) -> Option<Vec3>;
-    fn read_ivec3(&self, entity: Entity, id: PropertyId) -> Option<IVec3>;
-    fn read_vec4(&self, entity: Entity, id: PropertyId) -> Option<Vec4>;
-    fn read_ivec4(&self, entity: Entity, id: PropertyId) -> Option<IVec4>;
-    fn read_mat4(&self, entity: Entity, id: PropertyId) -> Option<Mat4>;
-    fn read_quat(&self, entity: Entity, id: PropertyId) -> Option<Quat>;
-    fn read_entity(&self, entity: Entity, id: PropertyId) -> Option<Entity>;
-    fn read_uid(&self, entity: Entity, id: PropertyId) -> Option<UID>;
+#[allow(unused)]
+pub trait ReadPropertyView {
+    fn read_bool(&self, entity: Entity, id: PropertyId) -> Option<bool> {
+        None
+    }
+    fn read_u8(&self, entity: Entity, id: PropertyId) -> Option<u8> {
+        None
+    }
+    fn read_i32(&self, entity: Entity, id: PropertyId) -> Option<i32> {
+        None
+    }
+    fn read_u32(&self, entity: Entity, id: PropertyId) -> Option<u32> {
+        None
+    }
+    fn read_f32(&self, entity: Entity, id: PropertyId) -> Option<f32> {
+        None
+    }
+    fn read_f64(&self, entity: Entity, id: PropertyId) -> Option<f64> {
+        None
+    }
+    fn read_vec2(&self, entity: Entity, id: PropertyId) -> Option<Vec2> {
+        None
+    }
+    fn read_ivec2(&self, entity: Entity, id: PropertyId) -> Option<IVec2> {
+        None
+    }
+    fn read_vec3(&self, entity: Entity, id: PropertyId) -> Option<Vec3> {
+        None
+    }
+    fn read_ivec3(&self, entity: Entity, id: PropertyId) -> Option<IVec3> {
+        None
+    }
+    fn read_vec4(&self, entity: Entity, id: PropertyId) -> Option<Vec4> {
+        None
+    }
+    fn read_ivec4(&self, entity: Entity, id: PropertyId) -> Option<IVec4> {
+        None
+    }
+    fn read_mat4(&self, entity: Entity, id: PropertyId) -> Option<Mat4> {
+        None
+    }
+    fn read_quat(&self, entity: Entity, id: PropertyId) -> Option<Quat> {
+        None
+    }
+    fn read_entity(&self, entity: Entity, id: PropertyId) -> Option<Entity> {
+        None
+    }
+    fn read_uid(&self, entity: Entity, id: PropertyId) -> Option<UID> {
+        None
+    }
 }
 
-pub(crate) trait AnyComponentViewMut: AnyComponentViewRef {
-    fn write_bool(&mut self, entity: Entity, id: PropertyId, value: bool);
-    fn write_u8(&mut self, entity: Entity, id: PropertyId, value: u8);
-    fn write_i32(&mut self, entity: Entity, id: PropertyId, value: i32);
-    fn write_u32(&mut self, entity: Entity, id: PropertyId, value: u32);
-    fn write_f32(&mut self, entity: Entity, id: PropertyId, value: f32);
-    fn write_f64(&mut self, entity: Entity, id: PropertyId, value: f64);
-    fn write_vec2(&mut self, entity: Entity, id: PropertyId, value: Vec2);
-    fn write_ivec2(&mut self, entity: Entity, id: PropertyId, value: IVec2);
-    fn write_vec3(&mut self, entity: Entity, id: PropertyId, value: Vec3);
-    fn write_ivec3(&mut self, entity: Entity, id: PropertyId, value: IVec3);
-    fn write_vec4(&mut self, entity: Entity, id: PropertyId, value: Vec4);
-    fn write_ivec4(&mut self, entity: Entity, id: PropertyId, value: IVec4);
-    fn write_mat4(&mut self, entity: Entity, id: PropertyId, value: Mat4);
-    fn write_quat(&mut self, entity: Entity, id: PropertyId, value: Quat);
-    fn write_entity(&mut self, entity: Entity, id: PropertyId, value: Entity);
-    fn write_uid(&mut self, entity: Entity, id: PropertyId, value: UID);
+#[allow(unused)]
+pub trait ReadWritePropertyView: ReadPropertyView {
+    fn as_read_view(&self) -> &dyn ReadPropertyView;
+    fn write_bool(&mut self, entity: Entity, id: PropertyId, value: bool) {}
+    fn write_u8(&mut self, entity: Entity, id: PropertyId, value: u8) {}
+    fn write_i32(&mut self, entity: Entity, id: PropertyId, value: i32) {}
+    fn write_u32(&mut self, entity: Entity, id: PropertyId, value: u32) {}
+    fn write_f32(&mut self, entity: Entity, id: PropertyId, value: f32) {}
+    fn write_f64(&mut self, entity: Entity, id: PropertyId, value: f64) {}
+    fn write_vec2(&mut self, entity: Entity, id: PropertyId, value: Vec2) {}
+    fn write_ivec2(&mut self, entity: Entity, id: PropertyId, value: IVec2) {}
+    fn write_vec3(&mut self, entity: Entity, id: PropertyId, value: Vec3) {}
+    fn write_ivec3(&mut self, entity: Entity, id: PropertyId, value: IVec3) {}
+    fn write_vec4(&mut self, entity: Entity, id: PropertyId, value: Vec4) {}
+    fn write_ivec4(&mut self, entity: Entity, id: PropertyId, value: IVec4) {}
+    fn write_mat4(&mut self, entity: Entity, id: PropertyId, value: Mat4) {}
+    fn write_quat(&mut self, entity: Entity, id: PropertyId, value: Quat) {}
+    fn write_entity(&mut self, entity: Entity, id: PropertyId, value: Entity) {}
+    fn write_uid(&mut self, entity: Entity, id: PropertyId, value: UID) {}
 }
 
 macro_rules! read_property {
@@ -197,7 +232,7 @@ macro_rules! write_property {
     };
 }
 
-impl<'a, C: Component> AnyComponentViewRef for StaticComponentViewRef<'a, C> {
+impl<'a, C: Component> ReadPropertyView for StaticComponentViewRef<'a, C> {
     read_property!(bool, read_bool);
     read_property!(u8, read_u8);
     read_property!(i32, read_i32);
@@ -216,7 +251,7 @@ impl<'a, C: Component> AnyComponentViewRef for StaticComponentViewRef<'a, C> {
     read_property!(UID, read_uid);
 }
 
-impl<'a, C: Component> AnyComponentViewRef for StaticComponentViewMut<'a, C> {
+impl<'a, C: Component> ReadPropertyView for StaticComponentViewMut<'a, C> {
     read_property!(bool, read_bool);
     read_property!(u8, read_u8);
     read_property!(i32, read_i32);
@@ -235,7 +270,10 @@ impl<'a, C: Component> AnyComponentViewRef for StaticComponentViewMut<'a, C> {
     read_property!(UID, read_uid);
 }
 
-impl<'a, C: Component> AnyComponentViewMut for StaticComponentViewMut<'a, C> {
+impl<'a, C: Component> ReadWritePropertyView for StaticComponentViewMut<'a, C> {
+    fn as_read_view(&self) -> &dyn ReadPropertyView {
+        self
+    }
     write_property!(bool, write_bool);
     write_property!(u8, write_u8);
     write_property!(i32, write_i32);
@@ -252,4 +290,45 @@ impl<'a, C: Component> AnyComponentViewMut for StaticComponentViewMut<'a, C> {
     write_property!(Quat, write_quat);
     write_property!(Entity, write_entity);
     write_property!(UID, write_uid);
+}
+
+pub struct AnyComponentViewRef<'a> {
+    pub(crate) view: Box<dyn ReadPropertyView + 'a>,
+}
+
+impl<'a> AnyComponentViewRef<'a> {
+    pub(crate) fn none() -> Self {
+        struct AnyComponentViewRefNone {}
+        impl ReadPropertyView for AnyComponentViewRefNone {}
+        Self {
+            view: Box::new(AnyComponentViewRefNone {}),
+        }
+    }
+}
+
+impl<'a> Deref for AnyComponentViewRef<'a> {
+    type Target = dyn ReadPropertyView + 'a;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.view
+    }
+}
+
+pub struct AnyComponentViewMut<'a> {
+    pub(crate) view: Box<dyn ReadWritePropertyView + 'a>,
+}
+
+impl<'a> AnyComponentViewMut<'a> {
+    pub(crate) fn none() -> Self {
+        struct AnyComponentViewMutNone {}
+        impl ReadWritePropertyView for AnyComponentViewMutNone {
+            fn as_read_view(&self) -> &dyn ReadPropertyView {
+                self
+            }
+        }
+        impl ReadPropertyView for AnyComponentViewMutNone {}
+        Self {
+            view: Box::new(AnyComponentViewMutNone {}),
+        }
+    }
 }

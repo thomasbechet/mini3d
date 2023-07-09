@@ -3,6 +3,9 @@ use super::{
     error::ECSError,
     reference::{StaticComponentMut, StaticComponentRef},
     sparse::PagedVector,
+    view::{
+        AnyComponentViewMut, AnyComponentViewRef, StaticComponentViewMut, StaticComponentViewRef,
+    },
 };
 use crate::{
     registry::component::Component,
@@ -137,6 +140,8 @@ pub(crate) trait AnyComponentContainer {
     fn remove(&mut self, entity: Entity);
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
+    fn any_view(&self) -> AnyComponentViewRef<'_>;
+    fn any_view_mut(&self) -> AnyComponentViewMut<'_>;
 }
 
 impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
@@ -168,38 +173,47 @@ impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
     fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
         self.deserialize(&mut decoder)
     }
+    fn any_view(&self) -> AnyComponentViewRef<'_> {
+        AnyComponentViewRef {
+            view: Box::new(StaticComponentViewRef::new(self)),
+        }
+    }
+    fn any_view_mut(&self) -> AnyComponentViewMut<'_> {
+        AnyComponentViewMut {
+            view: Box::new(StaticComponentViewMut::new(self)),
+        }
+    }
 }
 
 impl AnyComponentContainer for DynamicComponentContainer {
     fn as_any(&self) -> &dyn Any {
         self
     }
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-
     fn entity(&self, index: usize) -> Entity {
         todo!()
     }
-
     fn contains(&self, entity: Entity) -> bool {
         todo!()
     }
-
     fn len(&self) -> usize {
         todo!()
     }
-
     fn remove(&mut self, entity: Entity) {
         todo!()
     }
-
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
         todo!()
     }
-
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
+        todo!()
+    }
+    fn any_view(&self) -> AnyComponentViewRef<'_> {
+        todo!()
+    }
+    fn any_view_mut(&self) -> AnyComponentViewMut<'_> {
         todo!()
     }
 }

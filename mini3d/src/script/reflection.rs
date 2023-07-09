@@ -22,7 +22,6 @@ pub struct Property {
 macro_rules! read_property {
     ($type:ty, $read:ident) => {
         fn $read(&self, id: PropertyId) -> Option<$type> {
-            let _ = id;
             None
         }
     };
@@ -30,33 +29,12 @@ macro_rules! read_property {
 
 macro_rules! write_property {
     ($type:ty, $write:ident) => {
-        fn $write(&mut self, id: PropertyId, value: $type) {
-            let _ = id;
-            let _ = value;
-        }
+        fn $write(&mut self, id: PropertyId, value: $type) {}
     };
 }
 
-pub trait Reflect {
-    const PROPERTIES: &'static [Property];
-
-    write_property!(bool, write_bool);
-    write_property!(u8, write_u8);
-    write_property!(i32, write_i32);
-    write_property!(u32, write_u32);
-    write_property!(f32, write_f32);
-    write_property!(f64, write_f64);
-    write_property!(Vec2, write_vec2);
-    write_property!(IVec2, write_ivec2);
-    write_property!(Vec3, write_vec3);
-    write_property!(IVec3, write_ivec3);
-    write_property!(Vec4, write_vec4);
-    write_property!(IVec4, write_ivec4);
-    write_property!(Mat4, write_mat4);
-    write_property!(Quat, write_quat);
-    write_property!(Entity, write_entity);
-    write_property!(UID, write_uid);
-
+#[allow(unused)]
+pub trait ReadProperty {
     read_property!(bool, read_bool);
     read_property!(u8, read_u8);
     read_property!(i32, read_i32);
@@ -73,4 +51,29 @@ pub trait Reflect {
     read_property!(Quat, read_quat);
     read_property!(Entity, read_entity);
     read_property!(UID, read_uid);
+}
+
+#[allow(unused)]
+pub trait WriteProperty {
+    write_property!(bool, write_bool);
+    write_property!(u8, write_u8);
+    write_property!(i32, write_i32);
+    write_property!(u32, write_u32);
+    write_property!(f32, write_f32);
+    write_property!(f64, write_f64);
+    write_property!(Vec2, write_vec2);
+    write_property!(IVec2, write_ivec2);
+    write_property!(Vec3, write_vec3);
+    write_property!(IVec3, write_ivec3);
+    write_property!(Vec4, write_vec4);
+    write_property!(IVec4, write_ivec4);
+    write_property!(Mat4, write_mat4);
+    write_property!(Quat, write_quat);
+    write_property!(Entity, write_entity);
+    write_property!(UID, write_uid);
+}
+
+#[allow(unused)]
+pub trait Reflect: ReadProperty + WriteProperty {
+    const PROPERTIES: &'static [Property];
 }

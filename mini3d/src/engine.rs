@@ -2,22 +2,22 @@ use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
 use crate::disk::backend::DiskBackend;
-use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::ecs::system::SystemCallback;
+use crate::ecs::{ECSManager, ECSUpdateContext};
+use crate::event::system::SystemEvent;
+use crate::event::Events;
 use crate::feature::{asset, component, system};
 use crate::input::backend::{InputBackend, InputBackendError};
+use crate::input::InputManager;
 use crate::physics::PhysicsManager;
-use crate::registry::RegistryManager;
 use crate::registry::asset::Asset;
 use crate::registry::component::Component;
 use crate::registry::error::RegistryError;
-use crate::renderer::RendererManager;
+use crate::registry::RegistryManager;
 use crate::renderer::backend::{RendererBackend, RendererBackendError};
-use crate::event::Events;
-use crate::event::system::SystemEvent;
-use crate::input::InputManager;
+use crate::renderer::RendererManager;
 use crate::script::ScriptManager;
-use crate::serialize::{EncoderError, Serialize, DecoderError, Decoder};
+use crate::serialize::{Decoder, DecoderError, EncoderError, Serialize};
 use crate::uid::UID;
 use core::cell::RefCell;
 
@@ -47,49 +47,133 @@ pub struct Engine {
 }
 
 impl Engine {
-
     fn define_core_features(&mut self) -> Result<(), RegistryError> {
-
         let mut registry = self.registry.borrow_mut();
 
         // Assets
-        registry.assets.define_static::<asset::font::Font>(asset::font::Font::NAME)?;
-        registry.assets.define_static::<asset::input_table::InputTable>(asset::input_table::InputTable::NAME)?;
-        registry.assets.define_static::<asset::material::Material>(asset::material::Material::NAME)?;
-        registry.assets.define_static::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
-        registry.assets.define_static::<asset::model::Model>(asset::model::Model::NAME)?;
-        registry.assets.define_static::<asset::prefab::Prefab>(asset::prefab::Prefab::NAME)?;
-        registry.assets.define_static::<asset::script::Script>(asset::script::Script::NAME)?;
-        registry.assets.define_static::<asset::system_group::SystemGroup>(asset::system_group::SystemGroup::NAME)?;
-        registry.assets.define_static::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
-        registry.assets.define_static::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;
-        registry.assets.define_static::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
-        registry.assets.define_static::<asset::ui_template::UITemplate>(asset::ui_template::UITemplate::NAME)?;
-        registry.assets.define_static::<asset::ui_stylesheet::UIStyleSheet>(asset::ui_stylesheet::UIStyleSheet::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::font::Font>(asset::font::Font::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::input_table::InputTable>(
+                asset::input_table::InputTable::NAME,
+            )?;
+        registry
+            .assets
+            .define_static::<asset::material::Material>(asset::material::Material::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::mesh::Mesh>(asset::mesh::Mesh::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::model::Model>(asset::model::Model::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::prefab::Prefab>(asset::prefab::Prefab::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::script::Script>(asset::script::Script::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::system_group::SystemGroup>(
+                asset::system_group::SystemGroup::NAME,
+            )?;
+        registry
+            .assets
+            .define_static::<asset::texture::Texture>(asset::texture::Texture::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::tilemap::Tilemap>(asset::tilemap::Tilemap::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::tileset::Tileset>(asset::tileset::Tileset::NAME)?;
+        registry
+            .assets
+            .define_static::<asset::ui_template::UITemplate>(
+                asset::ui_template::UITemplate::NAME,
+            )?;
+        registry
+            .assets
+            .define_static::<asset::ui_stylesheet::UIStyleSheet>(
+                asset::ui_stylesheet::UIStyleSheet::NAME,
+            )?;
 
         // Components
-        registry.components.define_static::<component::camera::Camera>(component::camera::Camera::NAME)?;
-        registry.components.define_static::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
-        registry.components.define_static::<component::lifecycle::Lifecycle>(component::lifecycle::Lifecycle::NAME)?;
-        registry.components.define_static::<component::static_mesh::StaticMesh>(component::static_mesh::StaticMesh::NAME)?;
-        registry.components.define_static::<component::rigid_body::RigidBody>(component::rigid_body::RigidBody::NAME)?;
-        registry.components.define_static::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
-        registry.components.define_static::<component::transform::Transform>(component::transform::Transform::NAME)?;
-        registry.components.define_static::<component::local_to_world::LocalToWorld>(component::local_to_world::LocalToWorld::NAME)?;
-        registry.components.define_static::<component::hierarchy::Hierarchy>(component::hierarchy::Hierarchy::NAME)?;
-        registry.components.define_static::<component::ui::UI>(component::ui::UI::NAME)?;
-        registry.components.define_static::<component::ui::UIRenderTarget>(component::ui::UIRenderTarget::NAME)?;
-        registry.components.define_static::<component::viewport::Viewport>(component::viewport::Viewport::NAME)?;
-        registry.components.define_static::<component::canvas::Canvas>(component::canvas::Canvas::NAME)?;
+        registry
+            .components
+            .define_static::<component::camera::Camera>(component::camera::Camera::NAME)?;
+        registry
+            .components
+            .define_static::<component::free_fly::FreeFly>(component::free_fly::FreeFly::NAME)?;
+        registry
+            .components
+            .define_static::<component::lifecycle::Lifecycle>(
+                component::lifecycle::Lifecycle::NAME,
+            )?;
+        registry
+            .components
+            .define_static::<component::static_mesh::StaticMesh>(
+                component::static_mesh::StaticMesh::NAME,
+            )?;
+        registry
+            .components
+            .define_static::<component::rigid_body::RigidBody>(
+                component::rigid_body::RigidBody::NAME,
+            )?;
+        registry
+            .components
+            .define_static::<component::rotator::Rotator>(component::rotator::Rotator::NAME)?;
+        registry
+            .components
+            .define_static::<component::transform::Transform>(
+                component::transform::Transform::NAME,
+            )?;
+        registry
+            .components
+            .define_static::<component::local_to_world::LocalToWorld>(
+                component::local_to_world::LocalToWorld::NAME,
+            )?;
+        registry
+            .components
+            .define_static::<component::hierarchy::Hierarchy>(
+                component::hierarchy::Hierarchy::NAME,
+            )?;
+        registry
+            .components
+            .define_static::<component::ui::UI>(component::ui::UI::NAME)?;
+        registry
+            .components
+            .define_static::<component::ui::UIRenderTarget>(component::ui::UIRenderTarget::NAME)?;
+        registry
+            .components
+            .define_static::<component::viewport::Viewport>(component::viewport::Viewport::NAME)?;
+        registry
+            .components
+            .define_static::<component::canvas::Canvas>(component::canvas::Canvas::NAME)?;
 
         // Systems
-        registry.systems.define_static("despawn_entities", system::despawn::run)?;
-        registry.systems.define_static("renderer", system::renderer::despawn_renderer_entities)?;
-        registry.systems.define_static("free_fly", system::free_fly::run)?;
-        registry.systems.define_static("rotator", system::rotator::run)?;
-        registry.systems.define_static("transform_propagate", system::transform::propagate)?;
-        registry.systems.define_static("ui_update", system::ui::update)?;
-        registry.systems.define_static("ui_render", system::ui::render)?;
+        registry
+            .systems
+            .define_static("despawn_entities", system::despawn::run)?;
+        registry
+            .systems
+            .define_static("renderer", system::renderer::despawn_renderer_entities)?;
+        registry
+            .systems
+            .define_static("free_fly", system::free_fly::run)?;
+        registry
+            .systems
+            .define_static("rotator", system::rotator::run)?;
+        registry
+            .systems
+            .define_static("transform_propagate", system::transform::propagate)?;
+        registry
+            .systems
+            .define_static("ui_update", system::ui::update)?;
+        registry
+            .systems
+            .define_static("ui_render", system::ui::render)?;
 
         Ok(())
     }
@@ -98,8 +182,8 @@ impl Engine {
         let mut engine = Self {
             disk: Box::new(disk),
             registry: Default::default(),
-            asset: Default::default(), 
-            input: Default::default(), 
+            asset: Default::default(),
+            input: Default::default(),
             script: Default::default(),
             ecs: Default::default(),
             renderer: Default::default(),
@@ -108,7 +192,9 @@ impl Engine {
             time: 0.0,
             running: true,
         };
-        engine.define_core_features().expect("Failed to define core features");
+        engine
+            .define_core_features()
+            .expect("Failed to define core features");
         engine
     }
 
@@ -129,9 +215,11 @@ impl Engine {
     }
 
     pub fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        self.asset.load_state(&self.registry.borrow().assets, decoder)?;
+        self.asset
+            .load_state(&self.registry.borrow().assets, decoder)?;
         self.renderer.load_state(decoder)?;
-        self.ecs.load_state(&self.registry.borrow().components, decoder)?;
+        self.ecs
+            .load_state(&self.registry.borrow().components, decoder)?;
         self.input.load_state(decoder)?;
         self.accumulator = Serialize::deserialize(decoder, &Default::default())?;
         self.time = Serialize::deserialize(decoder, &Default::default())?;
@@ -139,12 +227,25 @@ impl Engine {
         Ok(())
     }
 
-    pub fn define_static_component<C: Component>(&mut self, name: &str) -> Result<UID, RegistryError> {
-        self.registry.borrow_mut().components.define_static::<C>(name)
+    pub fn define_static_component<C: Component>(
+        &mut self,
+        name: &str,
+    ) -> Result<UID, RegistryError> {
+        self.registry
+            .borrow_mut()
+            .components
+            .define_static::<C>(name)
     }
 
-    pub fn define_static_system(&mut self, name: &str, system: SystemCallback) -> Result<UID, RegistryError> {
-        self.registry.borrow_mut().systems.define_static(name, system)
+    pub fn define_static_system(
+        &mut self,
+        name: &str,
+        system: SystemCallback,
+    ) -> Result<UID, RegistryError> {
+        self.registry
+            .borrow_mut()
+            .systems
+            .define_static(name, system)
     }
 
     pub fn define_static_asset<A: Asset>(&mut self, name: &str) -> Result<UID, RegistryError> {
@@ -156,7 +257,6 @@ impl Engine {
     }
 
     pub fn progress(&mut self, events: &Events, mut dt: f64) -> Result<(), ProgressError> {
-
         // ================= PREPARE STAGE ================== //
 
         // Reset graphics state
@@ -185,7 +285,7 @@ impl Engine {
         // Dispatch system events
         for event in &events.system {
             match event {
-                SystemEvent::Shutdown => self.running = true,
+                SystemEvent::Shutdown => self.running = false,
             }
         }
 
@@ -193,34 +293,44 @@ impl Engine {
 
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
-        self.ecs.update(
-            ECSUpdateContext {
-                registry: &self.registry,
-                asset: &mut self.asset,
-                input: &mut self.input,
-                renderer: &mut self.renderer,
-                events,
-                delta_time: dt,
-                time: self.time,
-                fixed_delta_time: FIXED_TIMESTEP,
-            },
-            &mut self.script,
-            fixed_update_count,
-        ).map_err(|_| ProgressError::ECSError)?;
+        self.ecs
+            .update(
+                ECSUpdateContext {
+                    registry: &self.registry,
+                    asset: &mut self.asset,
+                    input: &mut self.input,
+                    renderer: &mut self.renderer,
+                    events,
+                    delta_time: dt,
+                    time: self.time,
+                    fixed_delta_time: FIXED_TIMESTEP,
+                },
+                &mut self.script,
+                fixed_update_count,
+            )
+            .map_err(|_| ProgressError::ECSError)?;
 
         Ok(())
     }
 
-    pub fn synchronize_input(&mut self, backend: &mut impl InputBackend) -> Result<(), InputBackendError> {
+    pub fn synchronize_input(
+        &mut self,
+        backend: &mut impl InputBackend,
+    ) -> Result<(), InputBackendError> {
         self.input.synchronize_backend(backend)
     }
-    
-    pub fn synchronize_renderer(&mut self, backend: &mut impl RendererBackend, reset: bool) -> Result<(), RendererBackendError> {
+
+    pub fn synchronize_renderer(
+        &mut self,
+        backend: &mut impl RendererBackend,
+        reset: bool,
+    ) -> Result<(), RendererBackendError> {
         if reset {
             backend.reset()?;
             self.renderer.reset(&mut self.ecs);
         }
-        self.renderer.synchronize_backend(backend, &self.asset, &mut self.ecs)?;
+        self.renderer
+            .synchronize_backend(backend, &self.asset, &mut self.ecs)?;
         Ok(())
     }
 }

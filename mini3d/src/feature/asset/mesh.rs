@@ -1,5 +1,5 @@
-use glam::{Vec3, Vec2, Vec4};
-use mini3d_derive::{Serialize, Asset};
+use glam::{Vec2, Vec3, Vec4};
+use mini3d_derive::{Asset, Serialize};
 
 #[derive(Clone, Serialize)]
 pub struct Vertex {

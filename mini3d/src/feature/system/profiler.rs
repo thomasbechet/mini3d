@@ -1,7 +1,11 @@
 use anyhow::Result;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{renderer::{SCREEN_HEIGHT, graphics::Graphics, color::Color}, process::{ProcessContext, Process}, uid::UID};
+use crate::{
+    process::{Process, ProcessContext},
+    renderer::{color::Color, graphics::Graphics, SCREEN_HEIGHT},
+    uid::UID,
+};
 
 #[derive(Serialize, Deserialize)]
 struct TimeGraph {
@@ -19,7 +23,6 @@ impl Default for TimeGraph {
 }
 
 impl TimeGraph {
-
     pub fn new(count: usize) -> Self {
         Self {
             records: vec![0.0; count],
@@ -31,14 +34,24 @@ impl TimeGraph {
         self.records[self.head] = value;
         self.head = (self.head + 1) % self.records.len();
     }
-    
+
     pub fn render(&self, gfx: &mut Graphics) {
         let mut current = self.head;
         let base_x = 5;
         let base_y = 5;
         let height = 60;
-        gfx.draw_hline(SCREEN_HEIGHT as i32 - base_y, base_x, self.records.len() as i32, Color::WHITE);
-        gfx.draw_vline(base_x, SCREEN_HEIGHT as i32 - base_y - height, SCREEN_HEIGHT as i32 - base_y, Color::WHITE);
+        gfx.draw_hline(
+            SCREEN_HEIGHT as i32 - base_y,
+            base_x,
+            self.records.len() as i32,
+            Color::WHITE,
+        );
+        gfx.draw_vline(
+            base_x,
+            SCREEN_HEIGHT as i32 - base_y - height,
+            SCREEN_HEIGHT as i32 - base_y,
+            Color::WHITE,
+        );
         loop {
             let vy0 = ((self.records[current] / (2.0 / 60.0)) * height as f64) as u32;
             let x0 = base_x + current as i32;
@@ -46,7 +59,7 @@ impl TimeGraph {
             gfx.draw_line((x0, y0).into(), (x0, y0).into(), Color::WHITE);
             current = (current + 1) % self.records.len();
             if current == self.head {
-                break
+                break;
             }
         }
     }
@@ -74,9 +87,7 @@ impl ProfilerProcess {
 }
 
 impl Process for ProfilerProcess {
-
     fn post_update(&mut self, ctx: &mut ProcessContext) -> Result<()> {
-
         // Toggle active
         if ctx.input.action(self.toggle_action)?.is_just_pressed() {
             self.active = !self.active;
@@ -97,10 +108,26 @@ impl Process for ProfilerProcess {
             let statistics = ctx.renderer.statistics();
             let gfx = ctx.renderer.graphics();
             let font = UID::new("default");
-            gfx.print((8, 8).into(), &format!("dt   : {:.2} ({:.1})", self.last_dt * 1000.0, 1.0 / self.last_dt), font);
+            gfx.print(
+                (8, 8).into(),
+                &format!(
+                    "dt   : {:.2} ({:.1})",
+                    self.last_dt * 1000.0,
+                    1.0 / self.last_dt
+                ),
+                font,
+            );
             gfx.print((8, 17).into(), &format!("time : {:.2}", ctx.time), font);
-            gfx.print((8, 26).into(), &format!("dc   : {}", statistics.draw_count), font);
-            gfx.print((8, 35).into(), &format!("tc   : {}", statistics.triangle_count), font);
+            gfx.print(
+                (8, 26).into(),
+                &format!("dc   : {}", statistics.draw_count),
+                font,
+            );
+            gfx.print(
+                (8, 35).into(),
+                &format!("tc   : {}", statistics.triangle_count),
+                font,
+            );
         }
 
         Ok(())

@@ -1,4 +1,4 @@
-use mini3d_derive::{Serialize, Asset};
+use mini3d_derive::{Asset, Serialize};
 
 #[derive(Clone, Serialize)]
 pub enum TextureFormat {

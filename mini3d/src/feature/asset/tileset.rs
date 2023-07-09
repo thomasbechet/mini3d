@@ -1,6 +1,6 @@
+use crate::{math::rect::IRect, uid::UID};
 use glam::IVec2;
 use mini3d_derive::{Asset, Error};
-use crate::{uid::UID, math::rect::IRect};
 
 #[derive(Debug, Error)]
 pub enum TilesetError {
@@ -19,7 +19,6 @@ pub struct Tileset {
 }
 
 impl Tileset {
-    
     pub fn extent(&self, tile: u32) -> Result<IRect, TilesetError> {
         if tile >= self.grid_width * self.grid_height {
             return Err(TilesetError::InvalidTileIndex);
@@ -27,10 +26,10 @@ impl Tileset {
         let x = tile % self.grid_width;
         let y = tile / self.grid_height;
         Ok(IRect::new(
-            self.offset.x + (x * self.tile_width) as i32, 
-            self.offset.y + (y * self.tile_height) as i32, 
+            self.offset.x + (x * self.tile_width) as i32,
+            self.offset.y + (y * self.tile_height) as i32,
             self.tile_width,
-            self.tile_height
+            self.tile_height,
         ))
     }
 }

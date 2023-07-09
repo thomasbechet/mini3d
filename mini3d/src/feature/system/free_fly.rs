@@ -1,9 +1,13 @@
-use glam::{Vec3, Quat};
+use glam::{Quat, Vec3};
 
-use crate::{feature::component::{free_fly::FreeFly, transform::Transform}, context::SystemContext, ecs::system::SystemResult, registry::component::Component};
+use crate::{
+    context::SystemContext,
+    ecs::system::SystemResult,
+    feature::component::{free_fly::FreeFly, transform::Transform},
+    registry::component::Component,
+};
 
 pub fn run(ctx: &mut SystemContext) -> SystemResult {
-
     let world = ctx.world.active();
     let mut transforms = world.view_mut::<Transform>(Transform::UID)?;
     let mut free_flies = world.view_mut::<FreeFly>(FreeFly::UID)?;
@@ -11,9 +15,11 @@ pub fn run(ctx: &mut SystemContext) -> SystemResult {
     for e in &world.query(&[Transform::UID, FreeFly::UID]) {
         let transform = transforms.get_mut(e).unwrap();
         let free_fly = free_flies.get_mut(e).unwrap();
-        
+
         // Check active
-        if !free_fly.active { continue; }
+        if !free_fly.active {
+            continue;
+        }
 
         // Update view mod
         if ctx.input.action(free_fly.switch_mode)?.is_just_pressed() {
@@ -52,28 +58,48 @@ pub fn run(ctx: &mut SystemContext) -> SystemResult {
         let motion_y = ctx.input.axis(free_fly.view_y)?.value;
         if free_fly.free_mode {
             if motion_x != 0.0 {
-                transform.rotation *= Quat::from_axis_angle(Vec3::Y, -f32::to_radians(motion_x) * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32);
+                transform.rotation *= Quat::from_axis_angle(
+                    Vec3::Y,
+                    -f32::to_radians(motion_x)
+                        * FreeFly::ROTATION_SENSIBILITY
+                        * ctx.time.delta() as f32,
+                );
             }
             if motion_y != 0.0 {
-                transform.rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(motion_y) * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32);
+                transform.rotation *= Quat::from_axis_angle(
+                    Vec3::X,
+                    f32::to_radians(motion_y)
+                        * FreeFly::ROTATION_SENSIBILITY
+                        * ctx.time.delta() as f32,
+                );
             }
             if ctx.input.action(free_fly.roll_left)?.is_pressed() {
-                transform.rotation *= Quat::from_axis_angle(Vec3::Z, -f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32);
+                transform.rotation *= Quat::from_axis_angle(
+                    Vec3::Z,
+                    -f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
+                );
             }
             if ctx.input.action(free_fly.roll_right)?.is_pressed() {
-                transform.rotation *= Quat::from_axis_angle(Vec3::Z, f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32);
+                transform.rotation *= Quat::from_axis_angle(
+                    Vec3::Z,
+                    f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
+                );
             }
-            
         } else {
             if motion_x != 0.0 {
                 free_fly.yaw += motion_x * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
             }
             if motion_y != 0.0 {
-                free_fly.pitch += motion_y * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
+                free_fly.pitch +=
+                    motion_y * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
             }
 
-            if free_fly.pitch < -90.0 { free_fly.pitch = -90.0 };
-            if free_fly.pitch > 90.0 { free_fly.pitch = 90.0 };
+            if free_fly.pitch < -90.0 {
+                free_fly.pitch = -90.0
+            };
+            if free_fly.pitch > 90.0 {
+                free_fly.pitch = 90.0
+            };
 
             let mut rotation = Quat::from_axis_angle(Vec3::Y, -f32::to_radians(free_fly.yaw));
             rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(free_fly.pitch));

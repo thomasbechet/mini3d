@@ -13,8 +13,5 @@ pub enum FieldType {
     Array,
 }
 
-
 #[derive(Serialize, Clone)]
-pub struct DynamicComponent {
-
-}
+pub struct DynamicComponent {}

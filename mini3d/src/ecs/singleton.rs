@@ -5,11 +5,11 @@ use std::ops::{Deref, DerefMut};
 use crate::registry::component::Component;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
-pub(crate) struct ComponentSingleton<C: Component> {
+pub(crate) struct StaticComponentSingleton<C: Component> {
     pub(crate) component: RefCell<C>,
 }
 
-impl<C: Component> ComponentSingleton<C> {
+impl<C: Component> StaticComponentSingleton<C> {
     pub(crate) fn new(component: C) -> Self {
         Self {
             component: RefCell::new(component),
@@ -37,7 +37,7 @@ pub(crate) trait AnyComponentSingleton {
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
 }
 
-impl<C: Component> AnyComponentSingleton for ComponentSingleton<C> {
+impl<C: Component> AnyComponentSingleton for StaticComponentSingleton<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }

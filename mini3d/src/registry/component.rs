@@ -3,10 +3,9 @@ use std::collections::HashMap;
 use crate::{
     ecs::{
         container::{AnyComponentContainer, StaticComponentContainer},
-        dynamic::DynamicComponent,
         entity::Entity,
         error::ECSError,
-        singleton::{AnyComponentSingleton, ComponentSingleton},
+        singleton::{AnyComponentSingleton, StaticComponentSingleton},
     },
     script::reflection::{Property, Reflect},
     serialize::Serialize,
@@ -41,23 +40,28 @@ pub(crate) trait AnyComponentReflection {
     fn create_container(&self) -> Box<dyn AnyComponentContainer>;
     fn create_singleton(&self) -> Box<dyn AnyComponentSingleton>;
     fn find_property(&self, name: &str) -> Option<&Property>;
+    fn properties(&self) -> &[Property];
 }
 
-pub(crate) struct ComponentReflection<C: Component> {
+pub(crate) struct StaticComponentReflection<C: Component> {
     _phantom: std::marker::PhantomData<C>,
 }
 
-impl<C: Component> AnyComponentReflection for ComponentReflection<C> {
+impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
     fn create_container(&self) -> Box<dyn AnyComponentContainer> {
         Box::new(StaticComponentContainer::<C>::new())
     }
 
     fn create_singleton(&self) -> Box<dyn AnyComponentSingleton> {
-        Box::new(ComponentSingleton::<C>::new(C::default()))
+        Box::new(StaticComponentSingleton::<C>::new(C::default()))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {
         C::PROPERTIES.iter().find(|p| p.name == name)
+    }
+
+    fn properties(&self) -> &[Property] {
+        C::PROPERTIES
     }
 }
 
@@ -97,16 +101,13 @@ impl ComponentRegistry {
     }
 
     pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID, RegistryError> {
-        let reflection = ComponentReflection::<C> {
+        let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
         self.define(name, ComponentKind::Static, Box::new(reflection))
     }
 
     pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<UID, RegistryError> {
-        let reflection = ComponentReflection::<DynamicComponent> {
-            _phantom: std::marker::PhantomData,
-        };
-        self.define(name, ComponentKind::Dynamic, Box::new(reflection))
+        unimplemented!()
     }
 }

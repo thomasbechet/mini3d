@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use mini3d_derive::{Asset, Serialize};
+use std::collections::HashMap;
 
 use crate::uid::UID;
 
@@ -9,13 +9,16 @@ pub struct SystemPipeline {
 }
 
 impl SystemPipeline {
-
     pub fn single(system: UID) -> Self {
-        Self { systems: vec![system] }
+        Self {
+            systems: vec![system],
+        }
     }
 
     pub fn new(systems: &[UID]) -> Self {
-        Self { systems: systems.to_vec() }
+        Self {
+            systems: systems.to_vec(),
+        }
     }
 }
 
@@ -28,18 +31,26 @@ pub(crate) struct ProcedureEntry {
 
 #[derive(Clone, Asset)]
 pub struct SystemGroup {
-    pub(crate) procedures: HashMap<UID, ProcedureEntry>
+    pub(crate) procedures: HashMap<UID, ProcedureEntry>,
 }
 
 impl SystemGroup {
-
     pub fn empty() -> Self {
-        Self { procedures: Default::default() }
+        Self {
+            procedures: Default::default(),
+        }
     }
 
     pub fn insert(&mut self, procedure: &str, pipeline: SystemPipeline, priority: i32) {
         let uid = UID::new(procedure);
-        self.procedures.insert(uid, ProcedureEntry { name: procedure.to_string(), priority, pipeline });
+        self.procedures.insert(
+            uid,
+            ProcedureEntry {
+                name: procedure.to_string(),
+                priority,
+                pipeline,
+            },
+        );
     }
 
     pub fn remove(&mut self, procedure: UID) {

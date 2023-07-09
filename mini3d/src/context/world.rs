@@ -5,7 +5,10 @@ use crate::{
         query::Query,
         reference::{StaticComponentMut, StaticComponentRef},
         singleton::{StaticSingletonMut, StaticSingletonRef},
-        view::{StaticComponentViewMut, StaticComponentViewRef},
+        view::{
+            AnyComponentViewMut, AnyComponentViewRef, StaticComponentViewMut,
+            StaticComponentViewRef,
+        },
         world::World,
     },
     registry::{component::Component, RegistryManager},
@@ -141,11 +144,19 @@ impl<'a> WorldInstanceContext<'a> {
         self.world.view_static(component)
     }
 
+    pub fn view_any(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
+        self.world.view_any(component)
+    }
+
     pub fn view_mut<C: Component>(
         &self,
         component: UID,
     ) -> Result<StaticComponentViewMut<'_, C>, WorldError> {
         self.world.view_mut_static(component)
+    }
+
+    pub fn view_mut_any(&self, component: UID) -> Result<AnyComponentViewMut<'_>, WorldError> {
+        self.world.view_mut_any(component)
     }
 
     pub fn query(&self, components: &[UID]) -> Query<'_> {
@@ -161,7 +172,7 @@ impl<'a> WorldInstanceContext<'a> {
     }
 
     pub fn remove_singleton(&mut self, component: UID) -> Result<(), WorldError> {
-        self.world.remove_singleton_static(component)
+        self.world.remove_singleton(component)
     }
 
     pub fn get_singleton<C: Component>(

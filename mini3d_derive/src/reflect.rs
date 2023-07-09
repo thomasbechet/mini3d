@@ -50,6 +50,8 @@ fn derive_struct(
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
+        impl #impl_generics mini3d::script::reflection::ReadProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d::script::reflection::WriteProperty for #ident #ty_generics #where_clause {}
         impl #impl_generics mini3d::script::reflection::Reflect for #ident #ty_generics #where_clause {
             const PROPERTIES: &'static [mini3d::script::reflection::Property] = &[];
         }
@@ -65,6 +67,8 @@ fn derive_tuple(
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
+        impl #impl_generics mini3d::script::reflection::ReadProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d::script::reflection::WriteProperty for #ident #ty_generics #where_clause {}
         impl #impl_generics mini3d::script::reflection::Reflect for #ident #ty_generics #where_clause {
             const PROPERTIES: &'static [mini3d::script::reflection::Property] = &[];
         }
@@ -80,6 +84,8 @@ fn derive_enum(
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
+        impl #impl_generics mini3d::script::reflection::ReadProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d::script::reflection::WriteProperty for #ident #ty_generics #where_clause {}
         impl #impl_generics mini3d::script::reflection::Reflect for #ident #ty_generics #where_clause {
             const PROPERTIES: &'static [mini3d::script::reflection::Property] = &[];
         }

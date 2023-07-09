@@ -1,14 +1,23 @@
 use std::collections::HashSet;
 
-use mini3d_derive::{Serialize, Asset, Error};
+use mini3d_derive::{Asset, Error, Serialize};
 
 use crate::uid::UID;
 
 #[derive(Default, Clone, Copy, Serialize)]
 pub enum InputAxisRange {
-    Clamped { min: f32, max: f32 },
-    Normalized { norm: f32 },
-    ClampedNormalized { min: f32, max: f32, norm: f32 },
+    Clamped {
+        min: f32,
+        max: f32,
+    },
+    Normalized {
+        norm: f32,
+    },
+    ClampedNormalized {
+        min: f32,
+        max: f32,
+        norm: f32,
+    },
     #[default]
     Infinite,
 }
@@ -52,10 +61,13 @@ pub struct InputTable {
 }
 
 impl InputTable {
-
     pub fn validate(&self) -> Result<(), InputTableValidationError> {
         let mut unique = HashSet::new();
-        if !self.actions.iter().all(move |action| unique.insert(action.uid())) {
+        if !self
+            .actions
+            .iter()
+            .all(move |action| unique.insert(action.uid()))
+        {
             return Err(InputTableValidationError::DuplicatedAction);
         }
         let mut unique = HashSet::new();
