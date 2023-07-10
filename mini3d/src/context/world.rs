@@ -3,7 +3,6 @@ use crate::{
         entity::Entity,
         error::WorldError,
         query::Query,
-        reference::{StaticComponentMut, StaticComponentRef},
         singleton::{StaticSingletonMut, StaticSingletonRef},
         view::{
             AnyComponentViewMut, AnyComponentViewRef, StaticComponentViewMut,
@@ -119,22 +118,6 @@ impl<'a> WorldInstanceContext<'a> {
 
     pub fn remove_component(&mut self, entity: Entity, component: UID) -> Result<(), WorldError> {
         self.world.remove_component(entity, component)
-    }
-
-    pub fn get_static_component<C: Component>(
-        &self,
-        entity: Entity,
-        component: UID,
-    ) -> Result<Option<StaticComponentRef<'_, C>>, WorldError> {
-        self.world.get_static_component(entity, component)
-    }
-
-    pub fn get_static_component_mut<C: Component>(
-        &self,
-        entity: Entity,
-        component: UID,
-    ) -> Result<Option<StaticComponentMut<'_, C>>, WorldError> {
-        self.world.get_static_component_mut(entity, component)
     }
 
     pub fn static_view<C: Component>(

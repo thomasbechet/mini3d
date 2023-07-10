@@ -471,7 +471,11 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
         world.add_static_component(cam, Camera::UID, Camera::default().with_fov(90.0))?;
         world.add_static_component(cam, Hierarchy::UID, Hierarchy::default())?;
 
-        Hierarchy::attach(e, cam, &mut world.static_view::<Hierarchy>(Hierarchy::UID)?)?;
+        Hierarchy::attach(
+            e,
+            cam,
+            &mut world.static_view_mut::<Hierarchy>(Hierarchy::UID)?,
+        )?;
 
         let viewport = world.add_entity();
         world.add_static_component(

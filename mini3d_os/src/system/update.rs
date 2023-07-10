@@ -20,9 +20,9 @@ pub fn update(ctx: &mut SystemContext) -> SystemResult {
         .is_just_pressed()
     {
         os.layout_active = !os.layout_active;
-        let mut view = world.static_view::<FreeFly>(FreeFly::UID)?;
+        let mut view = world.static_view_mut::<FreeFly>(FreeFly::UID)?;
         for e in &world.query(&[FreeFly::UID]) {
-            let free_fly = view.get_mut(e).unwrap();
+            let free_fly = &mut view[e];
             free_fly.active = !os.layout_active;
         }
     }
@@ -34,7 +34,7 @@ pub fn update(ctx: &mut SystemContext) -> SystemResult {
     //     }
     // }
 
-    let mut view = world.static_view::<UI>(UI::UID)?;
+    let mut view = world.static_view_mut::<UI>(UI::UID)?;
     let ui = view.iter().next().unwrap();
     let user = ui.user("main".into())?;
 

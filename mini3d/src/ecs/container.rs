@@ -3,7 +3,6 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use super::{
     entity::Entity,
     error::ECSError,
-    reference::{StaticComponentMut, StaticComponentRef},
     sparse::PagedVector,
     view::{
         AnyComponentViewMut, AnyComponentViewRef, AnyStaticComponentViewMut,
@@ -17,10 +16,7 @@ use crate::{
     uid::UID,
 };
 use core::{any::Any, cell::RefCell};
-use std::{
-    cell::Ref,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 pub(crate) struct StaticComponentVec<C: Component>(Vec<C>);
 
@@ -142,35 +138,6 @@ impl<C: Component> StaticComponentContainer<C> {
             self.entities[entity.key() as usize] = Entity::null();
         }
         Ok(())
-    }
-
-    pub(crate) fn get(&self, entity: Entity) -> Option<StaticComponentRef<'_, C>> {
-        let r: Ref<dyn AnyStaticComponentVec> = self.components.borrow();
-        let components = self.components.borrow();
-        self.indices.get(entity.key()).and_then(|index| {
-            if self.entities[*index] == entity {
-                Some(StaticComponentRef {
-                    components,
-                    index: *index,
-                })
-            } else {
-                None
-            }
-        })
-    }
-
-    pub(crate) fn get_mut(&self, entity: Entity) -> Option<StaticComponentMut<'_, C>> {
-        let components = self.components.borrow_mut();
-        self.indices.get(entity.key()).and_then(|index| {
-            if self.entities[*index] == entity {
-                Some(StaticComponentMut {
-                    components,
-                    index: *index,
-                })
-            } else {
-                None
-            }
-        })
     }
 
     pub(crate) fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {

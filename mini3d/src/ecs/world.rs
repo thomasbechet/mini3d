@@ -11,14 +11,12 @@ use crate::{
     uid::UID,
 };
 
-use super::reference::AnyComponentRef;
 use super::view::{AnyComponentViewMut, AnyComponentViewRef};
 use super::{
     container::{AnyComponentContainer, StaticComponentContainer},
     entity::Entity,
     error::WorldError,
     query::Query,
-    reference::{StaticComponentMut, StaticComponentRef},
     singleton::{
         AnyComponentSingleton, StaticComponentSingleton, StaticSingletonMut, StaticSingletonRef,
     },
@@ -169,38 +167,6 @@ impl World {
             .ok_or(WorldError::ComponentContainerNotFound { uid: component })?;
         container.remove(entity);
         Ok(())
-    }
-
-    pub(crate) fn get_static_component<C: Component>(
-        &self,
-        entity: Entity,
-        component: UID,
-    ) -> Result<Option<StaticComponentRef<'_, C>>, WorldError> {
-        if let Some(container) = self.containers.get(&component) {
-            Ok(container
-                .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(WorldError::ComponentTypeMismatch { uid: component })?
-                .get(entity))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub(crate) fn get_static_component_mut<C: Component>(
-        &self,
-        entity: Entity,
-        component: UID,
-    ) -> Result<Option<StaticComponentMut<'_, C>>, WorldError> {
-        if let Some(container) = self.containers.get(&component) {
-            Ok(container
-                .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(WorldError::ComponentTypeMismatch { uid: component })?
-                .get_mut(entity))
-        } else {
-            Ok(None)
-        }
     }
 
     pub(crate) fn static_view<C: Component>(
