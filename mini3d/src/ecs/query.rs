@@ -1,25 +1,34 @@
+use crate::uid::UID;
 
 use super::{container::AnyComponentContainer, entity::Entity};
+
+// pub struct QueryEntry<'a> {
+// indices: Vec<(UID, usize)>,
+// }
 
 pub struct Query<'a> {
     containers: Vec<&'a dyn AnyComponentContainer>,
 }
 
 impl<'a> Query<'a> {
-
     pub(crate) fn new(containers: Vec<&'a dyn AnyComponentContainer>) -> Self {
         Self { containers }
     }
 
     pub(crate) fn none() -> Self {
-        Self { containers: Vec::new() }
+        Self {
+            containers: Vec::new(),
+        }
     }
 
     pub fn iter(&'a self) -> QueryIter<'a> {
         QueryIter {
             query: self,
             index: 0,
-            len: self.containers.first().map_or(0, |container| container.len())
+            len: self
+                .containers
+                .first()
+                .map_or(0, |container| container.len()),
         }
     }
 }

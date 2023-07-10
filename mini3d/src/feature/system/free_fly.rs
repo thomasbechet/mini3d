@@ -9,8 +9,8 @@ use crate::{
 
 pub fn run(ctx: &mut SystemContext) -> SystemResult {
     let world = ctx.world.active();
-    let mut transforms = world.view_mut::<Transform>(Transform::UID)?;
-    let mut free_flies = world.view_mut::<FreeFly>(FreeFly::UID)?;
+    let mut transforms = world.static_view_mut::<Transform>(Transform::UID)?;
+    let mut free_flies = world.static_view_mut::<FreeFly>(FreeFly::UID)?;
 
     for e in &world.query(&[Transform::UID, FreeFly::UID]) {
         let transform = transforms.get_mut(e).unwrap();

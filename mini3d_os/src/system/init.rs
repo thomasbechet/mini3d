@@ -342,9 +342,9 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
     let mut world = ctx.world.active();
 
     {
-        let e = world.create();
-        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(
+        let e = world.add_entity();
+        world.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add_static_component(
             e,
             Transform::UID,
             Transform {
@@ -353,27 +353,27 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
                 scale: Vec3::new(0.5, 0.5, 0.5),
             },
         )?;
-        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
-        world.add(e, Rotator::UID, Rotator { speed: 90.0 })?;
-        world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
+        world.add_static_component(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add_static_component(e, Rotator::UID, Rotator { speed: 90.0 })?;
+        world.add_static_component(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
     }
     {
-        let e = world.create();
-        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(
+        let e = world.add_entity();
+        world.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add_static_component(
             e,
             Transform::UID,
             Transform::from_translation(Vec3::new(0.0, -7.0, 9.0)),
         )?;
-        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
-        world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
+        world.add_static_component(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add_static_component(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
     }
     {
         let mut prng = PCG32::new(12345);
         for i in 0..100 {
-            let e = world.create();
-            world.add(e, Lifecycle::UID, Lifecycle::alive())?;
-            world.add(
+            let e = world.add_entity();
+            world.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
+            world.add_static_component(
                 e,
                 Transform::UID,
                 Transform::from_translation(Vec3::new(
@@ -382,18 +382,18 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
                     -((i % 10) * 8) as f32,
                 )),
             )?;
-            world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
-            world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
-            world.add(
+            world.add_static_component(e, LocalToWorld::UID, LocalToWorld::default())?;
+            world.add_static_component(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
+            world.add_static_component(
                 e,
                 Rotator::UID,
                 Rotator {
                     speed: -90.0 + prng.next_f32() * 90.0 * 2.0,
                 },
             )?;
-            let e = world.create();
-            world.add(e, Lifecycle::UID, Lifecycle::alive())?;
-            world.add(
+            let e = world.add_entity();
+            world.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
+            world.add_static_component(
                 e,
                 Transform::UID,
                 Transform::from_translation(Vec3::new(
@@ -402,9 +402,9 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
                     -((i % 10) * 8) as f32,
                 )),
             )?;
-            world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
-            world.add(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
-            world.add(
+            world.add_static_component(e, LocalToWorld::UID, LocalToWorld::default())?;
+            world.add_static_component(e, StaticMesh::UID, StaticMesh::new("alfred".into()))?;
+            world.add_static_component(
                 e,
                 Rotator::UID,
                 Rotator {
@@ -414,27 +414,27 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
         }
     }
     {
-        let e = world.create();
-        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(
+        let e = world.add_entity();
+        world.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add_static_component(
             e,
             Transform::UID,
             Transform::from_translation(Vec3::new(0.0, 0.0, 4.0)),
         )?;
-        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
-        world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
-        world.add(e, Rotator::UID, Rotator { speed: 30.0 })?;
+        world.add_static_component(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add_static_component(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
+        world.add_static_component(e, Rotator::UID, Rotator { speed: 30.0 })?;
     }
     {
-        let e = world.create();
-        world.add(e, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(
+        let e = world.add_entity();
+        world.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
+        world.add_static_component(
             e,
             Transform::UID,
             Transform::from_translation(Vec3::new(0.0, 0.0, -10.0)),
         )?;
-        world.add(e, LocalToWorld::UID, LocalToWorld::default())?;
-        world.add(
+        world.add_static_component(e, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add_static_component(
             e,
             FreeFly::UID,
             FreeFly {
@@ -457,24 +457,24 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
                 pitch: 0.0,
             },
         )?;
-        world.add(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
-        world.add(e, Hierarchy::UID, Hierarchy::default())?;
+        world.add_static_component(e, StaticMesh::UID, StaticMesh::new("car".into()))?;
+        world.add_static_component(e, Hierarchy::UID, Hierarchy::default())?;
 
-        let cam = world.create();
-        world.add(cam, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(
+        let cam = world.add_entity();
+        world.add_static_component(cam, Lifecycle::UID, Lifecycle::alive())?;
+        world.add_static_component(
             cam,
             Transform::UID,
             Transform::from_translation(Vec3::new(0.0, -1.0, 0.0)),
         )?;
-        world.add(cam, LocalToWorld::UID, LocalToWorld::default())?;
-        world.add(cam, Camera::UID, Camera::default().with_fov(90.0))?;
-        world.add(cam, Hierarchy::UID, Hierarchy::default())?;
+        world.add_static_component(cam, LocalToWorld::UID, LocalToWorld::default())?;
+        world.add_static_component(cam, Camera::UID, Camera::default().with_fov(90.0))?;
+        world.add_static_component(cam, Hierarchy::UID, Hierarchy::default())?;
 
-        Hierarchy::attach(e, cam, &mut world.view_mut::<Hierarchy>(Hierarchy::UID)?)?;
+        Hierarchy::attach(e, cam, &mut world.static_view::<Hierarchy>(Hierarchy::UID)?)?;
 
-        let viewport = world.create();
-        world.add(
+        let viewport = world.add_entity();
+        world.add_static_component(
             viewport,
             Viewport::UID,
             Viewport::new(SCREEN_RESOLUTION, Some(cam)),
@@ -566,10 +566,10 @@ fn setup_world(ctx: &mut SystemContext) -> SystemResult {
 
         ui.add_user("main")?;
 
-        let uie = world.create();
-        world.add(uie, Lifecycle::UID, Lifecycle::alive())?;
-        world.add(uie, UI::UID, ui)?;
-        world.add(
+        let uie = world.add_entity();
+        world.add_static_component(uie, Lifecycle::UID, Lifecycle::alive())?;
+        world.add_static_component(uie, UI::UID, ui)?;
+        world.add_static_component(
             uie,
             UIRenderTarget::UID,
             UIRenderTarget::Screen {

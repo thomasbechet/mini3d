@@ -261,7 +261,7 @@ impl RendererManager {
         for world in ecs.worlds.get_mut().values_mut() {
             for camera in world
                 .get_mut()
-                .view_mut_static::<Camera>(Camera::UID)
+                .static_view_mut::<Camera>(Camera::UID)
                 .unwrap()
                 .iter()
             {
@@ -269,7 +269,7 @@ impl RendererManager {
             }
             for static_mesh in world
                 .get_mut()
-                .view_mut_static::<StaticMesh>(StaticMesh::UID)
+                .static_view_mut::<StaticMesh>(StaticMesh::UID)
                 .unwrap()
                 .iter()
             {
@@ -277,7 +277,7 @@ impl RendererManager {
             }
             for canvas in world
                 .get_mut()
-                .view_mut_static::<Canvas>(Canvas::UID)
+                .static_view_mut::<Canvas>(Canvas::UID)
                 .unwrap()
                 .iter()
             {
@@ -329,14 +329,14 @@ impl RendererManager {
 
             // Prepare views
             let local_to_world = world
-                .view_mut_static::<LocalToWorld>(LocalToWorld::UID)
+                .static_view_mut::<LocalToWorld>(LocalToWorld::UID)
                 .unwrap();
-            let mut cameras = world.view_mut_static::<Camera>(Camera::UID).unwrap();
-            let mut viewports = world.view_mut_static::<Viewport>(Viewport::UID).unwrap();
+            let mut cameras = world.static_view_mut::<Camera>(Camera::UID).unwrap();
+            let mut viewports = world.static_view_mut::<Viewport>(Viewport::UID).unwrap();
             let mut static_meshes = world
-                .view_mut_static::<StaticMesh>(StaticMesh::UID)
+                .static_view_mut::<StaticMesh>(StaticMesh::UID)
                 .unwrap();
-            let mut canvases = world.view_mut_static::<Canvas>(Canvas::UID).unwrap();
+            let mut canvases = world.static_view_mut::<Canvas>(Canvas::UID).unwrap();
 
             // Update cameras
             for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {

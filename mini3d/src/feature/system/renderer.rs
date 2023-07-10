@@ -10,11 +10,11 @@ use crate::{
 
 pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> SystemResult {
     let world = ctx.world.active();
-    let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
-    let viewports = world.view::<Viewport>(Viewport::UID)?;
-    let cameras = world.view::<Camera>(Camera::UID)?;
-    let models = world.view::<StaticMesh>(StaticMesh::UID)?;
-    let canvases = world.view::<Canvas>(Canvas::UID)?;
+    let lifecycles = world.static_view::<Lifecycle>(Lifecycle::UID)?;
+    let viewports = world.static_view::<Viewport>(Viewport::UID)?;
+    let cameras = world.static_view::<Camera>(Camera::UID)?;
+    let models = world.static_view::<StaticMesh>(StaticMesh::UID)?;
+    let canvases = world.static_view::<Canvas>(Canvas::UID)?;
 
     for e in &world.query(&[Lifecycle::UID, Viewport::UID]) {
         if !lifecycles[e].alive {

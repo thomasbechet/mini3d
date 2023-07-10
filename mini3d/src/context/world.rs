@@ -99,64 +99,64 @@ impl<'a> WorldInstanceContext<'a> {
         self.uid
     }
 
-    pub fn create(&mut self) -> Entity {
-        self.world.create()
+    pub fn add_entity(&mut self) -> Entity {
+        self.world.add_entity()
     }
 
-    pub fn destroy(&mut self, entity: Entity) -> Result<(), WorldError> {
-        self.world.destroy(entity)
+    pub fn remove_entity(&mut self, entity: Entity) -> Result<(), WorldError> {
+        self.world.remove_entity(entity)
     }
 
-    pub fn add<C: Component>(
+    pub fn add_static_component<C: Component>(
         &mut self,
         entity: Entity,
         component: UID,
         data: C,
     ) -> Result<(), WorldError> {
         self.world
-            .add_static(&self.registry.components, entity, component, data)
+            .add_static_component(&self.registry.components, entity, component, data)
     }
 
-    pub fn remove(&mut self, entity: Entity, component: UID) -> Result<(), WorldError> {
-        self.world.remove(entity, component)
+    pub fn remove_component(&mut self, entity: Entity, component: UID) -> Result<(), WorldError> {
+        self.world.remove_component(entity, component)
     }
 
-    pub fn get<C: Component>(
+    pub fn get_static_component<C: Component>(
         &self,
         entity: Entity,
         component: UID,
     ) -> Result<Option<StaticComponentRef<'_, C>>, WorldError> {
-        self.world.get_static(entity, component)
+        self.world.get_static_component(entity, component)
     }
 
-    pub fn get_mut<C: Component>(
+    pub fn get_static_component_mut<C: Component>(
         &self,
         entity: Entity,
         component: UID,
     ) -> Result<Option<StaticComponentMut<'_, C>>, WorldError> {
-        self.world.get_mut_static(entity, component)
+        self.world.get_static_component_mut(entity, component)
     }
 
-    pub fn view<C: Component>(
+    pub fn static_view<C: Component>(
         &self,
         component: UID,
     ) -> Result<StaticComponentViewRef<'_, C>, WorldError> {
-        self.world.view_static(component)
+        self.world.static_view(component)
     }
 
-    pub fn view_any(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
-        self.world.view_any(component)
+    pub fn any_view(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
+        self.world.any_view(component)
     }
 
-    pub fn view_mut<C: Component>(
+    pub fn static_view_mut<C: Component>(
         &self,
         component: UID,
     ) -> Result<StaticComponentViewMut<'_, C>, WorldError> {
-        self.world.view_mut_static(component)
+        self.world.static_view_mut(component)
     }
 
     pub fn view_mut_any(&self, component: UID) -> Result<AnyComponentViewMut<'_>, WorldError> {
-        self.world.view_mut_any(component)
+        self.world.any_view_mut(component)
     }
 
     pub fn query(&self, components: &[UID]) -> Query<'_> {
@@ -168,7 +168,7 @@ impl<'a> WorldInstanceContext<'a> {
         component: UID,
         data: C,
     ) -> Result<(), WorldError> {
-        self.world.add_singleton_static(component, data)
+        self.world.add_static_singleton(component, data)
     }
 
     pub fn remove_singleton(&mut self, component: UID) -> Result<(), WorldError> {
@@ -179,13 +179,13 @@ impl<'a> WorldInstanceContext<'a> {
         &self,
         component: UID,
     ) -> Result<Option<StaticSingletonRef<'_, C>>, WorldError> {
-        self.world.get_singleton_static(component)
+        self.world.get_static_singleton(component)
     }
 
     pub fn get_singleton_mut<C: Component>(
         &self,
         component: UID,
     ) -> Result<Option<StaticSingletonMut<'_, C>>, WorldError> {
-        self.world.get_singleton_mut_static(component)
+        self.world.get_static_singleton_mut(component)
     }
 }

@@ -112,7 +112,7 @@ impl World {
         }
     }
 
-    pub(crate) fn create(&mut self) -> Entity {
+    pub(crate) fn add_entity(&mut self) -> Entity {
         if let Some(entity) = self.free_entities.pop() {
             return entity;
         }
@@ -121,7 +121,7 @@ impl World {
         entity
     }
 
-    pub(crate) fn destroy(&mut self, entity: Entity) -> Result<(), WorldError> {
+    pub(crate) fn remove_entity(&mut self, entity: Entity) -> Result<(), WorldError> {
         for container in self.containers.values_mut() {
             container.remove(entity);
         }
@@ -130,7 +130,7 @@ impl World {
         Ok(())
     }
 
-    pub(crate) fn add_static<C: Component>(
+    pub(crate) fn add_static_component<C: Component>(
         &mut self,
         registry: &ComponentRegistry,
         entity: Entity,
@@ -158,7 +158,11 @@ impl World {
         Ok(())
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity, component: UID) -> Result<(), WorldError> {
+    pub(crate) fn remove_component(
+        &mut self,
+        entity: Entity,
+        component: UID,
+    ) -> Result<(), WorldError> {
         let container = self
             .containers
             .get_mut(&component)
@@ -167,7 +171,7 @@ impl World {
         Ok(())
     }
 
-    pub(crate) fn get_static<C: Component>(
+    pub(crate) fn get_static_component<C: Component>(
         &self,
         entity: Entity,
         component: UID,
@@ -183,7 +187,7 @@ impl World {
         }
     }
 
-    pub(crate) fn get_mut_static<C: Component>(
+    pub(crate) fn get_static_component_mut<C: Component>(
         &self,
         entity: Entity,
         component: UID,
@@ -199,7 +203,7 @@ impl World {
         }
     }
 
-    pub(crate) fn view_static<C: Component>(
+    pub(crate) fn static_view<C: Component>(
         &self,
         component: UID,
     ) -> Result<StaticComponentViewRef<'_, C>, WorldError> {
@@ -214,7 +218,7 @@ impl World {
         }
     }
 
-    pub(crate) fn view_any(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
+    pub(crate) fn any_view(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view())
         } else {
@@ -222,7 +226,7 @@ impl World {
         }
     }
 
-    pub(crate) fn view_mut_static<C: Component>(
+    pub(crate) fn static_view_mut<C: Component>(
         &self,
         component: UID,
     ) -> Result<StaticComponentViewMut<'_, C>, WorldError> {
@@ -237,7 +241,7 @@ impl World {
         }
     }
 
-    pub(crate) fn view_mut_any(
+    pub(crate) fn any_view_mut(
         &self,
         component: UID,
     ) -> Result<AnyComponentViewMut<'_>, WorldError> {
@@ -262,7 +266,7 @@ impl World {
         Query::new(containers)
     }
 
-    pub(crate) fn add_singleton_static<C: Component>(
+    pub(crate) fn add_static_singleton<C: Component>(
         &mut self,
         component: UID,
         data: C,
@@ -282,7 +286,7 @@ impl World {
         Ok(())
     }
 
-    pub(crate) fn get_singleton_static<C: Component>(
+    pub(crate) fn get_static_singleton<C: Component>(
         &self,
         component: UID,
     ) -> Result<Option<StaticSingletonRef<'_, C>>, WorldError> {
@@ -300,7 +304,7 @@ impl World {
         }
     }
 
-    pub(crate) fn get_singleton_mut_static<C: Component>(
+    pub(crate) fn get_static_singleton_mut<C: Component>(
         &self,
         component: UID,
     ) -> Result<Option<StaticSingletonMut<'_, C>>, WorldError> {

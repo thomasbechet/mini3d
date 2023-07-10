@@ -44,9 +44,9 @@ pub fn recursive_propagate(
 
 pub fn propagate(ctx: &mut SystemContext) -> SystemResult {
     let world = ctx.world.active();
-    let transforms = world.view::<Transform>(Transform::UID)?;
-    let hierarchies = world.view::<Hierarchy>(Hierarchy::UID)?;
-    let mut local_to_worlds = world.view_mut::<LocalToWorld>(LocalToWorld::UID)?;
+    let transforms = world.static_view::<Transform>(Transform::UID)?;
+    let hierarchies = world.static_view::<Hierarchy>(Hierarchy::UID)?;
+    let mut local_to_worlds = world.static_view_mut::<LocalToWorld>(LocalToWorld::UID)?;
 
     // Reset all flags
     let mut entities = Vec::new();

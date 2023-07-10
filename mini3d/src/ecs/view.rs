@@ -167,6 +167,12 @@ impl<'a> AnyStaticComponentViewRef<'a> {
             }),
         }
     }
+
+    pub(crate) fn read_bool_index(&self, index: usize, id: PropertyId) -> Option<bool> {
+        self.view
+            .as_ref()
+            .and_then(|data| data.components.read_bool(index, id))
+    }
 }
 
 struct AnyStaticComponentViewMutData<'a> {

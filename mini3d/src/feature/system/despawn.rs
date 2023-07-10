@@ -13,9 +13,9 @@ pub fn run(ctx: &mut SystemContext) -> SystemResult {
 
     {
         let mut hierarchies = world
-            .view_mut::<Hierarchy>(Hierarchy::UID)
+            .static_view_mut::<Hierarchy>(Hierarchy::UID)
             .with_context(|| "Failed to get hierarchy view")?;
-        let lifecycles = world.view::<Lifecycle>(Lifecycle::UID)?;
+        let lifecycles = world.static_view::<Lifecycle>(Lifecycle::UID)?;
 
         // Collect despawned entities
         for e in &world.query(&[Lifecycle::UID, Hierarchy::UID]) {
@@ -40,7 +40,7 @@ pub fn run(ctx: &mut SystemContext) -> SystemResult {
 
     // Despawn entities
     for entity in despawn_entities {
-        world.destroy(entity)?;
+        world.remove_entity(entity)?;
     }
 
     Ok(())
