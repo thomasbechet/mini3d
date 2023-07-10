@@ -138,7 +138,7 @@ impl<'a> WorldInstanceContext<'a> {
         self.world.static_view_mut(component)
     }
 
-    pub fn view_mut_any(&self, component: UID) -> Result<AnyComponentViewMut<'_>, WorldError> {
+    pub fn any_view_mut(&self, component: UID) -> Result<AnyComponentViewMut<'_>, WorldError> {
         self.world.any_view_mut(component)
     }
 

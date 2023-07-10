@@ -147,88 +147,119 @@ impl<'a, C: Component> IndexMut<Entity> for StaticComponentViewMut<'a, C> {
     }
 }
 
-struct AnyStaticComponentViewRefData<'a> {
-    components: Ref<'a, dyn AnyStaticComponentVec>,
-    entities: &'a [Entity],
-    indices: &'a PagedVector<usize>,
+pub(crate) enum AnyComponentViewRefInner<'a> {
+    Static {
+        components: Ref<'a, dyn AnyStaticComponentVec>,
+        entities: &'a [Entity],
+        indices: &'a PagedVector<usize>,
+    },
+    Dynamic {},
+    None,
 }
 
-pub struct AnyStaticComponentViewRef<'a> {
-    view: Option<AnyStaticComponentViewRefData<'a>>,
+pub struct AnyComponentViewRef<'a>(pub(crate) AnyComponentViewRefInner<'a>);
+
+pub(crate) enum AnyComponentViewMutInner<'a> {
+    Static {
+        components: RefMut<'a, dyn AnyStaticComponentVec>,
+        entities: &'a [Entity],
+        indices: &'a PagedVector<usize>,
+    },
+    Dynamic {},
+    None,
 }
 
-impl<'a> AnyStaticComponentViewRef<'a> {
-    pub(crate) fn new<C: Component>(container: &'a StaticComponentContainer<C>) -> Self {
-        Self {
-            view: Some(AnyStaticComponentViewRefData {
-                components: container.components.borrow(),
-                entities: &container.entities,
-                indices: &container.indices,
-            }),
+pub struct AnyComponentViewMut<'a>(pub(crate) AnyComponentViewMutInner<'a>);
+
+macro_rules! impl_read_property {
+    ($type:ty, $read:ident) => {
+        pub fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
+            match &self.0 {
+                AnyComponentViewRefInner::Static {
+                    components,
+                    entities,
+                    indices,
+                } => indices.get(entity.key()).copied().and_then(|index| {
+                    if entities[index] == entity {
+                        components.$read(index, id)
+                    } else {
+                        None
+                    }
+                }),
+                AnyComponentViewRefInner::Dynamic {} => None,
+                AnyComponentViewRefInner::None => None,
+            }
         }
-    }
-
-    pub(crate) fn read_bool_index(&self, index: usize, id: PropertyId) -> Option<bool> {
-        self.view
-            .as_ref()
-            .and_then(|data| data.components.read_bool(index, id))
-    }
-}
-
-struct AnyStaticComponentViewMutData<'a> {
-    components: RefMut<'a, dyn AnyStaticComponentVec>,
-    entities: &'a [Entity],
-    indices: &'a PagedVector<usize>,
-}
-
-pub struct AnyStaticComponentViewMut<'a> {
-    view: Option<AnyStaticComponentViewMutData<'a>>,
+    };
 }
 
 macro_rules! impl_read_write_property {
     ($type:ty, $read:ident, $write:ident) => {
-        fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
-            match self {
-                Self::Static(view) => {
-                    let data = view.view.as_ref().unwrap();
-                    data.indices.get(entity.key()).copied().and_then(|index| {
-                        if data.entities[index] == entity {
-                            data.components.$read(index, id)
-                        } else {
-                            None
-                        }
-                    })
-                }
-                Self::None => None,
+        pub fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
+            match &self.0 {
+                AnyComponentViewMutInner::Static {
+                    components,
+                    entities,
+                    indices,
+                } => indices.get(entity.key()).copied().and_then(|index| {
+                    if entities[index] == entity {
+                        components.$read(index, id)
+                    } else {
+                        None
+                    }
+                }),
+                AnyComponentViewMutInner::Dynamic {} => None,
+                AnyComponentViewMutInner::None => None,
             }
         }
-        // fn $write(&mut self, index: usize, id: PropertyId, value: $type) {
-        //     if let Some(c) = self.get_mut(index) {
-        //         c.$write(id, value);
-        //     }
-        // }
+        pub fn $write(&mut self, entity: Entity, id: PropertyId, value: $type) {
+            match &mut self.0 {
+                AnyComponentViewMutInner::Static {
+                    components,
+                    entities,
+                    indices,
+                } => {
+                    if let Some(index) = indices.get(entity.key()).copied() {
+                        if entities[index] == entity {
+                            components.$write(index, id, value)
+                        }
+                    }
+                }
+                AnyComponentViewMutInner::Dynamic {} => {}
+                AnyComponentViewMutInner::None => {}
+            }
+        }
     };
 }
 
-impl<'a> AnyStaticComponentViewMut<'a> {
-    pub(crate) fn new<C: Component>(container: &'a StaticComponentContainer<C>) -> Self {
-        Self {
-            view: Some(AnyStaticComponentViewMutData {
-                components: container.components.borrow_mut(),
-                entities: &container.entities,
-                indices: &container.indices,
-            }),
-        }
-    }
-}
-
-pub enum AnyComponentViewRef<'a> {
-    Static(AnyStaticComponentViewRef<'a>),
-    // Dynamic(AnyDynamicComponentViewRef<'a>),
-    None,
-}
-
 impl<'a> AnyComponentViewRef<'a> {
+    pub(crate) fn none() -> Self {
+        Self(AnyComponentViewRefInner::None)
+    }
+
+    impl_read_property!(bool, read_bool);
+    impl_read_property!(u8, read_u8);
+    impl_read_property!(i32, read_i32);
+    impl_read_property!(u32, read_u32);
+    impl_read_property!(f32, read_f32);
+    impl_read_property!(f64, read_f64);
+    impl_read_property!(Vec2, read_vec2);
+    impl_read_property!(IVec2, read_ivec2);
+    impl_read_property!(Vec3, read_vec3);
+    impl_read_property!(IVec3, read_ivec3);
+    impl_read_property!(Vec4, read_vec4);
+    impl_read_property!(IVec4, read_ivec4);
+    impl_read_property!(Mat4, read_mat4);
+    impl_read_property!(Quat, read_quat);
+    impl_read_property!(Entity, read_entity);
+    impl_read_property!(UID, read_uid);
+}
+
+impl<'a> AnyComponentViewMut<'a> {
+    pub(crate) fn none() -> Self {
+        Self(AnyComponentViewMutInner::None)
+    }
+
     impl_read_write_property!(bool, read_bool, write_bool);
     impl_read_write_property!(u8, read_u8, write_u8);
     impl_read_write_property!(i32, read_i32, write_i32);
@@ -246,10 +277,3 @@ impl<'a> AnyComponentViewRef<'a> {
     impl_read_write_property!(Entity, read_entity, write_entity);
     impl_read_write_property!(UID, read_uid, write_uid);
 }
-
-pub enum AnyComponentViewMut<'a> {
-    Static(AnyStaticComponentViewMut<'a>),
-    None,
-}
-
-impl<'a> AnyComponentViewMut<'a> {}

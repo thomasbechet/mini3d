@@ -5,8 +5,8 @@ use super::{
     error::ECSError,
     sparse::PagedVector,
     view::{
-        AnyComponentViewMut, AnyComponentViewRef, AnyStaticComponentViewMut,
-        AnyStaticComponentViewRef,
+        AnyComponentViewMut, AnyComponentViewMutInner, AnyComponentViewRef,
+        AnyComponentViewRefInner,
     },
 };
 use crate::script::reflection::PropertyId;
@@ -230,10 +230,18 @@ impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
         self.deserialize(&mut decoder)
     }
     fn any_view(&self) -> AnyComponentViewRef<'_> {
-        AnyComponentViewRef::Static(AnyStaticComponentViewRef::new(self))
+        AnyComponentViewRef(AnyComponentViewRefInner::Static {
+            components: self.components.borrow(),
+            entities: &self.entities,
+            indices: &self.indices,
+        })
     }
     fn any_view_mut(&self) -> AnyComponentViewMut<'_> {
-        AnyComponentViewMut::Static(AnyStaticComponentViewMut::new(self))
+        AnyComponentViewMut(AnyComponentViewMutInner::Static {
+            components: self.components.borrow_mut(),
+            entities: &self.entities,
+            indices: &self.indices,
+        })
     }
 }
 

@@ -188,7 +188,7 @@ impl World {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view())
         } else {
-            Ok(AnyComponentViewRef::None)
+            Ok(AnyComponentViewRef::none())
         }
     }
 
@@ -214,7 +214,7 @@ impl World {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view_mut())
         } else {
-            Ok(AnyComponentViewMut::None)
+            Ok(AnyComponentViewMut::none())
         }
     }
 

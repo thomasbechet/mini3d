@@ -1,10 +1,4 @@
-use crate::uid::UID;
-
 use super::{container::AnyComponentContainer, entity::Entity};
-
-// pub struct QueryEntry<'a> {
-// indices: Vec<(UID, usize)>,
-// }
 
 pub struct Query<'a> {
     containers: Vec<&'a dyn AnyComponentContainer>,
