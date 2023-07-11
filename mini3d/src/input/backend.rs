@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::{feature::asset::input_table::InputTable, uid::UID};
+use crate::{feature::component::input::input_table::InputTable, uid::UID};
 
 #[derive(Debug, Error)]
 pub enum InputBackendError {
@@ -10,7 +10,13 @@ pub enum InputBackendError {
 
 #[allow(unused_variables)]
 pub trait InputBackend {
-    fn update_table(&mut self, uid: UID, table: Option<&InputTable>) -> Result<(), InputBackendError> { Ok(()) }
+    fn update_table(
+        &mut self,
+        uid: UID,
+        table: Option<&InputTable>,
+    ) -> Result<(), InputBackendError> {
+        Ok(())
+    }
 }
 
 #[derive(Default)]

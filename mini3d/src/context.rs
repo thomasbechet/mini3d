@@ -1,4 +1,8 @@
-use self::{asset::AssetContext, renderer::RendererContext, input::InputContext, scheduler::SchedulerContext, procedure::ProcedureContext, world::WorldContext, registry::RegistryContext, event::EventContext, time::TimeContext};
+use self::{
+    asset::AssetContext, event::EventContext, input::InputContext, procedure::ProcedureContext,
+    registry::RegistryContext, renderer::RendererContext, scene::SceneContext,
+    scheduler::SchedulerContext, time::TimeContext,
+};
 
 pub mod asset;
 pub mod error;
@@ -7,9 +11,9 @@ pub mod input;
 pub mod procedure;
 pub mod registry;
 pub mod renderer;
+pub mod scene;
 pub mod scheduler;
 pub mod time;
-pub mod world;
 
 pub struct SystemContext<'a> {
     pub asset: AssetContext<'a>,
@@ -20,5 +24,5 @@ pub struct SystemContext<'a> {
     pub renderer: RendererContext<'a>,
     pub scheduler: SchedulerContext<'a>,
     pub time: TimeContext,
-    pub world: WorldContext<'a>,
+    pub scene: SceneContext<'a>,
 }

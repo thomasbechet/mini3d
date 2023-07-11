@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::{uid::UID, registry::error::RegistryError};
+use crate::{registry::error::RegistryError, uid::UID};
 
 #[derive(Debug, Error)]
 pub enum ECSError {
@@ -23,17 +23,17 @@ pub enum SchedulerError {
 }
 
 #[derive(Debug, Error)]
-pub enum WorldError {
+pub enum SceneError {
     #[error("Registry error: {0}")]
     Registry(RegistryError),
-    #[error("Duplicated world: {name}")]
-    DuplicatedWorld { name: String },
-    #[error("World not found: {uid}")]
-    WorldNotFound { uid: UID },
-    #[error("Change to removed world: {uid}")]
-    ChangeToRemovedWorld { uid: UID },
-    #[error("Remove and change same world: {uid}")]
-    RemoveAndChangeSameWorld { uid: UID },
+    #[error("Duplicated scene: {name}")]
+    DuplicatedScene { name: String },
+    #[error("Scene not found: {uid}")]
+    SceneNotFound { uid: UID },
+    #[error("Change to removed scene: {uid}")]
+    ChangeToRemovedScene { uid: UID },
+    #[error("Remove and change same scene: {uid}")]
+    RemoveAndChangeSameScene { uid: UID },
     #[error("Component container not found: {uid}")]
     ComponentContainerNotFound { uid: UID },
     #[error("Component type mismatch: {uid}")]

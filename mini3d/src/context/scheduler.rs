@@ -1,11 +1,14 @@
-use crate::{uid::UID, feature::asset::system_group::SystemGroup, ecs::{scheduler::Scheduler, error::SchedulerError}};
+use crate::{
+    ecs::{error::SchedulerError, scheduler::Scheduler},
+    feature::component::common::system_group::SystemGroup,
+    uid::UID,
+};
 
 pub struct SchedulerContext<'a> {
     pub(crate) scheduler: &'a mut Scheduler,
 }
 
 impl<'a> SchedulerContext<'a> {
-
     /// Applied at the end of the procedure
     pub fn add_group(&mut self, name: &str, group: SystemGroup) -> Result<UID, SchedulerError> {
         self.scheduler.add_group(name, group)

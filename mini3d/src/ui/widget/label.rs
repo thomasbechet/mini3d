@@ -1,7 +1,13 @@
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{uid::UID, renderer::graphics::Graphics, ui::event::{EventContext, Event}, math::rect::IRect, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{
+    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    math::rect::IRect,
+    renderer::graphics::Graphics,
+    ui::event::{Event, EventContext},
+    uid::UID,
+};
 
 use super::Widget;
 
@@ -13,14 +19,16 @@ pub struct UILabel {
 }
 
 impl UILabel {
-
     pub fn new(position: IVec2, text: &str, font: UID) -> Self {
-        Self { position, text: text.to_owned(), font }
+        Self {
+            position,
+            text: text.to_owned(),
+            font,
+        }
     }
 }
 
 impl Widget for UILabel {
-
     fn handle_event(&mut self, ctx: &mut EventContext, _event: &Event) -> bool {
         true
     }

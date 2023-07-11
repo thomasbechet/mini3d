@@ -1,8 +1,8 @@
 use std::collections::{hash_map, HashMap};
 
+use crate::feature::component::common::prefab::Prefab;
 use crate::serialize::Serialize;
 use crate::{
-    feature::asset::prefab::Prefab,
     registry::{
         component::{Component, ComponentRegistry},
         error::RegistryError,
@@ -13,25 +13,23 @@ use crate::{
 
 use super::view::{AnyComponentViewMut, AnyComponentViewRef};
 use super::{
-    container::{AnyComponentContainer, StaticComponentContainer},
+    container::{AnySceneContainer, StaticSceneContainer},
     entity::Entity,
-    error::WorldError,
+    error::SceneError,
     query::Query,
-    singleton::{
-        AnyComponentSingleton, StaticComponentSingleton, StaticSingletonMut, StaticSingletonRef,
-    },
+    singleton::{AnySceneSingleton, StaticSceneSingleton, StaticSingletonMut, StaticSingletonRef},
     view::{StaticComponentViewMut, StaticComponentViewRef},
 };
 
-pub(crate) struct World {
+pub(crate) struct Scene {
     pub(crate) name: String,
-    containers: HashMap<UID, Box<dyn AnyComponentContainer>>,
-    singletons: HashMap<UID, Box<dyn AnyComponentSingleton>>,
+    containers: HashMap<UID, Box<dyn AnySceneContainer>>,
+    singletons: HashMap<UID, Box<dyn AnySceneSingleton>>,
     free_entities: Vec<Entity>,
     next_entity: Entity,
 }
 
-impl World {
+impl Scene {
     pub(crate) fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         // Name
         self.name.serialize(encoder)?;
@@ -69,7 +67,7 @@ impl World {
                 .definitions
                 .get(&uid)
                 .ok_or(DecoderError::Unsupported)?;
-            let mut container = entry.reflection.create_container();
+            let mut container = entry.reflection.create_scene_container();
             container.deserialize(decoder)?;
             containers.insert(uid, container);
         }
@@ -82,7 +80,7 @@ impl World {
                 .definitions
                 .get(&uid)
                 .ok_or(DecoderError::Unsupported)?;
-            let mut singleton = entry.reflection.create_singleton();
+            let mut singleton = entry.reflection.create_scene_singleton();
             singleton.deserialize(decoder)?;
             singletons.insert(uid, singleton);
         }
@@ -100,8 +98,8 @@ impl World {
         })
     }
 
-    pub(crate) fn new(name: &str) -> World {
-        World {
+    pub(crate) fn new(name: &str) -> Scene {
+        Scene {
             name: name.to_string(),
             containers: HashMap::new(),
             singletons: HashMap::new(),
@@ -119,7 +117,7 @@ impl World {
         entity
     }
 
-    pub(crate) fn remove_entity(&mut self, entity: Entity) -> Result<(), WorldError> {
+    pub(crate) fn remove_entity(&mut self, entity: Entity) -> Result<(), SceneError> {
         for container in self.containers.values_mut() {
             container.remove(entity);
         }
@@ -134,25 +132,25 @@ impl World {
         entity: Entity,
         component: UID,
         data: C,
-    ) -> Result<(), WorldError> {
+    ) -> Result<(), SceneError> {
         if let hash_map::Entry::Vacant(e) = self.containers.entry(component) {
             let container = registry
                 .definitions
                 .get(&component)
-                .ok_or(WorldError::Registry(
+                .ok_or(SceneError::Registry(
                     RegistryError::ComponentDefinitionNotFound { uid: component },
                 ))?
                 .reflection
-                .create_container();
+                .create_scene_container();
             e.insert(container);
         }
         let container = self.containers.get_mut(&component).unwrap();
         container
             .as_any_mut()
-            .downcast_mut::<StaticComponentContainer<C>>()
-            .ok_or(WorldError::ComponentTypeMismatch { uid: component })?
+            .downcast_mut::<StaticSceneContainer<C>>()
+            .ok_or(SceneError::ComponentTypeMismatch { uid: component })?
             .add(entity, data)
-            .map_err(|_| WorldError::ContainerBorrowMut)?;
+            .map_err(|_| SceneError::ContainerBorrowMut)?;
         Ok(())
     }
 
@@ -160,11 +158,11 @@ impl World {
         &mut self,
         entity: Entity,
         component: UID,
-    ) -> Result<(), WorldError> {
+    ) -> Result<(), SceneError> {
         let container = self
             .containers
             .get_mut(&component)
-            .ok_or(WorldError::ComponentContainerNotFound { uid: component })?;
+            .ok_or(SceneError::ComponentContainerNotFound { uid: component })?;
         container.remove(entity);
         Ok(())
     }
@@ -172,19 +170,19 @@ impl World {
     pub(crate) fn static_view<C: Component>(
         &self,
         component: UID,
-    ) -> Result<StaticComponentViewRef<'_, C>, WorldError> {
+    ) -> Result<StaticComponentViewRef<'_, C>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             let container = container
                 .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(WorldError::ComponentTypeMismatch { uid: component })?;
+                .downcast_ref::<StaticSceneContainer<C>>()
+                .ok_or(SceneError::ComponentTypeMismatch { uid: component })?;
             Ok(StaticComponentViewRef::new(container))
         } else {
             Ok(StaticComponentViewRef::none())
         }
     }
 
-    pub(crate) fn any_view(&self, component: UID) -> Result<AnyComponentViewRef<'_>, WorldError> {
+    pub(crate) fn any_view(&self, component: UID) -> Result<AnyComponentViewRef<'_>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view())
         } else {
@@ -195,12 +193,12 @@ impl World {
     pub(crate) fn static_view_mut<C: Component>(
         &self,
         component: UID,
-    ) -> Result<StaticComponentViewMut<'_, C>, WorldError> {
+    ) -> Result<StaticComponentViewMut<'_, C>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             let container = container
                 .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(WorldError::ComponentTypeMismatch { uid: component })?;
+                .downcast_ref::<StaticSceneContainer<C>>()
+                .ok_or(SceneError::ComponentTypeMismatch { uid: component })?;
             Ok(StaticComponentViewMut::new(container))
         } else {
             Ok(StaticComponentViewMut::none())
@@ -210,7 +208,7 @@ impl World {
     pub(crate) fn any_view_mut(
         &self,
         component: UID,
-    ) -> Result<AnyComponentViewMut<'_>, WorldError> {
+    ) -> Result<AnyComponentViewMut<'_>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view_mut())
         } else {
@@ -236,32 +234,32 @@ impl World {
         &mut self,
         component: UID,
         data: C,
-    ) -> Result<(), WorldError> {
+    ) -> Result<(), SceneError> {
         if self.singletons.contains_key(&component) {
-            return Err(WorldError::DuplicatedSingleton { uid: component });
+            return Err(SceneError::DuplicatedSingleton { uid: component });
         }
         self.singletons
-            .insert(component, Box::new(StaticComponentSingleton::new(data)));
+            .insert(component, Box::new(StaticSceneSingleton::new(data)));
         Ok(())
     }
 
-    pub(crate) fn remove_singleton(&mut self, component: UID) -> Result<(), WorldError> {
+    pub(crate) fn remove_singleton(&mut self, component: UID) -> Result<(), SceneError> {
         self.singletons
             .remove(&component)
-            .ok_or(WorldError::SingletonNotFound { uid: component })?;
+            .ok_or(SceneError::SingletonNotFound { uid: component })?;
         Ok(())
     }
 
     pub(crate) fn get_static_singleton<C: Component>(
         &self,
         component: UID,
-    ) -> Result<Option<StaticSingletonRef<'_, C>>, WorldError> {
+    ) -> Result<Option<StaticSingletonRef<'_, C>>, SceneError> {
         if let Some(singleton) = self.singletons.get(&component) {
             Ok(Some(StaticSingletonRef {
                 component: singleton
                     .as_any()
-                    .downcast_ref::<StaticComponentSingleton<C>>()
-                    .ok_or(WorldError::SingletonTypeMismatch { uid: component })?
+                    .downcast_ref::<StaticSceneSingleton<C>>()
+                    .ok_or(SceneError::SingletonTypeMismatch { uid: component })?
                     .component
                     .borrow(),
             }))
@@ -273,13 +271,13 @@ impl World {
     pub(crate) fn get_static_singleton_mut<C: Component>(
         &self,
         component: UID,
-    ) -> Result<Option<StaticSingletonMut<'_, C>>, WorldError> {
+    ) -> Result<Option<StaticSingletonMut<'_, C>>, SceneError> {
         if let Some(singleton) = self.singletons.get(&component) {
             Ok(Some(StaticSingletonMut {
                 component: singleton
                     .as_any()
-                    .downcast_ref::<StaticComponentSingleton<C>>()
-                    .ok_or(WorldError::SingletonTypeMismatch { uid: component })?
+                    .downcast_ref::<StaticSceneSingleton<C>>()
+                    .ok_or(SceneError::SingletonTypeMismatch { uid: component })?
                     .component
                     .borrow_mut(),
             }))
@@ -293,7 +291,7 @@ impl World {
         registry: &ComponentRegistry,
         entity: Entity,
         export_hierarchy: bool,
-    ) -> Result<Prefab, WorldError> {
+    ) -> Result<Prefab, SceneError> {
         // let hierarchies = self.view::<Hierarchy>(Hierarchy::UID)
         //     .with_context(|| "Hierarchy component not registered")?;
 

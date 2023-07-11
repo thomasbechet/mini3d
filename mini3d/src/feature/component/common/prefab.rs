@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use mini3d_derive::{Asset, Serialize};
+use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::ecs::entity::Entity;
 
 #[derive(Serialize)]
 pub struct EntityPrefab {}
 
-#[derive(Asset)]
+#[derive(Component, Serialize, Default, Reflect)]
 pub struct Prefab {
     pub(crate) entities: HashMap<Entity, EntityPrefab>,
     pub(crate) names: HashMap<String, Entity>,

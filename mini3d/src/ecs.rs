@@ -6,8 +6,8 @@ use crate::{
     asset::AssetManager,
     context::{
         asset::AssetContext, event::EventContext, input::InputContext, procedure::ProcedureContext,
-        registry::RegistryContext, renderer::RendererContext, scheduler::SchedulerContext,
-        time::TimeContext, world::WorldContext, SystemContext,
+        registry::RegistryContext, renderer::RendererContext, scene::SceneContext,
+        scheduler::SchedulerContext, time::TimeContext, SystemContext,
     },
     event::Events,
     input::InputManager,
@@ -19,8 +19,8 @@ use crate::{
 };
 
 use self::{
-    error::ECSError, pipeline::CompiledSystemPipeline, procedure::Procedure, scheduler::Scheduler,
-    world::World,
+    error::ECSError, pipeline::CompiledSystemPipeline, procedure::Procedure, scene::Scene,
+    scheduler::Scheduler,
 };
 
 pub mod container;
@@ -30,19 +30,19 @@ pub mod pipeline;
 pub mod procedure;
 pub mod query;
 pub mod reference;
+pub mod scene;
 pub mod scheduler;
 pub mod singleton;
 pub mod sparse;
 pub mod system;
 pub mod view;
-pub mod world;
 
 pub(crate) struct ECSManager {
     scheduler: Scheduler,
     next_frame_system_invocations: Vec<UID>,
     next_frame_procedures: VecDeque<UID>,
-    pub(crate) worlds: RefCell<HashMap<UID, RefCell<Box<World>>>>,
-    pub(crate) active_world: UID,
+    pub(crate) scenes: RefCell<HashMap<UID, RefCell<Box<Scene>>>>,
+    pub(crate) active_scene: UID,
 }
 
 impl Default for ECSManager {
@@ -51,11 +51,11 @@ impl Default for ECSManager {
             scheduler: Scheduler::default(),
             next_frame_system_invocations: Vec::new(),
             next_frame_procedures: VecDeque::new(),
-            worlds: RefCell::new(HashMap::from([(
-                Self::MAIN_WORLD.into(),
-                RefCell::new(Box::new(World::new(Self::MAIN_WORLD))),
+            scenes: RefCell::new(HashMap::from([(
+                Self::MAIN_SCENE.into(),
+                RefCell::new(Box::new(Scene::new(Self::MAIN_SCENE))),
             )])),
-            active_world: Self::MAIN_WORLD.into(),
+            active_scene: Self::MAIN_SCENE.into(),
         }
     }
 }
@@ -75,13 +75,13 @@ pub(crate) struct ECSUpdateContext<'a> {
 fn create_system_context<'b, 'a: 'b>(
     context: &'b mut ECSUpdateContext<'a>,
     active_procedure: UID,
-    active_world: UID,
+    active_scene: UID,
     scheduler: &'b mut Scheduler,
     frame_procedures: &'b mut VecDeque<UID>,
     next_frame_procedures: &'b mut VecDeque<UID>,
-    worlds: &'b mut HashMap<UID, RefCell<Box<World>>>,
-    change_world: &'b mut Option<UID>,
-    removed_worlds: &'b mut HashSet<UID>,
+    scenes: &'b mut HashMap<UID, RefCell<Box<Scene>>>,
+    change_scene: &'b mut Option<UID>,
+    removed_scenes: &'b mut HashSet<UID>,
 ) -> SystemContext<'b> {
     SystemContext {
         asset: AssetContext {
@@ -114,18 +114,18 @@ fn create_system_context<'b, 'a: 'b>(
             },
             global: context.time,
         },
-        world: WorldContext {
+        scene: SceneContext {
             registry: context.registry,
-            worlds,
-            active_world,
-            change_world,
-            removed_worlds,
+            scenes,
+            active_scene,
+            change_scene,
+            removed_scenes,
         },
     }
 }
 
 impl ECSManager {
-    const MAIN_WORLD: &'static str = "main";
+    const MAIN_SCENE: &'static str = "main";
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         // Scheduler
@@ -134,13 +134,13 @@ impl ECSManager {
         self.next_frame_system_invocations.serialize(encoder)?;
         // Next frame procedures
         self.next_frame_procedures.serialize(encoder)?;
-        // Worlds
-        encoder.write_u32(self.worlds.borrow().len() as u32)?;
-        for world in self.worlds.borrow().values() {
-            world.borrow().serialize(encoder)?;
+        // Scenes
+        encoder.write_u32(self.scenes.borrow().len() as u32)?;
+        for scene in self.scenes.borrow().values() {
+            scene.borrow().serialize(encoder)?;
         }
-        // Active world
-        self.active_world.serialize(encoder)?;
+        // Active scene
+        self.active_scene.serialize(encoder)?;
         Ok(())
     }
 
@@ -155,16 +155,16 @@ impl ECSManager {
         self.next_frame_system_invocations = Vec::<UID>::deserialize(decoder, &Default::default())?;
         // Next frame procedures
         self.next_frame_procedures = VecDeque::<UID>::deserialize(decoder, &Default::default())?;
-        // Worlds
-        let worlds_count = decoder.read_u32()?;
-        for _ in 0..worlds_count {
-            let world = World::deserialize(registry, decoder)?;
-            self.worlds
+        // Scenes
+        let scenes_count = decoder.read_u32()?;
+        for _ in 0..scenes_count {
+            let scene = Scene::deserialize(registry, decoder)?;
+            self.scenes
                 .borrow_mut()
-                .insert(UID::new(&world.name), RefCell::new(Box::new(world)));
+                .insert(UID::new(&scene.name), RefCell::new(Box::new(scene)));
         }
-        // Active world
-        self.active_world = UID::deserialize(decoder, &Default::default())?;
+        // Active scene
+        self.active_scene = UID::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
@@ -179,9 +179,9 @@ impl ECSManager {
         fixed_update_count: u32,
     ) -> Result<(), ECSError> {
         // Prepare frame
-        let mut change_world: Option<UID> = None;
-        let mut removed_worlds: HashSet<UID> = Default::default();
-        let mut worlds = self.worlds.borrow_mut();
+        let mut change_scene: Option<UID> = None;
+        let mut removed_scenes: HashSet<UID> = Default::default();
+        let mut scenes = self.scenes.borrow_mut();
 
         // Collect procedures
         let mut frame_procedures = self
@@ -206,13 +206,13 @@ impl ECSManager {
                     &mut create_system_context(
                         &mut context,
                         UID::null(),
-                        self.active_world,
+                        self.active_scene,
                         &mut self.scheduler,
                         &mut frame_procedures,
                         &mut self.next_frame_procedures,
-                        &mut worlds,
-                        &mut change_world,
-                        &mut removed_worlds,
+                        &mut scenes,
+                        &mut change_scene,
+                        &mut removed_scenes,
                     ),
                     scripts,
                 )
@@ -235,30 +235,30 @@ impl ECSManager {
                         &mut create_system_context(
                             &mut context,
                             procedure,
-                            self.active_world,
+                            self.active_scene,
                             &mut self.scheduler,
                             &mut frame_procedures,
                             &mut self.next_frame_procedures,
-                            &mut worlds,
-                            &mut change_world,
-                            &mut removed_worlds,
+                            &mut scenes,
+                            &mut change_scene,
+                            &mut removed_scenes,
                         ),
                         scripts,
                     )
                     .map_err(|_| ECSError::RegistryError)?;
             }
 
-            // Remove worlds
-            for uid in removed_worlds.drain() {
-                self.worlds.borrow_mut().remove(&uid);
+            // Remove scenes
+            for uid in removed_scenes.drain() {
+                self.scenes.borrow_mut().remove(&uid);
             }
 
-            // Change world
-            if let Some(world) = change_world {
-                self.active_world = world;
+            // Change scene
+            if let Some(scene) = change_scene {
+                self.active_scene = scene;
                 self.next_frame_procedures
-                    .push_front(Procedure::WORLD_CHANGED.into());
-                change_world = None;
+                    .push_front(Procedure::SCENE_CHANGED.into());
+                change_scene = None;
             }
         }
 

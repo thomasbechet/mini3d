@@ -1,11 +1,11 @@
 use crate::math::rect::IRect;
 use glam::{IVec2, UVec2};
-use mini3d_derive::Asset;
+use mini3d_derive::{Component, Reflect, Serialize};
 use std::collections::HashMap;
 
 use super::texture::{Texture, TextureFormat};
 
-#[derive(Clone, Asset)]
+#[derive(Clone, Component, Reflect, Serialize)]
 pub struct Font {
     pub glyph_size: UVec2,
     pub data: Vec<u8>,
@@ -16,7 +16,7 @@ impl Default for Font {
     fn default() -> Self {
         let glyph_width = 8;
         let glyph_height = 8;
-        let data = include_bytes!("../../../../assets/font.bin").to_vec();
+        let data = include_bytes!("../../../../../assets/font.bin").to_vec();
         let glyph_locations: HashMap<_, _> = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê"
             .chars().enumerate().map(|(i, x)| (x, i)).collect();
         Font {

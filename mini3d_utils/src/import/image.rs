@@ -1,9 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, Events}, feature::asset::texture::{Texture, TextureFormat}};
+use mini3d::{
+    event::{
+        asset::{AssetImportEntry, ImportAssetEvent},
+        Events,
+    },
+    feature::component::renderer::texture::{Texture, TextureFormat},
+};
 
 pub struct ImageImport {
-    texture: AssetImportEntry<Texture>
+    texture: AssetImportEntry<Texture>,
 }
 
 impl ImageImport {
@@ -19,9 +25,10 @@ pub struct ImageImporter {
 }
 
 impl ImageImporter {
-
     pub fn new() -> Self {
-        Self { ..Default::default() }
+        Self {
+            ..Default::default()
+        }
     }
 
     pub fn from_source(&mut self, path: &Path) -> &mut Self {
@@ -36,11 +43,17 @@ impl ImageImporter {
 
     pub fn import(&self) -> Result<ImageImport, String> {
         // Find the asset name either from the user defined name or the source
-        let filename = self.name.clone().or_else(|| self.path.file_stem().map(|n| n.to_owned().into_string().unwrap()))
+        let filename = self
+            .name
+            .clone()
+            .or_else(|| {
+                self.path
+                    .file_stem()
+                    .map(|n| n.to_owned().into_string().unwrap())
+            })
             .ok_or_else(|| "Failed to get name from path (no name provided)".to_string())?;
         // Load the image
-        let image = image::open(&self.path)
-            .map_err(|err| format!("Failed open image: {err}"))?;
+        let image = image::open(&self.path).map_err(|err| format!("Failed open image: {err}"))?;
         // Convert to rgba8
         let data = image.to_rgba8();
         // Build the texture
@@ -54,8 +67,8 @@ impl ImageImporter {
         Ok(ImageImport {
             texture: AssetImportEntry::<Texture> {
                 data: texture,
-                name: filename
-            }
+                name: filename,
+            },
         })
     }
 }

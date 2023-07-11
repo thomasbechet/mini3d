@@ -1,11 +1,17 @@
 use mini3d_derive::Serialize;
 
-use crate::{feature::asset::{font::Font, mesh::Mesh, material::Material, model::Model, texture::Texture, script::Script}, registry::asset::Asset};
+use crate::{
+    feature::component::{
+        common::script::Script,
+        renderer::{font::Font, material::Material, mesh::Mesh, model::Model, texture::Texture},
+    },
+    registry::component::Component,
+};
 
 #[derive(Serialize)]
-pub struct AssetImportEntry<A: Asset> {
+pub struct AssetImportEntry<C: Component> {
     pub name: String,
-    pub data: A,
+    pub data: C,
 }
 
 #[derive(Serialize)]

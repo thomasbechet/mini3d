@@ -1,11 +1,23 @@
 use std::collections::HashMap;
 
 use glam::IVec2;
-use mini3d_derive::{Serialize, Error};
+use mini3d_derive::{Error, Serialize};
 
-use crate::{uid::UID, ui::{event::{EventContext, Event, Direction}, user::InteractionMode}, math::rect::IRect, renderer::{graphics::Graphics, SCREEN_VIEWPORT}, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{
+    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    math::rect::IRect,
+    renderer::{graphics::Graphics, SCREEN_VIEWPORT},
+    ui::{
+        event::{Direction, Event, EventContext},
+        user::InteractionMode,
+    },
+    uid::UID,
+};
 
-use super::{button::UIButton, checkbox::UICheckBox, label::UILabel, slider::UISlider, sprite::UISprite, Widget, textbox::UITextBox, viewport::UIViewport};
+use super::{
+    button::UIButton, checkbox::UICheckBox, label::UILabel, slider::UISlider, sprite::UISprite,
+    textbox::UITextBox, viewport::UIViewport, Widget,
+};
 
 #[derive(Serialize)]
 pub(crate) enum WidgetVariant {
@@ -19,15 +31,14 @@ pub(crate) enum WidgetVariant {
 }
 
 impl Widget for WidgetVariant {
-    
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match self {
             WidgetVariant::Button(button) => button.handle_event(ctx, event),
             WidgetVariant::Checkbox(checkbox) => checkbox.handle_event(ctx, event),
-            WidgetVariant::Label(label) => { false },
-            WidgetVariant::Slider(slider) => { false },
+            WidgetVariant::Label(label) => false,
+            WidgetVariant::Slider(slider) => false,
             WidgetVariant::TextBox(textbox) => textbox.handle_event(ctx, event),
-            _ => { false }
+            _ => false,
         }
     }
 
@@ -36,7 +47,7 @@ impl Widget for WidgetVariant {
             WidgetVariant::Button(button) => button.render(gfx, styles, offset, time),
             WidgetVariant::Checkbox(checkbox) => checkbox.render(gfx, styles, offset, time),
             WidgetVariant::Label(label) => label.render(gfx, styles, offset, time),
-            WidgetVariant::Slider(slider) => {},
+            WidgetVariant::Slider(slider) => {}
             WidgetVariant::Sprite(sprite) => sprite.render(gfx, styles, offset, time),
             WidgetVariant::TextBox(textbox) => textbox.render(gfx, styles, offset, time),
             WidgetVariant::Viewport(viewport) => viewport.render(gfx, styles, offset, time),
@@ -67,7 +78,9 @@ impl Widget for WidgetVariant {
         }
     }
 
-    fn is_selectable(&self) -> bool { true }
+    fn is_selectable(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Default, Serialize)]
@@ -112,7 +125,6 @@ pub struct UILayout {
 }
 
 impl UILayout {
-
     fn add(&mut self, uid: UID, entry: WidgetEntry) {
         if self.default_target.is_none() {
             self.default_target = Some(uid);
@@ -122,89 +134,112 @@ impl UILayout {
 
     pub fn add_button(&mut self, name: &str, z_index: i32, button: UIButton) -> UID {
         let uid: UID = name.into();
-        self.add(uid, WidgetEntry { 
-            name: name.to_string(), 
-            z_index,
-            navigation: Navigation::default(), 
-            widget: WidgetVariant::Button(button),
-        });
+        self.add(
+            uid,
+            WidgetEntry {
+                name: name.to_string(),
+                z_index,
+                navigation: Navigation::default(),
+                widget: WidgetVariant::Button(button),
+            },
+        );
         uid
     }
 
     pub fn add_sprite(&mut self, name: &str, z_index: i32, sprite: UISprite) -> UID {
         let uid: UID = name.into();
-        self.add(uid, WidgetEntry { 
-            name: name.to_string(), 
-            z_index,
-            navigation: Navigation::default(), 
-            widget: WidgetVariant::Sprite(sprite),
-        });
+        self.add(
+            uid,
+            WidgetEntry {
+                name: name.to_string(),
+                z_index,
+                navigation: Navigation::default(),
+                widget: WidgetVariant::Sprite(sprite),
+            },
+        );
         uid
     }
 
     pub fn add_textbox(&mut self, name: &str, z_index: i32, textbox: UITextBox) -> UID {
         let uid: UID = name.into();
-        self.add(uid, WidgetEntry { 
-            name: name.to_string(), 
-            z_index,
-            navigation: Navigation::default(), 
-            widget: WidgetVariant::TextBox(textbox),
-        });
+        self.add(
+            uid,
+            WidgetEntry {
+                name: name.to_string(),
+                z_index,
+                navigation: Navigation::default(),
+                widget: WidgetVariant::TextBox(textbox),
+            },
+        );
         uid
     }
 
     pub fn add_checkbox(&mut self, name: &str, z_index: i32, checkbox: UICheckBox) -> UID {
         let uid: UID = name.into();
-        self.add(uid, WidgetEntry { 
-            name: name.to_string(), 
-            z_index,
-            navigation: Navigation::default(), 
-            widget: WidgetVariant::Checkbox(checkbox),
-        });
+        self.add(
+            uid,
+            WidgetEntry {
+                name: name.to_string(),
+                z_index,
+                navigation: Navigation::default(),
+                widget: WidgetVariant::Checkbox(checkbox),
+            },
+        );
         uid
     }
 
     pub fn add_label(&mut self, name: &str, z_index: i32, label: UILabel) -> UID {
         let uid: UID = name.into();
-        self.add(uid, WidgetEntry { 
-            name: name.to_string(), 
-            z_index,
-            navigation: Navigation::default(), 
-            widget: WidgetVariant::Label(label),
-        });
+        self.add(
+            uid,
+            WidgetEntry {
+                name: name.to_string(),
+                z_index,
+                navigation: Navigation::default(),
+                widget: WidgetVariant::Label(label),
+            },
+        );
         uid
     }
 
     pub fn add_viewport(&mut self, name: &str, z_index: i32, viewport: UIViewport) -> UID {
         let uid: UID = name.into();
-        self.add(uid, WidgetEntry {
-            name: name.to_string(), 
-            z_index,
-            navigation: Navigation::default(), 
-            widget: WidgetVariant::Viewport(viewport),
-        });
+        self.add(
+            uid,
+            WidgetEntry {
+                name: name.to_string(),
+                z_index,
+                navigation: Navigation::default(),
+                widget: WidgetVariant::Viewport(viewport),
+            },
+        );
         uid
     }
 
-    pub fn set_navigation(&mut self, widget: UID, navigation: Navigation) -> Result<(), UILayoutError> {
-        self.widgets.get_mut(&widget).ok_or(UILayoutError::WidgetNotFound { uid: widget })?.navigation = navigation;
+    pub fn set_navigation(
+        &mut self,
+        widget: UID,
+        navigation: Navigation,
+    ) -> Result<(), UILayoutError> {
+        self.widgets
+            .get_mut(&widget)
+            .ok_or(UILayoutError::WidgetNotFound { uid: widget })?
+            .navigation = navigation;
         Ok(())
     }
 }
 
 impl Widget for UILayout {
-    
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
-        
         let profile_uid = ctx.user.uid();
 
         match event {
             Event::PrimaryJustPressed => {
                 if let Some(target) = self.profiles_target.get(&profile_uid) {
-                    
                     let current_focus = self.profiles_focus.get(&profile_uid).copied();
-                    
-                    { // Unfocus
+
+                    {
+                        // Unfocus
                         if let Some(current_focus) = current_focus {
                             if current_focus != *target {
                                 let entry = self.widgets.get_mut(&current_focus).unwrap();
@@ -214,7 +249,8 @@ impl Widget for UILayout {
                         }
                     }
 
-                    { // Focus
+                    {
+                        // Focus
                         if current_focus != Some(*target) {
                             let entry = self.widgets.get_mut(target).unwrap();
                             if entry.widget.is_focusable() {
@@ -224,7 +260,8 @@ impl Widget for UILayout {
                         }
                     }
 
-                    { // Just pressed
+                    {
+                        // Just pressed
                         let entry = self.widgets.get_mut(target).unwrap();
                         entry.widget.handle_event(ctx, &Event::PrimaryJustPressed);
                     }
@@ -233,20 +270,20 @@ impl Widget for UILayout {
                     entry.widget.handle_event(ctx, &Event::LooseFocus);
                     self.profiles_focus.remove(&profile_uid);
                 }
-            },
+            }
             Event::PrimaryJustReleased => {
                 if let Some(target) = self.profiles_target.get(&profile_uid) {
                     let entry = self.widgets.get_mut(target).unwrap();
                     entry.widget.handle_event(ctx, &Event::PrimaryJustReleased);
                 }
-            },
+            }
             Event::Cancel => {
                 if let Some(focus) = self.profiles_focus.get(&profile_uid) {
                     let entry = self.widgets.get_mut(focus).unwrap();
                     entry.widget.handle_event(ctx, &Event::LooseFocus);
                     self.profiles_focus.remove(&profile_uid);
                 }
-            },
+            }
             Event::CursorMoved { position } => {
                 // Update target
                 let previous = self.profiles_target.get(&profile_uid).copied();
@@ -279,7 +316,7 @@ impl Widget for UILayout {
                     let entry = self.widgets.get_mut(focus).unwrap();
                     entry.widget.handle_event(ctx, event);
                 }
-            },
+            }
             Event::SelectionMoved { direction } => {
                 // Check focus
                 if let Some(focus) = self.profiles_focus.get(&profile_uid) {
@@ -289,11 +326,22 @@ impl Widget for UILayout {
                 } else {
                     // Change target
                     if let Some(target) = self.profiles_target.get(&profile_uid).copied() {
-                        if let Some(next) = self.widgets.get_mut(&target).unwrap().navigation.get(*direction) {
+                        if let Some(next) = self
+                            .widgets
+                            .get_mut(&target)
+                            .unwrap()
+                            .navigation
+                            .get(*direction)
+                        {
                             self.profiles_target.insert(profile_uid, next);
-                            self.widgets.get_mut(&target).unwrap().widget.handle_event(ctx, &Event::Leave);
+                            self.widgets
+                                .get_mut(&target)
+                                .unwrap()
+                                .widget
+                                .handle_event(ctx, &Event::Leave);
                             let next_entry = self.widgets.get_mut(&next).unwrap();
-                            ctx.user.lerp_selection_extent(next_entry.widget.extent(), ctx.time);
+                            ctx.user
+                                .lerp_selection_extent(next_entry.widget.extent(), ctx.time);
                             next_entry.widget.handle_event(ctx, &Event::Enter);
                         }
                     } else if let Some(default) = self.default_target {
@@ -301,10 +349,11 @@ impl Widget for UILayout {
                         self.profiles_target.insert(profile_uid, default);
                         let default_entry = self.widgets.get_mut(&default).unwrap();
                         default_entry.widget.handle_event(ctx, &Event::Enter);
-                        ctx.user.lerp_selection_extent(default_entry.widget.extent(), ctx.time);
+                        ctx.user
+                            .lerp_selection_extent(default_entry.widget.extent(), ctx.time);
                     }
                 }
-            },
+            }
             Event::ModeChanged => {
                 if let Some(focus) = self.profiles_focus.get(&profile_uid) {
                     // Simply forward the event
@@ -312,7 +361,7 @@ impl Widget for UILayout {
                     entry.widget.handle_event(ctx, event);
                 } else {
                     match ctx.user.mode {
-                        InteractionMode::Disabled => {},
+                        InteractionMode::Disabled => {}
                         InteractionMode::Selection => {
                             if let Some(target) = self.profiles_target.get(&profile_uid).copied() {
                                 let entry = self.widgets.get_mut(&target).unwrap();
@@ -326,21 +375,20 @@ impl Widget for UILayout {
                             } else {
                                 ctx.user.set_selection_extent(self.extent());
                             }
-                        },
-                        InteractionMode::Cursor => {},
+                        }
+                        InteractionMode::Cursor => {}
                     }
                 }
-            },
+            }
             _ => {}
         }
         true
     }
 
     fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, time: f64) {
-
         // Sort widgets
         let mut entries = self.widgets.values().collect::<Vec<_>>();
-        entries.sort_by(|a, b| { a.z_index.cmp(&b.z_index) });
+        entries.sort_by(|a, b| a.z_index.cmp(&b.z_index));
 
         // Render widgets
         for entry in entries {
@@ -352,7 +400,11 @@ impl Widget for UILayout {
         SCREEN_VIEWPORT
     }
 
-    fn is_focusable(&self) -> bool { false }
+    fn is_focusable(&self) -> bool {
+        false
+    }
 
-    fn is_selectable(&self) -> bool { true }
+    fn is_selectable(&self) -> bool {
+        true
+    }
 }

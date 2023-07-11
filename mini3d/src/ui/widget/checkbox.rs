@@ -1,7 +1,16 @@
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, uid::UID, ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{
+    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    math::rect::IRect,
+    renderer::{color::Color, graphics::Graphics},
+    ui::{
+        event::{Event, EventContext, UIEvent},
+        style::UIBoxStyle,
+    },
+    uid::UID,
+};
 
 use super::Widget;
 
@@ -12,7 +21,6 @@ pub struct UICheckBoxStyle {
 }
 
 impl UICheckBoxStyle {
-
     pub const DEFAULT: &'static str = "default";
 
     pub fn new(checked: UIBoxStyle, unchecked: UIBoxStyle) -> Self {
@@ -23,8 +31,8 @@ impl UICheckBoxStyle {
 impl Default for UICheckBoxStyle {
     fn default() -> Self {
         Self {
-            checked: UIBoxStyle::Color(Color::WHITE), 
-            unchecked: UIBoxStyle::Color(Color::RED), 
+            checked: UIBoxStyle::Color(Color::WHITE),
+            unchecked: UIBoxStyle::Color(Color::RED),
         }
     }
 }
@@ -40,9 +48,15 @@ pub struct UICheckBox {
 }
 
 impl UICheckBox {
-    
     pub fn new(extent: IRect, checked: bool) -> Self {
-        Self { extent, checked, style: UICheckBoxStyle::DEFAULT.into(), hovered: false, on_checked: None, on_unchecked: None }
+        Self {
+            extent,
+            checked,
+            style: UICheckBoxStyle::DEFAULT.into(),
+            hovered: false,
+            on_checked: None,
+            on_unchecked: None,
+        }
     }
 
     pub fn on_checked(&mut self, action: Option<UID>) {
@@ -55,26 +69,31 @@ impl UICheckBox {
 }
 
 impl Widget for UICheckBox {
-
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match event {
             Event::PrimaryJustPressed => {
                 self.checked = !self.checked;
                 if self.checked {
                     if let Some(action) = self.on_checked {
-                        ctx.events.push(UIEvent::Action { user: ctx.user.uid(), id: action });
+                        ctx.events.push(UIEvent::Action {
+                            user: ctx.user.uid(),
+                            id: action,
+                        });
                     }
                 } else if let Some(action) = self.on_unchecked {
-                    ctx.events.push(UIEvent::Action { user: ctx.user.uid(), id: action });
+                    ctx.events.push(UIEvent::Action {
+                        user: ctx.user.uid(),
+                        id: action,
+                    });
                 }
-            },
+            }
             Event::Enter => {
                 self.hovered = true;
-            },
+            }
             Event::Leave => {
                 self.hovered = false;
-            },
-            _ => {},
+            }
+            _ => {}
         }
         true
     }

@@ -1,8 +1,13 @@
+use mini3d_derive::{Error, Serialize};
 use std::collections::{HashMap, HashSet};
-use mini3d_derive::{Serialize, Error};
 
-use crate::serialize::{Serialize, DecoderError, Decoder};
-use crate::{event::input::{InputEvent}, uid::UID, feature::asset::input_table::{InputAxisRange, InputTable}, serialize::{Encoder, EncoderError}};
+use crate::event::input::InputEvent;
+use crate::feature::component::input::input_table::{InputAxisRange, InputTable};
+use crate::serialize::{Decoder, DecoderError, Serialize};
+use crate::{
+    serialize::{Encoder, EncoderError},
+    uid::UID,
+};
 
 use self::backend::{InputBackend, InputBackendError};
 
@@ -33,7 +38,6 @@ pub struct InputActionState {
 }
 
 impl InputActionState {
-        
     pub fn is_pressed(&self) -> bool {
         self.pressed
     }
@@ -58,21 +62,14 @@ pub struct InputAxisState {
 }
 
 impl InputAxisState {
-    
     pub fn set_value(&mut self, value: f32) {
         self.value = match &self.range {
-            InputAxisRange::Clamped { min, max } => {
-                value.max(*min).min(*max)
-            },
-            InputAxisRange::Normalized { norm } => {
-                value / norm
-            },
+            InputAxisRange::Clamped { min, max } => value.max(*min).min(*max),
+            InputAxisRange::Normalized { norm } => value / norm,
             InputAxisRange::ClampedNormalized { min, max, norm } => {
                 value.max(*min).min(*max) / norm
-            },
-            InputAxisRange::Infinite => {
-                value
-            },
+            }
+            InputAxisRange::Infinite => value,
         }
     }
 }
@@ -92,10 +89,8 @@ pub struct InputManager {
 }
 
 impl InputManager {
-
     /// Reset action states and mouse motion
     pub(crate) fn prepare_dispatch(&mut self) {
-
         // Save the previous action state
         for action in self.actions.values_mut() {
             action.was_pressed = action.pressed;
@@ -114,17 +109,17 @@ impl InputManager {
                 if let Some(action) = self.actions.get_mut(&event.action) {
                     action.pressed = event.pressed;
                 }
-            },
+            }
             InputEvent::Axis(event) => {
                 if let Some(axis) = self.axis.get_mut(&event.axis) {
                     axis.set_value(event.value);
                 }
-            },
+            }
             InputEvent::Text(text) => {
                 if let Some(text) = self.texts.get_mut(&text.stream) {
                     text.value = text.value.clone();
                 }
-            },
+            }
         }
     }
 
@@ -142,7 +137,10 @@ impl InputManager {
         Ok(())
     }
 
-    pub(crate) fn synchronize_backend(&mut self, backend: &mut impl InputBackend) -> Result<(), InputBackendError> {
+    pub(crate) fn synchronize_backend(
+        &mut self,
+        backend: &mut impl InputBackend,
+    ) -> Result<(), InputBackendError> {
         for uid in self.notify_tables.drain() {
             if let Some(table) = self.tables.get(&uid) {
                 backend.update_table(uid, Some(table))?;
@@ -155,29 +153,46 @@ impl InputManager {
 
     pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
         // Check table validity
-        table.validate().map_err(|_| InputError::TableValidationError)?;
+        table
+            .validate()
+            .map_err(|_| InputError::TableValidationError)?;
         // Check duplicated table
         if self.tables.contains_key(&table.uid()) {
-            return Err(InputError::DuplicatedTable { name: table.name.to_string() });
+            return Err(InputError::DuplicatedTable {
+                name: table.name.to_string(),
+            });
         }
         // Check duplicated actions
         for action in table.actions.iter() {
             if self.actions.contains_key(&action.uid()) {
-                return Err(InputError::DuplicatedAction { name: action.name.to_string() });
+                return Err(InputError::DuplicatedAction {
+                    name: action.name.to_string(),
+                });
             }
         }
         // Check duplicated axis
         for axis in table.axis.iter() {
             if self.axis.contains_key(&axis.uid()) {
-                return Err(InputError::DuplicatedAxis { name: axis.name.to_string() });
+                return Err(InputError::DuplicatedAxis {
+                    name: axis.name.to_string(),
+                });
             }
         }
         // We can safely insert table, actions and axis
         for action in table.actions.iter() {
-            self.actions.insert(action.uid(), InputActionState { pressed: action.default_pressed, was_pressed: false });
+            self.actions.insert(
+                action.uid(),
+                InputActionState {
+                    pressed: action.default_pressed,
+                    was_pressed: false,
+                },
+            );
         }
         for axis in table.axis.iter() {
-            let mut state =  InputAxisState { value: axis.default_value, range: axis.range };
+            let mut state = InputAxisState {
+                value: axis.default_value,
+                range: axis.range,
+            };
             state.set_value(axis.default_value);
             self.axis.insert(axis.uid(), state);
         }
@@ -188,7 +203,9 @@ impl InputManager {
     }
 
     pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState, InputError> {
-        self.actions.get(&uid).ok_or(InputError::ActionNotFound { uid })
+        self.actions
+            .get(&uid)
+            .ok_or(InputError::ActionNotFound { uid })
     }
 
     pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState, InputError> {

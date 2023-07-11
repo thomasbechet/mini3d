@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use mini3d_derive::{Asset, Error, Serialize};
+use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::uid::UID;
 
@@ -51,7 +51,7 @@ impl InputAction {
     }
 }
 
-#[derive(Clone, Asset)]
+#[derive(Clone, Default, Component, Reflect, Serialize)]
 pub struct InputTable {
     pub name: String,
     pub display_name: String,

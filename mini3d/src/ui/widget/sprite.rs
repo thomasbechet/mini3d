@@ -1,7 +1,16 @@
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{uid::UID, renderer::{color::Color, graphics::{Graphics, TextureWrapMode}}, math::rect::IRect, ui::event::{Event, EventContext}, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{
+    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    math::rect::IRect,
+    renderer::{
+        color::Color,
+        graphics::{Graphics, TextureWrapMode},
+    },
+    ui::event::{Event, EventContext},
+    uid::UID,
+};
 
 use super::Widget;
 
@@ -14,7 +23,6 @@ pub struct UISprite {
 }
 
 impl UISprite {
-
     pub fn new(texture: UID, position: IVec2, texture_extent: IRect) -> Self {
         Self {
             texture,
@@ -41,22 +49,36 @@ impl UISprite {
 }
 
 impl Widget for UISprite {
-
-    fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool { false }
+    fn handle_event(&mut self, _ctx: &mut EventContext, _event: &Event) -> bool {
+        false
+    }
 
     fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
         let extent = IRect::new(
-            self.position.x + offset.x, self.position.y + offset.y,
-            self.texture_extent.width(), self.texture_extent.height()
+            self.position.x + offset.x,
+            self.position.y + offset.y,
+            self.texture_extent.width(),
+            self.texture_extent.height(),
         );
-        gfx.blit_texture(self.texture, extent, self.texture_extent, self.color, TextureWrapMode::Clamp, 5);
+        gfx.blit_texture(
+            self.texture,
+            extent,
+            self.texture_extent,
+            self.color,
+            TextureWrapMode::Clamp,
+            5,
+        );
     }
 
     fn extent(&self) -> IRect {
         self.texture_extent.translate(self.position)
     }
 
-    fn is_focusable(&self) -> bool { false }
+    fn is_focusable(&self) -> bool {
+        false
+    }
 
-    fn is_selectable(&self) -> bool { false }
+    fn is_selectable(&self) -> bool {
+        false
+    }
 }

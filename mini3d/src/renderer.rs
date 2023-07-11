@@ -1,24 +1,22 @@
 use std::collections::{hash_map, HashMap, HashSet};
 
+use crate::ecs::view::StaticComponentView;
+use crate::feature::component::renderer::camera::Camera;
+use crate::feature::component::renderer::font::{Font, FontAtlas};
+use crate::feature::component::renderer::material::Material;
+use crate::feature::component::renderer::mesh::Mesh;
+use crate::feature::component::renderer::model::Model;
+use crate::feature::component::renderer::static_mesh::StaticMesh;
+use crate::feature::component::renderer::texture::Texture;
+use crate::feature::component::scene::local_to_world::LocalToWorld;
+use crate::feature::component::ui::canvas::Canvas;
+use crate::feature::component::ui::viewport::Viewport;
+use crate::registry::component::Component;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::{
     asset::AssetManager,
-    ecs::{entity::Entity, view::StaticComponentView, ECSManager},
-    feature::{
-        asset::{
-            font::{Font, FontAtlas},
-            material::Material,
-            mesh::Mesh,
-            model::Model,
-            texture::Texture,
-        },
-        component::{
-            camera::Camera, canvas::Canvas, local_to_world::LocalToWorld, static_mesh::StaticMesh,
-            viewport::Viewport,
-        },
-    },
+    ecs::{entity::Entity, ECSManager},
     math::rect::IRect,
-    registry::{asset::Asset, component::Component},
     serialize::{Encoder, EncoderError},
     uid::UID,
 };
@@ -258,8 +256,8 @@ impl RendererManager {
         self.scene_models_removed.clear();
         self.scene_canvases_removed.clear();
 
-        for world in ecs.worlds.get_mut().values_mut() {
-            for camera in world
+        for scene in ecs.scenes.get_mut().values_mut() {
+            for camera in scene
                 .get_mut()
                 .static_view_mut::<Camera>(Camera::UID)
                 .unwrap()
@@ -267,7 +265,7 @@ impl RendererManager {
             {
                 camera.handle = None;
             }
-            for static_mesh in world
+            for static_mesh in scene
                 .get_mut()
                 .static_view_mut::<StaticMesh>(StaticMesh::UID)
                 .unwrap()
@@ -275,7 +273,7 @@ impl RendererManager {
             {
                 static_mesh.handle = None;
             }
-            for canvas in world
+            for canvas in scene
                 .get_mut()
                 .static_view_mut::<Canvas>(Canvas::UID)
                 .unwrap()
@@ -313,33 +311,33 @@ impl RendererManager {
         }
 
         // Update scene
-        if let hash_map::Entry::Vacant(e) = self.scenes.entry(ecs.active_world) {
+        if let hash_map::Entry::Vacant(e) = self.scenes.entry(ecs.active_scene) {
             let handle = backend.scene_add()?;
             e.insert(handle);
         }
 
         // Update scene components
         {
-            let world = ecs
-                .worlds
+            let scene = ecs
+                .scenes
                 .get_mut()
-                .get_mut(&ecs.active_world)
+                .get_mut(&ecs.active_scene)
                 .unwrap()
                 .get_mut();
 
             // Prepare views
-            let local_to_world = world
+            let local_to_world = scene
                 .static_view_mut::<LocalToWorld>(LocalToWorld::UID)
                 .unwrap();
-            let mut cameras = world.static_view_mut::<Camera>(Camera::UID).unwrap();
-            let mut viewports = world.static_view_mut::<Viewport>(Viewport::UID).unwrap();
-            let mut static_meshes = world
+            let mut cameras = scene.static_view_mut::<Camera>(Camera::UID).unwrap();
+            let mut viewports = scene.static_view_mut::<Viewport>(Viewport::UID).unwrap();
+            let mut static_meshes = scene
                 .static_view_mut::<StaticMesh>(StaticMesh::UID)
                 .unwrap();
-            let mut canvases = world.static_view_mut::<Canvas>(Canvas::UID).unwrap();
+            let mut canvases = scene.static_view_mut::<Canvas>(Canvas::UID).unwrap();
 
             // Update cameras
-            for e in &world.query(&[Camera::UID, LocalToWorld::UID]) {
+            for e in &scene.query(&[Camera::UID, LocalToWorld::UID]) {
                 let c = cameras.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();
                 if c.handle.is_none() {
@@ -357,7 +355,7 @@ impl RendererManager {
             }
 
             // Update viewports
-            for e in &world.query(&[Viewport::UID]) {
+            for e in &scene.query(&[Viewport::UID]) {
                 let v = viewports.get_mut(e).unwrap();
                 if v.handle.is_none() {
                     v.handle = Some(backend.viewport_add(v.resolution)?);
@@ -373,7 +371,7 @@ impl RendererManager {
             }
 
             // Update static meshes
-            for e in &world.query(&[StaticMesh::UID, LocalToWorld::UID]) {
+            for e in &scene.query(&[StaticMesh::UID, LocalToWorld::UID]) {
                 let s = static_meshes.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();
                 if s.handle.is_none() {
@@ -396,7 +394,7 @@ impl RendererManager {
             }
 
             // Update Scene Canvas
-            for e in &world.query(&[Canvas::UID, LocalToWorld::UID]) {
+            for e in &scene.query(&[Canvas::UID, LocalToWorld::UID]) {
                 let c = canvases.get_mut(e).unwrap();
                 let t = local_to_world.get(e).unwrap();
                 if c.handle.is_none() {

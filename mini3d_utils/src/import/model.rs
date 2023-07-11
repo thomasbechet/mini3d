@@ -1,7 +1,22 @@
-use std::{path::{Path, PathBuf}, fs::File, io::Read};
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
-use mini3d::{event::{asset::{ImportAssetEvent, AssetImportEntry}, Events}, glam::{Vec3, Vec2, Vec4}, feature::asset::{material::Material, model::Model, mesh::{Mesh, Vertex, SubMesh}}};
-use wavefront_obj::obj::{Primitive, self};
+use mini3d::{
+    event::{
+        asset::{AssetImportEntry, ImportAssetEvent},
+        Events,
+    },
+    feature::component::renderer::{
+        material::Material,
+        mesh::{Mesh, SubMesh, Vertex},
+        model::Model,
+    },
+    glam::{Vec2, Vec3, Vec4},
+};
+use wavefront_obj::obj::{self, Primitive};
 
 fn vec3_from_vertex(v: &obj::Vertex) -> Vec3 {
     Vec3::new(v.x as f32, v.y as f32, v.z as f32)
@@ -40,7 +55,6 @@ pub struct ModelImporter {
 }
 
 impl ModelImporter {
-
     pub fn new() -> Self {
         Default::default()
     }
@@ -61,14 +75,15 @@ impl ModelImporter {
     }
 
     pub fn import(&self) -> Result<ModelImport, String> {
-
         // Ensure a path is provided
         let path = self.path.as_ref().ok_or("No source provided.")?;
-        
+
         // Load object file
         let mut buf = String::new();
-        File::open(path).map_err(|err| format!("Failed to load object file: {err}"))?
-            .read_to_string(&mut buf).map_err(|err| format!("Failed to read object file: {err}"))?;
+        File::open(path)
+            .map_err(|err| format!("Failed to load object file: {err}"))?
+            .read_to_string(&mut buf)
+            .map_err(|err| format!("Failed to read object file: {err}"))?;
 
         // Parse object file
         let obj = wavefront_obj::obj::parse(buf)
@@ -79,7 +94,6 @@ impl ModelImporter {
 
         // Iterate over objects
         for (object_index, object) in obj.objects.iter().enumerate() {
-
             // Create object mesh
             let mut mesh = Mesh {
                 submeshes: Default::default(),
@@ -87,12 +101,10 @@ impl ModelImporter {
 
             // Iterate over geometries
             for geometry in &object.geometry {
-
                 // Build vertices list
                 let mut vertices: Vec<Vertex> = Vec::new();
                 for shape in &geometry.shapes {
                     if let Primitive::Triangle(v0, v1, v2) = shape.primitive {
-                       
                         // Extract triangle vertices
                         let mut triangle = [v0, v1, v2].map(|v| {
                             let (v_index, t_index, n_index) = v;
@@ -104,9 +116,8 @@ impl ModelImporter {
                         });
 
                         // Compute flat normal if missing
-                        let missing_normal = triangle.iter().any(|(_, _, n, _)| n.is_none()); 
+                        let missing_normal = triangle.iter().any(|(_, _, n, _)| n.is_none());
                         if missing_normal || self.flat_normals {
-
                             // Compute triangle normal
                             let a = triangle[1].0 - triangle[0].0;
                             let b = triangle[2].0 - triangle[0].0;
@@ -117,7 +128,7 @@ impl ModelImporter {
                                 *n = Some(normal);
                             });
                         }
-                        
+
                         // Compute uvs if missing
                         let missing_uv = triangle.iter().any(|(_, uv, _, _)| uv.is_none());
                         if missing_uv {
@@ -132,27 +143,31 @@ impl ModelImporter {
                         let delta_uv1 = triangle[1].1.unwrap() - triangle[0].1.unwrap();
                         let delta_uv2 = triangle[2].1.unwrap() - triangle[0].1.unwrap();
                         let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
-                        let tangent = (delta_pos1 * delta_uv2.y   - delta_pos2 * delta_uv1.y) * r;
-                        let bitangent = (delta_pos2 * delta_uv1.x   - delta_pos1 * delta_uv2.x) * r;
-                        
+                        let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
+                        let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
+
                         // Compute final tangent and handedness
                         triangle.iter_mut().for_each(|(_, _, n, t)| {
-                            let w = if tangent.cross(bitangent).dot(n.unwrap()) > 0.0 { 1.0 } else { -1.0 };
+                            let w = if tangent.cross(bitangent).dot(n.unwrap()) > 0.0 {
+                                1.0
+                            } else {
+                                -1.0
+                            };
                             *t = Vec4::from((tangent.reject_from_normalized(n.unwrap()), w));
                         });
 
                         // Append vertices
                         for (p, u, n, t) in triangle {
-                            vertices.push(Vertex { 
-                                position: p, 
-                                uv: u.unwrap(), 
-                                normal: n.unwrap(), 
-                                tangent: t 
+                            vertices.push(Vertex {
+                                position: p,
+                                uv: u.unwrap(),
+                                normal: n.unwrap(),
+                                tangent: t,
                             });
                         }
                     }
                 }
-            
+
                 // Append submesh
                 mesh.submeshes.push(SubMesh { vertices });
             }
@@ -162,12 +177,19 @@ impl ModelImporter {
                 if !object.name.is_empty() {
                     object.name.clone()
                 } else {
-                    format!("{}_{}", path.file_stem().unwrap().to_str().unwrap(), object_index).to_string()
+                    format!(
+                        "{}_{}",
+                        path.file_stem().unwrap().to_str().unwrap(),
+                        object_index
+                    )
+                    .to_string()
                 }
             });
 
             // Append object mesh
-            model_import.meshes.push(AssetImportEntry { data: mesh, name });
+            model_import
+                .meshes
+                .push(AssetImportEntry { data: mesh, name });
         }
 
         Ok(model_import)

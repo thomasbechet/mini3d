@@ -1,7 +1,16 @@
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{ui::{event::{EventContext, Event, UIEvent}, style::UIBoxStyle}, renderer::{graphics::Graphics, color::Color}, math::rect::IRect, uid::UID, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{
+    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    math::rect::IRect,
+    renderer::{color::Color, graphics::Graphics},
+    ui::{
+        event::{Event, EventContext, UIEvent},
+        style::UIBoxStyle,
+    },
+    uid::UID,
+};
 
 use super::Widget;
 
@@ -13,19 +22,22 @@ pub struct UIButtonStyle {
 }
 
 impl UIButtonStyle {
-
     pub const DEFAULT: &'static str = "default";
 
     pub fn new(normal: UIBoxStyle, pressed: UIBoxStyle, hovered: UIBoxStyle) -> Self {
-        Self { normal, pressed, hovered }
+        Self {
+            normal,
+            pressed,
+            hovered,
+        }
     }
 }
 
 impl Default for UIButtonStyle {
     fn default() -> Self {
         Self {
-            normal: UIBoxStyle::Color(Color::WHITE), 
-            pressed: UIBoxStyle::Color(Color::RED), 
+            normal: UIBoxStyle::Color(Color::WHITE),
+            pressed: UIBoxStyle::Color(Color::RED),
             hovered: UIBoxStyle::Color(Color::GRAY),
         }
     }
@@ -42,9 +54,15 @@ pub struct UIButton {
 }
 
 impl UIButton {
-
     pub fn new(extent: IRect) -> Self {
-        Self { extent, style: UIButtonStyle::DEFAULT.into(), pressed: false, hovered: false, on_pressed: None, on_released: None }
+        Self {
+            extent,
+            style: UIButtonStyle::DEFAULT.into(),
+            pressed: false,
+            hovered: false,
+            on_pressed: None,
+            on_released: None,
+        }
     }
 
     pub fn on_pressed(&mut self, action: Option<UID>) {
@@ -57,38 +75,46 @@ impl UIButton {
 }
 
 impl Widget for UIButton {
-
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match event {
             Event::PrimaryJustPressed => {
                 if !self.pressed {
                     self.pressed = true;
                     if let Some(action) = self.on_pressed {
-                        ctx.events.push(UIEvent::Action { user: ctx.user.uid(), id: action });
+                        ctx.events.push(UIEvent::Action {
+                            user: ctx.user.uid(),
+                            id: action,
+                        });
                     }
                 }
-            },
+            }
             Event::PrimaryJustReleased => {
                 if self.pressed {
                     self.pressed = false;
                     if let Some(action) = self.on_released {
-                        ctx.events.push(UIEvent::Action { user: ctx.user.uid(), id: action });
+                        ctx.events.push(UIEvent::Action {
+                            user: ctx.user.uid(),
+                            id: action,
+                        });
                     }
                 }
-            },
+            }
             Event::Enter => {
                 self.hovered = true;
-            },
+            }
             Event::Leave => {
                 self.hovered = false;
                 if self.pressed {
                     if let Some(action) = self.on_released {
-                        ctx.events.push(UIEvent::Action { user: ctx.user.uid(), id: action });
+                        ctx.events.push(UIEvent::Action {
+                            user: ctx.user.uid(),
+                            id: action,
+                        });
                     }
                     self.pressed = false;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
         true
     }
@@ -114,5 +140,7 @@ impl Widget for UIButton {
         false
     }
 
-    fn is_selectable(&self) -> bool { true }
+    fn is_selectable(&self) -> bool {
+        true
+    }
 }

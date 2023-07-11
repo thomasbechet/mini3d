@@ -3,16 +3,16 @@ use glam::{Quat, Vec3};
 use crate::{
     context::SystemContext,
     ecs::system::SystemResult,
-    feature::component::{free_fly::FreeFly, transform::Transform},
+    feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
     registry::component::Component,
 };
 
 pub fn run(ctx: &mut SystemContext) -> SystemResult {
-    let world = ctx.world.active();
-    let mut transforms = world.static_view_mut::<Transform>(Transform::UID)?;
-    let mut free_flies = world.static_view_mut::<FreeFly>(FreeFly::UID)?;
+    let scene = ctx.scene.active();
+    let mut transforms = scene.static_view_mut::<Transform>(Transform::UID)?;
+    let mut free_flies = scene.static_view_mut::<FreeFly>(FreeFly::UID)?;
 
-    for e in &world.query(&[Transform::UID, FreeFly::UID]) {
+    for e in &scene.query(&[Transform::UID, FreeFly::UID]) {
         let transform = transforms.get_mut(e).unwrap();
         let free_fly = free_flies.get_mut(e).unwrap();
 

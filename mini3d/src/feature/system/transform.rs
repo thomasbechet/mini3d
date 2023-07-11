@@ -7,7 +7,7 @@ use crate::{
         system::SystemResult,
         view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
     },
-    feature::component::{
+    feature::component::scene::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
     },
     registry::component::Component,
@@ -43,14 +43,14 @@ pub fn recursive_propagate(
 }
 
 pub fn propagate(ctx: &mut SystemContext) -> SystemResult {
-    let world = ctx.world.active();
-    let transforms = world.static_view::<Transform>(Transform::UID)?;
-    let hierarchies = world.static_view::<Hierarchy>(Hierarchy::UID)?;
-    let mut local_to_worlds = world.static_view_mut::<LocalToWorld>(LocalToWorld::UID)?;
+    let scene = ctx.scene.active();
+    let transforms = scene.static_view::<Transform>(Transform::UID)?;
+    let hierarchies = scene.static_view::<Hierarchy>(Hierarchy::UID)?;
+    let mut local_to_worlds = scene.static_view_mut::<LocalToWorld>(LocalToWorld::UID)?;
 
     // Reset all flags
     let mut entities = Vec::new();
-    for e in &world.query(&[LocalToWorld::UID]) {
+    for e in &scene.query(&[LocalToWorld::UID]) {
         local_to_worlds[e].dirty = true;
         entities.push(e);
     }

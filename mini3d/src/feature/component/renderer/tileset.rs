@@ -1,6 +1,6 @@
 use crate::{math::rect::IRect, uid::UID};
 use glam::IVec2;
-use mini3d_derive::{Asset, Error};
+use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 #[derive(Debug, Error)]
 pub enum TilesetError {
@@ -8,7 +8,7 @@ pub enum TilesetError {
     InvalidTileIndex,
 }
 
-#[derive(Clone, Asset)]
+#[derive(Clone, Component, Serialize, Reflect, Default)]
 pub struct Tileset {
     pub texture: UID,
     pub offset: IVec2,

@@ -1,7 +1,7 @@
 use crate::{
     context::asset::AssetContext,
-    feature::asset::script::Script,
-    registry::asset::Asset,
+    feature::component::common::script::Script,
+    registry::component::Component,
     script::{
         compiler::CompilationUnit,
         frontend::error::CompileError,

@@ -97,13 +97,13 @@ impl<C: Component> AnyStaticComponentVec for StaticComponentVec<C> {
     impl_property!(UID, read_uid, write_uid);
 }
 
-pub(crate) struct StaticComponentContainer<C: Component> {
+pub(crate) struct StaticSceneContainer<C: Component> {
     pub(crate) components: RefCell<StaticComponentVec<C>>,
     pub(crate) entities: Vec<Entity>,
     pub(crate) indices: PagedVector<usize>,
 }
 
-impl<C: Component> StaticComponentContainer<C> {
+impl<C: Component> StaticSceneContainer<C> {
     pub(crate) fn new() -> Self {
         Self {
             components: RefCell::new(StaticComponentVec::with_capacity(128)),
@@ -182,12 +182,12 @@ impl<C: Component> StaticComponentContainer<C> {
     }
 }
 
-pub(crate) struct DynamicComponentContainer {
+pub(crate) struct DynamicSceneContainer {
     pub(crate) entities: Vec<Entity>,
     pub(crate) indices: PagedVector<usize>,
 }
 
-pub(crate) trait AnyComponentContainer {
+pub(crate) trait AnySceneContainer {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn entity(&self, index: usize) -> Entity;
@@ -200,7 +200,7 @@ pub(crate) trait AnyComponentContainer {
     fn any_view_mut(&self) -> AnyComponentViewMut<'_>;
 }
 
-impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
+impl<C: Component> AnySceneContainer for StaticSceneContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -245,7 +245,7 @@ impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
     }
 }
 
-impl AnyComponentContainer for DynamicComponentContainer {
+impl AnySceneContainer for DynamicSceneContainer {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -8,7 +8,7 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use crate::{registry::component::Component, script::reflection::PropertyId, uid::UID};
 
 use super::{
-    container::{AnyStaticComponentVec, StaticComponentContainer, StaticComponentVec},
+    container::{AnyStaticComponentVec, StaticComponentVec, StaticSceneContainer},
     entity::Entity,
     sparse::PagedVector,
 };
@@ -28,7 +28,7 @@ pub struct StaticComponentViewRef<'a, C: Component> {
 }
 
 impl<'a, C: Component> StaticComponentViewRef<'a, C> {
-    pub(crate) fn new(container: &'a StaticComponentContainer<C>) -> Self {
+    pub(crate) fn new(container: &'a StaticSceneContainer<C>) -> Self {
         Self {
             view: Some(StaticComponentViewRefData {
                 components: container.components.borrow(),
@@ -84,7 +84,7 @@ pub struct StaticComponentViewMut<'a, C: Component> {
 }
 
 impl<'a, C: Component> StaticComponentViewMut<'a, C> {
-    pub(crate) fn new(container: &'a StaticComponentContainer<C>) -> Self {
+    pub(crate) fn new(container: &'a StaticSceneContainer<C>) -> Self {
         Self {
             view: Some(StaticComponentViewMutData {
                 components: container.components.borrow_mut(),

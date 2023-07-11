@@ -1,7 +1,7 @@
 use crate::{
     context::SystemContext,
-    ecs::{system::SystemResult, view::StaticComponentView},
-    feature::component::{
+    ecs::system::SystemResult,
+    feature::component::ui::{
         canvas::Canvas,
         ui::{UIRenderTarget, UI},
     },
@@ -9,8 +9,8 @@ use crate::{
 };
 
 pub fn update(ctx: &mut SystemContext) -> SystemResult {
-    let world = ctx.world.active();
-    let mut uis = world.static_view_mut::<UI>(UI::UID)?;
+    let scene = ctx.scene.active();
+    let mut uis = scene.static_view_mut::<UI>(UI::UID)?;
     for ui in uis.iter() {
         ui.update(ctx.time.global())?;
         for event in ui.events() {
@@ -21,12 +21,12 @@ pub fn update(ctx: &mut SystemContext) -> SystemResult {
 }
 
 pub fn render(ctx: &mut SystemContext) -> SystemResult {
-    let world = ctx.world.active();
-    let mut canvases = world.static_view_mut::<Canvas>(Canvas::UID)?;
-    let uis = world.static_view::<UI>(UI::UID)?;
-    let targets = world.static_view::<UIRenderTarget>(UIRenderTarget::UID)?;
+    let scene = ctx.scene.active();
+    let mut canvases = scene.static_view_mut::<Canvas>(Canvas::UID)?;
+    let uis = scene.static_view::<UI>(UI::UID)?;
+    let targets = scene.static_view::<UIRenderTarget>(UIRenderTarget::UID)?;
 
-    for e in &world.query(&[UI::UID, UIRenderTarget::UID]) {
+    for e in &scene.query(&[UI::UID, UIRenderTarget::UID]) {
         let ui = &uis[e];
         let target = &targets[e];
         match *target {

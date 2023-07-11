@@ -1,14 +1,15 @@
-use mini3d_derive::{Asset, Serialize};
+use mini3d_derive::{Component, Reflect, Serialize};
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Default)]
 pub enum TextureFormat {
     R,
     RG,
     RGB,
+    #[default]
     RGBA,
 }
 
-#[derive(Clone, Asset)]
+#[derive(Clone, Component, Serialize, Default, Reflect)]
 pub struct Texture {
     pub data: Vec<u8>,
     pub format: TextureFormat,

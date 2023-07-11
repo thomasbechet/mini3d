@@ -15,10 +15,10 @@ use mini3d::{
         system::SystemEvent,
         Events,
     },
-    feature::asset::script::Script,
+    feature::component::common::script::Script,
     glam::Vec2,
     renderer::SCREEN_RESOLUTION,
-    serialize::{Serialize, SliceDecoder},
+    serialize::SliceDecoder,
 };
 use mini3d_derive::Serialize;
 use mini3d_os::system::init::initialize_engine;

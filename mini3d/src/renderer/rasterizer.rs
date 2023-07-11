@@ -1,12 +1,12 @@
 use glam::IVec2;
 
-use crate::{feature::asset::font::Font, math::rect::IRect};
+use crate::{feature::component::renderer::font::Font, math::rect::IRect};
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `p` - Point coordinates
     fn plot(&mut self, p: IVec2);
 }
@@ -56,16 +56,17 @@ pub fn draw_hline(p: &mut impl Plotable, y: i32, x0: i32, x1: i32) {
 pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
     for (ic, c) in text.chars().enumerate() {
         if let Some(glyph) = font.glyph_locations.get(&c) {
-
             // TODO: optimize me
             for b in 0..(font.glyph_size.x as usize * font.glyph_size.y as usize) {
-                
-                let bit_offset = (*glyph * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + b;
+                let bit_offset =
+                    (*glyph * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + b;
                 let byte = font.data[bit_offset / 8];
                 let bit_set = byte & (1 << (7 - (b % 8))) != 0;
 
                 if bit_set {
-                    let px = p.x + font.glyph_size.x as i32 * ic as i32 + (b as i32 % font.glyph_size.x as i32);
+                    let px = p.x
+                        + font.glyph_size.x as i32 * ic as i32
+                        + (b as i32 % font.glyph_size.x as i32);
                     let py = p.y + (b as i32 / font.glyph_size.x as i32);
                     plot.plot(IVec2::new(px, py));
                 }

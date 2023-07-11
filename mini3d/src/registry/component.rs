@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use crate::{
+    asset::{AnyAssetContainer, AssetContainer},
     ecs::{
-        container::{AnyComponentContainer, StaticComponentContainer},
+        container::{AnySceneContainer, StaticSceneContainer},
         entity::Entity,
         error::ECSError,
-        singleton::{AnyComponentSingleton, StaticComponentSingleton},
+        singleton::{AnySceneSingleton, StaticSceneSingleton},
     },
     script::reflection::{Property, Reflect},
     serialize::Serialize,
@@ -37,8 +38,9 @@ pub(crate) enum ComponentKind {
 }
 
 pub(crate) trait AnyComponentReflection {
-    fn create_container(&self) -> Box<dyn AnyComponentContainer>;
-    fn create_singleton(&self) -> Box<dyn AnyComponentSingleton>;
+    fn create_asset_container(&self) -> Box<dyn AnyAssetContainer>;
+    fn create_scene_container(&self) -> Box<dyn AnySceneContainer>;
+    fn create_scene_singleton(&self) -> Box<dyn AnySceneSingleton>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
 }
@@ -48,12 +50,16 @@ pub(crate) struct StaticComponentReflection<C: Component> {
 }
 
 impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
-    fn create_container(&self) -> Box<dyn AnyComponentContainer> {
-        Box::new(StaticComponentContainer::<C>::new())
+    fn create_asset_container(&self) -> Box<dyn AnyAssetContainer> {
+        Box::<AssetContainer<C>>::default()
     }
 
-    fn create_singleton(&self) -> Box<dyn AnyComponentSingleton> {
-        Box::new(StaticComponentSingleton::<C>::new(C::default()))
+    fn create_scene_container(&self) -> Box<dyn AnySceneContainer> {
+        Box::new(StaticSceneContainer::<C>::new())
+    }
+
+    fn create_scene_singleton(&self) -> Box<dyn AnySceneSingleton> {
+        Box::new(StaticSceneSingleton::<C>::new(C::default()))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {
@@ -98,6 +104,10 @@ impl ComponentRegistry {
             },
         );
         Ok(uid)
+    }
+
+    pub(crate) fn get(&self, uid: UID) -> Option<&ComponentDefinition> {
+        self.definitions.get(&uid)
     }
 
     pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID, RegistryError> {

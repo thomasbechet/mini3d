@@ -1,4 +1,4 @@
-use mini3d::feature::asset;
+use mini3d::feature::component;
 
 use crate::{context::WGPUContext, error::WGPURendererError};
 
@@ -17,11 +17,7 @@ pub(crate) struct VertexAllocator {
 }
 
 impl VertexAllocator {
-
-    pub fn new(
-        context: &WGPUContext,
-        max_vertex_count: usize,
-    ) -> Self {
+    pub fn new(context: &WGPUContext, max_vertex_count: usize) -> Self {
         // Create buffers
         let position_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -54,12 +50,11 @@ impl VertexAllocator {
     pub fn add(
         &mut self,
         context: &WGPUContext,
-        vertices: &Vec<asset::mesh::Vertex>,
+        vertices: &Vec<component::renderer::mesh::Vertex>,
     ) -> Result<VertexBufferDescriptor, WGPURendererError> {
-
         // Create the vertex descriptor
-        let descriptor = VertexBufferDescriptor { 
-            vertex_count: vertices.len() as u32, 
+        let descriptor = VertexBufferDescriptor {
+            vertex_count: vertices.len() as u32,
             base_index: self.vertex_count as u32,
         };
 
@@ -72,25 +67,37 @@ impl VertexAllocator {
         self.vertex_count += descriptor.vertex_count as usize;
 
         // Convert vertices
-        let positions: &[f32] = &vertices.iter().map(|v| v.position.to_array()).collect::<Vec<[f32; 3]>>().concat();
-        let normals: &[f32] = &vertices.iter().map(|v| v.normal.to_array()).collect::<Vec<[f32; 3]>>().concat();
-        let uvs: &[f32] = &vertices.iter().map(|v| v.uv.to_array()).collect::<Vec<[f32; 2]>>().concat();
-    
+        let positions: &[f32] = &vertices
+            .iter()
+            .map(|v| v.position.to_array())
+            .collect::<Vec<[f32; 3]>>()
+            .concat();
+        let normals: &[f32] = &vertices
+            .iter()
+            .map(|v| v.normal.to_array())
+            .collect::<Vec<[f32; 3]>>()
+            .concat();
+        let uvs: &[f32] = &vertices
+            .iter()
+            .map(|v| v.uv.to_array())
+            .collect::<Vec<[f32; 2]>>()
+            .concat();
+
         // Write buffers
         context.queue.write_buffer(
-            &self.position_buffer, 
-            wgpu::VertexFormat::Float32x3.size() * descriptor.base_index as u64, 
-            bytemuck::cast_slice(positions)
+            &self.position_buffer,
+            wgpu::VertexFormat::Float32x3.size() * descriptor.base_index as u64,
+            bytemuck::cast_slice(positions),
         );
         context.queue.write_buffer(
-            &self.normal_buffer, 
-            wgpu::VertexFormat::Float32x3.size() * descriptor.base_index as u64, 
-            bytemuck::cast_slice(normals)
+            &self.normal_buffer,
+            wgpu::VertexFormat::Float32x3.size() * descriptor.base_index as u64,
+            bytemuck::cast_slice(normals),
         );
         context.queue.write_buffer(
-            &self.uv_buffer, 
-            wgpu::VertexFormat::Float32x2.size() * descriptor.base_index as u64, 
-            bytemuck::cast_slice(uvs)
+            &self.uv_buffer,
+            wgpu::VertexFormat::Float32x2.size() * descriptor.base_index as u64,
+            bytemuck::cast_slice(uvs),
         );
 
         // Return descriptor

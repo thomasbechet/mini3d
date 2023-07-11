@@ -1,11 +1,11 @@
-use super::{container::AnyComponentContainer, entity::Entity};
+use super::{container::AnySceneContainer, entity::Entity};
 
 pub struct Query<'a> {
-    containers: Vec<&'a dyn AnyComponentContainer>,
+    containers: Vec<&'a dyn AnySceneContainer>,
 }
 
 impl<'a> Query<'a> {
-    pub(crate) fn new(containers: Vec<&'a dyn AnyComponentContainer>) -> Self {
+    pub(crate) fn new(containers: Vec<&'a dyn AnySceneContainer>) -> Self {
         Self { containers }
     }
 

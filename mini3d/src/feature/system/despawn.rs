@@ -1,7 +1,7 @@
 use crate::{
     context::{error::ContextError, SystemContext},
     ecs::{entity::Entity, system::SystemResult},
-    feature::component::{hierarchy::Hierarchy, lifecycle::Lifecycle},
+    feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::component::Component,
 };
 
@@ -9,16 +9,16 @@ pub fn run(ctx: &mut SystemContext) -> SystemResult {
     let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
 
-    let mut world = ctx.world.active();
+    let mut scene = ctx.scene.active();
 
     {
-        let mut hierarchies = world
+        let mut hierarchies = scene
             .static_view_mut::<Hierarchy>(Hierarchy::UID)
             .with_context(|| "Failed to get hierarchy view")?;
-        let lifecycles = world.static_view::<Lifecycle>(Lifecycle::UID)?;
+        let lifecycles = scene.static_view::<Lifecycle>(Lifecycle::UID)?;
 
         // Collect despawned entities
-        for e in &world.query(&[Lifecycle::UID, Hierarchy::UID]) {
+        for e in &scene.query(&[Lifecycle::UID, Hierarchy::UID]) {
             if !lifecycles[e].alive {
                 despawn_entities.push(e);
                 if let Some(hierarchy) = hierarchies.get_mut(e) {
@@ -40,7 +40,7 @@ pub fn run(ctx: &mut SystemContext) -> SystemResult {
 
     // Despawn entities
     for entity in despawn_entities {
-        world.remove_entity(entity)?;
+        scene.remove_entity(entity)?;
     }
 
     Ok(())

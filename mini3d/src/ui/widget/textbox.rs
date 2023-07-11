@@ -1,7 +1,12 @@
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{renderer::{color::Color, graphics::Graphics}, math::rect::IRect, ui::event::{EventContext, Event}, feature::asset::ui_stylesheet::UIStyleSheet};
+use crate::{
+    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    math::rect::IRect,
+    renderer::{color::Color, graphics::Graphics},
+    ui::event::{Event, EventContext},
+};
 
 use super::Widget;
 
@@ -13,7 +18,6 @@ pub struct UITextBox {
 }
 
 impl UITextBox {
-
     pub fn new(extent: IRect) -> Self {
         Self {
             extent,
@@ -24,28 +28,27 @@ impl UITextBox {
 }
 
 impl Widget for UITextBox {
-
     fn handle_event(&mut self, ctx: &mut EventContext, event: &Event) -> bool {
         match event {
-            Event::PrimaryJustPressed => {},
-            Event::PrimaryJustReleased => {},
-            Event::Cancel => {},
-            Event::Enter => {},
-            Event::Leave => {},
+            Event::PrimaryJustPressed => {}
+            Event::PrimaryJustReleased => {}
+            Event::Cancel => {}
+            Event::Enter => {}
+            Event::Leave => {}
             Event::GainFocus => {
                 println!("focus");
                 self.focused = true;
                 ctx.user.locked = true;
-            },
+            }
             Event::LooseFocus => {
                 println!("unfocus");
                 self.focused = false;
                 ctx.user.locked = false;
-            },
+            }
             Event::Text { value } => todo!(),
             Event::Scroll { value } => todo!(),
             Event::SelectionMoved { direction } => todo!(),
-            Event::CursorMoved { position } => {},
+            Event::CursorMoved { position } => {}
             Event::ModeChanged => todo!(),
         }
         true
@@ -58,7 +61,7 @@ impl Widget for UITextBox {
                 self.extent.left() + 2,
                 self.extent.top() + 2,
                 self.extent.width() - 4,
-                self.extent.height() - 4
+                self.extent.height() - 4,
             );
             gfx.fill_rect(extent, Color::RED);
         }
@@ -68,7 +71,11 @@ impl Widget for UITextBox {
         self.extent
     }
 
-    fn is_focusable(&self) -> bool { true }
+    fn is_focusable(&self) -> bool {
+        true
+    }
 
-    fn is_selectable(&self) -> bool { true }
+    fn is_selectable(&self) -> bool {
+        true
+    }
 }

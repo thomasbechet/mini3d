@@ -1,4 +1,4 @@
-use mini3d_derive::{Asset, Serialize};
+use mini3d_derive::{Component, Reflect, Serialize};
 use std::collections::HashMap;
 
 use crate::uid::UID;
@@ -29,7 +29,7 @@ pub(crate) struct ProcedureEntry {
     pub(crate) pipeline: SystemPipeline,
 }
 
-#[derive(Clone, Asset)]
+#[derive(Clone, Component, Serialize, Reflect, Default)]
 pub struct SystemGroup {
     pub(crate) procedures: HashMap<UID, ProcedureEntry>,
 }

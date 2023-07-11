@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d_derive::{Asset, Error};
+use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::{
     ui::widget::{button::UIButtonStyle, checkbox::UICheckBoxStyle},
@@ -19,7 +19,7 @@ pub enum UIStyleSheetError {
     CheckboxStyleNotFound { uid: UID },
 }
 
-#[derive(Asset, Clone)]
+#[derive(Component, Clone, Serialize, Reflect)]
 pub struct UIStyleSheet {
     pub(crate) buttons: HashMap<UID, UIButtonStyle>,
     pub(crate) checkboxes: HashMap<UID, UICheckBoxStyle>,

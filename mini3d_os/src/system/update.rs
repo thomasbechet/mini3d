@@ -1,7 +1,7 @@
 use mini3d::{
     context::SystemContext,
     ecs::system::SystemResult,
-    feature::component::{free_fly::FreeFly, ui::UI},
+    feature::component::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,
     registry::component::Component,
     renderer::{color::Color, SCREEN_CENTER},
@@ -10,8 +10,8 @@ use mini3d::{
 use crate::{component::os::OS, input::CommonAction};
 
 pub fn update(ctx: &mut SystemContext) -> SystemResult {
-    let world = ctx.world.active();
-    let mut os = world.get_singleton_mut::<OS>(OS::UID)?.unwrap();
+    let scene = ctx.scene.active();
+    let mut os = scene.get_singleton_mut::<OS>(OS::UID)?.unwrap();
 
     // Toggle control mode
     if ctx
@@ -20,21 +20,21 @@ pub fn update(ctx: &mut SystemContext) -> SystemResult {
         .is_just_pressed()
     {
         os.layout_active = !os.layout_active;
-        let mut view = world.static_view_mut::<FreeFly>(FreeFly::UID)?;
-        for e in &world.query(&[FreeFly::UID]) {
+        let mut view = scene.static_view_mut::<FreeFly>(FreeFly::UID)?;
+        for e in &scene.query(&[FreeFly::UID]) {
             let free_fly = &mut view[e];
             free_fly.active = !os.layout_active;
         }
     }
 
-    // let ui = world.get::<UI>(UI::UID)?.unwrap();
+    // let ui = scene.get::<UI>(UI::UID)?.unwrap();
     // for event in ui.events() {
     //     if let UIEvent::Action { profile, id } = event {
     //         println!("{:?}", id);
     //     }
     // }
 
-    let mut view = world.static_view_mut::<UI>(UI::UID)?;
+    let mut view = scene.static_view_mut::<UI>(UI::UID)?;
     let ui = view.iter().next().unwrap();
     let user = ui.user("main".into())?;
 
