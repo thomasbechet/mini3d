@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    asset::{AnyAssetContainer, AssetContainer},
+    asset::container::{AnyAssetContainer, AssetContainer},
     ecs::{
         container::{AnySceneContainer, StaticSceneContainer},
         entity::Entity,

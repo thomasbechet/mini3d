@@ -6,8 +6,8 @@ use crate::{
         scene::Scene,
         singleton::{StaticSingletonMut, StaticSingletonRef},
         view::{
-            AnyComponentViewMut, AnyComponentViewRef, StaticComponentViewMut,
-            StaticComponentViewRef,
+            SceneComponentViewMut, SceneComponentViewRef, StaticSceneComponentViewMut,
+            StaticSceneComponentViewRef,
         },
     },
     registry::{component::Component, RegistryManager},
@@ -123,22 +123,22 @@ impl<'a> SceneInstanceContext<'a> {
     pub fn static_view<C: Component>(
         &self,
         component: UID,
-    ) -> Result<StaticComponentViewRef<'_, C>, SceneError> {
+    ) -> Result<StaticSceneComponentViewRef<'_, C>, SceneError> {
         self.scene.static_view(component)
     }
 
-    pub fn any_view(&self, component: UID) -> Result<AnyComponentViewRef<'_>, SceneError> {
+    pub fn any_view(&self, component: UID) -> Result<SceneComponentViewRef<'_>, SceneError> {
         self.scene.any_view(component)
     }
 
     pub fn static_view_mut<C: Component>(
         &self,
         component: UID,
-    ) -> Result<StaticComponentViewMut<'_, C>, SceneError> {
+    ) -> Result<StaticSceneComponentViewMut<'_, C>, SceneError> {
         self.scene.static_view_mut(component)
     }
 
-    pub fn any_view_mut(&self, component: UID) -> Result<AnyComponentViewMut<'_>, SceneError> {
+    pub fn any_view_mut(&self, component: UID) -> Result<SceneComponentViewMut<'_>, SceneError> {
         self.scene.any_view_mut(component)
     }
 

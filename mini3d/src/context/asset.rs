@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
 use crate::{
-    asset::{AssetEntry, AssetError, AssetManager},
+    asset::{container::AssetEntry, error::AssetError, AssetManager},
     registry::{component::Component, RegistryManager},
     uid::UID,
 };

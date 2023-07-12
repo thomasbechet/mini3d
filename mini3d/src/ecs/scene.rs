@@ -11,14 +11,14 @@ use crate::{
     uid::UID,
 };
 
-use super::view::{AnyComponentViewMut, AnyComponentViewRef};
+use super::view::{SceneComponentViewMut, SceneComponentViewRef};
 use super::{
     container::{AnySceneContainer, StaticSceneContainer},
     entity::Entity,
     error::SceneError,
     query::Query,
     singleton::{AnySceneSingleton, StaticSceneSingleton, StaticSingletonMut, StaticSingletonRef},
-    view::{StaticComponentViewMut, StaticComponentViewRef},
+    view::{StaticSceneComponentViewMut, StaticSceneComponentViewRef},
 };
 
 pub(crate) struct Scene {
@@ -170,49 +170,49 @@ impl Scene {
     pub(crate) fn static_view<C: Component>(
         &self,
         component: UID,
-    ) -> Result<StaticComponentViewRef<'_, C>, SceneError> {
+    ) -> Result<StaticSceneComponentViewRef<'_, C>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             let container = container
                 .as_any()
                 .downcast_ref::<StaticSceneContainer<C>>()
                 .ok_or(SceneError::ComponentTypeMismatch { uid: component })?;
-            Ok(StaticComponentViewRef::new(container))
+            Ok(StaticSceneComponentViewRef::new(container))
         } else {
-            Ok(StaticComponentViewRef::none())
+            Ok(StaticSceneComponentViewRef::none())
         }
     }
 
-    pub(crate) fn any_view(&self, component: UID) -> Result<AnyComponentViewRef<'_>, SceneError> {
+    pub(crate) fn any_view(&self, component: UID) -> Result<SceneComponentViewRef<'_>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view())
         } else {
-            Ok(AnyComponentViewRef::none())
+            Ok(SceneComponentViewRef::none())
         }
     }
 
     pub(crate) fn static_view_mut<C: Component>(
         &self,
         component: UID,
-    ) -> Result<StaticComponentViewMut<'_, C>, SceneError> {
+    ) -> Result<StaticSceneComponentViewMut<'_, C>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             let container = container
                 .as_any()
                 .downcast_ref::<StaticSceneContainer<C>>()
                 .ok_or(SceneError::ComponentTypeMismatch { uid: component })?;
-            Ok(StaticComponentViewMut::new(container))
+            Ok(StaticSceneComponentViewMut::new(container))
         } else {
-            Ok(StaticComponentViewMut::none())
+            Ok(StaticSceneComponentViewMut::none())
         }
     }
 
     pub(crate) fn any_view_mut(
         &self,
         component: UID,
-    ) -> Result<AnyComponentViewMut<'_>, SceneError> {
+    ) -> Result<SceneComponentViewMut<'_>, SceneError> {
         if let Some(container) = self.containers.get(&component) {
             Ok(container.any_view_mut())
         } else {
-            Ok(AnyComponentViewMut::none())
+            Ok(SceneComponentViewMut::none())
         }
     }
 

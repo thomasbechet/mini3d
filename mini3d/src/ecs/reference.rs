@@ -3,11 +3,11 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use crate::uid::UID;
 
 use super::entity::Entity;
-use crate::ecs::view::AnyComponentViewRef;
-use crate::ecs::view::AnyComponentViewRefInner;
+use crate::ecs::view::SceneComponentViewRef;
+use crate::ecs::view::SceneComponentViewRefInner;
 use crate::script::reflection::PropertyId;
 
-pub struct AnyComponentRef<'a> {
+pub struct SceneComponentRef<'a> {
     _lifetime: core::marker::PhantomData<&'a ()>,
     entity: Entity,
     index: usize,
@@ -15,9 +15,9 @@ pub struct AnyComponentRef<'a> {
 
 macro_rules! impl_read_property {
     ($type:ty, $read:ident) => {
-        pub fn $read(&self, id: PropertyId, view: &AnyComponentViewRef) -> Option<$type> {
+        pub fn $read(&self, id: PropertyId, view: &SceneComponentViewRef) -> Option<$type> {
             match &view.0 {
-                AnyComponentViewRefInner::Static {
+                SceneComponentViewRefInner::Static {
                     components,
                     entities,
                     indices: _,
@@ -28,14 +28,14 @@ macro_rules! impl_read_property {
                         None
                     }
                 }
-                AnyComponentViewRefInner::Dynamic {} => None,
-                AnyComponentViewRefInner::None => None,
+                SceneComponentViewRefInner::Dynamic {} => None,
+                SceneComponentViewRefInner::None => None,
             }
         }
     };
 }
 
-impl<'a> AnyComponentRef<'a> {
+impl<'a> SceneComponentRef<'a> {
     impl_read_property!(bool, read_bool);
     impl_read_property!(u8, read_u8);
     impl_read_property!(i32, read_i32);
@@ -54,7 +54,7 @@ impl<'a> AnyComponentRef<'a> {
     impl_read_property!(UID, read_uid);
 }
 
-pub struct AnyComponentMut<'a> {
+pub struct SceneComponentMut<'a> {
     _lifetime: core::marker::PhantomData<&'a ()>,
     entity: Entity,
     index: usize,
@@ -64,7 +64,7 @@ macro_rules! impl_read_write_property {
     ($type:ty, $read:ident, $write:ident) => {
         pub fn $read(&self, id: PropertyId, view: &AnyComponentViewMut) -> Option<$type> {
             match &self.0 {
-                AnyComponentViewMutInner::Static {
+                SceneComponentViewMutInner::Static {
                     components,
                     entities,
                     indices,
@@ -75,13 +75,13 @@ macro_rules! impl_read_write_property {
                         None
                     }
                 }
-                AnyComponentViewMutInner::Dynamic {} => None,
-                AnyComponentViewMutInner::None => None,
+                SceneComponentViewMutInner::Dynamic {} => None,
+                SceneComponentViewMutInner::None => None,
             }
         }
         pub fn $write(&self, id: PropertyId, value: $type, view: &mut AnyComponentViewMut) {
             match &self.0 {
-                AnyComponentViewMutInner::Static {
+                SceneComponentViewMutInner::Static {
                     components,
                     entities,
                     indices,
@@ -92,8 +92,8 @@ macro_rules! impl_read_write_property {
                         None
                     }
                 }
-                AnyComponentViewMutInner::Dynamic {} => None,
-                AnyComponentViewMutInner::None => None,
+                SceneComponentViewMutInner::Dynamic {} => None,
+                SceneComponentViewMutInner::None => None,
             }
         }
     };

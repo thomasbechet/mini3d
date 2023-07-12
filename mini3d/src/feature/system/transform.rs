@@ -5,7 +5,9 @@ use crate::{
     ecs::{
         entity::Entity,
         system::SystemResult,
-        view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
+        view::{
+            StaticSceneComponentView, StaticSceneComponentViewMut, StaticSceneComponentViewRef,
+        },
     },
     feature::component::scene::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
@@ -15,9 +17,9 @@ use crate::{
 
 pub fn recursive_propagate(
     entity: Entity,
-    transforms: &StaticComponentViewRef<Transform>,
-    local_to_worlds: &mut StaticComponentViewMut<LocalToWorld>,
-    hierarchies: &StaticComponentViewRef<Hierarchy>,
+    transforms: &StaticSceneComponentViewRef<Transform>,
+    local_to_worlds: &mut StaticSceneComponentViewMut<LocalToWorld>,
+    hierarchies: &StaticSceneComponentViewRef<Hierarchy>,
 ) -> Mat4 {
     if let Some(mut local_to_world) = local_to_worlds.get_mut(entity).cloned() {
         if !local_to_world.dirty {

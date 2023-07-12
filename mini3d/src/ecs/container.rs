@@ -5,8 +5,8 @@ use super::{
     error::ECSError,
     sparse::PagedVector,
     view::{
-        AnyComponentViewMut, AnyComponentViewMutInner, AnyComponentViewRef,
-        AnyComponentViewRefInner,
+        SceneComponentViewMut, SceneComponentViewMutInner, SceneComponentViewRef,
+        SceneComponentViewRefInner,
     },
 };
 use crate::script::reflection::PropertyId;
@@ -196,8 +196,8 @@ pub(crate) trait AnySceneContainer {
     fn remove(&mut self, entity: Entity);
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
-    fn any_view(&self) -> AnyComponentViewRef<'_>;
-    fn any_view_mut(&self) -> AnyComponentViewMut<'_>;
+    fn any_view(&self) -> SceneComponentViewRef<'_>;
+    fn any_view_mut(&self) -> SceneComponentViewMut<'_>;
 }
 
 impl<C: Component> AnySceneContainer for StaticSceneContainer<C> {
@@ -229,15 +229,15 @@ impl<C: Component> AnySceneContainer for StaticSceneContainer<C> {
     fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
         self.deserialize(&mut decoder)
     }
-    fn any_view(&self) -> AnyComponentViewRef<'_> {
-        AnyComponentViewRef(AnyComponentViewRefInner::Static {
+    fn any_view(&self) -> SceneComponentViewRef<'_> {
+        SceneComponentViewRef(SceneComponentViewRefInner::Static {
             components: self.components.borrow(),
             entities: &self.entities,
             indices: &self.indices,
         })
     }
-    fn any_view_mut(&self) -> AnyComponentViewMut<'_> {
-        AnyComponentViewMut(AnyComponentViewMutInner::Static {
+    fn any_view_mut(&self) -> SceneComponentViewMut<'_> {
+        SceneComponentViewMut(SceneComponentViewMutInner::Static {
             components: self.components.borrow_mut(),
             entities: &self.entities,
             indices: &self.indices,
@@ -270,10 +270,10 @@ impl AnySceneContainer for DynamicSceneContainer {
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
         todo!()
     }
-    fn any_view(&self) -> AnyComponentViewRef<'_> {
+    fn any_view(&self) -> SceneComponentViewRef<'_> {
         todo!()
     }
-    fn any_view_mut(&self) -> AnyComponentViewMut<'_> {
+    fn any_view_mut(&self) -> SceneComponentViewMut<'_> {
         todo!()
     }
 }

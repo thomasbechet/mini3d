@@ -1,6 +1,6 @@
 use std::collections::{hash_map, HashMap, HashSet};
 
-use crate::ecs::view::StaticComponentView;
+use crate::ecs::view::StaticSceneComponentView;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;

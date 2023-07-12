@@ -1,6 +1,6 @@
 use std::{
     cell::{Ref, RefMut},
-    ops::{Deref, Index, IndexMut},
+    ops::{Index, IndexMut},
 };
 
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
@@ -13,24 +13,24 @@ use super::{
     sparse::PagedVector,
 };
 
-pub trait StaticComponentView<C: Component> {
+pub trait StaticSceneComponentView<C: Component> {
     fn get(&self, entity: Entity) -> Option<&C>;
 }
 
-struct StaticComponentViewRefData<'a, C: Component> {
+struct StaticSceneComponentViewRefData<'a, C: Component> {
     components: Ref<'a, StaticComponentVec<C>>,
     entities: &'a [Entity],
     indices: &'a PagedVector<usize>,
 }
 
-pub struct StaticComponentViewRef<'a, C: Component> {
-    view: Option<StaticComponentViewRefData<'a, C>>,
+pub struct StaticSceneComponentViewRef<'a, C: Component> {
+    view: Option<StaticSceneComponentViewRefData<'a, C>>,
 }
 
-impl<'a, C: Component> StaticComponentViewRef<'a, C> {
+impl<'a, C: Component> StaticSceneComponentViewRef<'a, C> {
     pub(crate) fn new(container: &'a StaticSceneContainer<C>) -> Self {
         Self {
-            view: Some(StaticComponentViewRefData {
+            view: Some(StaticSceneComponentViewRefData {
                 components: container.components.borrow(),
                 entities: &container.entities,
                 indices: &container.indices,
@@ -51,7 +51,7 @@ impl<'a, C: Component> StaticComponentViewRef<'a, C> {
     }
 }
 
-impl<'a, C: Component> StaticComponentView<C> for StaticComponentViewRef<'a, C> {
+impl<'a, C: Component> StaticSceneComponentView<C> for StaticSceneComponentViewRef<'a, C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.view.as_ref().and_then(|data| {
             data.indices.get(entity.key()).copied().and_then(|index| {
@@ -65,7 +65,7 @@ impl<'a, C: Component> StaticComponentView<C> for StaticComponentViewRef<'a, C> 
     }
 }
 
-impl<'a, C: Component> Index<Entity> for StaticComponentViewRef<'a, C> {
+impl<'a, C: Component> Index<Entity> for StaticSceneComponentViewRef<'a, C> {
     type Output = C;
 
     fn index(&self, entity: Entity) -> &Self::Output {
@@ -73,20 +73,20 @@ impl<'a, C: Component> Index<Entity> for StaticComponentViewRef<'a, C> {
     }
 }
 
-struct StaticComponentViewMutData<'a, C: Component> {
+struct StaticSceneComponentViewMutData<'a, C: Component> {
     components: RefMut<'a, StaticComponentVec<C>>,
     entities: &'a [Entity],
     indices: &'a PagedVector<usize>,
 }
 
-pub struct StaticComponentViewMut<'a, C: Component> {
-    view: Option<StaticComponentViewMutData<'a, C>>,
+pub struct StaticSceneComponentViewMut<'a, C: Component> {
+    view: Option<StaticSceneComponentViewMutData<'a, C>>,
 }
 
-impl<'a, C: Component> StaticComponentViewMut<'a, C> {
+impl<'a, C: Component> StaticSceneComponentViewMut<'a, C> {
     pub(crate) fn new(container: &'a StaticSceneContainer<C>) -> Self {
         Self {
-            view: Some(StaticComponentViewMutData {
+            view: Some(StaticSceneComponentViewMutData {
                 components: container.components.borrow_mut(),
                 entities: &container.entities,
                 indices: &container.indices,
@@ -119,7 +119,7 @@ impl<'a, C: Component> StaticComponentViewMut<'a, C> {
     }
 }
 
-impl<'a, C: Component> StaticComponentView<C> for StaticComponentViewMut<'a, C> {
+impl<'a, C: Component> StaticSceneComponentView<C> for StaticSceneComponentViewMut<'a, C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.view.as_ref().and_then(|data| {
             data.indices.get(entity.key()).and_then(|index| {
@@ -133,7 +133,7 @@ impl<'a, C: Component> StaticComponentView<C> for StaticComponentViewMut<'a, C> 
     }
 }
 
-impl<'a, C: Component> Index<Entity> for StaticComponentViewMut<'a, C> {
+impl<'a, C: Component> Index<Entity> for StaticSceneComponentViewMut<'a, C> {
     type Output = C;
 
     fn index(&self, entity: Entity) -> &Self::Output {
@@ -141,13 +141,13 @@ impl<'a, C: Component> Index<Entity> for StaticComponentViewMut<'a, C> {
     }
 }
 
-impl<'a, C: Component> IndexMut<Entity> for StaticComponentViewMut<'a, C> {
+impl<'a, C: Component> IndexMut<Entity> for StaticSceneComponentViewMut<'a, C> {
     fn index_mut(&mut self, entity: Entity) -> &mut Self::Output {
         self.get_mut(entity).expect("Entity not found")
     }
 }
 
-pub(crate) enum AnyComponentViewRefInner<'a> {
+pub(crate) enum SceneComponentViewRefInner<'a> {
     Static {
         components: Ref<'a, dyn AnyStaticComponentVec>,
         entities: &'a [Entity],
@@ -157,9 +157,9 @@ pub(crate) enum AnyComponentViewRefInner<'a> {
     None,
 }
 
-pub struct AnyComponentViewRef<'a>(pub(crate) AnyComponentViewRefInner<'a>);
+pub struct SceneComponentViewRef<'a>(pub(crate) SceneComponentViewRefInner<'a>);
 
-pub(crate) enum AnyComponentViewMutInner<'a> {
+pub(crate) enum SceneComponentViewMutInner<'a> {
     Static {
         components: RefMut<'a, dyn AnyStaticComponentVec>,
         entities: &'a [Entity],
@@ -169,13 +169,13 @@ pub(crate) enum AnyComponentViewMutInner<'a> {
     None,
 }
 
-pub struct AnyComponentViewMut<'a>(pub(crate) AnyComponentViewMutInner<'a>);
+pub struct SceneComponentViewMut<'a>(pub(crate) SceneComponentViewMutInner<'a>);
 
 macro_rules! impl_read_property {
     ($type:ty, $read:ident) => {
         pub fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
             match &self.0 {
-                AnyComponentViewRefInner::Static {
+                SceneComponentViewRefInner::Static {
                     components,
                     entities,
                     indices,
@@ -186,8 +186,8 @@ macro_rules! impl_read_property {
                         None
                     }
                 }),
-                AnyComponentViewRefInner::Dynamic {} => None,
-                AnyComponentViewRefInner::None => None,
+                SceneComponentViewRefInner::Dynamic {} => None,
+                SceneComponentViewRefInner::None => None,
             }
         }
     };
@@ -197,7 +197,7 @@ macro_rules! impl_read_write_property {
     ($type:ty, $read:ident, $write:ident) => {
         pub fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
             match &self.0 {
-                AnyComponentViewMutInner::Static {
+                SceneComponentViewMutInner::Static {
                     components,
                     entities,
                     indices,
@@ -208,13 +208,13 @@ macro_rules! impl_read_write_property {
                         None
                     }
                 }),
-                AnyComponentViewMutInner::Dynamic {} => None,
-                AnyComponentViewMutInner::None => None,
+                SceneComponentViewMutInner::Dynamic {} => None,
+                SceneComponentViewMutInner::None => None,
             }
         }
         pub fn $write(&mut self, entity: Entity, id: PropertyId, value: $type) {
             match &mut self.0 {
-                AnyComponentViewMutInner::Static {
+                SceneComponentViewMutInner::Static {
                     components,
                     entities,
                     indices,
@@ -225,16 +225,16 @@ macro_rules! impl_read_write_property {
                         }
                     }
                 }
-                AnyComponentViewMutInner::Dynamic {} => {}
-                AnyComponentViewMutInner::None => {}
+                SceneComponentViewMutInner::Dynamic {} => {}
+                SceneComponentViewMutInner::None => {}
             }
         }
     };
 }
 
-impl<'a> AnyComponentViewRef<'a> {
+impl<'a> SceneComponentViewRef<'a> {
     pub(crate) fn none() -> Self {
-        Self(AnyComponentViewRefInner::None)
+        Self(SceneComponentViewRefInner::None)
     }
 
     impl_read_property!(bool, read_bool);
@@ -255,9 +255,9 @@ impl<'a> AnyComponentViewRef<'a> {
     impl_read_property!(UID, read_uid);
 }
 
-impl<'a> AnyComponentViewMut<'a> {
+impl<'a> SceneComponentViewMut<'a> {
     pub(crate) fn none() -> Self {
-        Self(AnyComponentViewMutInner::None)
+        Self(SceneComponentViewMutInner::None)
     }
 
     impl_read_write_property!(bool, read_bool, write_bool);
