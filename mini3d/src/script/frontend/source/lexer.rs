@@ -364,6 +364,7 @@ impl Lexer {
                 ',' => return self.consume_single_char_token(stream, TokenKind::Comma, loc),
                 ':' => return self.consume_single_char_token(stream, TokenKind::Colon, loc),
                 '.' => return self.consume_single_char_token(stream, TokenKind::Dot, loc),
+                '@' => return self.consume_single_char_token(stream, TokenKind::At, loc),
                 '=' => {
                     self.next_char(stream).unwrap();
                     if let Some((next, _)) = self.peek_char(stream) {

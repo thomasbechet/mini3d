@@ -9,6 +9,7 @@ pub enum TokenKind {
     Import,
     From,
     Export,
+    At,
     As,
     Comment,
     Space,
