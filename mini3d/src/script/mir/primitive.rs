@@ -3,6 +3,13 @@ use crate::script::frontend::{
     source::operator::{BinaryOperator, UnaryOperator},
 };
 
+pub(crate) enum ReferenceType {
+    Function,
+    Component,
+    Asset,
+    Query,
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum PrimitiveType {
     Boolean,
@@ -20,11 +27,6 @@ pub(crate) enum PrimitiveType {
     Entity,
     Object,
     UID,
-    // Special types
-    Nil,
-    Function,
-    ComponentRef,
-    Query,
 }
 
 impl PrimitiveType {

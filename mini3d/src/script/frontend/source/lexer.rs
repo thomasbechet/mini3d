@@ -145,6 +145,10 @@ impl Lexer {
             self.next_char(stream).unwrap();
             self.buffer.push(c);
         }
+        let span = Span {
+            start: start_location,
+            stop: stop_location,
+        };
 
         // Check if identifier is a keyword
         let keyword = match self.buffer.as_str() {
@@ -173,10 +177,7 @@ impl Lexer {
             "as" => Some(TokenKind::As),
             _ => None,
         };
-        let span = Span {
-            start: start_location,
-            stop: stop_location,
-        };
+
         // Check if identifier is a keyword
         if let Some(kind) = keyword {
             // We can flush the buffer as its value is not needed
