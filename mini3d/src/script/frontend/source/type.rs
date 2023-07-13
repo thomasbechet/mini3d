@@ -10,6 +10,7 @@ impl TypeId {
 pub(crate) enum TypeKind {
     Primitive(PrimitiveType),
     ComponentRef(StringId),
+    ComponentType(StringId),
     Nil,
 }
 

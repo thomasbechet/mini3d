@@ -10,6 +10,7 @@ pub enum Module {
     Source { asset: UID },
     Node { asset: UID },
     Interface { id: InterfaceId },
+    Builtin,
 }
 
 #[derive(Debug)]
@@ -32,6 +33,9 @@ pub(crate) enum ModuleSymbol {
         ident: UID,
         ty: PrimitiveType,
         next_arg: Option<ModuleSymbolId>,
+    },
+    BuiltinFunction {
+        ident: UID,
     },
     Constant {
         ident: UID,

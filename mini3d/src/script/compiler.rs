@@ -59,6 +59,14 @@ impl Compiler {
     }
 
     fn fetch_modules(&mut self, assets: &AssetContext) -> Result<(), CompileError> {
+        // Insert builtin modules
+        self.modules.add("scene".into(), Module::Builtin);
+        self.modules.add("asset".into(), Module::Builtin);
+        self.modules.add("input".into(), Module::Builtin);
+        self.modules.add("renderer".into(), Module::Builtin);
+        self.modules.add("physics".into(), Module::Builtin);
+        self.modules.add("registry".into(), Module::Builtin);
+        self.modules.add("math".into(), Module::Builtin);
         Ok(())
     }
 
@@ -83,6 +91,7 @@ impl Compiler {
                 )?,
                 Module::Node { .. } => unimplemented!(),
                 Module::Interface { .. } => unimplemented!(),
+                Module::Builtin { .. } => unimplemented!(),
             }
             i += 1;
         }
@@ -103,6 +112,7 @@ impl Compiler {
                 )?,
                 Module::Node { .. } => unimplemented!(),
                 Module::Interface { .. } => unimplemented!(),
+                Module::Builtin { .. } => unimplemented!(),
             }
         }
         Ok(())
