@@ -47,8 +47,8 @@ pub(crate) enum Symbol {
         arg_type: PrimitiveType,
         next_arg: Option<SymbolId>,
     },
-    MetaFunction {},
-    MetaFunctionArgument {},
+    // MetaFunction {},
+    // MetaFunctionArgument {},
     Constant {
         const_type: PrimitiveType,
         exported: bool,

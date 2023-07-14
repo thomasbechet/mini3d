@@ -34,9 +34,9 @@ pub(crate) enum ModuleSymbol {
         ty: PrimitiveType,
         next_arg: Option<ModuleSymbolId>,
     },
-    BuiltinFunction {
-        ident: UID,
-    },
+    // BuiltinFunction {
+    //     ident: UID,
+    // },
     Constant {
         ident: UID,
         ty: PrimitiveType,

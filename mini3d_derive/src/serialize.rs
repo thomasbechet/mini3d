@@ -1,20 +1,43 @@
 use proc_macro2::{Span, TokenStream};
-use syn::{Ident, Token, FieldsUnnamed, Attribute, Type, Generics, Variant, punctuated::Punctuated, ImplGenerics, TypeGenerics, WhereClause, Expr, parse::{Parse, ParseStream}, Index, Visibility};
 use quote::{quote, ToTokens};
-use syn::{DeriveInput, Result, Data, DataStruct, DataEnum, Fields, Error, FieldsNamed};
+use syn::{
+    parse::{Parse, ParseStream},
+    punctuated::Punctuated,
+    Attribute, Expr, FieldsUnnamed, Generics, Ident, ImplGenerics, Index, Token, Type,
+    TypeGenerics, Variant, Visibility, WhereClause,
+};
+use syn::{Data, DataEnum, DataStruct, DeriveInput, Error, Fields, FieldsNamed, Result};
 
 pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
             ..
-        }) => derive_struct(&input.ident, &input.vis, &input.attrs, &input.generics, fields),
+        }) => derive_struct(
+            &input.ident,
+            &input.vis,
+            &input.attrs,
+            &input.generics,
+            fields,
+        ),
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(fields),
             ..
-        }) => derive_tuple(&input.ident, &input.vis, &input.attrs, &input.generics, fields),
-        Data::Enum(data) => derive_enum(&input.ident, &input.vis, &input.attrs, &input.generics, data),
-        _ => Err(Error::new(Span::call_site(), "Union not supported"))
+        }) => derive_tuple(
+            &input.ident,
+            &input.vis,
+            &input.attrs,
+            &input.generics,
+            fields,
+        ),
+        Data::Enum(data) => derive_enum(
+            &input.ident,
+            &input.vis,
+            &input.attrs,
+            &input.generics,
+            data,
+        ),
+        _ => Err(Error::new(Span::call_site(), "Union not supported")),
     }
 }
 
@@ -39,7 +62,11 @@ fn parse_version(input: syn::parse::ParseStream) -> syn::Result<(u8, u8, u8)> {
     let minor: syn::LitInt = input.parse()?;
     let _: Token![.] = input.parse()?;
     let patch: syn::LitInt = input.parse()?;
-    Ok((major.base10_parse()?, minor.base10_parse()?, patch.base10_parse()?))
+    Ok((
+        major.base10_parse()?,
+        minor.base10_parse()?,
+        patch.base10_parse()?,
+    ))
 }
 
 /// Attributes ///
@@ -64,7 +91,7 @@ impl syn::parse::Parse for StructAttribute {
 
 struct StructAttributes {
     version: (u8, u8, u8),
-    removed_fields: Vec<(Ident, Type)>
+    removed_fields: Vec<(Ident, Type)>,
 }
 
 enum TupleAttribute {
@@ -87,7 +114,6 @@ impl syn::parse::Parse for TupleAttribute {
 }
 
 impl StructAttributes {
-
     fn new() -> Self {
         Self {
             version: (0, 0, 0),
@@ -113,11 +139,10 @@ impl StructAttributes {
 
 struct TupleAttributes {
     version: (u8, u8, u8),
-    removed_fields: Vec<(usize, Type)>
+    removed_fields: Vec<(usize, Type)>,
 }
 
 impl TupleAttributes {
-
     fn new() -> Self {
         Self {
             version: (0, 0, 0),
@@ -165,11 +190,8 @@ struct EnumAttributes {
 }
 
 impl EnumAttributes {
-
     fn new() -> Self {
-        Self {
-            version: (0, 0, 0),
-        }
+        Self { version: (0, 0, 0) }
     }
 
     fn parse(attributes: &[Attribute]) -> Result<Self> {
@@ -204,7 +226,7 @@ impl syn::parse::Parse for FieldAttribute {
             Ok(FieldAttribute::Since(parse_version(input)?))
         } else if arg_name == "default" {
             let _: Token![=] = input.parse()?;
-            Ok(FieldAttribute::Default(input.parse()?))  
+            Ok(FieldAttribute::Default(input.parse()?))
         } else {
             Err(Error::new_spanned(
                 arg_name,
@@ -221,7 +243,6 @@ struct FieldAttributes {
 }
 
 impl FieldAttributes {
-    
     fn new() -> Self {
         Self {
             skip: false,
@@ -292,7 +313,7 @@ enum EnumFieldEntry {
     Tuple {
         ident: Ident,
         hash: u32,
-        entries: Vec<TupleFieldEntry>
+        entries: Vec<TupleFieldEntry>,
     },
     Unit {
         ident: Ident,
@@ -300,10 +321,12 @@ enum EnumFieldEntry {
     },
 }
 
-fn parse_struct_field_entries(attributes: &StructAttributes, fields: &FieldsNamed) -> Result<Vec<StructFieldEntry>> {
-
+fn parse_struct_field_entries(
+    attributes: &StructAttributes,
+    fields: &FieldsNamed,
+) -> Result<Vec<StructFieldEntry>> {
     let mut entries = Vec::new();
-        
+
     for field in &fields.named {
         let attributes = FieldAttributes::build(&field.attrs)?;
         entries.push(StructFieldEntry {
@@ -327,10 +350,12 @@ fn parse_struct_field_entries(attributes: &StructAttributes, fields: &FieldsName
     Ok(entries)
 }
 
-fn parse_tuple_field_entries(attributes: &TupleAttributes, fields: &FieldsUnnamed) -> Result<Vec<TupleFieldEntry>> {
-
+fn parse_tuple_field_entries(
+    attributes: &TupleAttributes,
+    fields: &FieldsUnnamed,
+) -> Result<Vec<TupleFieldEntry>> {
     let mut entries = Vec::new();
-        
+
     for (index, field) in fields.unnamed.iter().enumerate() {
         let attributes = FieldAttributes::build(&field.attrs)?;
         entries.push(TupleFieldEntry {
@@ -350,12 +375,14 @@ fn parse_tuple_field_entries(attributes: &TupleAttributes, fields: &FieldsUnname
 
     // Sort entries by index
     entries.sort_by(|a, b| a.index.cmp(&b.index));
-    
+
     Ok(entries)
 }
 
-fn parse_enum_field_entries(attributes: &EnumAttributes, variants: &Punctuated<Variant, Token![,]>,) -> Result<Vec<EnumFieldEntry>> {
-
+fn parse_enum_field_entries(
+    attributes: &EnumAttributes,
+    variants: &Punctuated<Variant, Token![,]>,
+) -> Result<Vec<EnumFieldEntry>> {
     let mut entries = Vec::new();
 
     for variant in variants {
@@ -390,10 +417,22 @@ fn parse_enum_field_entries(attributes: &EnumAttributes, variants: &Punctuated<V
     Ok(entries)
 }
 
-fn generate_header(header_type_ident: &Ident, vis: &Visibility, impl_generics: &ImplGenerics, ty_generics: &TypeGenerics, where_clause: Option<&WhereClause>, field_idents: &[Ident], field_types: &[TokenStream], header_version: (u8, u8, u8)) -> Result<TokenStream> {
+fn generate_header(
+    header_type_ident: &Ident,
+    vis: &Visibility,
+    impl_generics: &ImplGenerics,
+    ty_generics: &TypeGenerics,
+    where_clause: Option<&WhereClause>,
+    field_idents: &[Ident],
+    field_types: &[TokenStream],
+    header_version: (u8, u8, u8),
+) -> Result<TokenStream> {
     let (major, minor, patch) = header_version;
-    let header_field_ident = field_idents.iter().map(build_header_field_ident).collect::<Vec<_>>();
-    Ok(quote!{
+    let header_field_ident = field_idents
+        .iter()
+        .map(build_header_field_ident)
+        .collect::<Vec<_>>();
+    Ok(quote! {
         #vis struct #header_type_ident #impl_generics #where_clause {
             #vis version: mini3d::version::Version,
             #(#header_field_ident: <#field_types as mini3d::serialize::Serialize>::Header),*
@@ -412,7 +451,7 @@ fn generate_header(header_type_ident: &Ident, vis: &Visibility, impl_generics: &
             fn default() -> Self {
                 Self::new()
             }
-        } 
+        }
 
         impl #impl_generics mini3d::serialize::Serialize for #header_type_ident #ty_generics #where_clause {
 
@@ -438,16 +477,66 @@ fn generate_header(header_type_ident: &Ident, vis: &Visibility, impl_generics: &
     })
 }
 
-fn generate_header_struct(header_type_ident: &Ident, vis: &Visibility, impl_generics: &ImplGenerics, ty_generics: &TypeGenerics, where_clause: Option<&WhereClause>, entries: &[StructFieldEntry], header_version: (u8, u8, u8)) -> Result<TokenStream> {
-    let field_types = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| entry.ty.to_token_stream()).collect::<Vec<_>>();
-    let field_idents = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| entry.ident.clone()).collect::<Vec<_>>();
-    generate_header(header_type_ident, vis, impl_generics, ty_generics, where_clause, &field_idents, &field_types, header_version)
+fn generate_header_struct(
+    header_type_ident: &Ident,
+    vis: &Visibility,
+    impl_generics: &ImplGenerics,
+    ty_generics: &TypeGenerics,
+    where_clause: Option<&WhereClause>,
+    entries: &[StructFieldEntry],
+    header_version: (u8, u8, u8),
+) -> Result<TokenStream> {
+    let field_types = entries
+        .iter()
+        .filter(|entry| !entry.attributes.skip)
+        .map(|entry| entry.ty.to_token_stream())
+        .collect::<Vec<_>>();
+    let field_idents = entries
+        .iter()
+        .filter(|entry| !entry.attributes.skip)
+        .map(|entry| entry.ident.clone())
+        .collect::<Vec<_>>();
+    generate_header(
+        header_type_ident,
+        vis,
+        impl_generics,
+        ty_generics,
+        where_clause,
+        &field_idents,
+        &field_types,
+        header_version,
+    )
 }
 
-fn generate_header_tuple(header_type_ident: &Ident, vis: &Visibility, impl_generics: &ImplGenerics, ty_generics: &TypeGenerics, where_clause: Option<&WhereClause>, entries: &[TupleFieldEntry], header_version: (u8, u8, u8)) -> Result<TokenStream> {
-    let field_types = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| entry.ty.to_token_stream()).collect::<Vec<_>>();
-    let field_idents = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| Ident::new(&format!("field{}", entry.index), Span::call_site())).collect::<Vec<_>>();
-    generate_header(header_type_ident, vis, impl_generics, ty_generics, where_clause, &field_idents, &field_types, header_version)
+fn generate_header_tuple(
+    header_type_ident: &Ident,
+    vis: &Visibility,
+    impl_generics: &ImplGenerics,
+    ty_generics: &TypeGenerics,
+    where_clause: Option<&WhereClause>,
+    entries: &[TupleFieldEntry],
+    header_version: (u8, u8, u8),
+) -> Result<TokenStream> {
+    let field_types = entries
+        .iter()
+        .filter(|entry| !entry.attributes.skip)
+        .map(|entry| entry.ty.to_token_stream())
+        .collect::<Vec<_>>();
+    let field_idents = entries
+        .iter()
+        .filter(|entry| !entry.attributes.skip)
+        .map(|entry| Ident::new(&format!("field{}", entry.index), Span::call_site()))
+        .collect::<Vec<_>>();
+    generate_header(
+        header_type_ident,
+        vis,
+        impl_generics,
+        ty_generics,
+        where_clause,
+        &field_idents,
+        &field_types,
+        header_version,
+    )
 }
 
 fn generate_struct_field_deserialize(entry: &StructFieldEntry) -> Result<TokenStream> {
@@ -455,20 +544,20 @@ fn generate_struct_field_deserialize(entry: &StructFieldEntry) -> Result<TokenSt
     let field_type = &entry.ty;
     Ok(if entry.attributes.skip {
         if let Some(expr) = &entry.attributes.default {
-            quote!{ #expr }
+            quote! { #expr }
         } else {
-            quote!{ <#field_type as core::default::Default>::default() }
+            quote! { <#field_type as core::default::Default>::default() }
         }
     } else if let Some((major, minor, patch)) = entry.attributes.since {
-        quote!{
-            if header.version >= mini3d::version::Version::new(#major, #minor, #patch) { 
-                <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? 
-            } else { 
+        quote! {
+            if header.version >= mini3d::version::Version::new(#major, #minor, #patch) {
+                <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
+            } else {
                 <#field_type as core::default::Default>::default()
             }
         }
     } else {
-        quote!{ <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
+        quote! { <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
     })
 }
 
@@ -477,20 +566,20 @@ fn generate_tuple_field_deserialize(entry: &TupleFieldEntry) -> Result<TokenStre
     let field_type = &entry.ty;
     Ok(if entry.attributes.skip {
         if let Some(expr) = &entry.attributes.default {
-            quote!{ #expr }
+            quote! { #expr }
         } else {
-            quote!{ <#field_type as core::default::Default>::default() }
+            quote! { <#field_type as core::default::Default>::default() }
         }
     } else if let Some((major, minor, patch)) = entry.attributes.since {
-        quote!{
-            if header.version >= mini3d::version::Version::new(#major, #minor, #patch) { 
-                <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? 
-            } else { 
+        quote! {
+            if header.version >= mini3d::version::Version::new(#major, #minor, #patch) {
+                <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
+            } else {
                 <#field_type as core::default::Default>::default()
             }
         }
     } else {
-        quote!{ <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
+        quote! { <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
     })
 }
 
@@ -507,36 +596,57 @@ fn build_tuple_field_ident(index: usize) -> Ident {
     Ident::new(&format!("field{}", index), Span::call_site())
 }
 
-pub(crate) fn derive_struct(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &Generics, fields: &FieldsNamed) -> Result<TokenStream> {
-    
+pub(crate) fn derive_struct(
+    ident: &Ident,
+    vis: &Visibility,
+    attrs: &[Attribute],
+    generics: &Generics,
+    fields: &FieldsNamed,
+) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    
+
     // Parse attributes
     let struct_attributes = StructAttributes::parse(attrs)?;
-    
+
     // Build entries
     let entries = parse_struct_field_entries(&struct_attributes, fields)?;
-    let field_idents = entries.iter().map(|entry| entry.ident.clone()).collect::<Vec<_>>();
-    let field_not_skipped = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| entry.ident.clone()).collect::<Vec<_>>();
+    let field_idents = entries
+        .iter()
+        .map(|entry| entry.ident.clone())
+        .collect::<Vec<_>>();
+    let field_not_skipped = entries
+        .iter()
+        .filter(|entry| !entry.attributes.skip)
+        .map(|entry| entry.ident.clone())
+        .collect::<Vec<_>>();
 
     // Generate header
     let header_ident = build_header_type_ident(ident);
-    let header = generate_header_struct(&header_ident, vis, &impl_generics, &ty_generics, where_clause, &entries, struct_attributes.version)?;
+    let header = generate_header_struct(
+        &header_ident,
+        vis,
+        &impl_generics,
+        &ty_generics,
+        where_clause,
+        &entries,
+        struct_attributes.version,
+    )?;
 
     // Generate deserialization
-    let field_deserialize = entries.iter().map(|entry| {
-        generate_struct_field_deserialize(entry)
-    }).collect::<Result<Vec<_>>>()?;
+    let field_deserialize = entries
+        .iter()
+        .map(|entry| generate_struct_field_deserialize(entry))
+        .collect::<Result<Vec<_>>>()?;
 
     // Generate tokens
-    Ok(quote!{
+    Ok(quote! {
 
         #header
 
         impl #impl_generics mini3d::serialize::Serialize for #ident #ty_generics #where_clause {
-            
+
             type Header = #header_ident #ty_generics;
-            
+
             fn serialize(&self, encoder: &mut impl mini3d::serialize::Encoder) -> Result<(), mini3d::serialize::EncoderError> {
                 #(self.#field_not_skipped.serialize(encoder)?;)*
                 Ok(())
@@ -552,8 +662,13 @@ pub(crate) fn derive_struct(ident: &Ident, vis: &Visibility, attrs: &[Attribute]
     })
 }
 
-pub(crate) fn derive_tuple(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &Generics, fields: &FieldsUnnamed) -> Result<TokenStream> {
-
+pub(crate) fn derive_tuple(
+    ident: &Ident,
+    vis: &Visibility,
+    attrs: &[Attribute],
+    generics: &Generics,
+    fields: &FieldsUnnamed,
+) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Parse attributes
@@ -561,25 +676,38 @@ pub(crate) fn derive_tuple(ident: &Ident, vis: &Visibility, attrs: &[Attribute],
 
     // Build entries
     let entries = parse_tuple_field_entries(&tuple_attributes, fields)?;
-    let field_not_skipped = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| Index::from(entry.index)).collect::<Vec<_>>();
+    let field_not_skipped = entries
+        .iter()
+        .filter(|entry| !entry.attributes.skip)
+        .map(|entry| Index::from(entry.index))
+        .collect::<Vec<_>>();
 
     // Generate header
     let header_ident = build_header_type_ident(ident);
-    let header = generate_header_tuple(&header_ident, vis, &impl_generics, &ty_generics, where_clause, &entries, tuple_attributes.version)?;
+    let header = generate_header_tuple(
+        &header_ident,
+        vis,
+        &impl_generics,
+        &ty_generics,
+        where_clause,
+        &entries,
+        tuple_attributes.version,
+    )?;
 
     // Generate deserialization
-    let field_deserialize = entries.iter().map(|entry| {
-        generate_tuple_field_deserialize(entry)
-    }).collect::<Result<Vec<_>>>()?;
+    let field_deserialize = entries
+        .iter()
+        .map(|entry| generate_tuple_field_deserialize(entry))
+        .collect::<Result<Vec<_>>>()?;
 
-    Ok(quote!{
+    Ok(quote! {
 
         #header
 
         impl #impl_generics mini3d::serialize::Serialize for #ident #ty_generics #where_clause {
-            
+
             type Header = #header_ident #ty_generics;
-            
+
             fn serialize(&self, encoder: &mut impl mini3d::serialize::Encoder) -> Result<(), mini3d::serialize::EncoderError> {
                 #(self.#field_not_skipped.serialize(encoder)?;)*
                 Ok(())
@@ -594,8 +722,13 @@ pub(crate) fn derive_tuple(ident: &Ident, vis: &Visibility, attrs: &[Attribute],
     })
 }
 
-pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], generics: &Generics, data: &DataEnum) -> Result<TokenStream> {
-
+pub(crate) fn derive_enum(
+    ident: &Ident,
+    vis: &Visibility,
+    attrs: &[Attribute],
+    generics: &Generics,
+    data: &DataEnum,
+) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Parse attributes
@@ -611,23 +744,45 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
     let mut variant_match_deserialize = Vec::new();
     for entry in &entries {
         match entry {
-            EnumFieldEntry::Struct { ident: variant_ident, hash, entries } => {
+            EnumFieldEntry::Struct {
+                ident: variant_ident,
+                hash,
+                entries,
+            } => {
                 let header_ident = build_header_type_ident(variant_ident);
                 // let field_idents = entries.iter().map(|entry| build_header_field_ident(&entry.ident)).collect::<Vec<_>>();
-                let field_idents = entries.iter().map(|entry| entry.ident.clone()).collect::<Vec<_>>();
+                let field_idents = entries
+                    .iter()
+                    .map(|entry| entry.ident.clone())
+                    .collect::<Vec<_>>();
                 // let field_not_skipped = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| build_header_field_ident(&entry.ident)).collect::<Vec<_>>();
-                let field_not_skipped = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| entry.ident.clone()).collect::<Vec<_>>();
-                
+                let field_not_skipped = entries
+                    .iter()
+                    .filter(|entry| !entry.attributes.skip)
+                    .map(|entry| entry.ident.clone())
+                    .collect::<Vec<_>>();
+
                 // Generate field
-                let lower_case = &Ident::new(&variant_ident.to_string().to_lowercase(), variant_ident.span());
+                let lower_case = &Ident::new(
+                    &variant_ident.to_string().to_lowercase(),
+                    variant_ident.span(),
+                );
                 variant_header_fields.push(lower_case.clone());
                 let variant_header_field = build_header_field_ident(lower_case);
 
                 // Generate header
-                variant_header_structs.push(generate_header_struct(&header_ident, vis, &impl_generics, &ty_generics, where_clause, entries, enum_attributes.version)?);
+                variant_header_structs.push(generate_header_struct(
+                    &header_ident,
+                    vis,
+                    &impl_generics,
+                    &ty_generics,
+                    where_clause,
+                    entries,
+                    enum_attributes.version,
+                )?);
 
                 // Generate serialize
-                variant_match_serialize.push(quote!{
+                variant_match_serialize.push(quote! {
                     Self::#variant_ident { #(ref #field_idents),* } => {
                         encoder.write_u32(#hash)?;
                         #(#field_not_skipped.serialize(encoder)?;)*
@@ -635,10 +790,11 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
                 });
 
                 // Generate deserialize
-                let field_deserialize = entries.iter().map(|entry| {
-                    generate_struct_field_deserialize(entry)
-                }).collect::<Result<Vec<_>>>()?;
-                variant_match_deserialize.push(quote!{
+                let field_deserialize = entries
+                    .iter()
+                    .map(|entry| generate_struct_field_deserialize(entry))
+                    .collect::<Result<Vec<_>>>()?;
+                variant_match_deserialize.push(quote! {
                     #hash => {
                         let header = &header.#variant_header_field;
                         #(let #field_idents = #field_deserialize;)*
@@ -647,20 +803,42 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
                         })
                     }
                 });
-            },
-            EnumFieldEntry::Tuple { ident: variant_ident, hash, entries } => {
+            }
+            EnumFieldEntry::Tuple {
+                ident: variant_ident,
+                hash,
+                entries,
+            } => {
                 let header_ident = build_header_type_ident(variant_ident);
-                let field_idents = entries.iter().map(|entry| build_tuple_field_ident(entry.index)).collect::<Vec<_>>();
-                let field_not_skipped = entries.iter().filter(|entry| !entry.attributes.skip).map(|entry| build_tuple_field_ident(entry.index)).collect::<Vec<_>>();
-                variant_header_structs.push(generate_header_tuple(&header_ident, vis, &impl_generics, &ty_generics, where_clause, entries, enum_attributes.version)?);
+                let field_idents = entries
+                    .iter()
+                    .map(|entry| build_tuple_field_ident(entry.index))
+                    .collect::<Vec<_>>();
+                let field_not_skipped = entries
+                    .iter()
+                    .filter(|entry| !entry.attributes.skip)
+                    .map(|entry| build_tuple_field_ident(entry.index))
+                    .collect::<Vec<_>>();
+                variant_header_structs.push(generate_header_tuple(
+                    &header_ident,
+                    vis,
+                    &impl_generics,
+                    &ty_generics,
+                    where_clause,
+                    entries,
+                    enum_attributes.version,
+                )?);
 
                 // Generate field
-                let lower_case = &Ident::new(&variant_ident.to_string().to_lowercase(), variant_ident.span());
+                let lower_case = &Ident::new(
+                    &variant_ident.to_string().to_lowercase(),
+                    variant_ident.span(),
+                );
                 variant_header_fields.push(lower_case.clone());
                 let variant_header_field = build_header_field_ident(lower_case);
 
                 // Generate serialize
-                variant_match_serialize.push(quote!{
+                variant_match_serialize.push(quote! {
                     Self::#variant_ident(#(ref #field_idents),*) => {
                         encoder.write_u32(#hash)?;
                         #(#field_not_skipped.serialize(encoder)?;)*
@@ -668,10 +846,11 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
                 });
 
                 // Generate deserialize
-                let field_deserialize = entries.iter().map(|entry| {
-                    generate_tuple_field_deserialize(entry)
-                }).collect::<Result<Vec<_>>>()?;
-                variant_match_deserialize.push(quote!{
+                let field_deserialize = entries
+                    .iter()
+                    .map(|entry| generate_tuple_field_deserialize(entry))
+                    .collect::<Result<Vec<_>>>()?;
+                variant_match_deserialize.push(quote! {
                     #hash => {
                         let header = &header.#variant_header_field;
                         #(let #field_idents = #field_deserialize;)*
@@ -680,29 +859,44 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
                         ))
                     }
                 });
-            },
-            EnumFieldEntry::Unit { ident: variant_ident, hash } => {
+            }
+            EnumFieldEntry::Unit {
+                ident: variant_ident,
+                hash,
+            } => {
                 let header_ident = build_header_type_ident(variant_ident);
-                variant_header_structs.push(generate_header(&header_ident, vis, &impl_generics, &ty_generics, where_clause, &Vec::new(), &Vec::new(), enum_attributes.version)?);
+                variant_header_structs.push(generate_header(
+                    &header_ident,
+                    vis,
+                    &impl_generics,
+                    &ty_generics,
+                    where_clause,
+                    &Vec::new(),
+                    &Vec::new(),
+                    enum_attributes.version,
+                )?);
 
                 // Generate field
-                let lower_case = &Ident::new(&variant_ident.to_string().to_lowercase(), variant_ident.span());
+                let lower_case = &Ident::new(
+                    &variant_ident.to_string().to_lowercase(),
+                    variant_ident.span(),
+                );
                 variant_header_fields.push(lower_case.clone());
 
                 // Generate serialize
-                variant_match_serialize.push(quote!{
+                variant_match_serialize.push(quote! {
                     Self::#variant_ident => {
                         encoder.write_u32(#hash)?;
                     }
                 });
 
                 // Generate deserialize
-                variant_match_deserialize.push(quote!{
+                variant_match_deserialize.push(quote! {
                     #hash => {
                         Ok(Self::#variant_ident)
                     }
                 });
-            },
+            }
         }
     }
 
@@ -717,10 +911,13 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
         };
         header_types.push(build_header_type_ident(&ident).to_token_stream());
     }
-    
+
     let (major, minor, patch) = enum_attributes.version;
-    let variant_header_fields = variant_header_fields.iter().map(build_header_field_ident).collect::<Vec<_>>();
-    let header = quote!{
+    let variant_header_fields = variant_header_fields
+        .iter()
+        .map(build_header_field_ident)
+        .collect::<Vec<_>>();
+    let header = quote! {
         #vis struct #header_ident #impl_generics #where_clause {
             version: mini3d::version::Version,
             #(#variant_header_fields: #header_types),*
@@ -739,7 +936,7 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
             fn default() -> Self {
                 Self::new()
             }
-        } 
+        }
 
         impl #impl_generics mini3d::serialize::Serialize for #header_ident #ty_generics #where_clause {
 
@@ -764,15 +961,15 @@ pub(crate) fn derive_enum(ident: &Ident, vis: &Visibility, attrs: &[Attribute], 
         }
     };
 
-    Ok(quote!{
+    Ok(quote! {
 
         #(#variant_header_structs)*
         #header
 
         impl #impl_generics mini3d::serialize::Serialize for #ident #ty_generics #where_clause {
-            
+
             type Header = #header_ident #ty_generics;
-            
+
             fn serialize(&self, encoder: &mut impl mini3d::serialize::Encoder) -> Result<(), mini3d::serialize::EncoderError> {
                 match self {
                     #(#variant_match_serialize,)*
