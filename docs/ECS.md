@@ -50,7 +50,9 @@ A pipeline is attached to a procedure. A procedure is invoked
 ### SystemGroup
 
 A pipeline belongs to a system group and is attached to a procedure. The system group can
-be enabled or disabled to control pipeline activation. System group or enabled by default.
+be enabled or disabled to control pipeline activation (enabled by default).
+
+Pipelines within the same procedure are executed in order based on their priority.
 
 ### Scheduler
 
