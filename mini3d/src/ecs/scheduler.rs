@@ -4,12 +4,12 @@ use std::collections::HashMap;
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::component::common::system_group::SystemGroup,
+    feature::component::common::system_graph::SystemGraph,
     registry::{error::RegistryError, RegistryManager},
     uid::UID,
 };
 
-use super::{error::SchedulerError, pipeline::CompiledSystemPipeline};
+use super::{error::SchedulerError, pipeline::SystemPipeline};
 
 pub enum Invocation {
     Immediate,
@@ -18,30 +18,20 @@ pub enum Invocation {
 }
 
 #[derive(Serialize)]
-struct SystemGroupEntry {
-    group: SystemGroup,
-    enabled: bool,
-}
-
-#[derive(Serialize)]
 struct ProcedureEntry {
     name: String,
-    groups: Vec<(UID, i32)>,
+    pipeline: SystemPipeline,
 }
 
-impl ProcedureEntry {
-    fn new(name: &str) -> Self {
-        Self {
-            name: name.into(),
-            groups: Vec::new(),
-        }
-    }
+pub(crate) struct SystemGraphEntry {
+    graph: SystemGraph,
+    priority: i32,
 }
 
 #[derive(Default, Serialize)]
 pub(crate) struct Scheduler {
-    groups: HashMap<UID, SystemGroupEntry>,
     procedures: HashMap<UID, ProcedureEntry>,
+    graphs: HashMap<UID, SystemGraphEntry>,
 }
 
 impl Scheduler {
@@ -49,9 +39,9 @@ impl Scheduler {
         &self,
         procedure: UID,
         registry: &RefCell<RegistryManager>,
-    ) -> Result<Option<CompiledSystemPipeline>, RegistryError> {
+    ) -> Result<Option<SystemPipeline>, RegistryError> {
         if let Some(entry) = self.procedures.get(&procedure) {
-            return Ok(Some(CompiledSystemPipeline::build(
+            return Ok(Some(SystemPipeline::build(
                 &registry.borrow().systems,
                 entry
                     .groups

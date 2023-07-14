@@ -1,6 +1,5 @@
 use crate::{
     ecs::{error::SchedulerError, scheduler::Scheduler},
-    feature::component::common::system_group::SystemGroup,
     uid::UID,
 };
 

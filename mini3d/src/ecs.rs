@@ -19,7 +19,7 @@ use crate::{
 };
 
 use self::{
-    error::ECSError, pipeline::CompiledSystemPipeline, procedure::Procedure, scene::Scene,
+    error::ECSError, pipeline::SystemPipeline, procedure::Procedure, scene::Scene,
     scheduler::Scheduler,
 };
 
@@ -196,7 +196,7 @@ impl ECSManager {
         // Invoke frame systems
         if !self.next_frame_system_invocations.is_empty() {
             // Build context
-            let pipeline = CompiledSystemPipeline::build(
+            let pipeline = SystemPipeline::build(
                 &context.registry.borrow_mut().systems,
                 self.next_frame_system_invocations.iter(),
             )

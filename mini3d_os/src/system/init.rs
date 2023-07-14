@@ -9,7 +9,7 @@ use mini3d::{
             lifecycle::Lifecycle,
             rotator::Rotator,
             script::Script,
-            system_group::{SystemGroup, SystemPipeline},
+            system_graph::{LinearSystemPipeline, SystemGroup},
         },
         input::input_table::{InputAction, InputAxis, InputAxisRange, InputTable},
         renderer::{
@@ -605,7 +605,7 @@ fn setup_scene(ctx: &mut SystemContext) -> SystemResult {
 }
 
 fn setup_scheduler(ctx: &mut SystemContext) -> SystemResult {
-    let pipeline = SystemPipeline::new(&[
+    let pipeline = LinearSystemPipeline::new(&[
         UID::new("rotator"),
         UID::new("transform_propagate"),
         UID::new("ui_update"),

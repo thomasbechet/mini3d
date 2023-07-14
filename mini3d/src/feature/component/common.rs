@@ -3,4 +3,4 @@ pub mod lifecycle;
 pub mod prefab;
 pub mod rotator;
 pub mod script;
-pub mod system_group;
+pub mod system_graph;

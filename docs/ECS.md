@@ -24,8 +24,8 @@ A structural change occurs on the following actions :
 ### System
 
 A system is the smallest execution process. A system has a execution mode :
-- Exclusive : executed and produce a synchronization point. It can apply structural changes. 
-- Parallel  : executed in parallel, can't apply structural changes.
+- Exclusive : it is guarranted to be executed alone. Therefore, it can apply structural changes. 
+- Parallel  : executed in parallel, can't apply structural changes. Views can be used to make parallelism safe across the same type of component.
 
 Systems are described by one of the module :
 - Source Script     : compiled / interpreted source language.

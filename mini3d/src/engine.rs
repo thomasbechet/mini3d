@@ -2,7 +2,7 @@ use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
 use crate::disk::backend::DiskBackend;
-use crate::ecs::system::SystemCallback;
+use crate::ecs::system::ExclusiveSystemCallback;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::event::system::SystemEvent;
 use crate::event::Events;
@@ -69,7 +69,7 @@ impl Engine {
         define_component!(component::common::prefab::Prefab);
         define_component!(component::common::rotator::Rotator);
         define_component!(component::common::script::Script);
-        define_component!(component::common::system_group::SystemGroup);
+        define_component!(component::common::system_graph::SystemGroup);
         define_component!(component::input::input_table::InputTable);
         define_component!(component::physics::rigid_body::RigidBody);
         define_component!(component::renderer::camera::Camera);
@@ -165,7 +165,7 @@ impl Engine {
     pub fn define_static_system(
         &mut self,
         name: &str,
-        system: SystemCallback,
+        system: ExclusiveSystemCallback,
     ) -> Result<UID, RegistryError> {
         self.registry
             .borrow_mut()
