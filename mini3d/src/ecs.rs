@@ -7,7 +7,7 @@ use crate::{
     context::{
         asset::AssetContext, event::EventContext, input::InputContext, procedure::ProcedureContext,
         registry::RegistryContext, renderer::RendererContext, scene::SceneContext,
-        scheduler::SchedulerContext, time::TimeContext, SystemContext,
+        scheduler::SchedulerContext, time::TimeContext, ExclusiveSystemContext,
     },
     event::Events,
     input::InputManager,
@@ -82,8 +82,8 @@ fn create_system_context<'b, 'a: 'b>(
     scenes: &'b mut HashMap<UID, RefCell<Box<Scene>>>,
     change_scene: &'b mut Option<UID>,
     removed_scenes: &'b mut HashSet<UID>,
-) -> SystemContext<'b> {
-    SystemContext {
+) -> ExclusiveSystemContext<'b> {
+    ExclusiveSystemContext {
         asset: AssetContext {
             registry: context.registry,
             manager: context.asset,

@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 
-use crate::{ecs::system::ExclusiveSystemCallback, uid::UID};
+use crate::{
+    ecs::system::{ExclusiveSystemCallback, ParallelSystemCallback},
+    uid::UID,
+};
 
 use super::error::RegistryError;
 
 #[derive(Clone, Copy)]
 pub(crate) enum ExclusiveSystem {
     Callback(ExclusiveSystemCallback),
-    Script(UID),
-    Node(UID),
+    Module(UID),
 }
 
 #[derive(Clone, Copy)]
 pub(crate) enum ParallelSystem {
-    Callback(ExclusiveSystemCallback),
-    Script(UID),
-    Node(UID),
+    Callback(ParallelSystemCallback),
+    Module(UID),
 }
 
 #[derive(Clone, Copy)]
@@ -46,16 +47,29 @@ impl SystemRegistry {
         Ok(uid)
     }
 
-    pub(crate) fn define_static(
+    pub(crate) fn define_static_exclusive(
         &mut self,
         name: &str,
-        system: ExclusiveSystemCallback,
+        callback: ExclusiveSystemCallback,
     ) -> Result<UID, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            code: SystemCode::Static(system),
+            kind: SystemKind::Exclusive(ExclusiveSystem::Callback(callback)),
         })
     }
+
+    pub(crate) fn define_static_parallel(
+        &mut self,
+        name: &str,
+        callback: ParallelSystemCallback,
+    ) -> Result<UID, RegistryError> {
+        self.define(SystemDefinition {
+            name: name.to_string(),
+            kind: SystemKind::Parallel(ParallelSystem::Callback(callback)),
+        })
+    }
+
+    pub(crate) fn define_script_exclusive()
 
     pub(crate) fn get(&self, uid: &UID) -> Option<&SystemDefinition> {
         self.systems.get(uid)

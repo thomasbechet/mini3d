@@ -1,5 +1,5 @@
 use mini3d::{
-    context::SystemContext,
+    context::ExclusiveSystemContext,
     ecs::{procedure::Procedure, system::SystemResult},
     engine::Engine,
     event::asset::ImportAssetEvent,
@@ -51,7 +51,7 @@ use crate::{
     input::{CommonAction, CommonAxis},
 };
 
-fn setup_assets(ctx: &mut SystemContext) -> SystemResult {
+fn setup_assets(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     ctx.asset.add_bundle(DefaultAsset::BUNDLE).unwrap();
     let default_bundle = DefaultAsset::BUNDLE.into();
 
@@ -333,7 +333,7 @@ fn setup_assets(ctx: &mut SystemContext) -> SystemResult {
     Ok(())
 }
 
-fn setup_scene(ctx: &mut SystemContext) -> SystemResult {
+fn setup_scene(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let mut scene = ctx.scene.active();
     {
         let e = scene.add_entity();
@@ -604,7 +604,7 @@ fn setup_scene(ctx: &mut SystemContext) -> SystemResult {
     Ok(())
 }
 
-fn setup_scheduler(ctx: &mut SystemContext) -> SystemResult {
+fn setup_scheduler(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let pipeline = LinearSystemPipeline::new(&[
         UID::new("rotator"),
         UID::new("transform_propagate"),
@@ -622,7 +622,7 @@ fn setup_scheduler(ctx: &mut SystemContext) -> SystemResult {
     Ok(())
 }
 
-fn init_system(ctx: &mut SystemContext) -> SystemResult {
+fn init_system(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     setup_assets(ctx)?;
     setup_scene(ctx)?;
     setup_scheduler(ctx)?;

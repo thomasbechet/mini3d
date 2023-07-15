@@ -286,6 +286,8 @@ impl Scene {
         }
     }
 
+    // TODO: transfer entities to another scene
+
     pub(crate) fn export(
         &self,
         registry: &ComponentRegistry,

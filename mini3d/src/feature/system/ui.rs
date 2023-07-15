@@ -1,5 +1,5 @@
 use crate::{
-    context::SystemContext,
+    context::ExclusiveSystemContext,
     ecs::system::SystemResult,
     feature::component::ui::{
         canvas::Canvas,
@@ -8,7 +8,7 @@ use crate::{
     registry::component::Component,
 };
 
-pub fn update(ctx: &mut SystemContext) -> SystemResult {
+pub fn update(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
     let mut uis = scene.static_view_mut::<UI>(UI::UID)?;
     for ui in uis.iter() {
@@ -20,7 +20,7 @@ pub fn update(ctx: &mut SystemContext) -> SystemResult {
     Ok(())
 }
 
-pub fn render(ctx: &mut SystemContext) -> SystemResult {
+pub fn render(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
     let mut canvases = scene.static_view_mut::<Canvas>(Canvas::UID)?;
     let uis = scene.static_view::<UI>(UI::UID)?;

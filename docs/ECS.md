@@ -15,9 +15,14 @@ The following actions are delayed :
 
 Any structural change prevent parallelism.
 A structural change occurs on the following actions :
-- create / destroy entity
-- add / remove component
-- add / remove singleton
+- creating / destroying entity
+- adding / removing component
+- adding / removing singleton
+- transfering entity from / to another scene
+
+### Entity and ownership
+
+An entity is a combinaison of index and a version. The index is unique within a scene.
 
 ## System Execution Model
 

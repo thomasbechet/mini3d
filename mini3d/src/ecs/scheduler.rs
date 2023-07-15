@@ -23,6 +23,7 @@ struct ProcedureEntry {
     pipeline: SystemPipeline,
 }
 
+#[derive(Default, Serialize)]
 pub(crate) struct SystemGraphEntry {
     graph: SystemGraph,
     priority: i32,
@@ -32,11 +33,12 @@ pub(crate) struct SystemGraphEntry {
 pub(crate) struct Scheduler {
     procedures: HashMap<UID, ProcedureEntry>,
     graphs: HashMap<UID, SystemGraphEntry>,
+    pipeline: SystemPipeline,
 }
 
 impl Scheduler {
     pub(crate) fn build_pipeline(
-        &self,
+        &mut self,
         procedure: UID,
         registry: &RefCell<RegistryManager>,
     ) -> Result<Option<SystemPipeline>, RegistryError> {
@@ -61,6 +63,10 @@ impl Scheduler {
             )?));
         }
         Ok(None)
+    }
+
+    pub(crate) fn build_pipelines(&mut self) -> Result<(), SchedulerError> {
+        Ok(())
     }
 
     pub(crate) fn add_group(
@@ -93,18 +99,6 @@ impl Scheduler {
             },
         );
         Ok(uid)
-    }
-
-    pub(crate) fn remove_group(&mut self, group: UID) -> Result<(), SchedulerError> {
-        if self.groups.remove(&group).is_none() {
-            return Err(SchedulerError::GroupNotFound { uid: group });
-        }
-        self.procedures.iter_mut().for_each(|(_, procedure)| {
-            procedure
-                .groups
-                .retain(|(group_uid, _)| group_uid != &group)
-        });
-        Ok(())
     }
 
     pub(crate) fn enable_group(&mut self, group: UID) -> Result<(), SchedulerError> {

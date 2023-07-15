@@ -1,5 +1,5 @@
 use crate::{
-    context::SystemContext,
+    context::ExclusiveSystemContext,
     ecs::system::SystemResult,
     feature::component::{
         common::lifecycle::Lifecycle,
@@ -9,7 +9,7 @@ use crate::{
     registry::component::Component,
 };
 
-pub(crate) fn despawn_renderer_entities(ctx: &mut SystemContext) -> SystemResult {
+pub(crate) fn despawn_renderer_entities(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
     let lifecycles = scene.static_view::<Lifecycle>(Lifecycle::UID)?;
     let viewports = scene.static_view::<Viewport>(Viewport::UID)?;

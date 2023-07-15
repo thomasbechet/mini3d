@@ -1,5 +1,5 @@
 use mini3d::{
-    context::SystemContext,
+    context::ExclusiveSystemContext,
     ecs::system::SystemResult,
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,
@@ -9,7 +9,7 @@ use mini3d::{
 
 use crate::{component::os::OS, input::CommonAction};
 
-pub fn update(ctx: &mut SystemContext) -> SystemResult {
+pub fn update(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
     let mut os = scene.get_singleton_mut::<OS>(OS::UID)?.unwrap();
 

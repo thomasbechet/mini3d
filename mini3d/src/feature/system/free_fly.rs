@@ -1,13 +1,13 @@
 use glam::{Quat, Vec3};
 
 use crate::{
-    context::SystemContext,
+    context::ExclusiveSystemContext,
     ecs::system::SystemResult,
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
     registry::component::Component,
 };
 
-pub fn run(ctx: &mut SystemContext) -> SystemResult {
+pub fn run(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
     let mut transforms = scene.static_view_mut::<Transform>(Transform::UID)?;
     let mut free_flies = scene.static_view_mut::<FreeFly>(FreeFly::UID)?;

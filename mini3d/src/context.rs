@@ -15,7 +15,7 @@ pub mod scene;
 pub mod scheduler;
 pub mod time;
 
-pub struct SystemContext<'a> {
+pub struct ExclusiveSystemContext<'a> {
     pub asset: AssetContext<'a>,
     pub event: EventContext<'a>,
     pub input: InputContext<'a>,

@@ -11,5 +11,6 @@ pub mod reflection;
 
 #[derive(Default)]
 pub(crate) struct ScriptManager {
+    programs: ProgramTable,
     compiler: Compiler,
 }

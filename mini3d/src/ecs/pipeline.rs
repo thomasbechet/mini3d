@@ -1,16 +1,19 @@
 use crate::{
-    context::SystemContext,
-    registry::{
-        error::RegistryError,
-        system::{SystemCode, SystemRegistry},
-    },
+    context::ExclusiveSystemContext,
+    registry::{error::RegistryError, system::SystemRegistry},
     script::ScriptManager,
     uid::UID,
 };
 
 use super::system::SystemResult;
 
+enum PipelineStep {
+    Exclusive(),
+    Parallel(),
+}
+
 pub(crate) struct SystemPipeline {
+    steps: Vec<PipelineStep>,
     systems: Vec<SystemCode>,
 }
 
@@ -29,7 +32,11 @@ impl SystemPipeline {
         Ok(Self { systems: codes })
     }
 
-    pub(crate) fn run(&self, context: &mut SystemContext, _script: &ScriptManager) -> SystemResult {
+    pub(crate) fn run(
+        &self,
+        context: &mut ExclusiveSystemContext,
+        _script: &ScriptManager,
+    ) -> SystemResult {
         for system in &self.systems {
             match system {
                 SystemCode::Static(callback) => callback(context)?,

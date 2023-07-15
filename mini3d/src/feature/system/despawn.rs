@@ -1,11 +1,11 @@
 use crate::{
-    context::{error::ContextError, SystemContext},
+    context::{error::ContextError, ExclusiveSystemContext},
     ecs::{entity::Entity, system::SystemResult},
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::component::Component,
 };
 
-pub fn run(ctx: &mut SystemContext) -> SystemResult {
+pub fn run(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let mut despawn_entities: Vec<Entity> = Vec::new();
     let mut detach_entities = Vec::new();
 

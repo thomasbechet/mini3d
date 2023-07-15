@@ -1,7 +1,7 @@
 use glam::Mat4;
 
 use crate::{
-    context::SystemContext,
+    context::ExclusiveSystemContext,
     ecs::{
         entity::Entity,
         system::SystemResult,
@@ -44,7 +44,7 @@ pub fn recursive_propagate(
     }
 }
 
-pub fn propagate(ctx: &mut SystemContext) -> SystemResult {
+pub fn propagate(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
     let transforms = scene.static_view::<Transform>(Transform::UID)?;
     let hierarchies = scene.static_view::<Hierarchy>(Hierarchy::UID)?;
