@@ -6,7 +6,7 @@ use mini3d_derive::Serialize;
 use crate::{
     feature::component::common::system_graph::SystemGraph,
     registry::{error::RegistryError, RegistryManager},
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{error::SchedulerError, pipeline::SystemPipeline};
@@ -17,7 +17,6 @@ pub enum Invocation {
     NextFrame,
 }
 
-#[derive(Serialize)]
 struct ProcedureEntry {
     name: String,
     pipeline: SystemPipeline,
@@ -29,41 +28,40 @@ pub(crate) struct SystemGraphEntry {
     priority: i32,
 }
 
-#[derive(Default, Serialize)]
+#[derive(Default)]
 pub(crate) struct Scheduler {
     procedures: HashMap<UID, ProcedureEntry>,
     graphs: HashMap<UID, SystemGraphEntry>,
-    pipeline: SystemPipeline,
 }
 
 impl Scheduler {
-    pub(crate) fn build_pipeline(
-        &mut self,
-        procedure: UID,
-        registry: &RefCell<RegistryManager>,
-    ) -> Result<Option<SystemPipeline>, RegistryError> {
-        if let Some(entry) = self.procedures.get(&procedure) {
-            return Ok(Some(SystemPipeline::build(
-                &registry.borrow().systems,
-                entry
-                    .groups
-                    .iter()
-                    .map(|(group, _)| self.groups.get(group).unwrap())
-                    .filter(|group| group.enabled)
-                    .flat_map(move |group| {
-                        group
-                            .group
-                            .procedures
-                            .get(&procedure)
-                            .unwrap()
-                            .pipeline
-                            .systems
-                            .iter()
-                    }),
-            )?));
-        }
-        Ok(None)
-    }
+    // pub(crate) fn build_pipeline(
+    //     &mut self,
+    //     procedure: UID,
+    //     registry: &RefCell<RegistryManager>,
+    // ) -> Result<Option<SystemPipeline>, RegistryError> {
+    //     if let Some(entry) = self.procedures.get(&procedure) {
+    //         return Ok(Some(SystemPipeline::build(
+    //             &registry.borrow().systems,
+    //             entry
+    //                 .groups
+    //                 .iter()
+    //                 .map(|(group, _)| self.groups.get(group).unwrap())
+    //                 .filter(|group| group.enabled)
+    //                 .flat_map(move |group| {
+    //                     group
+    //                         .group
+    //                         .procedures
+    //                         .get(&procedure)
+    //                         .unwrap()
+    //                         .pipeline
+    //                         .systems
+    //                         .iter()
+    //                 }),
+    //         )?));
+    //     }
+    //     Ok(None)
+    // }
 
     pub(crate) fn build_pipelines(&mut self) -> Result<(), SchedulerError> {
         Ok(())

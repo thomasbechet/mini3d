@@ -1,5 +1,8 @@
-use super::vm::Word;
+use mini3d_derive::{Component, Reflect, Serialize};
 
+use crate::script::interpreter::vm::Word;
+
+#[derive(Clone, Component, Reflect, Serialize, Default)]
 pub struct Program {
     pub(crate) bytecodes: Vec<u8>,
     pub(crate) constants: Vec<Word>,

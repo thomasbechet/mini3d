@@ -7,7 +7,7 @@ use crate::{
     math::rect::IRect,
     renderer::graphics::Graphics,
     ui::event::{Event, EventContext},
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::Widget;

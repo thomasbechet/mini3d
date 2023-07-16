@@ -7,7 +7,7 @@ use crate::{
         mir::primitive::PrimitiveType,
         module::{ModuleId, ModuleSymbol, ModuleSymbolId, ModuleTable},
     },
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{strings::StringTable, token::Token};

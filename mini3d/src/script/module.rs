@@ -1,4 +1,4 @@
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 use super::{interface::InterfaceId, mir::primitive::PrimitiveType};
 

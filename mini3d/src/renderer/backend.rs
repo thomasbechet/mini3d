@@ -4,7 +4,7 @@ use mini3d_derive::Error;
 use crate::{
     feature::component::renderer::{mesh::Mesh, texture::Texture},
     math::rect::IRect,
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{color::Color, graphics::TextureWrapMode, RendererStatistics};

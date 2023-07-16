@@ -1,6 +1,6 @@
 use crate::{
     context::{asset::AssetContext, registry::RegistryContext},
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{

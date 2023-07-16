@@ -1,6 +1,6 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{renderer::backend::SceneModelHandle, uid::UID};
+use crate::{renderer::backend::SceneModelHandle, utils::uid::UID};
 
 #[derive(Default, Component, Serialize, Reflect)]
 pub struct StaticMesh {

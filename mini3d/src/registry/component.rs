@@ -10,10 +10,15 @@ use crate::{
     },
     script::reflection::{Property, Reflect},
     serialize::Serialize,
-    uid::UID,
+    utils::{
+        slotmap::{SlotId, SlotMap},
+        uid::UID,
+    },
 };
 
 use super::error::RegistryError;
+
+pub(crate) type ComponentId = SlotId<ComponentDefinition>;
 
 pub struct EntityResolver;
 
@@ -79,7 +84,8 @@ pub(crate) struct ComponentDefinition {
 
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
-    pub(crate) definitions: HashMap<UID, ComponentDefinition>,
+    definitions: SlotMap<ComponentDefinition>,
+    lookup_cache: HashMap<UID, ComponentId>,
 }
 
 impl ComponentRegistry {
@@ -88,36 +94,40 @@ impl ComponentRegistry {
         name: &str,
         kind: ComponentKind,
         reflection: Box<dyn AnyComponentReflection>,
-    ) -> Result<UID, RegistryError> {
+    ) -> Result<(), RegistryError> {
         let uid: UID = name.into();
-        if self.definitions.contains_key(&uid) {
+        if self.find(uid).is_some() {
             return Err(RegistryError::DuplicatedComponentDefinition {
                 name: name.to_string(),
             });
         }
-        self.definitions.insert(
-            uid,
-            ComponentDefinition {
-                name: name.to_string(),
-                kind,
-                reflection,
-            },
-        );
-        Ok(uid)
+        let id = self.definitions.add(ComponentDefinition {
+            name: name.to_string(),
+            kind,
+            reflection,
+        });
+        self.lookup_cache.insert(uid, id);
+        Ok(())
     }
 
-    pub(crate) fn get(&self, uid: UID) -> Option<&ComponentDefinition> {
-        self.definitions.get(&uid)
-    }
-
-    pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<UID, RegistryError> {
+    pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<(), RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
         self.define(name, ComponentKind::Static, Box::new(reflection))
     }
 
-    pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<UID, RegistryError> {
+    pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
         unimplemented!()
+    }
+
+    pub(crate) fn find(&self, uid: UID) -> Option<(ComponentId, &ComponentDefinition)> {
+        self.lookup_cache
+            .get(&uid)
+            .map(|id| (*id, self.definitions.get(*id).unwrap()))
+    }
+
+    pub(crate) fn get(&self, id: ComponentId) -> Option<&ComponentDefinition> {
+        self.definitions.get(id)
     }
 }

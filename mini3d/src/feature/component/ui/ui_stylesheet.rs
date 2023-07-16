@@ -4,7 +4,7 @@ use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::{
     ui::widget::{button::UIButtonStyle, checkbox::UICheckBoxStyle},
-    uid::UID,
+    utils::uid::UID,
 };
 
 #[derive(Debug, Error)]

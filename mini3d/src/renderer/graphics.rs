@@ -3,9 +3,13 @@ use std::collections::HashMap;
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{uid::UID, math::rect::IRect, asset::AssetManager, ecs::entity::Entity};
+use crate::{asset::AssetManager, ecs::entity::Entity, math::rect::IRect, utils::uid::UID};
 
-use super::{color::Color, backend::{RendererBackend, ViewportHandle, SceneCanvasHandle, RendererBackendError}, RendererResourceManager};
+use super::{
+    backend::{RendererBackend, RendererBackendError, SceneCanvasHandle, ViewportHandle},
+    color::Color,
+    RendererResourceManager,
+};
 
 #[derive(Clone, Copy, Serialize)]
 pub enum TextureWrapMode {
@@ -16,13 +20,13 @@ pub enum TextureWrapMode {
 
 #[derive(Serialize)]
 enum Command {
-    Print { 
-        position: IVec2, 
+    Print {
+        position: IVec2,
         start: usize,
         stop: usize,
         font: UID,
     },
-    BlitTexture { 
+    BlitTexture {
         texture: UID,
         extent: IRect,
         texture_extent: IRect,
@@ -35,12 +39,34 @@ enum Command {
         scene: UID,
         viewport: Entity,
     },
-    DrawLine { x0: IVec2, x1: IVec2, color: Color },
-    DrawVLine { x: i32, y0: i32, y1: i32, color: Color },
-    DrawHLine { y: i32, x0: i32, x1: i32, color: Color },
-    DrawRect { extent: IRect, color: Color },
-    FillRect { extent: IRect, color: Color },
-    Scissor { extent: Option<IRect> },
+    DrawLine {
+        x0: IVec2,
+        x1: IVec2,
+        color: Color,
+    },
+    DrawVLine {
+        x: i32,
+        y0: i32,
+        y1: i32,
+        color: Color,
+    },
+    DrawHLine {
+        y: i32,
+        x0: i32,
+        x1: i32,
+        color: Color,
+    },
+    DrawRect {
+        extent: IRect,
+        color: Color,
+    },
+    FillRect {
+        extent: IRect,
+        color: Color,
+    },
+    Scissor {
+        extent: Option<IRect>,
+    },
 }
 
 #[derive(Default, Serialize)]
@@ -50,15 +76,14 @@ pub struct Graphics {
 }
 
 impl Graphics {
-
     pub(crate) fn clear(&mut self) {
         self.commands.clear();
         self.text_buffer.clear();
     }
 
     pub(crate) fn submit_backend(
-        &self, 
-        canvas: Option<SceneCanvasHandle>, 
+        &self,
+        canvas: Option<SceneCanvasHandle>,
         clear_color: Color,
         resources: &mut RendererResourceManager,
         asset: &AssetManager,
@@ -72,45 +97,81 @@ impl Graphics {
         }
         for command in self.commands.iter() {
             match command {
-                Command::Print { position, start, stop, font } => {
+                Command::Print {
+                    position,
+                    start,
+                    stop,
+                    font,
+                } => {
                     let font = resources.request_font(font, backend, asset)?;
                     let mut position = *position;
                     for c in self.text_buffer[*start..*stop].chars() {
-                        let char_extent = font.atlas.extents.get(&c).expect("Character extent not found");
+                        let char_extent = font
+                            .atlas
+                            .extents
+                            .get(&c)
+                            .expect("Character extent not found");
                         let extent = IRect::new(
-                            position.x, position.y,
-                            char_extent.width(), char_extent.height()
+                            position.x,
+                            position.y,
+                            char_extent.width(),
+                            char_extent.height(),
                         );
-                        backend.canvas_blit_texture(font.handle, extent, *char_extent, Color::WHITE, TextureWrapMode::Clamp, 1)?;
+                        backend.canvas_blit_texture(
+                            font.handle,
+                            extent,
+                            *char_extent,
+                            Color::WHITE,
+                            TextureWrapMode::Clamp,
+                            1,
+                        )?;
                         position.x += char_extent.width() as i32;
                     }
-                },
-                Command::BlitTexture { texture, extent, texture_extent, filtering, wrap_mode, alpha_threshold  } => {
+                }
+                Command::BlitTexture {
+                    texture,
+                    extent,
+                    texture_extent,
+                    filtering,
+                    wrap_mode,
+                    alpha_threshold,
+                } => {
                     let texture = resources.request_texture(texture, backend, asset)?;
-                    backend.canvas_blit_texture(texture.handle, *extent, *texture_extent, *filtering, *wrap_mode, *alpha_threshold)?;
-                },
-                Command::BlitViewport { position, scene: _, viewport } => {
+                    backend.canvas_blit_texture(
+                        texture.handle,
+                        *extent,
+                        *texture_extent,
+                        *filtering,
+                        *wrap_mode,
+                        *alpha_threshold,
+                    )?;
+                }
+                Command::BlitViewport {
+                    position,
+                    scene: _,
+                    viewport,
+                } => {
                     let viewport = viewports.get(viewport).unwrap();
                     backend.canvas_blit_viewport(*viewport, *position)?;
-                },
+                }
                 Command::DrawLine { x0, x1, color } => {
                     backend.canvas_draw_line(*x0, *x1, *color)?;
-                },
+                }
                 Command::DrawVLine { x, y0, y1, color } => {
                     backend.canvas_draw_vline(*x, *y0, *y1, *color)?;
-                },
+                }
                 Command::DrawHLine { y, x0, x1, color } => {
                     backend.canvas_draw_hline(*y, *x0, *x1, *color)?;
-                },
+                }
                 Command::DrawRect { extent, color } => {
                     backend.canvas_draw_rect(*extent, *color)?;
-                },
+                }
                 Command::FillRect { extent, color } => {
                     backend.canvas_fill_rect(*extent, *color)?;
-                },
+                }
                 Command::Scissor { extent } => {
                     backend.canvas_scissor(*extent)?;
-                },
+                }
             }
         }
         backend.canvas_end()?;
@@ -121,15 +182,39 @@ impl Graphics {
         let start = self.text_buffer.len();
         self.text_buffer.push_str(text);
         let stop = self.text_buffer.len();
-        self.commands.push(Command::Print { position, start, stop, font });
+        self.commands.push(Command::Print {
+            position,
+            start,
+            stop,
+            font,
+        });
     }
 
-    pub fn blit_texture(&mut self, texture: UID, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) { 
-        self.commands.push(Command::BlitTexture { texture, extent, texture_extent, filtering, wrap_mode, alpha_threshold });
+    pub fn blit_texture(
+        &mut self,
+        texture: UID,
+        extent: IRect,
+        texture_extent: IRect,
+        filtering: Color,
+        wrap_mode: TextureWrapMode,
+        alpha_threshold: u8,
+    ) {
+        self.commands.push(Command::BlitTexture {
+            texture,
+            extent,
+            texture_extent,
+            filtering,
+            wrap_mode,
+            alpha_threshold,
+        });
     }
 
     pub fn blit_viewport(&mut self, scene: UID, viewport: Entity, position: IVec2) {
-        self.commands.push(Command::BlitViewport { position, scene, viewport });
+        self.commands.push(Command::BlitViewport {
+            position,
+            scene,
+            viewport,
+        });
     }
 
     pub fn fill_rect(&mut self, extent: IRect, color: Color) {
@@ -140,15 +225,15 @@ impl Graphics {
         self.commands.push(Command::DrawRect { extent, color });
     }
 
-    pub fn draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) { 
+    pub fn draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) {
         self.commands.push(Command::DrawLine { x0, x1, color });
     }
 
-    pub fn draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) { 
+    pub fn draw_vline(&mut self, x: i32, y0: i32, y1: i32, color: Color) {
         self.commands.push(Command::DrawVLine { x, y0, y1, color });
     }
 
-    pub fn draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) { 
+    pub fn draw_hline(&mut self, y: i32, x0: i32, x1: i32, color: Color) {
         self.commands.push(Command::DrawHLine { y, x0, x1, color });
     }
 

@@ -6,7 +6,7 @@ use std::{
 use crate::{
     registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::error::AssetError;

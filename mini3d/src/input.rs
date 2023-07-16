@@ -4,10 +4,8 @@ use std::collections::{HashMap, HashSet};
 use crate::event::input::InputEvent;
 use crate::feature::component::input::input_table::{InputAxisRange, InputTable};
 use crate::serialize::{Decoder, DecoderError, Serialize};
-use crate::{
-    serialize::{Encoder, EncoderError},
-    uid::UID,
-};
+use crate::serialize::{Encoder, EncoderError};
+use crate::utils::uid::UID;
 
 use self::backend::{InputBackend, InputBackendError};
 

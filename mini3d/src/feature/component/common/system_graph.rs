@@ -1,6 +1,6 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 #[derive(Debug, Default, Serialize, Reflect, Component, Clone)]
 pub struct SystemGraphEntry {
@@ -9,7 +9,7 @@ pub struct SystemGraphEntry {
     dependencies: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Default, Debug, Clone, Serialize)]
 pub struct SystemGraph {
     entries: Vec<SystemGraphEntry>,
 }

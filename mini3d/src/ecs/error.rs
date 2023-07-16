@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::{registry::error::RegistryError, uid::UID};
+use crate::{registry::error::RegistryError, utils::uid::UID};
 
 #[derive(Debug, Error)]
 pub enum ECSError {
@@ -34,16 +34,16 @@ pub enum SceneError {
     ChangeToRemovedScene { uid: UID },
     #[error("Remove and change same scene: {uid}")]
     RemoveAndChangeSameScene { uid: UID },
-    #[error("Component container not found: {uid}")]
-    ComponentContainerNotFound { uid: UID },
-    #[error("Component type mismatch: {uid}")]
-    ComponentTypeMismatch { uid: UID },
-    #[error("Singleton type mismatch: {uid}")]
-    SingletonTypeMismatch { uid: UID },
-    #[error("Singleton not found: {uid}")]
-    SingletonNotFound { uid: UID },
-    #[error("Duplicated singleton: {uid}")]
-    DuplicatedSingleton { uid: UID },
+    #[error("Component container not found")]
+    ComponentContainerNotFound,
+    #[error("Component type mismatch")]
+    ComponentTypeMismatch,
+    #[error("Singleton type mismatch")]
+    SingletonTypeMismatch,
+    #[error("Singleton not found")]
+    SingletonNotFound,
+    #[error("Duplicated singleton")]
+    DuplicatedSingleton,
     #[error("Container already borrowed mutably")]
     ContainerBorrowMut,
 }

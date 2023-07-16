@@ -13,12 +13,12 @@ use crate::feature::component::ui::canvas::Canvas;
 use crate::feature::component::ui::viewport::Viewport;
 use crate::registry::component::Component;
 use crate::serialize::{Decoder, DecoderError, Serialize};
+use crate::utils::uid::UID;
 use crate::{
     asset::AssetManager,
     ecs::{entity::Entity, ECSManager},
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
-    uid::UID,
 };
 use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;

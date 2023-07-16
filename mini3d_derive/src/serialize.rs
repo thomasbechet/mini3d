@@ -434,14 +434,14 @@ fn generate_header(
         .collect::<Vec<_>>();
     Ok(quote! {
         #vis struct #header_type_ident #impl_generics #where_clause {
-            #vis version: mini3d::version::Version,
+            #vis version: mini3d::utils::version::Version,
             #(#header_field_ident: <#field_types as mini3d::serialize::Serialize>::Header),*
         }
 
         impl #impl_generics #header_type_ident #ty_generics #where_clause {
             #vis fn new() -> Self {
                 Self {
-                    version: mini3d::version::Version::new(#major, #minor, #patch),
+                    version: mini3d::utils::version::Version::new(#major, #minor, #patch),
                     #(#header_field_ident: <#field_types as mini3d::serialize::Serialize>::Header::default()),*
                 }
             }
@@ -464,12 +464,12 @@ fn generate_header(
             }
 
             fn deserialize(decoder: &mut impl mini3d::serialize::Decoder, _header: &Self::Header) -> Result<Self, mini3d::serialize::DecoderError> {
-                let version: mini3d::version::Version = decoder.read_u32()?.into();
-                if version != mini3d::version::Version::core() {
+                let version: mini3d::utils::version::Version = decoder.read_u32()?.into();
+                if version != mini3d::utils::version::Version::core() {
                     return Err(mini3d::serialize::DecoderError::Unsupported);
                 }
                 Ok(Self {
-                    version: mini3d::version::Version::core(),
+                    version: mini3d::utils::version::Version::core(),
                     #(#header_field_ident: <#field_types as mini3d::serialize::Serialize>::Header::deserialize(decoder, &<<#field_types as mini3d::serialize::Serialize>::Header as mini3d::serialize::Serialize>::Header::default())?,)*
                 })
             }
@@ -550,7 +550,7 @@ fn generate_struct_field_deserialize(entry: &StructFieldEntry) -> Result<TokenSt
         }
     } else if let Some((major, minor, patch)) = entry.attributes.since {
         quote! {
-            if header.version >= mini3d::version::Version::new(#major, #minor, #patch) {
+            if header.version >= mini3d::utils::version::Version::new(#major, #minor, #patch) {
                 <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
             } else {
                 <#field_type as core::default::Default>::default()
@@ -572,7 +572,7 @@ fn generate_tuple_field_deserialize(entry: &TupleFieldEntry) -> Result<TokenStre
         }
     } else if let Some((major, minor, patch)) = entry.attributes.since {
         quote! {
-            if header.version >= mini3d::version::Version::new(#major, #minor, #patch) {
+            if header.version >= mini3d::utils::version::Version::new(#major, #minor, #patch) {
                 <#field_type as mini3d::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
             } else {
                 <#field_type as core::default::Default>::default()
@@ -919,14 +919,14 @@ pub(crate) fn derive_enum(
         .collect::<Vec<_>>();
     let header = quote! {
         #vis struct #header_ident #impl_generics #where_clause {
-            version: mini3d::version::Version,
+            version: mini3d::utils::version::Version,
             #(#variant_header_fields: #header_types),*
         }
 
         impl #impl_generics #header_ident #ty_generics #where_clause {
             fn new() -> Self {
                 Self {
-                    version: mini3d::version::Version::new(#major, #minor, #patch),
+                    version: mini3d::utils::version::Version::new(#major, #minor, #patch),
                     #(#variant_header_fields: #header_types::default()),*
                 }
             }
@@ -949,12 +949,12 @@ pub(crate) fn derive_enum(
             }
 
             fn deserialize(decoder: &mut impl mini3d::serialize::Decoder, _header: &Self::Header) -> Result<Self, mini3d::serialize::DecoderError> {
-                let version: mini3d::version::Version = decoder.read_u32()?.into();
-                if version != mini3d::version::Version::core() {
+                let version: mini3d::utils::version::Version = decoder.read_u32()?.into();
+                if version != mini3d::utils::version::Version::core() {
                     return Err(mini3d::serialize::DecoderError::Unsupported);
                 }
                 Ok(Self {
-                    version: mini3d::version::Version::core(),
+                    version: mini3d::utils::version::Version::core(),
                     #(#variant_header_fields: <#header_types as mini3d::serialize::Serialize>::deserialize(decoder, &<#header_types as mini3d::serialize::Serialize>::Header::default())?,)*
                 })
             }

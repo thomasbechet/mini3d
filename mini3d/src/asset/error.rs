@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 #[derive(Debug, Error)]
 pub enum AssetError {
@@ -12,8 +12,8 @@ pub enum AssetError {
     InvalidAssetTypeCast,
     #[error("Asset not found: {uid}")]
     AssetNotFound { uid: UID },
-    #[error("Asset type not found: {uid}")]
-    AssetTypeNotFound { uid: UID },
+    #[error("Asset type not found")]
+    AssetTypeNotFound,
     #[error("Bundle not found: {uid}")]
     BundleNotFound { uid: UID },
     #[error("Duplicated bundle entry: {name}")]

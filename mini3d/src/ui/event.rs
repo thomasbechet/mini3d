@@ -1,7 +1,7 @@
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 use super::user::UIUser;
 

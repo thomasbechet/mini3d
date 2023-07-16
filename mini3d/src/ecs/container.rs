@@ -9,12 +9,11 @@ use super::{
         SceneComponentViewRefInner,
     },
 };
-use crate::script::reflection::PropertyId;
 use crate::{
     registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    uid::UID,
 };
+use crate::{script::reflection::PropertyId, utils::uid::UID};
 use core::{any::Any, cell::RefCell};
 use std::ops::{Deref, DerefMut};
 

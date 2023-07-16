@@ -11,7 +11,7 @@ use crate::{
         },
     },
     registry::{component::Component, RegistryManager},
-    uid::UID,
+    utils::uid::UID,
 };
 use core::cell::RefCell;
 use std::{

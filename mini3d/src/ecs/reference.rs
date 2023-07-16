@@ -1,11 +1,10 @@
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
-use crate::uid::UID;
-
 use super::entity::Entity;
 use crate::ecs::view::SceneComponentViewRef;
 use crate::ecs::view::SceneComponentViewRefInner;
 use crate::script::reflection::PropertyId;
+use crate::utils::uid::UID;
 
 pub struct SceneComponentRef<'a> {
     _lifetime: core::marker::PhantomData<&'a ()>,

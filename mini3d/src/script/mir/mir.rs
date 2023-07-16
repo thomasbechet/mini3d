@@ -1,8 +1,9 @@
+use crate::utils::slotmap::{SlotId, SlotMap};
+
 use super::{
     data::{DataId, DataTable},
     instruction::{Instruction, InstructionKind, Operand},
     primitive::PrimitiveType,
-    slotmap::{SlotId, SlotMap},
 };
 
 pub(crate) type BasicBlockId = SlotId<BasicBlock>;
@@ -131,7 +132,7 @@ impl MIR {
             true_block,
             false_block,
         };
-        self.basic_blocks.get_mut(block).terminator = Some(terminator);
+        self.basic_blocks.get_mut(block).unwrap().terminator = Some(terminator);
         (true_block, false_block)
     }
 
@@ -151,14 +152,14 @@ impl MIR {
             next: InstructionId::null(),
             prev: InstructionId::null(),
         });
-        if self.basic_blocks.get(block).last.is_null() {
-            let block = self.basic_blocks.get_mut(block);
+        if self.basic_blocks.get(block).unwrap().last.is_null() {
+            let block = self.basic_blocks.get_mut(block).unwrap();
             block.first = id;
             block.last = id;
         } else {
-            let block = self.basic_blocks.get_mut(block);
-            self.instructions.get_mut(block.last).next = id;
-            self.instructions.get_mut(id).prev = block.last;
+            let block = self.basic_blocks.get_mut(block).unwrap();
+            self.instructions.get_mut(block.last).unwrap().next = id;
+            self.instructions.get_mut(id).unwrap().prev = block.last;
             block.last = id;
         }
         id

@@ -1,4 +1,7 @@
-use crate::serialize::{Decoder, DecoderError, EncoderError, Serialize};
+use crate::{
+    serialize::{Decoder, DecoderError, EncoderError, Serialize},
+    utils::uid::UID,
+};
 use core::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -13,9 +16,7 @@ use crate::{
     input::InputManager,
     registry::{component::ComponentRegistry, RegistryManager},
     renderer::RendererManager,
-    script::ScriptManager,
     serialize::Encoder,
-    uid::UID,
 };
 
 use self::{
@@ -127,7 +128,11 @@ fn create_system_context<'b, 'a: 'b>(
 impl ECSManager {
     const MAIN_SCENE: &'static str = "main";
 
-    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+    pub(crate) fn save_state(
+        &self,
+        registry: &ComponentRegistry,
+        encoder: &mut impl Encoder,
+    ) -> Result<(), EncoderError> {
         // Scheduler
         self.scheduler.serialize(encoder)?;
         // Next frame system invocations
@@ -137,7 +142,7 @@ impl ECSManager {
         // Scenes
         encoder.write_u32(self.scenes.borrow().len() as u32)?;
         for scene in self.scenes.borrow().values() {
-            scene.borrow().serialize(encoder)?;
+            scene.borrow().serialize(registry, encoder)?;
         }
         // Active scene
         self.active_scene.serialize(encoder)?;
@@ -175,7 +180,6 @@ impl ECSManager {
     pub(crate) fn update(
         &mut self,
         mut context: ECSUpdateContext,
-        scripts: &mut ScriptManager,
         fixed_update_count: u32,
     ) -> Result<(), ECSError> {
         // Prepare frame
@@ -202,20 +206,17 @@ impl ECSManager {
             )
             .map_err(|_| ECSError::RegistryError)?;
             pipeline
-                .run(
-                    &mut create_system_context(
-                        &mut context,
-                        UID::null(),
-                        self.active_scene,
-                        &mut self.scheduler,
-                        &mut frame_procedures,
-                        &mut self.next_frame_procedures,
-                        &mut scenes,
-                        &mut change_scene,
-                        &mut removed_scenes,
-                    ),
-                    scripts,
-                )
+                .run(&mut create_system_context(
+                    &mut context,
+                    UID::null(),
+                    self.active_scene,
+                    &mut self.scheduler,
+                    &mut frame_procedures,
+                    &mut self.next_frame_procedures,
+                    &mut scenes,
+                    &mut change_scene,
+                    &mut removed_scenes,
+                ))
                 .map_err(|_| ECSError::SystemError)?;
             self.next_frame_system_invocations.clear();
         }
@@ -231,20 +232,17 @@ impl ECSManager {
             {
                 // Run pipeline
                 pipeline
-                    .run(
-                        &mut create_system_context(
-                            &mut context,
-                            procedure,
-                            self.active_scene,
-                            &mut self.scheduler,
-                            &mut frame_procedures,
-                            &mut self.next_frame_procedures,
-                            &mut scenes,
-                            &mut change_scene,
-                            &mut removed_scenes,
-                        ),
-                        scripts,
-                    )
+                    .run(&mut create_system_context(
+                        &mut context,
+                        procedure,
+                        self.active_scene,
+                        &mut self.scheduler,
+                        &mut frame_procedures,
+                        &mut self.next_frame_procedures,
+                        &mut scenes,
+                        &mut change_scene,
+                        &mut removed_scenes,
+                    ))
                     .map_err(|_| ECSError::RegistryError)?;
             }
 

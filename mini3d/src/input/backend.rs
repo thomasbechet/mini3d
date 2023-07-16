@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::{feature::component::input::input_table::InputTable, uid::UID};
+use crate::{feature::component::input::input_table::InputTable, utils::uid::UID};
 
 #[derive(Debug, Error)]
 pub enum InputBackendError {

@@ -15,9 +15,8 @@ use crate::registry::error::RegistryError;
 use crate::registry::RegistryManager;
 use crate::renderer::backend::{RendererBackend, RendererBackendError};
 use crate::renderer::RendererManager;
-use crate::script::ScriptManager;
 use crate::serialize::{Decoder, DecoderError, EncoderError, Serialize};
-use crate::uid::UID;
+use crate::utils::uid::UID;
 use core::cell::RefCell;
 
 #[derive(Debug, Error)]
@@ -36,7 +35,6 @@ pub struct Engine {
     pub(crate) registry: RefCell<RegistryManager>,
     pub(crate) asset: AssetManager,
     pub(crate) input: InputManager,
-    pub(crate) script: ScriptManager,
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
@@ -59,7 +57,7 @@ impl Engine {
 
         macro_rules! define_system {
             ($name: literal, $system: path) => {
-                registry.systems.define_static($name, $system)?;
+                registry.systems.define_exclusive_callback($name, $system)?;
             };
         }
 
@@ -69,7 +67,6 @@ impl Engine {
         define_component!(component::common::prefab::Prefab);
         define_component!(component::common::rotator::Rotator);
         define_component!(component::common::script::Script);
-        define_component!(component::common::system_graph::SystemGroup);
         define_component!(component::input::input_table::InputTable);
         define_component!(component::physics::rigid_body::RigidBody);
         define_component!(component::renderer::camera::Camera);
@@ -109,7 +106,6 @@ impl Engine {
             registry: Default::default(),
             asset: Default::default(),
             input: Default::default(),
-            script: Default::default(),
             ecs: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
@@ -129,9 +125,10 @@ impl Engine {
 
     pub fn save_state(&self) -> Result<Box<[u8]>, EncoderError> {
         let mut buffer = Vec::new();
-        self.asset.save_state(&mut buffer)?;
+        let registry = self.registry.borrow();
+        self.asset.save_state(&registry.components, &mut buffer)?;
         self.renderer.save_state(&mut buffer)?;
-        self.ecs.save_state(&mut buffer)?;
+        self.ecs.save_state(&registry.components, &mut buffer)?;
         self.input.save_state(&mut buffer)?;
         self.accumulator.serialize(&mut buffer)?;
         self.time.serialize(&mut buffer)?;
@@ -155,22 +152,23 @@ impl Engine {
     pub fn define_static_component<C: Component>(
         &mut self,
         name: &str,
-    ) -> Result<UID, RegistryError> {
+    ) -> Result<(), RegistryError> {
         self.registry
             .borrow_mut()
             .components
             .define_static::<C>(name)
     }
 
-    pub fn define_static_system(
+    pub fn define_exclusive_callback(
         &mut self,
         name: &str,
         system: ExclusiveSystemCallback,
-    ) -> Result<UID, RegistryError> {
+    ) -> Result<(), RegistryError> {
         self.registry
             .borrow_mut()
             .systems
-            .define_static(name, system)
+            .define_exclusive_callback(name, system)?;
+        Ok(())
     }
 
     pub fn is_running(&self) -> bool {
@@ -226,7 +224,6 @@ impl Engine {
                     time: self.time,
                     fixed_delta_time: FIXED_TIMESTEP,
                 },
-                &mut self.script,
                 fixed_update_count,
             )
             .map_err(|_| ProgressError::ECSError)?;

@@ -8,7 +8,7 @@ use crate::{
         mir::mir::MIR,
         module::{ModuleId, ModuleTable},
     },
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{

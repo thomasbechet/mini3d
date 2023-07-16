@@ -5,7 +5,7 @@ use crate::{
         mir::primitive::PrimitiveType,
         module::{ModuleId, ModuleSymbol, ModuleTable},
     },
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{

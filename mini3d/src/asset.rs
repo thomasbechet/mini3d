@@ -1,9 +1,10 @@
 use core::result::Result;
 use std::collections::{hash_map, HashMap};
 
-use crate::registry::component::{Component, ComponentRegistry};
+use crate::registry::component::{Component, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::uid::UID;
+use crate::utils::slotmap::SparseSecondaryMap;
+use crate::utils::uid::UID;
 
 use self::bundle::{AssetBundle, ImportAssetBundle};
 use self::container::{AnyAssetContainer, AssetContainer, AssetEntry};
@@ -16,8 +17,8 @@ pub mod reference;
 
 #[derive(Default)]
 pub struct AssetManager {
-    containers: HashMap<UID, Box<dyn AnyAssetContainer>>,
-    defaults: HashMap<UID, UID>,
+    containers: SparseSecondaryMap<ComponentId, Box<dyn AnyAssetContainer>>,
+    defaults: SparseSecondaryMap<ComponentId, UID>,
     bundles: HashMap<UID, AssetBundle>,
 }
 
@@ -25,9 +26,9 @@ impl AssetManager {
     #[inline]
     fn container<C: Component>(
         &'_ self,
-        asset: UID,
+        asset: ComponentId,
     ) -> Result<Option<&'_ AssetContainer<C>>, AssetError> {
-        if let Some(container) = self.containers.get(&asset) {
+        if let Some(container) = self.containers.get(asset) {
             return Ok(Some(
                 container
                     .as_any()
@@ -41,9 +42,9 @@ impl AssetManager {
     #[inline]
     fn container_mut<C: Component>(
         &'_ mut self,
-        asset: UID,
+        asset: ComponentId,
     ) -> Result<Option<&'_ mut AssetContainer<C>>, AssetError> {
-        if let Some(container) = self.containers.get_mut(&asset) {
+        if let Some(container) = self.containers.get_mut(asset) {
             return Ok(Some(
                 container
                     .as_any_mut()
@@ -54,13 +55,16 @@ impl AssetManager {
         Ok(None)
     }
 
-    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+    pub(crate) fn save_state(
+        &self,
+        registry: &ComponentRegistry,
+        encoder: &mut impl Encoder,
+    ) -> Result<(), EncoderError> {
         encoder.write_u32(self.bundles.len() as u32)?;
         for uid in self.bundles.keys() {
-            self.serialize_bundle(*uid, encoder)
+            self.serialize_bundle(*uid, registry, encoder)
                 .map_err(|_| EncoderError::Unsupported)?;
         }
-        self.defaults.serialize(encoder)?;
         Ok(())
     }
 
@@ -90,17 +94,17 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn set_default(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
+    pub(crate) fn set_default(&mut self, asset: ComponentId, uid: UID) -> Result<(), AssetError> {
         *self
             .defaults
-            .get_mut(&asset)
+            .get_mut(asset)
             .ok_or(AssetError::AssetNotFound { uid })? = uid;
         Ok(())
     }
 
     pub(crate) fn get<C: Component>(
         &'_ self,
-        asset: UID,
+        asset: ComponentId,
         uid: UID,
     ) -> Result<Option<&'_ C>, AssetError> {
         Ok(self
@@ -110,7 +114,7 @@ impl AssetManager {
 
     pub(crate) fn get_or_default<C: Component>(
         &'_ self,
-        asset: UID,
+        asset: ComponentId,
         uid: UID,
     ) -> Result<Option<&'_ C>, AssetError> {
         let container = self.container::<C>(asset)?;
@@ -120,7 +124,7 @@ impl AssetManager {
                 .get(&uid)
                 .or_else(|| {
                     self.defaults
-                        .get(&asset)
+                        .get(asset)
                         .and_then(|uid| container.0.get(uid))
                 })
                 .map(|entry| &entry.asset)
@@ -129,7 +133,7 @@ impl AssetManager {
 
     pub(crate) fn entry<C: Component>(
         &'_ self,
-        asset: UID,
+        asset: ComponentId,
         uid: UID,
     ) -> Result<Option<&'_ AssetEntry<C>>, AssetError> {
         Ok(self
@@ -139,7 +143,7 @@ impl AssetManager {
 
     pub(crate) fn iter<C: Component>(
         &self,
-        asset: UID,
+        asset: ComponentId,
     ) -> Result<Option<impl Iterator<Item = &AssetEntry<C>>>, AssetError> {
         Ok(self
             .container::<C>(asset)?
@@ -160,6 +164,7 @@ impl AssetManager {
     pub(crate) fn serialize_bundle(
         &self,
         uid: UID,
+        registry: &ComponentRegistry,
         encoder: &mut impl Encoder,
     ) -> Result<(), AssetError> {
         let bundle = self.bundles.get(&uid).expect("Bundle not found");
@@ -170,9 +175,9 @@ impl AssetManager {
         encoder
             .write_u32(bundle.assets.len() as u32)
             .map_err(|_| AssetError::SerializationError)?;
-        for (asset, set) in &bundle.assets {
-            asset
-                .serialize(encoder)
+        for (asset, set) in bundle.assets.iter() {
+            let uid: UID = registry.get(asset).unwrap().name.into();
+            uid.serialize(encoder)
                 .map_err(|_| AssetError::SerializationError)?;
             let container = self.containers.get(asset).unwrap();
             container.serialize_entries(set, encoder)?;
@@ -183,9 +188,9 @@ impl AssetManager {
     pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<(), AssetError> {
         let uid = self.add_bundle(&import.name)?;
         let bundle = self.bundles.get_mut(&uid).unwrap();
-        for (asset, mut container) in import.containers {
+        for (asset, mut container) in import.containers.iter() {
             bundle.assets.insert(asset, container.collect_uids());
-            if let Some(self_container) = self.containers.get_mut(&asset) {
+            if let Some(self_container) = self.containers.get_mut(asset) {
                 self_container.merge(container.as_mut())?;
             } else {
                 self.containers.insert(asset, container);
@@ -197,7 +202,7 @@ impl AssetManager {
     pub(crate) fn add<C: Component>(
         &mut self,
         registry: &ComponentRegistry,
-        asset: UID,
+        asset: ComponentId,
         name: &str,
         bundle: UID,
         data: C,
@@ -207,13 +212,12 @@ impl AssetManager {
             return Err(AssetError::BundleNotFound { uid: bundle });
         }
         // Get/Create the container
-        let container = match self.containers.entry(asset) {
-            hash_map::Entry::Occupied(entry) => entry.into_mut(),
-            hash_map::Entry::Vacant(entry) => {
-                let definition = registry.get(asset).unwrap();
-                entry.insert(definition.reflection.create_asset_container())
-            }
-        };
+        if !self.containers.contains(asset) {
+            let definition = registry.get(asset).unwrap();
+            self.containers
+                .insert(asset, definition.reflection.create_asset_container());
+        }
+        let container = self.containers.get_mut(asset).unwrap();
         // Downcast the container
         let container = container
             .as_any_mut()
@@ -243,12 +247,16 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn remove<C: Component>(&mut self, asset: UID, uid: UID) -> Result<(), AssetError> {
+    pub(crate) fn remove<C: Component>(
+        &mut self,
+        asset: ComponentId,
+        uid: UID,
+    ) -> Result<(), AssetError> {
         // Get the container
         let container = self
             .containers
-            .get_mut(&asset)
-            .ok_or(AssetError::AssetTypeNotFound { uid: asset })?
+            .get_mut(asset)
+            .ok_or(AssetError::AssetTypeNotFound)?
             .as_any_mut()
             .downcast_mut::<AssetContainer<C>>()
             .ok_or(AssetError::InvalidAssetTypeCast)?;
@@ -258,7 +266,7 @@ impl AssetManager {
                 .get_mut(&entry.bundle)
                 .expect("Bundle not found")
                 .assets
-                .get_mut(&asset)
+                .get_mut(asset)
                 .expect("Asset not found")
                 .remove(&uid);
         } else {
@@ -269,13 +277,13 @@ impl AssetManager {
 
     pub(crate) fn transfer<C: Component>(
         &mut self,
-        asset: UID,
+        asset: ComponentId,
         uid: UID,
         dst_bundle: UID,
     ) -> Result<(), AssetError> {
         let src_bundle = self
             .container::<C>(asset)?
-            .ok_or(AssetError::AssetTypeNotFound { uid: asset })?
+            .ok_or(AssetError::AssetTypeNotFound)?
             .0
             .get(&uid)
             .ok_or(AssetError::AssetNotFound { uid })?
@@ -290,7 +298,7 @@ impl AssetManager {
             .get_mut(&src_bundle)
             .ok_or(AssetError::BundleNotFound { uid: src_bundle })?
             .assets
-            .get_mut(&asset)
+            .get_mut(asset)
             .ok_or(AssetError::AssetNotFound { uid })?
             .remove(&uid);
         self.bundles

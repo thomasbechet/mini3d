@@ -1,6 +1,6 @@
 use mini3d_derive::Serialize;
 
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 #[derive(Serialize)]
 pub struct InputActionEvent {

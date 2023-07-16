@@ -9,7 +9,7 @@ use crate::{
         graphics::{Graphics, TextureWrapMode},
     },
     ui::event::{Event, EventContext},
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::Widget;

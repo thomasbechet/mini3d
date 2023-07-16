@@ -1,6 +1,6 @@
 use crate::{
     ecs::{error::SchedulerError, scheduler::Scheduler},
-    uid::UID,
+    utils::uid::UID,
 };
 
 pub struct SchedulerContext<'a> {

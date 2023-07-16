@@ -1,9 +1,13 @@
 use glam::{IVec2, Vec2};
 use mini3d_derive::Serialize;
 
-use crate::{renderer::{graphics::Graphics, color::Color, SCREEN_VIEWPORT, SCREEN_CENTER}, math::rect::IRect, uid::UID};
+use crate::{
+    math::rect::IRect,
+    renderer::{color::Color, graphics::Graphics, SCREEN_CENTER, SCREEN_VIEWPORT},
+    utils::uid::UID,
+};
 
-use super::event::{Event, Direction};
+use super::event::{Direction, Event};
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 pub(crate) enum InteractionMode {
@@ -23,13 +27,13 @@ fn render_selection(extent: IRect, gfx: &mut Graphics, time: f64) {
     let length = 2;
 
     let tl = extent.tl() + IVec2::new(-offset, -offset);
-    let tr = extent.tr() + IVec2::new(offset, -offset); 
-    let bl = extent.bl() + IVec2::new(-offset, offset); 
-    let br = extent.br() + IVec2::new(offset, offset); 
+    let tr = extent.tr() + IVec2::new(offset, -offset);
+    let bl = extent.bl() + IVec2::new(-offset, offset);
+    let br = extent.br() + IVec2::new(offset, offset);
 
     gfx.draw_hline(tl.y, tl.x, tl.x + length, Color::WHITE);
     gfx.draw_vline(tl.x, tl.y, tl.y + length, Color::WHITE);
-    
+
     gfx.draw_hline(tr.y, tr.x - length, tr.x, Color::WHITE);
     gfx.draw_vline(tr.x, tr.y, tr.y + length, Color::WHITE);
 
@@ -47,13 +51,12 @@ fn render_cursor(position: IVec2, gfx: &mut Graphics, _time: f64) {
 
 #[derive(Serialize)]
 pub struct UIUser {
-    
     pub(crate) name: String,
     pub(crate) mode: InteractionMode,
     pub(crate) events: Vec<Event>,
     pub(crate) locked: bool,
     pub(crate) extent: IRect,
-    
+
     selection_extent: IRect,
     selection_source_extent: IRect,
     selection_source_time: f64,
@@ -63,7 +66,6 @@ pub struct UIUser {
 }
 
 impl UIUser {
-
     pub(crate) fn new(name: &str, extent: IRect) -> Self {
         Self {
             name: name.to_string(),
@@ -103,33 +105,43 @@ impl UIUser {
         // TODO: two selection box on the same extent have special design
         if !self.locked {
             match &self.mode {
-                InteractionMode::Disabled => {},
+                InteractionMode::Disabled => {}
                 InteractionMode::Selection => {
-                    let lerp_extent = self.selection_source_extent.lerp(self.selection_extent, alpha(self.selection_source_time, time) as f32);
+                    let lerp_extent = self.selection_source_extent.lerp(
+                        self.selection_extent,
+                        alpha(self.selection_source_time, time) as f32,
+                    );
                     render_selection(lerp_extent, gfx, time);
-                },
+                }
                 InteractionMode::Cursor => {
                     render_cursor(self.cursor_position.as_ivec2(), gfx, time);
-                },
+                }
             }
         }
     }
 
     pub fn warp_cursor(&mut self, position: Vec2) {
-        self.cursor_position = position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
+        self.cursor_position =
+            position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
         if self.cursor_position != self.cursor_previous_position {
             self.cursor_previous_position = self.cursor_position;
-            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() });
+            self.events.push(Event::CursorMoved {
+                position: self.cursor_position.as_ivec2(),
+            });
         }
     }
 
     pub fn move_cursor(&mut self, delta: Vec2) {
         self.cursor_position += delta;
-        self.cursor_position = self.cursor_position.clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
+        self.cursor_position = self
+            .cursor_position
+            .clamp(self.extent.tl().as_vec2(), self.extent.br().as_vec2());
         if self.cursor_position != self.cursor_previous_position {
             self.cursor_previous_position = self.cursor_position;
             // self.cursor_position = position.as_vec2();
-            self.events.push(Event::CursorMoved { position: self.cursor_position.as_ivec2() });
+            self.events.push(Event::CursorMoved {
+                position: self.cursor_position.as_ivec2(),
+            });
         }
     }
 

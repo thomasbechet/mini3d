@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 #[derive(Debug, Error)]
 pub enum RegistryError {

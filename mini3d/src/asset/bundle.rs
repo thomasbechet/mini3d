@@ -1,16 +1,16 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::{
-    registry::component::ComponentRegistry,
+    registry::component::{ComponentId, ComponentRegistry},
     serialize::{Decoder, Serialize},
-    uid::UID,
+    utils::{slotmap::SparseSecondaryMap, uid::UID},
 };
 
 use super::{container::AnyAssetContainer, error::AssetError};
 
 pub struct ImportAssetBundle {
     pub(crate) name: String,
-    pub(crate) containers: HashMap<UID, Box<dyn AnyAssetContainer>>,
+    pub(crate) containers: SparseSecondaryMap<ComponentId, Box<dyn AnyAssetContainer>>,
 }
 
 impl ImportAssetBundle {
@@ -24,19 +24,18 @@ impl ImportAssetBundle {
         let len = decoder
             .read_u32()
             .map_err(|_| AssetError::DeserializationError)? as usize;
-        let mut containers: HashMap<UID, Box<dyn AnyAssetContainer>> = Default::default();
+        let mut containers: SparseSecondaryMap<ComponentId, Box<dyn AnyAssetContainer>> =
+            Default::default();
         for _ in 0..len {
             let asset =
                 UID::deserialize(decoder, &()).map_err(|_| AssetError::DeserializationError)?;
-            let definition = registry
-                .get(asset)
-                .ok_or(AssetError::AssetTypeNotFound { uid: asset })?;
+            let (id, definition) = registry.find(asset).ok_or(AssetError::AssetTypeNotFound)?;
             let mut container = definition.reflection.create_asset_container();
             container.deserialize_entries(bundle, decoder)?;
-            if containers.contains_key(&asset) {
+            if containers.contains(id) {
                 return Err(AssetError::DuplicatedAssetType { uid: asset });
             }
-            containers.insert(asset, container);
+            containers.insert(id, container);
         }
         Ok(ImportAssetBundle { name, containers })
     }
@@ -44,7 +43,7 @@ impl ImportAssetBundle {
 
 pub(crate) struct AssetBundle {
     pub(crate) name: String,
-    pub(crate) assets: HashMap<UID, HashSet<UID>>,
+    pub(crate) assets: SparseSecondaryMap<ComponentId, HashSet<UID>>,
 }
 
 impl AssetBundle {

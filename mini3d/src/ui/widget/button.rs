@@ -9,7 +9,7 @@ use crate::{
         event::{Event, EventContext, UIEvent},
         style::UIBoxStyle,
     },
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::Widget;

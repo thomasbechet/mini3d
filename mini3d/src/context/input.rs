@@ -1,7 +1,7 @@
 use crate::{
     feature::component::input::input_table::InputTable,
     input::{InputActionState, InputAxisState, InputError, InputManager, InputTextState},
-    uid::UID,
+    utils::uid::UID,
 };
 
 pub struct InputContext<'a> {

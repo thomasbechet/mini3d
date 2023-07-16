@@ -12,7 +12,7 @@ use crate::{
         user::{InteractionMode, UIUser},
         widget::{layout::UILayout, Widget},
     },
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::ui_stylesheet::{UIStyleSheet, UIStyleSheetError};

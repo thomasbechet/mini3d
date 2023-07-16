@@ -1,4 +1,4 @@
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InterfaceId(u32);

@@ -22,6 +22,7 @@ pub trait Encoder {
     fn write_bytes(&mut self, value: &[u8]) -> Result<(), EncoderError>;
     fn write_f32(&mut self, value: f32) -> Result<(), EncoderError>;
     fn write_f64(&mut self, value: f64) -> Result<(), EncoderError>;
+    fn write_u16(&mut self, value: u16) -> Result<(), EncoderError>;
     fn write_u32(&mut self, value: u32) -> Result<(), EncoderError>;
     fn write_u64(&mut self, value: u64) -> Result<(), EncoderError>;
 }
@@ -31,6 +32,7 @@ pub trait Decoder {
     fn read_bytes(&mut self, count: usize) -> Result<&[u8], DecoderError>;
     fn read_f32(&mut self) -> Result<f32, DecoderError>;
     fn read_f64(&mut self) -> Result<f64, DecoderError>;
+    fn read_u16(&mut self) -> Result<u16, DecoderError>;
     fn read_u32(&mut self) -> Result<u32, DecoderError>;
     fn read_u64(&mut self) -> Result<u64, DecoderError>;
 }
@@ -47,6 +49,9 @@ impl Encoder for &mut dyn Encoder {
     }
     fn write_f64(&mut self, value: f64) -> Result<(), EncoderError> {
         (*self).write_f64(value)
+    }
+    fn write_u16(&mut self, value: u16) -> Result<(), EncoderError> {
+        (*self).write_u16(value)
     }
     fn write_u32(&mut self, value: u32) -> Result<(), EncoderError> {
         (*self).write_u32(value)
@@ -68,6 +73,9 @@ impl Decoder for &mut dyn Decoder {
     }
     fn read_f64(&mut self) -> Result<f64, DecoderError> {
         (*self).read_f64()
+    }
+    fn read_u16(&mut self) -> Result<u16, DecoderError> {
+        (*self).read_u16()
     }
     fn read_u32(&mut self) -> Result<u32, DecoderError> {
         (*self).read_u32()
@@ -91,6 +99,10 @@ impl Encoder for Vec<u8> {
         Ok(())
     }
     fn write_f64(&mut self, value: f64) -> Result<(), EncoderError> {
+        self.extend_from_slice(&value.to_le_bytes());
+        Ok(())
+    }
+    fn write_u16(&mut self, value: u16) -> Result<(), EncoderError> {
         self.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
@@ -146,6 +158,14 @@ impl<'a> Decoder for SliceDecoder<'a> {
         }
         let value = f64::from_le_bytes(self.data[self.pos..self.pos + 8].try_into().unwrap());
         self.pos += 8;
+        Ok(value)
+    }
+    fn read_u16(&mut self) -> Result<u16, DecoderError> {
+        if self.pos + 2 > self.data.len() {
+            return Err(DecoderError::CorruptedData);
+        }
+        let value = u16::from_le_bytes(self.data[self.pos..self.pos + 2].try_into().unwrap());
+        self.pos += 2;
         Ok(value)
     }
     fn read_u32(&mut self) -> Result<u32, DecoderError> {

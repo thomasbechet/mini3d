@@ -2,76 +2,104 @@ use std::collections::HashMap;
 
 use crate::{
     ecs::system::{ExclusiveSystemCallback, ParallelSystemCallback},
-    uid::UID,
+    feature::component::common::program::Program,
+    utils::{
+        slotmap::{SlotId, SlotMap},
+        uid::UID,
+    },
 };
 
 use super::error::RegistryError;
 
-#[derive(Clone, Copy)]
+pub(crate) type SystemId = SlotId<SystemDefinition>;
+
+#[derive(Clone)]
 pub(crate) enum ExclusiveSystem {
     Callback(ExclusiveSystemCallback),
-    Module(UID),
+    Program(Program),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) enum ParallelSystem {
     Callback(ParallelSystemCallback),
-    Module(UID),
+    Program(Program),
 }
 
-#[derive(Clone, Copy)]
-pub(crate) enum SystemKind {
+#[derive(Clone)]
+pub(crate) enum ParallelForSytem {
+    Callback(ParallelSystemCallback),
+    Program(Program),
+}
+
+#[derive(Clone)]
+pub(crate) enum System {
     Exclusive(ExclusiveSystem),
     Parallel(ParallelSystem),
+    ParallelFor(ParallelForSytem),
 }
 
 pub(crate) struct SystemDefinition {
     pub(crate) name: String,
-    pub(crate) kind: SystemKind,
+    pub(crate) system: System,
 }
 
 #[derive(Default)]
 pub(crate) struct SystemRegistry {
-    systems: HashMap<UID, SystemDefinition>,
+    systems: SlotMap<SystemDefinition>,
+    lookup_cache: HashMap<UID, SystemId>,
 }
 
 impl SystemRegistry {
-    fn define(&mut self, definition: SystemDefinition) -> Result<UID, RegistryError> {
+    fn define(&mut self, definition: SystemDefinition) -> Result<SystemId, RegistryError> {
         let uid: UID = definition.name.as_str().into();
-        if self.systems.contains_key(&uid) {
+        if self.find(uid).is_some() {
             return Err(RegistryError::DuplicatedSystemDefinition {
                 name: definition.name,
             });
         }
-        self.systems.insert(uid, definition);
-        Ok(uid)
+        let id = self.systems.add(definition);
+        self.lookup_cache.insert(uid, id);
+        Ok(id)
     }
 
-    pub(crate) fn define_static_exclusive(
+    pub(crate) fn define_exclusive_callback(
         &mut self,
         name: &str,
         callback: ExclusiveSystemCallback,
-    ) -> Result<UID, RegistryError> {
+    ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            kind: SystemKind::Exclusive(ExclusiveSystem::Callback(callback)),
+            system: System::Exclusive(ExclusiveSystem::Callback(callback)),
         })
     }
 
-    pub(crate) fn define_static_parallel(
+    pub(crate) fn define_parallel_callback(
         &mut self,
         name: &str,
         callback: ParallelSystemCallback,
-    ) -> Result<UID, RegistryError> {
+    ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            kind: SystemKind::Parallel(ParallelSystem::Callback(callback)),
+            system: System::Parallel(ParallelSystem::Callback(callback)),
         })
     }
 
-    pub(crate) fn define_script_exclusive()
+    pub(crate) fn define_exclusive_program(
+        &mut self,
+        name: &str,
+        program: Program,
+    ) -> Result<SystemId, RegistryError> {
+        self.define(SystemDefinition {
+            name: name.to_string(),
+            system: System::Exclusive(ExclusiveSystem::Program(program)),
+        })
+    }
 
-    pub(crate) fn get(&self, uid: &UID) -> Option<&SystemDefinition> {
-        self.systems.get(uid)
+    pub(crate) fn find(&self, uid: UID) -> Option<SystemId> {
+        self.lookup_cache.get(&uid).copied()
+    }
+
+    pub(crate) fn get(&self, id: SystemId) -> Option<&SystemDefinition> {
+        self.systems.get(id)
     }
 }

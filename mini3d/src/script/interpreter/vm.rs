@@ -1,11 +1,8 @@
-use crate::script::interpreter::opcode::Opcode;
-
-use super::program::Program;
+use crate::{feature::component::common::program::Program, script::interpreter::opcode::Opcode};
 
 pub(crate) type Word = u32;
 
 pub struct VirtualMachine {
-    program: Program,
     stack: Vec<Word>,
     sp: i32, // Stack pointer : index of the top of the stack
     ip: i32, // Instruction pointer : index of the current instruction to execute
@@ -14,39 +11,38 @@ pub struct VirtualMachine {
 impl VirtualMachine {
     const INITIAL_STACK_SIZE: usize = 1024;
 
-    pub fn new(program: Program) -> VirtualMachine {
+    pub fn new() -> VirtualMachine {
         Self {
-            program,
             stack: vec![0; Self::INITIAL_STACK_SIZE],
             sp: -1, // Will be incremented to 0 when the first value is pushed
             ip: -1, // Will be incremented to 0 when the first instruction is executed
         }
     }
 
-    fn print_stack(&self) {
-        println!("bytecodes: {:?}", self.program.bytecodes);
+    fn print_stack(&self, program: &Program) {
+        println!("bytecodes: {:?}", program.bytecodes);
         println!("{:#08X}", self.stack[self.sp as usize]);
     }
 
     #[inline]
-    fn next_byte(&mut self) -> u8 {
+    fn next_byte(&mut self, program: &Program) -> u8 {
         self.ip += 1;
-        self.program.bytecodes[self.ip as usize]
+        program.bytecodes[self.ip as usize]
     }
 
     #[inline]
-    fn next_half(&mut self) -> u16 {
-        let b0 = self.next_byte();
-        let b1 = self.next_byte();
+    fn next_half(&mut self, program: &Program) -> u16 {
+        let b0 = self.next_byte(program);
+        let b1 = self.next_byte(program);
         u16::from_be_bytes([b0, b1])
     }
 
     #[inline]
-    fn next_word(&mut self) -> Word {
-        let b0 = self.next_byte();
-        let b1 = self.next_byte();
-        let b2 = self.next_byte();
-        let b3 = self.next_byte();
+    fn next_word(&mut self, program: &Program) -> Word {
+        let b0 = self.next_byte(program);
+        let b1 = self.next_byte(program);
+        let b2 = self.next_byte(program);
+        let b3 = self.next_byte(program);
         u32::from_be_bytes([b0, b1, b2, b3])
     }
 
@@ -63,9 +59,9 @@ impl VirtualMachine {
         value
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, program: &Program) {
         loop {
-            let opcode = self.next_byte();
+            let opcode = self.next_byte(program);
             println!("opcode: {}", opcode);
             match opcode {
                 Opcode::LOAD => {
@@ -81,15 +77,15 @@ impl VirtualMachine {
                     unimplemented!();
                 }
                 Opcode::PUSHLB => {
-                    let byte = self.next_byte();
+                    let byte = self.next_byte(program);
                     self.push(byte as Word);
                 }
                 Opcode::PUSHLH => {
-                    let half = self.next_half();
+                    let half = self.next_half(program);
                     self.push(half as Word);
                 }
                 Opcode::PUSHLW => {
-                    let word = self.next_word();
+                    let word = self.next_word(program);
                     self.push(word);
                 }
                 Opcode::POP => {
@@ -141,6 +137,6 @@ impl VirtualMachine {
                 _ => {}
             }
         }
-        self.print_stack();
+        self.print_stack(program);
     }
 }

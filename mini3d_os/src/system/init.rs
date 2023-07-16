@@ -656,9 +656,9 @@ fn init_system(ctx: &mut ExclusiveSystemContext) -> SystemResult {
 
 pub fn initialize_engine(engine: &mut Engine) -> Result<(), RegistryError> {
     engine.define_static_component::<OS>(OS::NAME)?;
-    engine.define_static_system("update", crate::system::update::update)?;
+    engine.define_exclusive_callback("update", crate::system::update::update)?;
     engine
-        .define_static_system("init", init_system)
+        .define_exclusive_callback("init", init_system)
         .expect("Failed to define init system");
 
     engine.invoke_system("init".into());

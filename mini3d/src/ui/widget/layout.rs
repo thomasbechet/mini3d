@@ -11,7 +11,7 @@ use crate::{
         event::{Direction, Event, EventContext},
         user::InteractionMode,
     },
-    uid::UID,
+    utils::uid::UID,
 };
 
 use super::{

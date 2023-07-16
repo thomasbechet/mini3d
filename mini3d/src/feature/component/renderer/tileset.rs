@@ -1,4 +1,4 @@
-use crate::{math::rect::IRect, uid::UID};
+use crate::{math::rect::IRect, utils::uid::UID};
 use glam::IVec2;
 use mini3d_derive::{Component, Error, Reflect, Serialize};
 

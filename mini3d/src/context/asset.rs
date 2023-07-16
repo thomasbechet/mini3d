@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use crate::{
     asset::{container::AssetEntry, error::AssetError, AssetManager},
     registry::{component::Component, RegistryManager},
-    uid::UID,
+    utils::uid::UID,
 };
 
 pub struct AssetContext<'a> {

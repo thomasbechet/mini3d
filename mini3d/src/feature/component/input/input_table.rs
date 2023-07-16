@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use mini3d_derive::{Component, Error, Reflect, Serialize};
 
-use crate::uid::UID;
+use crate::utils::uid::UID;
 
 #[derive(Default, Clone, Copy, Serialize)]
 pub enum InputAxisRange {
