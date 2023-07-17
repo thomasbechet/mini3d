@@ -237,6 +237,30 @@ impl<'a> SceneComponentViewRef<'a> {
         Self(SceneComponentViewRefInner::None)
     }
 
+    pub fn as_static<C: Component>(&self) -> Result<StaticSceneComponentViewRef<'a, C>, ()> {
+        match &self.0 {
+            SceneComponentViewRefInner::Static {
+                components,
+                entities,
+                indices,
+            } => {
+                if components.is::<C>() {
+                    Ok(StaticSceneComponentViewRef(
+                        StaticSceneComponentViewRefInner::Static {
+                            components: components.downcast_ref::<C>().unwrap(),
+                            entities,
+                            indices,
+                        },
+                    ))
+                } else {
+                    Err(())
+                }
+            }
+            SceneComponentViewRefInner::Dynamic {} => Err(()),
+            SceneComponentViewRefInner::None => Err(()),
+        }
+    }
+
     impl_read_property!(bool, read_bool);
     impl_read_property!(u8, read_u8);
     impl_read_property!(i32, read_i32);

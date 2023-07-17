@@ -9,7 +9,10 @@ use crate::{
     },
 };
 
-use super::error::RegistryError;
+use super::{
+    component::{ComponentId, ComponentRegistry},
+    error::RegistryError,
+};
 
 pub(crate) type SystemId = SlotId<SystemDefinition>;
 
@@ -36,6 +39,37 @@ pub(crate) enum System {
     Exclusive(ExclusiveSystem),
     Parallel(ParallelSystem),
     ParallelFor(ParallelForSytem),
+}
+
+pub struct ExclusiveComponentResolver<'a> {
+    registry: &'a ComponentRegistry,
+}
+
+impl<'a> ExclusiveComponentResolver<'a> {
+    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {}
+}
+
+pub struct ParallelComponentResolver<'a> {
+    registry: &'a ComponentRegistry,
+    components: Vec<ComponentId>,
+}
+
+impl<'a> ParallelComponentResolver<'a> {
+    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {}
+}
+
+pub trait ExclusiveSystem: 'static {
+    const NAME: &'static str;
+    const UID: UID = UID::new(Self::NAME);
+    fn resolve(&mut self, resolver: &ExclusiveComponentResolver) -> Result<(), RegistryError>;
+    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult;
+}
+
+pub trait ParallelSystem: 'static {
+    const NAME: &'static str;
+    const UID: UID = UID::new(Self::NAME);
+    fn resolve(&mut self, resolver: &mut ParallelComponentResolver) -> Result<(), RegistryError>;
+    fn run(&self, ctx: &mut ParallelContext) -> SystemResult;
 }
 
 pub(crate) struct SystemDefinition {
