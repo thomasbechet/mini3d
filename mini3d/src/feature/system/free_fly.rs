@@ -4,8 +4,19 @@ use crate::{
     context::ExclusiveSystemContext,
     ecs::system::SystemResult,
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
-    registry::component::Component,
+    registry::component::{Component, ComponentId},
 };
+
+pub struct FreeFlySystem {
+    free_fly: ComponentId,
+    transform: ComponentId,
+}
+
+impl System for FreeFlySystem {
+    fn register(&mut self, registry: &Registry) {}
+
+    fn invoke(&self, ctx: &mut ExclusiveSystemContext) {}
+}
 
 pub fn run(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     let scene = ctx.scene.active();
