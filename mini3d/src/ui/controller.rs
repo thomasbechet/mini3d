@@ -1,7 +1,7 @@
 use glam::Vec2;
 use mini3d_derive::Serialize;
 
-use crate::{context::input::InputContext, input::InputError, utils::uid::UID};
+use crate::{ecs::context::input::InputContextRef, input::InputError, utils::uid::UID};
 
 use super::{event::Direction, user::UIUser};
 
@@ -51,7 +51,7 @@ impl UIController {
         self
     }
 
-    pub fn update(&mut self, input: &InputContext, user: &mut UIUser) -> Result<(), InputError> {
+    pub fn update(&mut self, input: &InputContextRef, user: &mut UIUser) -> Result<(), InputError> {
         if let Some((up, down, left, right)) = self.selection_move {
             if input.action(up)?.is_just_pressed() {
                 user.move_selection(Direction::Up);

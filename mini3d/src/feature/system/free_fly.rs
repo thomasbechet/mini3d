@@ -1,16 +1,16 @@
 use glam::{Quat, Vec3};
 
 use crate::{
-    context::ParallelContext,
-    ecs::system::SystemResult,
+    ecs::{context::ParallelContext, system::SystemResult},
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
     registry::{
         component::{Component, ComponentId},
         error::RegistryError,
-        system::{ParallelComponentResolver, ParallelSystem},
+        system::{ParallelResolver, ParallelSystem},
     },
 };
 
+#[derive(Default)]
 pub struct FreeFlySystem {
     free_fly: ComponentId,
     transform: ComponentId,
@@ -19,7 +19,7 @@ pub struct FreeFlySystem {
 impl ParallelSystem for FreeFlySystem {
     const NAME: &'static str = "free_fly_system";
 
-    fn resolve(&mut self, resolver: &mut ParallelComponentResolver) -> Result<(), RegistryError> {
+    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         self.free_fly = resolver.read(FreeFly::UID)?;
         self.transform = resolver.write(Transform::UID)?;
         Ok(())

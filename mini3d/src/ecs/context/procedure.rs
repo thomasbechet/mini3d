@@ -1,13 +1,14 @@
-use crate::{ecs::scheduler::Invocation, utils::uid::UID};
 use std::collections::VecDeque;
 
-pub struct ProcedureContext<'a> {
+use crate::{ecs::scheduler::Invocation, utils::uid::UID};
+
+pub struct ExclusiveProcedureContext<'a> {
     pub(crate) active_procedure: UID,
     pub(crate) frame_procedures: &'a mut VecDeque<UID>,
     pub(crate) next_frame_procedures: &'a mut VecDeque<UID>,
 }
 
-impl<'a> ProcedureContext<'a> {
+impl<'a> ExclusiveProcedureContext<'a> {
     pub fn invoke(&mut self, procedure: UID, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
@@ -22,6 +23,16 @@ impl<'a> ProcedureContext<'a> {
         }
     }
 
+    pub fn uid(&self) -> UID {
+        self.active_procedure
+    }
+}
+
+pub struct ParallelProcedureContext {
+    pub(crate) active_procedure: UID,
+}
+
+impl ParallelProcedureContext {
     pub fn uid(&self) -> UID {
         self.active_procedure
     }

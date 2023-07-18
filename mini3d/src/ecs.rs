@@ -9,8 +9,8 @@ use crate::{
     asset::AssetManager,
     context::{
         asset::AssetContext, event::EventContext, input::InputContext, procedure::ProcedureContext,
-        registry::RegistryContext, renderer::RendererContext, scene::SceneContext,
-        scheduler::SchedulerContext, time::TimeContext, ExclusiveSystemContext,
+        registry::RegistryContext, renderer::RendererContext, scheduler::SchedulerContext,
+        time::TimeContext,
     },
     event::Events,
     input::InputManager,
@@ -25,6 +25,7 @@ use self::{
 };
 
 pub mod container;
+pub mod context;
 pub mod entity;
 pub mod error;
 pub mod pipeline;

@@ -4,7 +4,6 @@ pub struct TimeContext {
 }
 
 impl TimeContext {
-
     pub fn delta(&self) -> f64 {
         self.delta
     }

@@ -1,48 +1,84 @@
 use crate::{
-    context::ExclusiveSystemContext,
-    ecs::system::SystemResult,
+    ecs::{
+        context::{ExclusiveContext, ParallelContext},
+        system::SystemResult,
+    },
     feature::component::ui::{
         canvas::Canvas,
         ui::{UIRenderTarget, UI},
     },
-    registry::component::Component,
+    registry::{
+        component::{Component, ComponentId},
+        error::RegistryError,
+        system::{ExclusiveResolver, ExclusiveSystem, ParallelResolver, ParallelSystem},
+    },
 };
 
-pub fn update(ctx: &mut ExclusiveSystemContext) -> SystemResult {
-    let scene = ctx.scene.active();
-    let mut uis = scene.static_view_mut::<UI>(UI::UID)?;
-    for ui in uis.iter() {
-        ui.update(ctx.time.global())?;
-        for event in ui.events() {
-            println!("{:?}", event);
-        }
-    }
-    Ok(())
+#[derive(Default)]
+pub struct UpdateUI {
+    ui: ComponentId,
 }
 
-pub fn render(ctx: &mut ExclusiveSystemContext) -> SystemResult {
-    let scene = ctx.scene.active();
-    let mut canvases = scene.static_view_mut::<Canvas>(Canvas::UID)?;
-    let uis = scene.static_view::<UI>(UI::UID)?;
-    let targets = scene.static_view::<UIRenderTarget>(UIRenderTarget::UID)?;
+impl ParallelSystem for UpdateUI {
+    const NAME: &'static str = "update_ui";
 
-    for e in &scene.query(&[UI::UID, UIRenderTarget::UID]) {
-        let ui = &uis[e];
-        let target = &targets[e];
-        match *target {
-            UIRenderTarget::Screen { offset } => {
-                ui.render(ctx.renderer.graphics(), offset, ctx.time.global())?;
-            }
-            UIRenderTarget::Canvas { offset, canvas } => {
-                let canvas = canvases.get_mut(canvas).ok_or("Canvas entity not found")?;
-                ui.render(&mut canvas.graphics, offset, ctx.time.global())?;
-            }
-            UIRenderTarget::Texture {
-                offset: _,
-                texture: _,
-            } => {}
-        }
+    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+        self.ui = resolver.read(UI::UID)?;
+        Ok(())
     }
 
-    Ok(())
+    fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
+        let mut uis = ctx.scene.view_mut(self.ui)?.as_static::<UI>()?;
+        for ui in uis.iter() {
+            ui.update(ctx.time.global())?;
+            for event in ui.events() {
+                println!("{:?}", event);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct RenderUI {
+    canvas: ComponentId,
+    ui: ComponentId,
+    target: ComponentId,
+}
+
+impl ExclusiveSystem for RenderUI {
+    const NAME: &'static str = "render_ui";
+
+    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
+        self.canvas = resolver.find(Canvas::UID)?;
+        self.ui = resolver.find(UI::UID)?;
+        self.target = resolver.find(UIRenderTarget::UID)?;
+        Ok(())
+    }
+
+    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
+        let mut canvases = ctx.scene.view_mut(self.canvas)?.as_static::<Canvas>()?;
+        let uis = ctx.scene.view(self.ui)?.as_static::<UI>()?;
+        let targets = ctx.scene.view(self.target)?.as_static::<UIRenderTarget>()?;
+
+        for e in &ctx.scene.query(&[self.ui, self.target]) {
+            let ui = &uis[e];
+            let target = &targets[e];
+            match *target {
+                UIRenderTarget::Screen { offset } => {
+                    ui.render(ctx.renderer.graphics(), offset, ctx.time.global())?;
+                }
+                UIRenderTarget::Canvas { offset, canvas } => {
+                    let canvas = canvases.get_mut(canvas).ok_or("Canvas entity not found")?;
+                    ui.render(&mut canvas.graphics, offset, ctx.time.global())?;
+                }
+                UIRenderTarget::Texture {
+                    offset: _,
+                    texture: _,
+                } => {}
+            }
+        }
+
+        Ok(())
+    }
 }

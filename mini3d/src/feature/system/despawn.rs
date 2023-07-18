@@ -1,14 +1,14 @@
 use crate::{
-    context::ExclusiveContext,
-    ecs::{entity::Entity, system::SystemResult},
+    ecs::{context::ExclusiveContext, entity::Entity, system::SystemResult},
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::{
         component::{Component, ComponentId},
         error::RegistryError,
-        system::{ExclusiveComponentResolver, ExclusiveSystem},
+        system::{ExclusiveResolver, ExclusiveSystem},
     },
 };
 
+#[derive(Default)]
 pub struct DespawnEntities {
     life_cycle: ComponentId,
     hierarchy: ComponentId,
@@ -17,7 +17,7 @@ pub struct DespawnEntities {
 impl ExclusiveSystem for DespawnEntities {
     const NAME: &'static str = "despawn_entities";
 
-    fn resolve(&mut self, resolver: &ExclusiveComponentResolver) -> Result<(), RegistryError> {
+    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
         self.life_cycle = resolver.find(Lifecycle::UID)?;
         self.hierarchy = resolver.find(Hierarchy::UID)?;
         Ok(())

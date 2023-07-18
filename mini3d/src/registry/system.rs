@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     context::{ExclusiveContext, ParallelContext},
-    ecs::system::{ExclusiveSystemCallback, ParallelSystemCallback, SystemResult},
+    ecs::system::SystemResult,
     feature::component::common::program::Program,
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -17,48 +17,25 @@ use super::{
 
 pub(crate) type SystemId = SlotId<SystemDefinition>;
 
-// #[derive(Clone)]
-// pub(crate) enum ExclusiveSystem {
-//     Callback(ExclusiveSystemCallback),
-//     Program(Program),
-// }
-
-// #[derive(Clone)]
-// pub(crate) enum ParallelSystem {
-//     Callback(ParallelSystemCallback),
-//     Program(Program),
-// }
-
-// #[derive(Clone)]
-// pub(crate) enum ParallelForSytem {
-//     Callback(ParallelSystemCallback),
-//     Program(Program),
-// }
-
-// #[derive(Clone)]
-// pub(crate) enum System {
-//     Exclusive(ExclusiveSystem),
-//     Parallel(ParallelSystem),
-//     ParallelFor(ParallelForSytem),
-// }
-
-pub struct ExclusiveComponentResolver<'a> {
+pub struct ExclusiveResolver<'a> {
     registry: &'a ComponentRegistry,
 }
 
-impl<'a> ExclusiveComponentResolver<'a> {
+impl<'a> ExclusiveResolver<'a> {
     pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
-        self.registry.find(component)
+        self.registry
+            .find(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })
     }
 }
 
-pub struct ParallelComponentResolver<'a> {
+pub struct ParallelResolver<'a> {
     registry: &'a ComponentRegistry,
     reads: Vec<ComponentId>,
     writes: Vec<ComponentId>,
 }
 
-impl<'a> ParallelComponentResolver<'a> {
+impl<'a> ParallelResolver<'a> {
     pub fn read(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
         let id = self
             .registry
@@ -86,23 +63,73 @@ impl<'a> ParallelComponentResolver<'a> {
     }
 }
 
-pub trait ExclusiveSystem: 'static {
+pub trait ExclusiveSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn resolve(&mut self, resolver: &ExclusiveComponentResolver) -> Result<(), RegistryError>;
+    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError>;
     fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult;
 }
 
-pub trait ParallelSystem: 'static {
+pub trait ParallelSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn resolve(&mut self, resolver: &mut ParallelComponentResolver) -> Result<(), RegistryError>;
+    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
     fn run(&self, ctx: &mut ParallelContext) -> SystemResult;
+}
+
+struct StaticExclusiveSystemInstance<S: ExclusiveSystem> {
+    instance: S,
+}
+
+trait AnyStaticExclusiveSystemInstance {
+    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError>;
+    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult;
+}
+
+impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for StaticExclusiveSystemInstance<S> {
+    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
+        self.instance.resolve(resolver)
+    }
+    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
+        self.instance.run(ctx)
+    }
+}
+
+struct StaticParallelSystemInstance<S: ParallelSystem> {
+    instance: S,
+}
+
+trait AnyStaticParallelSystemInstance {
+    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
+    fn run(&self, ctx: &mut ParallelContext) -> SystemResult;
+}
+
+impl<S: ParallelSystem> AnyStaticParallelSystemInstance for StaticParallelSystemInstance<S> {
+    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+        self.instance.resolve(resolver)
+    }
+    fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
+        self.instance.run(ctx)
+    }
+}
+
+enum StaticSystem {
+    Exclusive(Box<dyn AnyStaticExclusiveSystemInstance>),
+    Parallel(Box<dyn AnyStaticParallelSystemInstance>),
+}
+
+struct ProgramSystem {
+    program: Program,
+}
+
+enum SystemInstance {
+    Static(StaticSystem),
+    Program(ProgramSystem),
 }
 
 pub(crate) struct SystemDefinition {
     pub(crate) name: String,
-    pub(crate) system: System,
+    pub(crate) instance: SystemInstance,
 }
 
 #[derive(Default)]
@@ -124,36 +151,36 @@ impl SystemRegistry {
         Ok(id)
     }
 
-    pub(crate) fn define_exclusive_callback(
+    fn resolve_components(&mut self) -> Result<(), RegistryError> {
+        // TODO: Resolve components
+        Ok(())
+    }
+
+    pub(crate) fn define_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
-        callback: ExclusiveSystemCallback,
     ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            system: System::Exclusive(ExclusiveSystem::Callback(callback)),
+            instance: SystemInstance::Static(StaticSystem::Exclusive(Box::new(
+                StaticExclusiveSystemInstance {
+                    instance: S::default(),
+                },
+            ))),
         })
     }
 
-    pub(crate) fn define_parallel_callback(
+    pub(crate) fn define_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
-        callback: ParallelSystemCallback,
     ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            system: System::Parallel(ParallelSystem::Callback(callback)),
-        })
-    }
-
-    pub(crate) fn define_exclusive_program(
-        &mut self,
-        name: &str,
-        program: Program,
-    ) -> Result<SystemId, RegistryError> {
-        self.define(SystemDefinition {
-            name: name.to_string(),
-            system: System::Exclusive(ExclusiveSystem::Program(program)),
+            instance: SystemInstance::Static(StaticSystem::Parallel(Box::new(
+                StaticParallelSystemInstance {
+                    instance: S::default(),
+                },
+            ))),
         })
     }
 

@@ -1,0 +1,1 @@
+[ ] remove UID + NAME from components and systems

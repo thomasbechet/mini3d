@@ -1,5 +1,4 @@
 pub mod asset;
-pub mod context;
 pub mod disk;
 pub mod ecs;
 pub mod engine;

@@ -1,4 +1,7 @@
-use core::{result::Result, fmt::{Display, Formatter}};
+use core::{
+    fmt::{Display, Formatter},
+    result::Result,
+};
 
 use crate::ecs::system::SystemError;
 
@@ -9,8 +12,10 @@ pub struct ErrorWithContext {
 
 impl ErrorWithContext {
     fn new<E, C>(error: E, context: C) -> Self
-        where E: SystemError + 'static,
-              C: Display + 'static {
+    where
+        E: SystemError + 'static,
+        C: Display + 'static,
+    {
         Self {
             error: Box::new(error),
             context: Box::new(context),
@@ -34,14 +39,17 @@ impl From<ErrorWithContext> for Box<dyn SystemError> {
 
 pub trait ContextError<T, E> {
     fn with_context<C, F>(self, f: F) -> Result<T, ErrorWithContext>
-        where C: Display + 'static,
-              F: FnOnce() -> C;
+    where
+        C: Display + 'static,
+        F: FnOnce() -> C;
 }
 
 impl<T, E: SystemError + 'static> ContextError<T, E> for Result<T, E> {
     fn with_context<C, F>(self, f: F) -> Result<T, ErrorWithContext>
-        where C: Display + 'static,
-              F: FnOnce() -> C {
+    where
+        C: Display + 'static,
+        F: FnOnce() -> C,
+    {
         match self {
             Ok(ok) => Ok(ok),
             Err(error) => Err(ErrorWithContext::new(error, f())),

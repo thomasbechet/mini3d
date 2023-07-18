@@ -10,6 +10,7 @@ use crate::{registry::component::Component, script::reflection::PropertyId, util
 use super::{
     container::{AnyStaticComponentVec, StaticComponentVec, StaticSceneContainer},
     entity::Entity,
+    error::SceneError,
     sparse::PagedVector,
 };
 
@@ -237,7 +238,9 @@ impl<'a> SceneComponentViewRef<'a> {
         Self(SceneComponentViewRefInner::None)
     }
 
-    pub fn as_static<C: Component>(&self) -> Result<StaticSceneComponentViewRef<'a, C>, ()> {
+    pub fn as_static<C: Component>(
+        &self,
+    ) -> Result<StaticSceneComponentViewRef<'a, C>, SceneError> {
         match &self.0 {
             SceneComponentViewRefInner::Static {
                 components,
