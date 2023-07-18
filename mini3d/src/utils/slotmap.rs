@@ -1,27 +1,8 @@
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SlotId<V> {
     value: u32,
     _marker: core::marker::PhantomData<V>,
 }
-
-// impl<V> Serialize for SlotId<V> {
-//     type Header = ();
-
-//     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-//         encoder.write_u32(self.value)?;
-//         Ok(())
-//     }
-
-//     fn deserialize(
-//         decoder: &mut impl Decoder,
-//         _header: &Self::Header,
-//     ) -> Result<Self, DecoderError> {
-//         let value = decoder.read_u32()?;
-//         Ok(Self {
-//             value,
-//             _marker: core::marker::PhantomData,
-//         })
-//     }
-// }
 
 impl<V> Clone for SlotId<V> {
     fn clone(&self) -> Self {

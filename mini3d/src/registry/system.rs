@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    ecs::system::{ExclusiveSystemCallback, ParallelSystemCallback},
+    context::{ExclusiveContext, ParallelContext},
+    ecs::system::{ExclusiveSystemCallback, ParallelSystemCallback, SystemResult},
     feature::component::common::program::Program,
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -16,46 +17,73 @@ use super::{
 
 pub(crate) type SystemId = SlotId<SystemDefinition>;
 
-#[derive(Clone)]
-pub(crate) enum ExclusiveSystem {
-    Callback(ExclusiveSystemCallback),
-    Program(Program),
-}
+// #[derive(Clone)]
+// pub(crate) enum ExclusiveSystem {
+//     Callback(ExclusiveSystemCallback),
+//     Program(Program),
+// }
 
-#[derive(Clone)]
-pub(crate) enum ParallelSystem {
-    Callback(ParallelSystemCallback),
-    Program(Program),
-}
+// #[derive(Clone)]
+// pub(crate) enum ParallelSystem {
+//     Callback(ParallelSystemCallback),
+//     Program(Program),
+// }
 
-#[derive(Clone)]
-pub(crate) enum ParallelForSytem {
-    Callback(ParallelSystemCallback),
-    Program(Program),
-}
+// #[derive(Clone)]
+// pub(crate) enum ParallelForSytem {
+//     Callback(ParallelSystemCallback),
+//     Program(Program),
+// }
 
-#[derive(Clone)]
-pub(crate) enum System {
-    Exclusive(ExclusiveSystem),
-    Parallel(ParallelSystem),
-    ParallelFor(ParallelForSytem),
-}
+// #[derive(Clone)]
+// pub(crate) enum System {
+//     Exclusive(ExclusiveSystem),
+//     Parallel(ParallelSystem),
+//     ParallelFor(ParallelForSytem),
+// }
 
 pub struct ExclusiveComponentResolver<'a> {
     registry: &'a ComponentRegistry,
 }
 
 impl<'a> ExclusiveComponentResolver<'a> {
-    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {}
+    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
+        self.registry.find(component)
+    }
 }
 
 pub struct ParallelComponentResolver<'a> {
     registry: &'a ComponentRegistry,
-    components: Vec<ComponentId>,
+    reads: Vec<ComponentId>,
+    writes: Vec<ComponentId>,
 }
 
 impl<'a> ParallelComponentResolver<'a> {
-    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {}
+    pub fn read(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
+        let id = self
+            .registry
+            .find(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?
+            .0;
+        if !self.reads.contains(&id) && !self.writes.contains(&id) {
+            self.reads.push(id);
+        }
+        Ok(id)
+    }
+    pub fn write(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
+        let id = self
+            .registry
+            .find(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?
+            .0;
+        if self.reads.contains(&id) {
+            self.reads.retain(|&x| x != id);
+        }
+        if !self.writes.contains(&id) {
+            self.writes.push(id);
+        }
+        Ok(id)
+    }
 }
 
 pub trait ExclusiveSystem: 'static {

@@ -243,21 +243,15 @@ impl<'a> SceneComponentViewRef<'a> {
                 components,
                 entities,
                 indices,
-            } => {
-                if components.is::<C>() {
-                    Ok(StaticSceneComponentViewRef(
-                        StaticSceneComponentViewRefInner::Static {
-                            components: components.downcast_ref::<C>().unwrap(),
-                            entities,
-                            indices,
-                        },
-                    ))
-                } else {
-                    Err(())
-                }
-            }
+            } => Ok(StaticSceneComponentViewRef {
+                view: Some(StaticSceneComponentViewRefData {
+                    components: components.downcast_ref::<C>().unwrap(),
+                    entities,
+                    indices,
+                }),
+            }),
             SceneComponentViewRefInner::Dynamic {} => Err(()),
-            SceneComponentViewRefInner::None => Err(()),
+            SceneComponentViewRefInner::None => Ok(StaticSceneComponentViewRef::none()),
         }
     }
 
@@ -282,6 +276,24 @@ impl<'a> SceneComponentViewRef<'a> {
 impl<'a> SceneComponentViewMut<'a> {
     pub(crate) fn none() -> Self {
         Self(SceneComponentViewMutInner::None)
+    }
+
+    pub fn as_static<C: Component>(&self) -> Result<StaticSceneComponentViewMut<'a, C>, ()> {
+        match &self.0 {
+            SceneComponentViewMutInner::Static {
+                components,
+                entities,
+                indices,
+            } => Ok(StaticSceneComponentViewMut {
+                view: Some(StaticSceneComponentViewMutData {
+                    components: components.downcast_mut::<C>().unwrap(),
+                    entities,
+                    indices,
+                }),
+            }),
+            SceneComponentViewMutInner::Dynamic {} => Err(()),
+            SceneComponentViewMutInner::None => Ok(StaticSceneComponentViewMut::none()),
+        }
     }
 
     impl_read_write_property!(bool, read_bool, write_bool);

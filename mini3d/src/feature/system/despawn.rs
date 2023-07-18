@@ -1,47 +1,65 @@
 use crate::{
-    context::{error::ContextError, ExclusiveSystemContext},
+    context::ExclusiveContext,
     ecs::{entity::Entity, system::SystemResult},
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
-    registry::component::Component,
+    registry::{
+        component::{Component, ComponentId},
+        error::RegistryError,
+        system::{ExclusiveComponentResolver, ExclusiveSystem},
+    },
 };
 
-pub fn run(ctx: &mut ExclusiveSystemContext) -> SystemResult {
-    let mut despawn_entities: Vec<Entity> = Vec::new();
-    let mut detach_entities = Vec::new();
+pub struct DespawnEntities {
+    life_cycle: ComponentId,
+    hierarchy: ComponentId,
+}
 
-    let mut scene = ctx.scene.active();
+impl ExclusiveSystem for DespawnEntities {
+    const NAME: &'static str = "despawn_entities";
 
-    {
-        let mut hierarchies = scene
-            .static_view_mut::<Hierarchy>(Hierarchy::UID)
-            .with_context(|| "Failed to get hierarchy view")?;
-        let lifecycles = scene.static_view::<Lifecycle>(Lifecycle::UID)?;
+    fn resolve(&mut self, resolver: &ExclusiveComponentResolver) -> Result<(), RegistryError> {
+        self.life_cycle = resolver.find(Lifecycle::UID)?;
+        self.hierarchy = resolver.find(Hierarchy::UID)?;
+        Ok(())
+    }
 
-        // Collect despawned entities
-        for e in &scene.query(&[Lifecycle::UID, Hierarchy::UID]) {
-            if !lifecycles[e].alive {
-                despawn_entities.push(e);
-                if let Some(hierarchy) = hierarchies.get_mut(e) {
-                    if let Some(parent) = hierarchy.parent() {
-                        detach_entities.push((parent, e));
+    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
+        let mut despawn_entities: Vec<Entity> = Vec::new();
+        let mut detach_entities = Vec::new();
+
+        {
+            let mut hierarchies = ctx
+                .scene
+                .view_mut(self.hierarchy)?
+                .as_static::<Hierarchy>()?;
+            let lifecycles = ctx.scene.view(self.life_cycle)?.as_static::<Lifecycle>()?;
+
+            // Collect despawned entities
+            for e in &ctx.scene.query(&[self.life_cycle, self.hierarchy]) {
+                if !lifecycles[e].alive {
+                    despawn_entities.push(e);
+                    if let Some(hierarchy) = hierarchies.get_mut(e) {
+                        if let Some(parent) = hierarchy.parent() {
+                            detach_entities.push((parent, e));
+                        }
                     }
                 }
             }
-        }
 
-        // Detach entities
-        for (parent, entity) in detach_entities {
-            for child in Hierarchy::collect_childs(entity, &hierarchies)? {
-                Hierarchy::detach(entity, child, &mut hierarchies)?;
+            // Detach entities
+            for (parent, entity) in detach_entities {
+                for child in Hierarchy::collect_childs(entity, &hierarchies)? {
+                    Hierarchy::detach(entity, child, &mut hierarchies)?;
+                }
+                Hierarchy::detach(parent, entity, &mut hierarchies)?;
             }
-            Hierarchy::detach(parent, entity, &mut hierarchies)?;
         }
-    }
 
-    // Despawn entities
-    for entity in despawn_entities {
-        scene.remove_entity(entity)?;
-    }
+        // Despawn entities
+        for entity in despawn_entities {
+            ctx.scene.remove_entity(entity)?;
+        }
 
-    Ok(())
+        Ok(())
+    }
 }
