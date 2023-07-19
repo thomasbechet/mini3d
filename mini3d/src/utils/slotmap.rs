@@ -285,7 +285,7 @@ pub struct SecondaryMap<T, V> {
     _marker: core::marker::PhantomData<T>,
 }
 
-impl<T, V> SecondaryMap<SlotId, V> {
+impl<V> SecondaryMap<SlotId, V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: SlotMap::with_capacity(capacity),
@@ -329,28 +329,25 @@ struct SparseSecondaryMapEntry<V> {
     index: u32,
 }
 
-pub struct SparseSecondaryMap<T, V> {
+pub struct SparseSecondaryMap<V> {
     data: Vec<SparseSecondaryMapEntry<V>>,
     indices: Vec<Option<u32>>,
-    _marker: core::marker::PhantomData<T>,
 }
 
-impl<T, V> Default for SparseSecondaryMap<T, V> {
+impl<V> Default for SparseSecondaryMap<V> {
     fn default() -> Self {
         Self {
             data: Vec::new(),
             indices: Vec::new(),
-            _marker: core::marker::PhantomData,
         }
     }
 }
 
-impl<T, V> SparseSecondaryMap<SlotId, V> {
+impl<V> SparseSecondaryMap<V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             data: Vec::with_capacity(capacity),
             indices: Vec::with_capacity(capacity),
-            _marker: core::marker::PhantomData,
         }
     }
 

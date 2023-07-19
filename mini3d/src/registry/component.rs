@@ -18,12 +18,18 @@ use crate::{
 
 use super::error::RegistryError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct ComponentId(SlotId);
 
 impl From<SlotId> for ComponentId {
     fn from(id: SlotId) -> Self {
         Self(id)
+    }
+}
+
+impl From<ComponentId> for SlotId {
+    fn from(id: ComponentId) -> Self {
+        id.0
     }
 }
 
@@ -113,7 +119,7 @@ impl ComponentRegistry {
             kind,
             reflection,
         });
-        self.lookup_cache.insert(uid, id);
+        self.lookup_cache.insert(uid, id.into());
         Ok(())
     }
 
@@ -131,7 +137,7 @@ impl ComponentRegistry {
     pub(crate) fn find(&self, uid: UID) -> Option<(ComponentId, &ComponentDefinition)> {
         self.lookup_cache
             .get(&uid)
-            .map(|id| (*id, self.definitions.get(*id).unwrap()))
+            .map(|id| (*id, self.definitions.get((*id).into()).unwrap()))
     }
 
     pub(crate) fn find_id(&self, uid: UID) -> Option<ComponentId> {
@@ -139,6 +145,6 @@ impl ComponentRegistry {
     }
 
     pub(crate) fn get(&self, id: ComponentId) -> Option<&ComponentDefinition> {
-        self.definitions.get(id)
+        self.definitions.get(id.into())
     }
 }

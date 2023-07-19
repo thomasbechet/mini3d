@@ -1,8 +1,4 @@
-use mini3d_derive::Serialize;
-
-use crate::{context::ExclusiveSystemContext, registry::system::SystemId, utils::uid::UID};
-
-use super::system::SystemResult;
+use crate::registry::system::SystemId;
 
 struct PipelineStep {
     system: SystemId,

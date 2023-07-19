@@ -17,12 +17,18 @@ use super::{
     error::RegistryError,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct SystemId(SlotId);
 
 impl From<SlotId> for SystemId {
     fn from(id: SlotId) -> Self {
         Self(id)
+    }
+}
+
+impl From<SystemId> for SlotId {
+    fn from(id: SystemId) -> Self {
+        id.0
     }
 }
 
@@ -154,8 +160,8 @@ impl SystemRegistry {
             });
         }
         let id = self.systems.add(definition);
-        self.lookup_cache.insert(uid, id);
-        Ok(id)
+        self.lookup_cache.insert(uid, id.into());
+        Ok(id.into())
     }
 
     fn resolve_components(&mut self) -> Result<(), RegistryError> {
@@ -196,6 +202,6 @@ impl SystemRegistry {
     }
 
     pub(crate) fn get(&self, id: SystemId) -> Option<&SystemDefinition> {
-        self.systems.get(id)
+        self.systems.get(id.into())
     }
 }

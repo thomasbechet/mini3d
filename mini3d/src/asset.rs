@@ -1,5 +1,5 @@
 use core::result::Result;
-use std::collections::{hash_map, HashMap};
+use std::collections::HashMap;
 
 use crate::registry::component::{Component, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
@@ -17,8 +17,8 @@ pub mod reference;
 
 #[derive(Default)]
 pub struct AssetManager {
-    containers: SparseSecondaryMap<ComponentId, Box<dyn AnyAssetContainer>>,
-    defaults: SparseSecondaryMap<ComponentId, UID>,
+    containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>,
+    defaults: SparseSecondaryMap<UID>,
     bundles: HashMap<UID, AssetBundle>,
 }
 
@@ -28,7 +28,7 @@ impl AssetManager {
         &'_ self,
         asset: ComponentId,
     ) -> Result<Option<&'_ AssetContainer<C>>, AssetError> {
-        if let Some(container) = self.containers.get(asset) {
+        if let Some(container) = self.containers.get(asset.into()) {
             return Ok(Some(
                 container
                     .as_any()
@@ -44,7 +44,7 @@ impl AssetManager {
         &'_ mut self,
         asset: ComponentId,
     ) -> Result<Option<&'_ mut AssetContainer<C>>, AssetError> {
-        if let Some(container) = self.containers.get_mut(asset) {
+        if let Some(container) = self.containers.get_mut(asset.into()) {
             return Ok(Some(
                 container
                     .as_any_mut()
@@ -73,10 +73,12 @@ impl AssetManager {
         registry: &ComponentRegistry,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
+        // Clear all data
         self.bundles.clear();
         self.containers.clear();
         self.defaults.clear();
 
+        // Decode bundles
         let bundle_count = decoder.read_u32()?;
         for _ in 0..bundle_count {
             let import = ImportAssetBundle::deserialize(registry, decoder)
@@ -85,8 +87,20 @@ impl AssetManager {
                 .map_err(|_| DecoderError::CorruptedData)?;
         }
 
-        self.defaults = HashMap::deserialize(decoder, &Default::default())?;
-        for asset in self.defaults.keys() {
+        // Decode default values
+        let default_count = decoder.read_u32()?;
+        for _ in 0..default_count {
+            let uid = UID::deserialize(decoder, &Default::default())?;
+            if let Some(id) = registry.find_id(uid) {
+                let default = UID::deserialize(decoder, &Default::default())?;
+                self.defaults.insert(id.into(), default);
+            } else {
+                return Err(DecoderError::CorruptedData);
+            }
+        }
+
+        // Check that all assets have a default value
+        for (asset, _) in self.defaults.iter() {
             if self.containers.get(asset).is_none() {
                 return Err(DecoderError::CorruptedData);
             }
@@ -97,7 +111,7 @@ impl AssetManager {
     pub(crate) fn set_default(&mut self, asset: ComponentId, uid: UID) -> Result<(), AssetError> {
         *self
             .defaults
-            .get_mut(asset)
+            .get_mut(asset.into())
             .ok_or(AssetError::AssetNotFound { uid })? = uid;
         Ok(())
     }
@@ -124,7 +138,7 @@ impl AssetManager {
                 .get(&uid)
                 .or_else(|| {
                     self.defaults
-                        .get(asset)
+                        .get(asset.into())
                         .and_then(|uid| container.0.get(uid))
                 })
                 .map(|entry| &entry.asset)
@@ -176,7 +190,7 @@ impl AssetManager {
             .write_u32(bundle.assets.len() as u32)
             .map_err(|_| AssetError::SerializationError)?;
         for (asset, set) in bundle.assets.iter() {
-            let uid: UID = registry.get(asset).unwrap().name.into();
+            let uid: UID = registry.get(asset.into()).unwrap().name.into();
             uid.serialize(encoder)
                 .map_err(|_| AssetError::SerializationError)?;
             let container = self.containers.get(asset).unwrap();
@@ -185,19 +199,19 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<(), AssetError> {
-        let uid = self.add_bundle(&import.name)?;
-        let bundle = self.bundles.get_mut(&uid).unwrap();
-        for (asset, mut container) in import.containers.iter() {
-            bundle.assets.insert(asset, container.collect_uids());
-            if let Some(self_container) = self.containers.get_mut(asset) {
-                self_container.merge(container.as_mut())?;
-            } else {
-                self.containers.insert(asset, container);
-            }
-        }
-        Ok(())
-    }
+    // pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<(), AssetError> {
+    //     let uid = self.add_bundle(&import.name)?;
+    //     let bundle = self.bundles.get_mut(&uid).unwrap();
+    //     for (asset, mut container) in import.containers.iter() {
+    //         bundle.assets.insert(asset, container.collect_uids());
+    //         if let Some(self_container) = self.containers.get_mut(asset) {
+    //             self_container.merge(container.as_mut())?;
+    //         } else {
+    //             self.containers.insert(asset, container);
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
     pub(crate) fn add<C: Component>(
         &mut self,
@@ -212,12 +226,12 @@ impl AssetManager {
             return Err(AssetError::BundleNotFound { uid: bundle });
         }
         // Get/Create the container
-        if !self.containers.contains(asset) {
+        if !self.containers.contains(asset.into()) {
             let definition = registry.get(asset).unwrap();
             self.containers
-                .insert(asset, definition.reflection.create_asset_container());
+                .insert(asset.into(), definition.reflection.create_asset_container());
         }
-        let container = self.containers.get_mut(asset).unwrap();
+        let container = self.containers.get_mut(asset.into()).unwrap();
         // Downcast the container
         let container = container
             .as_any_mut()
@@ -241,7 +255,7 @@ impl AssetManager {
             .get_mut(&bundle)
             .unwrap()
             .assets
-            .entry(asset)
+            .entry(asset.into())
             .or_insert_with(Default::default)
             .insert(uid);
         Ok(())
@@ -255,7 +269,7 @@ impl AssetManager {
         // Get the container
         let container = self
             .containers
-            .get_mut(asset)
+            .get_mut(asset.into())
             .ok_or(AssetError::AssetTypeNotFound)?
             .as_any_mut()
             .downcast_mut::<AssetContainer<C>>()
@@ -266,7 +280,7 @@ impl AssetManager {
                 .get_mut(&entry.bundle)
                 .expect("Bundle not found")
                 .assets
-                .get_mut(asset)
+                .get_mut(asset.into())
                 .expect("Asset not found")
                 .remove(&uid);
         } else {
@@ -298,14 +312,14 @@ impl AssetManager {
             .get_mut(&src_bundle)
             .ok_or(AssetError::BundleNotFound { uid: src_bundle })?
             .assets
-            .get_mut(asset)
+            .get_mut(asset.into())
             .ok_or(AssetError::AssetNotFound { uid })?
             .remove(&uid);
         self.bundles
             .get_mut(&dst_bundle)
             .unwrap()
             .assets
-            .entry(asset)
+            .entry(asset.into())
             .or_insert_with(Default::default)
             .insert(uid);
         self.container_mut::<C>(asset)?

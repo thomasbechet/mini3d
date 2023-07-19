@@ -1,5 +1,5 @@
 use crate::{
-    context::asset::AssetContext,
+    asset::AssetManager,
     feature::component::common::script::Script,
     registry::component::Component,
     script::{
@@ -47,7 +47,7 @@ impl SourceCompiler {
 
     pub(crate) fn resolve_cu_and_exports(
         &mut self,
-        assets: &AssetContext,
+        assets: &AssetManager,
         asset: UID,
         modules: &mut ModuleTable,
         module: ModuleId,
@@ -75,7 +75,7 @@ impl SourceCompiler {
 
     pub(crate) fn generate_mir(
         &mut self,
-        assets: &AssetContext,
+        assets: &AssetManager,
         asset: UID,
         modules: &ModuleTable,
         module: ModuleId,

@@ -19,8 +19,8 @@ use super::{
 
 pub(crate) struct Scene {
     pub(crate) name: String,
-    containers: SparseSecondaryMap<ComponentId, Box<dyn AnySceneContainer>>,
-    singletons: SparseSecondaryMap<ComponentId, Box<dyn AnySceneSingleton>>,
+    containers: SparseSecondaryMap<Box<dyn AnySceneContainer>>,
+    singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
     free_entities: Vec<Entity>,
     next_entity: Entity,
 }
@@ -36,13 +36,13 @@ impl Scene {
         // Containers
         encoder.write_u32(self.containers.len() as u32)?;
         for (id, container) in self.containers.iter() {
-            UID::new(&registry.get(id).unwrap().name).serialize(encoder)?;
+            UID::new(&registry.get(id.into()).unwrap().name).serialize(encoder)?;
             container.serialize(encoder)?;
         }
         // Containers
         encoder.write_u32(self.singletons.len() as u32)?;
         for (id, singleton) in self.singletons.iter() {
-            UID::new(&registry.get(id).unwrap().name).serialize(encoder)?;
+            UID::new(&registry.get(id.into()).unwrap().name).serialize(encoder)?;
             singleton.serialize(encoder)?;
         }
         // Free entities
@@ -66,7 +66,7 @@ impl Scene {
             let (id, definition) = registry.find(uid).ok_or(DecoderError::Unsupported)?;
             let mut container = definition.reflection.create_scene_container();
             container.deserialize(decoder)?;
-            containers.insert(id, container);
+            containers.insert(id.into(), container);
         }
         // Singletons
         let singleton_count = decoder.read_u32()?;
@@ -76,7 +76,7 @@ impl Scene {
             let (id, definition) = registry.find(uid).ok_or(DecoderError::Unsupported)?;
             let mut singleton = definition.reflection.create_scene_singleton();
             singleton.deserialize(decoder)?;
-            singletons.insert(id, singleton);
+            singletons.insert(id.into(), singleton);
         }
         // Free entities
         let free_entities = Vec::<Entity>::deserialize(decoder, &Default::default())?;
@@ -127,15 +127,15 @@ impl Scene {
         component: ComponentId,
         data: C,
     ) -> Result<(), SceneError> {
-        if !self.containers.contains(component) {
+        if !self.containers.contains(component.into()) {
             let container = registry
                 .get(component)
                 .unwrap()
                 .reflection
                 .create_scene_container();
-            self.containers.insert(component, container);
+            self.containers.insert(component.into(), container);
         }
-        let container = self.containers.get_mut(component).unwrap();
+        let container = self.containers.get_mut(component.into()).unwrap();
         container
             .as_any_mut()
             .downcast_mut::<StaticSceneContainer<C>>()
@@ -152,7 +152,7 @@ impl Scene {
     ) -> Result<(), SceneError> {
         let container = self
             .containers
-            .get_mut(component)
+            .get_mut(component.into())
             .ok_or(SceneError::ComponentContainerNotFound)?;
         container.remove(entity);
         Ok(())
@@ -162,7 +162,7 @@ impl Scene {
         &self,
         component: ComponentId,
     ) -> Result<SceneComponentViewRef<'_>, SceneError> {
-        if let Some(container) = self.containers.get(component) {
+        if let Some(container) = self.containers.get(component.into()) {
             Ok(container.any_view())
         } else {
             Ok(SceneComponentViewRef::none())
@@ -173,7 +173,7 @@ impl Scene {
         &self,
         component: ComponentId,
     ) -> Result<SceneComponentViewMut<'_>, SceneError> {
-        if let Some(container) = self.containers.get(component) {
+        if let Some(container) = self.containers.get(component.into()) {
             Ok(container.any_view_mut())
         } else {
             Ok(SceneComponentViewMut::none())
@@ -183,7 +183,7 @@ impl Scene {
     pub(crate) fn query<'a>(&'a self, components: &[ComponentId]) -> Query<'a> {
         let mut containers = Vec::new();
         for component in components {
-            if let Some(container) = self.containers.get(*component) {
+            if let Some(container) = self.containers.get((*component).into()) {
                 containers.push(container.as_ref());
             } else {
                 // One of the components is missing, so the query will return no results
@@ -199,17 +199,17 @@ impl Scene {
         component: ComponentId,
         data: C,
     ) -> Result<(), SceneError> {
-        if self.singletons.contains(component) {
+        if self.singletons.contains(component.into()) {
             return Err(SceneError::DuplicatedSingleton);
         }
         self.singletons
-            .insert(component, Box::new(StaticSceneSingleton::new(data)));
+            .insert(component.into(), Box::new(StaticSceneSingleton::new(data)));
         Ok(())
     }
 
     pub(crate) fn remove_singleton(&mut self, component: ComponentId) -> Result<(), SceneError> {
         self.singletons
-            .remove(component)
+            .remove(component.into())
             .ok_or(SceneError::SingletonNotFound)?;
         Ok(())
     }
@@ -218,7 +218,7 @@ impl Scene {
         &self,
         component: ComponentId,
     ) -> Result<Option<StaticSingletonRef<'_, C>>, SceneError> {
-        if let Some(singleton) = self.singletons.get(component) {
+        if let Some(singleton) = self.singletons.get(component.into()) {
             Ok(Some(StaticSingletonRef {
                 component: singleton
                     .as_any()
@@ -236,7 +236,7 @@ impl Scene {
         &self,
         component: ComponentId,
     ) -> Result<Option<StaticSingletonMut<'_, C>>, SceneError> {
-        if let Some(singleton) = self.singletons.get(component) {
+        if let Some(singleton) = self.singletons.get(component.into()) {
             Ok(Some(StaticSingletonMut {
                 component: singleton
                     .as_any()
