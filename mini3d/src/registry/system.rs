@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    context::{ExclusiveContext, ParallelContext},
-    ecs::system::SystemResult,
+    ecs::{
+        context::{ExclusiveContext, ParallelContext},
+        system::SystemResult,
+    },
     feature::component::common::program::Program,
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -15,7 +17,14 @@ use super::{
     error::RegistryError,
 };
 
-pub(crate) type SystemId = SlotId<SystemDefinition>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct SystemId(SlotId);
+
+impl From<SlotId> for SystemId {
+    fn from(id: SlotId) -> Self {
+        Self(id)
+    }
+}
 
 pub struct ExclusiveResolver<'a> {
     registry: &'a ComponentRegistry,
@@ -24,7 +33,7 @@ pub struct ExclusiveResolver<'a> {
 impl<'a> ExclusiveResolver<'a> {
     pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
         self.registry
-            .find(component)
+            .find_id(component)
             .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })
     }
 }
@@ -39,9 +48,8 @@ impl<'a> ParallelResolver<'a> {
     pub fn read(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
         let id = self
             .registry
-            .find(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?
-            .0;
+            .find_id(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
         }
@@ -50,9 +58,8 @@ impl<'a> ParallelResolver<'a> {
     pub fn write(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
         let id = self
             .registry
-            .find(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?
-            .0;
+            .find_id(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);
         }

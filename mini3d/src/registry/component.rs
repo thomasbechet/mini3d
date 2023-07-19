@@ -18,7 +18,14 @@ use crate::{
 
 use super::error::RegistryError;
 
-pub(crate) type ComponentId = SlotId<ComponentDefinition>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ComponentId(SlotId);
+
+impl From<SlotId> for ComponentId {
+    fn from(id: SlotId) -> Self {
+        Self(id)
+    }
+}
 
 pub struct EntityResolver;
 
@@ -125,6 +132,10 @@ impl ComponentRegistry {
         self.lookup_cache
             .get(&uid)
             .map(|id| (*id, self.definitions.get(*id).unwrap()))
+    }
+
+    pub(crate) fn find_id(&self, uid: UID) -> Option<ComponentId> {
+        self.find(uid).map(|(id, _)| id)
     }
 
     pub(crate) fn get(&self, id: ComponentId) -> Option<&ComponentDefinition> {

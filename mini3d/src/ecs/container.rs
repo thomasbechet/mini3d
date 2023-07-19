@@ -59,6 +59,8 @@ macro_rules! impl_property {
 }
 
 pub(crate) trait AnyStaticComponentVec {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     trait_property!(bool, read_bool, write_bool);
     trait_property!(u8, read_u8, write_u8);
     trait_property!(i32, read_i32, write_i32);
@@ -78,6 +80,12 @@ pub(crate) trait AnyStaticComponentVec {
 }
 
 impl<C: Component> AnyStaticComponentVec for StaticComponentVec<C> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
     impl_property!(bool, read_bool, write_bool);
     impl_property!(u8, read_u8, write_u8);
     impl_property!(i32, read_i32, write_i32);

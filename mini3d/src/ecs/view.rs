@@ -8,7 +8,7 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use crate::{registry::component::Component, script::reflection::PropertyId, utils::uid::UID};
 
 use super::{
-    container::{AnyStaticComponentVec, StaticComponentVec, StaticSceneContainer},
+    container::{AnyStaticComponentVec, StaticComponentVec},
     entity::Entity,
     error::SceneError,
     sparse::PagedVector,
@@ -19,7 +19,7 @@ pub trait StaticSceneComponentView<C: Component> {
 }
 
 struct StaticSceneComponentViewRefData<'a, C: Component> {
-    components: Ref<'a, StaticComponentVec<C>>,
+    components: &'a StaticComponentVec<C>,
     entities: &'a [Entity],
     indices: &'a PagedVector<usize>,
 }
@@ -29,16 +29,6 @@ pub struct StaticSceneComponentViewRef<'a, C: Component> {
 }
 
 impl<'a, C: Component> StaticSceneComponentViewRef<'a, C> {
-    pub(crate) fn new(container: &'a StaticSceneContainer<C>) -> Self {
-        Self {
-            view: Some(StaticSceneComponentViewRefData {
-                components: container.components.borrow(),
-                entities: &container.entities,
-                indices: &container.indices,
-            }),
-        }
-    }
-
     pub(crate) fn none() -> Self {
         Self { view: None }
     }
@@ -75,7 +65,7 @@ impl<'a, C: Component> Index<Entity> for StaticSceneComponentViewRef<'a, C> {
 }
 
 struct StaticSceneComponentViewMutData<'a, C: Component> {
-    components: RefMut<'a, StaticComponentVec<C>>,
+    components: &'a mut StaticComponentVec<C>,
     entities: &'a [Entity],
     indices: &'a PagedVector<usize>,
 }
@@ -85,16 +75,6 @@ pub struct StaticSceneComponentViewMut<'a, C: Component> {
 }
 
 impl<'a, C: Component> StaticSceneComponentViewMut<'a, C> {
-    pub(crate) fn new(container: &'a StaticSceneContainer<C>) -> Self {
-        Self {
-            view: Some(StaticSceneComponentViewMutData {
-                components: container.components.borrow_mut(),
-                entities: &container.entities,
-                indices: &container.indices,
-            }),
-        }
-    }
-
     pub(crate) fn none() -> Self {
         Self { view: None }
     }
@@ -238,22 +218,23 @@ impl<'a> SceneComponentViewRef<'a> {
         Self(SceneComponentViewRefInner::None)
     }
 
-    pub fn as_static<C: Component>(
-        &self,
-    ) -> Result<StaticSceneComponentViewRef<'a, C>, SceneError> {
-        match &self.0 {
+    pub fn as_static<C: Component>(self) -> Result<StaticSceneComponentViewRef<'a, C>, SceneError> {
+        match self.0 {
             SceneComponentViewRefInner::Static {
                 components,
                 entities,
                 indices,
             } => Ok(StaticSceneComponentViewRef {
                 view: Some(StaticSceneComponentViewRefData {
-                    components: components.downcast_ref::<C>().unwrap(),
+                    components: components
+                        .as_any()
+                        .downcast_ref::<StaticComponentVec<C>>()
+                        .ok_or(SceneError::ComponentTypeMismatch)?,
                     entities,
                     indices,
                 }),
             }),
-            SceneComponentViewRefInner::Dynamic {} => Err(()),
+            SceneComponentViewRefInner::Dynamic {} => unimplemented!(),
             SceneComponentViewRefInner::None => Ok(StaticSceneComponentViewRef::none()),
         }
     }
@@ -281,7 +262,9 @@ impl<'a> SceneComponentViewMut<'a> {
         Self(SceneComponentViewMutInner::None)
     }
 
-    pub fn as_static<C: Component>(&self) -> Result<StaticSceneComponentViewMut<'a, C>, ()> {
+    pub fn as_static<C: Component>(
+        &self,
+    ) -> Result<StaticSceneComponentViewMut<'a, C>, SceneError> {
         match &self.0 {
             SceneComponentViewMutInner::Static {
                 components,
@@ -289,12 +272,15 @@ impl<'a> SceneComponentViewMut<'a> {
                 indices,
             } => Ok(StaticSceneComponentViewMut {
                 view: Some(StaticSceneComponentViewMutData {
-                    components: components.downcast_mut::<C>().unwrap(),
+                    components: components
+                        .as_any_mut()
+                        .downcast_mut::<StaticComponentVec<C>>()
+                        .ok_or(SceneError::ComponentTypeMismatch)?,
                     entities,
                     indices,
                 }),
             }),
-            SceneComponentViewMutInner::Dynamic {} => Err(()),
+            SceneComponentViewMutInner::Dynamic {} => unimplemented!(),
             SceneComponentViewMutInner::None => Ok(StaticSceneComponentViewMut::none()),
         }
     }

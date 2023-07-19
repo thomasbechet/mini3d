@@ -63,3 +63,14 @@ Pipelines within the same procedure are executed in order based on their priorit
 
 The scheduler owns a list of system group and dispatch system calls. Only one scheduler exists
 in the engine and belongs to the ECS manager.
+
+### View Data Structure
+
+- SceneComponentViewRef
+    - Static : Ref<AnyStaticComponentVec>
+    - Dynamic : Ref<AnyDynamicComponentVec>
+    - None
+- SceneComponentViewMut
+    - Static : Mut<AnyStaticComponentVec>
+    - Dynamic : Mut<AnyDynamicComponentVec>
+    - None

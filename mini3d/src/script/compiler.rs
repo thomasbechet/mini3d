@@ -1,4 +1,4 @@
-use crate::utils::uid::UID;
+use crate::{asset::AssetManager, registry::RegistryManager, utils::uid::UID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -55,7 +55,7 @@ impl Compiler {
         module
     }
 
-    fn fetch_modules(&mut self, assets: &AssetContext) -> Result<(), CompileError> {
+    fn fetch_modules(&mut self, assets: &AssetManager) -> Result<(), CompileError> {
         // Insert builtin modules
         self.modules.add("scene".into(), Module::Builtin);
         self.modules.add("asset".into(), Module::Builtin);
@@ -70,7 +70,7 @@ impl Compiler {
     fn resolve_cu_and_exports(
         &mut self,
         entry: ModuleId,
-        assets: &AssetContext,
+        assets: &AssetManager,
     ) -> Result<(), CompileError> {
         println!("=> Resolve CU and exports");
         // Insert entry module
@@ -95,7 +95,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn generate_mirs(&mut self, assets: &AssetContext) -> Result<(), CompileError> {
+    fn generate_mirs(&mut self, assets: &AssetManager) -> Result<(), CompileError> {
         println!("=> Generate MIRs");
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
@@ -123,8 +123,8 @@ impl Compiler {
     pub fn compile(
         &mut self,
         entry: ModuleId,
-        assets: &AssetContext,
-        registry: &RegistryContext,
+        assets: &AssetManager,
+        registry: &RegistryManager,
     ) -> Result<(), CompileError> {
         // Fetch all modules from the asset manager (sequential, acquire cached modules)
         self.fetch_modules(assets)?;

@@ -2,7 +2,6 @@ use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
 use crate::disk::backend::DiskBackend;
-use crate::ecs::system::ExclusiveSystemCallback;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::event::system::SystemEvent;
 use crate::event::Events;

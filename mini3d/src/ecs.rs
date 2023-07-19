@@ -7,11 +7,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
     asset::AssetManager,
-    context::{
-        asset::AssetContext, event::EventContext, input::InputContext, procedure::ProcedureContext,
-        registry::RegistryContext, renderer::RendererContext, scheduler::SchedulerContext,
-        time::TimeContext,
-    },
     event::Events,
     input::InputManager,
     registry::{component::ComponentRegistry, RegistryManager},

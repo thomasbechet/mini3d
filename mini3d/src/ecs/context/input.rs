@@ -26,6 +26,12 @@ impl<'a> ExclusiveInputContext<'a> {
     }
 }
 
+impl From<&ExclusiveInputContext<'_>> for &InputManager {
+    fn from(context: &ExclusiveInputContext) -> Self {
+        context.manager
+    }
+}
+
 pub struct ParallelInputContext<'a> {
     pub(crate) manager: &'a InputManager,
 }
@@ -41,5 +47,11 @@ impl<'a> ParallelInputContext<'a> {
 
     pub fn text(&self, uid: UID) -> Result<&InputTextState, InputError> {
         self.manager.text(uid)
+    }
+}
+
+impl From<&ParallelInputContext<'_>> for &InputManager {
+    fn from(context: &ParallelInputContext) -> Self {
+        context.manager
     }
 }

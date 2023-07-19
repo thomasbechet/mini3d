@@ -15,7 +15,6 @@ use super::{
     error::SceneError,
     query::Query,
     singleton::{AnySceneSingleton, StaticSceneSingleton, StaticSingletonMut, StaticSingletonRef},
-    view::{StaticSceneComponentViewMut, StaticSceneComponentViewRef},
 };
 
 pub(crate) struct Scene {
@@ -158,36 +157,6 @@ impl Scene {
         container.remove(entity);
         Ok(())
     }
-
-    // pub(crate) fn static_view<C: Component>(
-    //     &self,
-    //     component: ComponentId,
-    // ) -> Result<StaticSceneComponentViewRef<'_, C>, SceneError> {
-    //     if let Some(container) = self.containers.get(component) {
-    //         let container = container
-    //             .as_any()
-    //             .downcast_ref::<StaticSceneContainer<C>>()
-    //             .ok_or(SceneError::ComponentTypeMismatch)?;
-    //         Ok(StaticSceneComponentViewRef::new(container))
-    //     } else {
-    //         Ok(StaticSceneComponentViewRef::none())
-    //     }
-    // }
-
-    // pub(crate) fn static_view_mut<C: Component>(
-    //     &self,
-    //     component: ComponentId,
-    // ) -> Result<StaticSceneComponentViewMut<'_, C>, SceneError> {
-    //     if let Some(container) = self.containers.get(component) {
-    //         let container = container
-    //             .as_any()
-    //             .downcast_ref::<StaticSceneContainer<C>>()
-    //             .ok_or(SceneError::ComponentTypeMismatch)?;
-    //         Ok(StaticSceneComponentViewMut::new(container))
-    //     } else {
-    //         Ok(StaticSceneComponentViewMut::none())
-    //     }
-    // }
 
     pub(crate) fn view(
         &self,

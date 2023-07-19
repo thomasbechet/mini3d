@@ -1,58 +1,38 @@
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct SlotId<V> {
-    value: u32,
-    _marker: core::marker::PhantomData<V>,
-}
+#[derive(Debug, Hash, Copy, Clone, PartialEq, Eq)]
+pub struct SlotId(u32);
 
-impl<V> Clone for SlotId<V> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value,
-            _marker: self._marker,
-        }
-    }
-}
-
-impl<V> Copy for SlotId<V> {}
-
-impl<V> SlotId<V> {
+impl SlotId {
     fn new(value: u32) -> Self {
-        Self {
-            value: value + 1,
-            _marker: core::marker::PhantomData,
-        }
+        Self(value + 1)
     }
 
     fn index(&self) -> usize {
-        assert!(self.value > 0);
-        (self.value - 1) as usize
+        assert!(self.0 > 0);
+        (self.0 - 1) as usize
     }
 
     pub fn null() -> Self {
-        Self {
-            value: 0,
-            _marker: core::marker::PhantomData,
-        }
+        Self(0)
     }
 
     pub fn is_null(&self) -> bool {
-        self.value == 0
+        self.0 == 0
     }
 }
 
-impl<V> From<u32> for SlotId<V> {
+impl From<u32> for SlotId {
     fn from(value: u32) -> Self {
         Self::new(value)
     }
 }
 
-impl<V> From<SlotId<V>> for u32 {
-    fn from(value: SlotId<V>) -> Self {
-        value.value
+impl From<SlotId> for u32 {
+    fn from(value: SlotId) -> Self {
+        value.0
     }
 }
 
-impl<V> Default for SlotId<V> {
+impl Default for SlotId {
     fn default() -> Self {
         Self::null()
     }
@@ -60,12 +40,12 @@ impl<V> Default for SlotId<V> {
 
 enum SlotEntry<V> {
     Value(V),
-    Free(SlotId<V>),
+    Free(SlotId),
 }
 
 pub struct SlotMap<V> {
     entries: Vec<SlotEntry<V>>,
-    free: SlotId<V>,
+    free: SlotId,
 }
 
 impl<V> Default for SlotMap<V> {
@@ -85,7 +65,7 @@ impl<V> SlotMap<V> {
         }
     }
 
-    pub fn add(&mut self, value: V) -> SlotId<V> {
+    pub fn add(&mut self, value: V) -> SlotId {
         if self.free.is_null() {
             let index = self.entries.len();
             self.entries.push(SlotEntry::Value(value));
@@ -103,26 +83,26 @@ impl<V> SlotMap<V> {
         }
     }
 
-    pub fn remove(&mut self, id: SlotId<V>) {
+    pub fn remove(&mut self, id: SlotId) {
         self.entries[id.index()] = SlotEntry::Free(self.free);
         self.free = id;
     }
 
-    pub fn get(&self, id: SlotId<V>) -> Option<&V> {
+    pub fn get(&self, id: SlotId) -> Option<&V> {
         match &self.entries[id.index()] {
             SlotEntry::Value(value) => Some(value),
             SlotEntry::Free(_) => None,
         }
     }
 
-    pub fn get_mut(&mut self, id: SlotId<V>) -> Option<&mut V> {
+    pub fn get_mut(&mut self, id: SlotId) -> Option<&mut V> {
         match &mut self.entries[id.index()] {
             SlotEntry::Value(value) => Some(value),
             SlotEntry::Free(_) => None,
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (SlotId<V>, &V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (SlotId, &V)> {
         self.entries
             .iter()
             .enumerate()
@@ -202,7 +182,7 @@ impl<V> DenseSlotMap<V> {
         }
     }
 
-    pub fn add(&mut self, value: V) -> SlotId<V> {
+    pub fn add(&mut self, value: V) -> SlotId {
         if self.free_count > 0 {
             let size = self.data.len();
             self.data.push(value);
@@ -222,7 +202,7 @@ impl<V> DenseSlotMap<V> {
         }
     }
 
-    pub fn remove(&mut self, id: SlotId<V>) {
+    pub fn remove(&mut self, id: SlotId) {
         let last_index = self.data.len() - 1;
         let index = self.meta[id.index()].id_to_index as usize;
         self.data.swap_remove(index);
@@ -237,7 +217,7 @@ impl<V> DenseSlotMap<V> {
         self.data.len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (SlotId<V>, &V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (SlotId, &V)> {
         self.data
             .iter()
             .zip(self.meta.iter())
@@ -248,12 +228,12 @@ impl<V> DenseSlotMap<V> {
         self.data.iter()
     }
 
-    pub fn get(&self, id: SlotId<V>) -> Option<&V> {
+    pub fn get(&self, id: SlotId) -> Option<&V> {
         let index = self.meta[id.index()].id_to_index as usize;
         self.data.get(index)
     }
 
-    pub fn get_mut(&mut self, id: SlotId<V>) -> Option<&mut V> {
+    pub fn get_mut(&mut self, id: SlotId) -> Option<&mut V> {
         let index = self.meta[id.index()].id_to_index as usize;
         self.data.get_mut(index)
     }
@@ -301,11 +281,11 @@ impl<V> DenseSlotMap<V> {
 
 pub struct SecondaryMap<T, V> {
     map: SlotMap<V>,
-    indices: Vec<Option<SlotId<V>>>,
+    indices: Vec<Option<SlotId>>,
     _marker: core::marker::PhantomData<T>,
 }
 
-impl<T, V> SecondaryMap<SlotId<T>, V> {
+impl<T, V> SecondaryMap<SlotId, V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: SlotMap::with_capacity(capacity),
@@ -314,7 +294,7 @@ impl<T, V> SecondaryMap<SlotId<T>, V> {
         }
     }
 
-    pub fn insert(&mut self, key: SlotId<T>, value: V) {
+    pub fn insert(&mut self, key: SlotId, value: V) {
         if key.index() >= self.indices.len() {
             self.indices.resize(key.index() + 1, None);
         }
@@ -324,20 +304,20 @@ impl<T, V> SecondaryMap<SlotId<T>, V> {
         self.indices[key.index()] = Some(self.map.add(value));
     }
 
-    pub fn remove(&mut self, key: SlotId<T>) {
+    pub fn remove(&mut self, key: SlotId) {
         if let Some(index) = self.indices[key.index()] {
             self.map.remove(index);
         }
         self.indices[key.index()] = None;
     }
 
-    pub fn get(&self, key: SlotId<T>) -> Option<&V> {
+    pub fn get(&self, key: SlotId) -> Option<&V> {
         self.indices
             .get(key.index())
             .and_then(|index| index.and_then(|id| self.map.get(id)))
     }
 
-    pub fn get_mut(&mut self, key: SlotId<T>) -> Option<&mut V> {
+    pub fn get_mut(&mut self, key: SlotId) -> Option<&mut V> {
         self.indices
             .get(key.index())
             .and_then(|index| index.and_then(move |id| self.map.get_mut(id)))
@@ -365,7 +345,7 @@ impl<T, V> Default for SparseSecondaryMap<T, V> {
     }
 }
 
-impl<T, V> SparseSecondaryMap<SlotId<T>, V> {
+impl<T, V> SparseSecondaryMap<SlotId, V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             data: Vec::with_capacity(capacity),
@@ -383,7 +363,7 @@ impl<T, V> SparseSecondaryMap<SlotId<T>, V> {
         self.data.len()
     }
 
-    pub fn insert(&mut self, id: SlotId<T>, value: V) {
+    pub fn insert(&mut self, id: SlotId, value: V) {
         if id.index() >= self.indices.len() {
             self.indices.resize(id.index() + 1, None);
         }
@@ -398,7 +378,7 @@ impl<T, V> SparseSecondaryMap<SlotId<T>, V> {
         }
     }
 
-    pub fn remove(&mut self, id: SlotId<T>) -> Option<V> {
+    pub fn remove(&mut self, id: SlotId) -> Option<V> {
         if let Some(index) = self.indices[id.index()] {
             let id_index = self.data[index as usize].index;
             self.indices[id_index as usize] = None;
@@ -414,20 +394,20 @@ impl<T, V> SparseSecondaryMap<SlotId<T>, V> {
         None
     }
 
-    pub fn contains(&self, id: SlotId<T>) -> bool {
+    pub fn contains(&self, id: SlotId) -> bool {
         self.indices
             .get(id.index())
             .map(|index| index.is_some())
             .unwrap_or(false)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (SlotId<T>, &V)> {
+    pub fn iter(&self) -> impl Iterator<Item = (SlotId, &V)> {
         self.data
             .iter()
             .map(|e| (SlotId::new(e.index as u32), &e.value))
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (SlotId<T>, &mut V)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (SlotId, &mut V)> {
         self.data
             .iter_mut()
             .map(|e| (SlotId::new(e.index as u32), &mut e.value))
@@ -441,13 +421,13 @@ impl<T, V> SparseSecondaryMap<SlotId<T>, V> {
         self.data.iter_mut().map(|e| &mut e.value)
     }
 
-    pub fn get(&self, id: SlotId<T>) -> Option<&V> {
+    pub fn get(&self, id: SlotId) -> Option<&V> {
         self.indices
             .get(id.index())
             .and_then(|index| index.and_then(|id| self.data.get(id as usize).map(|e| &e.value)))
     }
 
-    pub fn get_mut(&mut self, id: SlotId<T>) -> Option<&mut V> {
+    pub fn get_mut(&mut self, id: SlotId) -> Option<&mut V> {
         self.indices.get(id.index()).and_then(|index| {
             index.and_then(move |id| self.data.get_mut(id as usize).map(|e| &mut e.value))
         })
