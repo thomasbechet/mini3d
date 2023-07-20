@@ -51,6 +51,7 @@ pub trait Component: Default + Serialize + Reflect + 'static {
 pub(crate) enum ComponentKind {
     Static,
     Dynamic,
+    Tag,
 }
 
 pub(crate) trait AnyComponentReflection {
@@ -129,6 +130,10 @@ impl ComponentRegistry {
     }
 
     pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+        unimplemented!()
+    }
+
+    pub(crate) fn define_tag(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
         unimplemented!()
     }
 

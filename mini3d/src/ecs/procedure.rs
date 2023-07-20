@@ -5,3 +5,9 @@ impl Procedure {
     pub const FIXED_UPDATE: &'static str = "fixed_update";
     pub const SCENE_CHANGED: &'static str = "scene_changed";
 }
+
+pub enum ProcedureKind {
+    Reactive,
+    Frame,
+    Custom,
+}
