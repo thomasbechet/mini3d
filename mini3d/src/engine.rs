@@ -5,6 +5,7 @@ use crate::disk::backend::DiskBackend;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::event::system::SystemEvent;
 use crate::event::Events;
+use crate::feature::system::ui::RenderUI;
 use crate::feature::{component, system};
 use crate::input::backend::{InputBackend, InputBackendError};
 use crate::input::InputManager;

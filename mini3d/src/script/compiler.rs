@@ -1,4 +1,12 @@
-use crate::{asset::AssetManager, registry::RegistryManager, utils::uid::UID};
+use crate::{
+    asset::AssetManager,
+    feature::component::common::script::Script,
+    registry::{
+        component::{Component, ComponentId},
+        RegistryManager,
+    },
+    utils::uid::UID,
+};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -71,6 +79,7 @@ impl Compiler {
         &mut self,
         entry: ModuleId,
         assets: &AssetManager,
+        script_component_id: ComponentId,
     ) -> Result<(), CompileError> {
         println!("=> Resolve CU and exports");
         // Insert entry module
@@ -80,6 +89,7 @@ impl Compiler {
             let module = self.compilation_unit.get(i);
             match self.modules.get(module).unwrap() {
                 Module::Source { asset } => self.source_compiler.resolve_cu_and_exports(
+                    script_component_id,
                     assets,
                     *asset,
                     &mut self.modules,
@@ -95,12 +105,17 @@ impl Compiler {
         Ok(())
     }
 
-    fn generate_mirs(&mut self, assets: &AssetManager) -> Result<(), CompileError> {
+    fn generate_mirs(
+        &mut self,
+        assets: &AssetManager,
+        script_component_id: ComponentId,
+    ) -> Result<(), CompileError> {
         println!("=> Generate MIRs");
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
                 Module::Source { asset } => self.source_compiler.generate_mir(
+                    script_component_id,
                     assets,
                     *asset,
                     &self.modules,
@@ -126,13 +141,18 @@ impl Compiler {
         assets: &AssetManager,
         registry: &RegistryManager,
     ) -> Result<(), CompileError> {
+        // Resolve script component id
+        let script_component_id = registry
+            .components
+            .find_id(Script::UID)
+            .expect("Failed to resolve script component id");
         // Fetch all modules from the asset manager (sequential, acquire cached modules)
         self.fetch_modules(assets)?;
         // Resolve compilation unit and exports (sequential, fast if cached)
-        self.resolve_cu_and_exports(entry, assets)?;
+        self.resolve_cu_and_exports(entry, assets, script_component_id)?;
         self.modules.print();
         // Generate MIRs for all modules in the compilation unit (parallel, fast if cached)
-        self.generate_mirs(assets)?;
+        self.generate_mirs(assets, script_component_id)?;
         // Generate program (sequential, slow)
         self.generate_program(entry)?;
         Ok(())

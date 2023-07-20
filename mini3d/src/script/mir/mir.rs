@@ -6,11 +6,11 @@ use super::{
     primitive::PrimitiveType,
 };
 
-pub(crate) struct BasicBlockId(SlotId);
-pub(crate) struct FunctionId(SlotId);
-pub(crate) struct ConstantId(SlotId);
-pub(crate) struct LocalId(SlotId);
-pub(crate) struct InstructionId(SlotId);
+pub(crate) type BasicBlockId = SlotId;
+pub(crate) type FunctionId = SlotId;
+pub(crate) type ConstantId = SlotId;
+pub(crate) type LocalId = SlotId;
+pub(crate) type InstructionId = SlotId;
 
 pub(crate) enum Branch {
     Equal,

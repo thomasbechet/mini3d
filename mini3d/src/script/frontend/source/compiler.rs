@@ -1,7 +1,7 @@
 use crate::{
     asset::AssetManager,
     feature::component::common::script::Script,
-    registry::component::Component,
+    registry::component::ComponentId,
     script::{
         compiler::CompilationUnit,
         frontend::error::CompileError,
@@ -47,6 +47,7 @@ impl SourceCompiler {
 
     pub(crate) fn resolve_cu_and_exports(
         &mut self,
+        script_component: ComponentId,
         assets: &AssetManager,
         asset: UID,
         modules: &mut ModuleTable,
@@ -56,7 +57,7 @@ impl SourceCompiler {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(Script::UID, asset)
+                .get::<Script>(script_component, asset)
                 .unwrap()
                 .ok_or(CompileError::ScriptNotFound)?
                 .source,
@@ -75,6 +76,7 @@ impl SourceCompiler {
 
     pub(crate) fn generate_mir(
         &mut self,
+        script_component: ComponentId,
         assets: &AssetManager,
         asset: UID,
         modules: &ModuleTable,
@@ -86,7 +88,7 @@ impl SourceCompiler {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(Script::UID, asset)
+                .get::<Script>(script_component, asset)
                 .unwrap()
                 .ok_or(CompileError::ScriptNotFound)?
                 .source,
