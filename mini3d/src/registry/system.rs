@@ -129,6 +129,7 @@ impl<S: ParallelSystem> AnyStaticParallelSystemInstance for StaticParallelSystem
 enum StaticSystem {
     Exclusive(Box<dyn AnyStaticExclusiveSystemInstance>),
     Parallel(Box<dyn AnyStaticParallelSystemInstance>),
+    Reactive,
 }
 
 struct ProgramSystem {

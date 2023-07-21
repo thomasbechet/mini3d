@@ -15,20 +15,20 @@ use crate::{
 };
 
 use self::{
-    error::ECSError, pipeline::SystemPipeline, procedure::Procedure, scene::Scene,
-    scheduler::Scheduler,
+    error::ECSError, pipeline::SystemPipeline, scene::Scene, scheduler::Scheduler, signal::Signal,
 };
 
+pub mod archetype;
 pub mod container;
 pub mod context;
 pub mod entity;
 pub mod error;
 pub mod pipeline;
-pub mod procedure;
 pub mod query;
 pub mod reference;
 pub mod scene;
 pub mod scheduler;
+pub mod signal;
 pub mod singleton;
 pub mod sparse;
 pub mod system;
@@ -37,7 +37,7 @@ pub mod view;
 pub(crate) struct ECSManager {
     scheduler: Scheduler,
     next_frame_system_invocations: Vec<UID>,
-    next_frame_procedures: VecDeque<UID>,
+    next_frame_signals: VecDeque<UID>,
     pub(crate) scenes: RefCell<HashMap<UID, RefCell<Box<Scene>>>>,
     pub(crate) active_scene: UID,
 }
@@ -47,7 +47,7 @@ impl Default for ECSManager {
         Self {
             scheduler: Scheduler::default(),
             next_frame_system_invocations: Vec::new(),
-            next_frame_procedures: VecDeque::new(),
+            next_frame_signals: VecDeque::new(),
             scenes: RefCell::new(HashMap::from([(
                 Self::MAIN_SCENE.into(),
                 RefCell::new(Box::new(Scene::new(Self::MAIN_SCENE))),
@@ -71,11 +71,11 @@ pub(crate) struct ECSUpdateContext<'a> {
 #[allow(clippy::too_many_arguments)]
 fn create_system_context<'b, 'a: 'b>(
     context: &'b mut ECSUpdateContext<'a>,
-    active_procedure: UID,
+    active_signal: UID,
     active_scene: UID,
     scheduler: &'b mut Scheduler,
-    frame_procedures: &'b mut VecDeque<UID>,
-    next_frame_procedures: &'b mut VecDeque<UID>,
+    frame_signals: &'b mut VecDeque<UID>,
+    next_frame_signals: &'b mut VecDeque<UID>,
     scenes: &'b mut HashMap<UID, RefCell<Box<Scene>>>,
     change_scene: &'b mut Option<UID>,
     removed_scenes: &'b mut HashSet<UID>,
@@ -91,10 +91,10 @@ fn create_system_context<'b, 'a: 'b>(
         input: InputContext {
             manager: context.input,
         },
-        procedure: ProcedureContext {
-            active_procedure,
-            frame_procedures,
-            next_frame_procedures,
+        signal: ProcedureContext {
+            active_procedure: active_signal,
+            frame_procedures: frame_signals,
+            next_frame_procedures: next_frame_signals,
         },
         registry: RegistryContext {
             manager: context.registry,
@@ -104,7 +104,7 @@ fn create_system_context<'b, 'a: 'b>(
         },
         scheduler: SchedulerContext { scheduler },
         time: TimeContext {
-            delta: if active_procedure == Procedure::FIXED_UPDATE.into() {
+            delta: if active_signal == Signal::FIXED_UPDATE.into() {
                 context.fixed_delta_time
             } else {
                 context.delta_time
@@ -134,7 +134,7 @@ impl ECSManager {
         // Next frame system invocations
         self.next_frame_system_invocations.serialize(encoder)?;
         // Next frame procedures
-        self.next_frame_procedures.serialize(encoder)?;
+        self.next_frame_signals.serialize(encoder)?;
         // Scenes
         encoder.write_u32(self.scenes.borrow().len() as u32)?;
         for scene in self.scenes.borrow().values() {
@@ -155,7 +155,7 @@ impl ECSManager {
         // Next frame system invocations
         self.next_frame_system_invocations = Vec::<UID>::deserialize(decoder, &Default::default())?;
         // Next frame procedures
-        self.next_frame_procedures = VecDeque::<UID>::deserialize(decoder, &Default::default())?;
+        self.next_frame_signals = VecDeque::<UID>::deserialize(decoder, &Default::default())?;
         // Scenes
         let scenes_count = decoder.read_u32()?;
         for _ in 0..scenes_count {
@@ -183,15 +183,12 @@ impl ECSManager {
         let mut removed_scenes: HashSet<UID> = Default::default();
         let mut scenes = self.scenes.borrow_mut();
 
-        // Collect procedures
-        let mut frame_procedures = self
-            .next_frame_procedures
-            .drain(..)
-            .collect::<VecDeque<_>>();
+        // Collect signals
+        let mut frame_signals = self.next_frame_signals.drain(..).collect::<VecDeque<_>>();
         for _ in 0..fixed_update_count {
-            frame_procedures.push_back(Procedure::FIXED_UPDATE.into());
+            frame_signals.push_back(Signal::FIXED_UPDATE.into());
         }
-        frame_procedures.push_back(Procedure::UPDATE.into());
+        frame_signals.push_back(Signal::UPDATE.into());
 
         // Invoke frame systems
         if !self.next_frame_system_invocations.is_empty() {
@@ -207,8 +204,8 @@ impl ECSManager {
                     UID::null(),
                     self.active_scene,
                     &mut self.scheduler,
-                    &mut frame_procedures,
-                    &mut self.next_frame_procedures,
+                    &mut frame_signals,
+                    &mut self.next_frame_signals,
                     &mut scenes,
                     &mut change_scene,
                     &mut removed_scenes,
@@ -219,22 +216,22 @@ impl ECSManager {
 
         // Run procedures
         // TODO: protect against infinite loop
-        while let Some(procedure) = frame_procedures.pop_front() {
+        while let Some(signal) = frame_signals.pop_front() {
             // Build pipeline
             if let Some(pipeline) = self
                 .scheduler
-                .build_pipeline(procedure, context.registry)
+                .build_pipeline(signal, context.registry)
                 .map_err(|_| ECSError::RegistryError)?
             {
                 // Run pipeline
                 pipeline
                     .run(&mut create_system_context(
                         &mut context,
-                        procedure,
+                        signal,
                         self.active_scene,
                         &mut self.scheduler,
-                        &mut frame_procedures,
-                        &mut self.next_frame_procedures,
+                        &mut frame_signals,
+                        &mut self.next_frame_signals,
                         &mut scenes,
                         &mut change_scene,
                         &mut removed_scenes,
@@ -250,8 +247,8 @@ impl ECSManager {
             // Change scene
             if let Some(scene) = change_scene {
                 self.active_scene = scene;
-                self.next_frame_procedures
-                    .push_front(Procedure::SCENE_CHANGED.into());
+                self.next_frame_signals
+                    .push_front(Signal::SCENE_CHANGED.into());
                 change_scene = None;
             }
         }

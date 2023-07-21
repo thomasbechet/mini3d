@@ -17,7 +17,7 @@ pub enum Invocation {
     NextFrame,
 }
 
-struct ProcedureEntry {
+struct SignalEntry {
     name: String,
     pipeline: SystemPipeline,
 }
@@ -30,7 +30,7 @@ pub(crate) struct SystemGraphEntry {
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
-    procedures: HashMap<UID, ProcedureEntry>,
+    signals: HashMap<UID, SignalEntry>,
     graphs: HashMap<UID, SystemGraphEntry>,
 }
 
@@ -80,13 +80,13 @@ impl Scheduler {
             });
         }
         // Insert procedures
-        for (procedure_uid, procedure) in &group.procedures {
-            let procedures = self
-                .procedures
-                .entry(*procedure_uid)
-                .or_insert_with(|| ProcedureEntry::new(&procedure.name));
-            procedures.groups.push((uid, procedure.priority));
-            procedures.groups.sort_by_key(|(_, priority)| *priority);
+        for (signal_uid, signal) in &group.procedures {
+            let signals = self
+                .signals
+                .entry(*signal_uid)
+                .or_insert_with(|| SignalEntry::new(&signal.name));
+            signals.groups.push((uid, signal.priority));
+            signals.groups.sort_by_key(|(_, priority)| *priority);
         }
         // Insert group
         self.groups.insert(
