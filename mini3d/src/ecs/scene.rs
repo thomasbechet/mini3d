@@ -1,4 +1,3 @@
-use crate::feature::component::common::prefab::Prefab;
 use crate::registry::component::ComponentId;
 use crate::serialize::Serialize;
 use crate::utils::slotmap::SparseSecondaryMap;
@@ -8,19 +7,21 @@ use crate::{
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
+use super::archetype::ArchetypeTable;
+use super::singleton::AnySceneSingleton;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
 use super::{
     container::{AnySceneContainer, StaticSceneContainer},
     entity::Entity,
     error::SceneError,
     query::Query,
-    singleton::{AnySceneSingleton, StaticSceneSingleton, StaticSingletonMut, StaticSingletonRef},
 };
 
 pub(crate) struct Scene {
     pub(crate) name: String,
     containers: SparseSecondaryMap<Box<dyn AnySceneContainer>>,
     singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
+    archetypes: ArchetypeTable,
     free_entities: Vec<Entity>,
     next_entity: Entity,
 }
@@ -87,6 +88,7 @@ impl Scene {
             name,
             containers,
             singletons,
+            archetypes: ArchetypeTable::new(),
             free_entities,
             next_entity,
         })
@@ -97,6 +99,7 @@ impl Scene {
             name: name.to_string(),
             containers: SparseSecondaryMap::default(),
             singletons: SparseSecondaryMap::default(),
+            archetypes: ArchetypeTable::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
         }
@@ -193,6 +196,8 @@ impl Scene {
         containers.sort_by_key(|a| a.len());
         Query::new(containers)
     }
+
+    pub(crate) fn added<'a>(&'a self, components: &[ComponentId]) -> 
 
     pub(crate) fn add_static_singleton<C: Component>(
         &mut self,

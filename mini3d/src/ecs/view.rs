@@ -8,7 +8,7 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use crate::{registry::component::Component, script::reflection::PropertyId, utils::uid::UID};
 
 use super::{
-    container::{AnyStaticComponentVec, StaticComponentVec},
+    container::{AnyStaticComponentVec, ComponentStatus, StaticComponentVec},
     entity::Entity,
     error::SceneError,
     sparse::PagedVector,
@@ -20,8 +20,11 @@ pub trait StaticSceneComponentView<C: Component> {
 
 struct StaticSceneComponentViewRefData<'a, C: Component> {
     components: &'a StaticComponentVec<C>,
-    entities: &'a [Entity],
+    meta: &'a [(Entity, ComponentStatus)],
     indices: &'a PagedVector<usize>,
+    active_size: usize,
+    removed: &'a [Entity],
+    changed: &'a [(Entity, C)],
 }
 
 pub struct StaticSceneComponentViewRef<'a, C: Component> {
@@ -40,13 +43,38 @@ impl<'a, C: Component> StaticSceneComponentViewRef<'a, C> {
             [].iter()
         }
     }
+
+    pub fn added(&self) -> Option<impl Iterator<Item = Entity> + '_> {
+        self.view.as_ref().and_then(|data| {
+            Some(
+                data.meta[data.active_size..]
+                    .iter()
+                    .filter(|(_, status)| *status != ComponentStatus::Added)
+                    .map(|(entity, _)| *entity),
+            )
+        })
+    }
+
+    // pub fn changed(&self) -> Option<impl Iterator<Item = (Entity, &C)>> {
+    //     self.view.as_ref().and_then(|data| {
+    //         Some(data.changed.iter().filter_map(|(entity, previous)| {
+    //             let index = data.indices.get(entity.key()).copied().unwrap();
+    //             // Exclude removed components
+    //             if data.meta[index].1 != ComponentStatus::Removed {
+    //                 Some((*entity, previous, data.components.get(index).unwrap()))
+    //             } else {
+    //                 None
+    //             }
+    //         }))
+    //     })
+    // }
 }
 
 impl<'a, C: Component> StaticSceneComponentView<C> for StaticSceneComponentViewRef<'a, C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.view.as_ref().and_then(|data| {
             data.indices.get(entity.key()).copied().and_then(|index| {
-                if data.entities[index] == entity {
+                if data.meta[index].0 == entity {
                     Some(&data.components[index])
                 } else {
                     None
@@ -79,15 +107,7 @@ impl<'a, C: Component> StaticSceneComponentViewMut<'a, C> {
         Self { view: None }
     }
 
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut C> {
-        if let Some(data) = &mut self.view {
-            data.components.iter_mut()
-        } else {
-            [].iter_mut()
-        }
-    }
-
-    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
+    pub fn set(&mut self, entity: Entity, component: C) {
         self.view.as_mut().and_then(|data| {
             data.indices.get(entity.key()).and_then(|index| {
                 if data.entities[*index] == entity {

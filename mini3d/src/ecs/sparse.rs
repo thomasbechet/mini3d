@@ -8,7 +8,6 @@ pub(crate) struct PagedVector<T: Default + Copy> {
 }
 
 impl<T: Default + Copy> PagedVector<T> {
-
     pub(crate) fn new() -> Self {
         Self { pages: Vec::new() }
     }
@@ -16,7 +15,17 @@ impl<T: Default + Copy> PagedVector<T> {
     pub(crate) fn get(&self, key: EntityKey) -> Option<&T> {
         let page = key as usize / PAGE_SIZE;
         let offset = key as usize % PAGE_SIZE;
-        self.pages.get(page).and_then(|page| page.as_ref().map(|page| &page[offset]))
+        self.pages
+            .get(page)
+            .and_then(|page| page.as_ref().map(|page| &page[offset]))
+    }
+
+    pub(crate) fn get_mut(&mut self, key: EntityKey) -> Option<&mut T> {
+        let page = key as usize / PAGE_SIZE;
+        let offset = key as usize % PAGE_SIZE;
+        self.pages
+            .get_mut(page)
+            .and_then(|page| page.as_mut().map(|page| &mut page[offset]))
     }
 
     pub(crate) fn set(&mut self, key: EntityKey, value: T) {
