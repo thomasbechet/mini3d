@@ -1,14 +1,15 @@
 use crate::registry::component::ComponentId;
 use crate::serialize::Serialize;
-use crate::utils::slotmap::SparseSecondaryMap;
+use crate::utils::slotmap::{SparseSecondaryMap, SecondaryMap};
 use crate::utils::uid::UID;
 use crate::{
     registry::component::{Component, ComponentRegistry},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
-use super::archetype::ArchetypeTable;
+use super::archetype::{ArchetypeTable, ArchetypeId};
 use super::singleton::AnySceneSingleton;
+use super::sparse::PagedVector;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
 use super::{
     container::{AnySceneContainer, StaticSceneContainer},
@@ -17,11 +18,26 @@ use super::{
     query::Query,
 };
 
+#[derive(Default, Clone, Copy)]
+struct EntityInfo {
+    archetype: ArchetypeId,
+    index: usize,
+}
+
+type EntityIndex = u32;
+
+struct GroupData {
+    entities: Vec<EntityIndex>,
+}
+
 pub(crate) struct Scene {
     pub(crate) name: String,
     containers: SparseSecondaryMap<Box<dyn AnySceneContainer>>,
     singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
     archetypes: ArchetypeTable,
+    groups: SecondaryMap<ArchetypeId, GroupData>,
+    entities: Vec<EntityInfo>,
+    entitiy_indices: PagedVector<EntityInfo>,
     free_entities: Vec<Entity>,
     next_entity: Entity,
 }

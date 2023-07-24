@@ -126,3 +126,7 @@ impl<'a> Iterator for QueryAddedIter<'a> {
         (self.len, Some(self.len))
     }
 }
+
+pub struct QueryData {
+    entities: Vec<Entity>,
+}
