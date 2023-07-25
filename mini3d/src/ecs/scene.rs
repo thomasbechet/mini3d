@@ -7,7 +7,7 @@ use crate::{
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
-use super::archetype::{ArchetypeTable, ArchetypeId};
+use super::archetype::{ArchetypeTable, ArchetypeId, EntityIndex};
 use super::singleton::AnySceneSingleton;
 use super::sparse::PagedVector;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
@@ -20,14 +20,8 @@ use super::{
 
 #[derive(Default, Clone, Copy)]
 struct EntityInfo {
-    archetype: ArchetypeId,
+    archetype: (ArchetypeId, EntityIndex),
     index: usize,
-}
-
-type EntityIndex = u32;
-
-struct GroupData {
-    entities: Vec<EntityIndex>,
 }
 
 pub(crate) struct Scene {
@@ -35,7 +29,6 @@ pub(crate) struct Scene {
     containers: SparseSecondaryMap<Box<dyn AnySceneContainer>>,
     singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
     archetypes: ArchetypeTable,
-    groups: SecondaryMap<ArchetypeId, GroupData>,
     entities: Vec<EntityInfo>,
     entitiy_indices: PagedVector<EntityInfo>,
     free_entities: Vec<Entity>,

@@ -1,4 +1,4 @@
-use super::{container::AnySceneContainer, entity::Entity};
+use super::{archetype::ArchetypeId, container::AnySceneContainer, entity::Entity};
 
 pub struct Query<'a> {
     containers: Vec<&'a dyn AnySceneContainer>,
@@ -127,6 +127,45 @@ impl<'a> Iterator for QueryAddedIter<'a> {
     }
 }
 
-pub struct QueryData {
+struct Match;
+
+impl Match {
+    fn new() -> Self {
+        Self {}
+    }
+
+    fn with(self) -> Self {
+        self
+    }
+    fn without(self) -> Self {
+        self
+    }
+    fn and(self) -> Self {
+        self
+    }
+    fn or(self) -> Self {
+        self
+    }
+    fn not(self) -> Self {
+        self
+    }
+}
+
+pub(crate) struct GroupQuery {
+    archetypes: Vec<ArchetypeId>,
+}
+
+pub(crate) struct FilterQuery {
     entities: Vec<Entity>,
+}
+
+pub type QueryId = usize;
+
+enum QueryKind {
+    Group(GroupQuery),
+    Filter(FilterQuery),
+}
+
+pub(crate) struct QueryTable {
+    queries: Vec<QueryKind>,
 }

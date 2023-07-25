@@ -1,14 +1,20 @@
+use std::ops::{Index, IndexMut};
+
 use crate::registry::component::ComponentId;
 
-pub(crate) type ArchetypeId = usize;
+use super::entity::Entity;
 
-struct ArchetypeEntry {
+pub(crate) type ArchetypeId = usize;
+pub(crate) type EntityIndex = usize;
+
+pub(crate) struct Archetype {
     component_count: usize,
     component_start: usize,
     last_edge: Option<ArchetypeEdgeId>,
+    entities: Vec<Entity>,
 }
 
-impl ArchetypeEntry {
+impl Archetype {
     fn is_subset_of(&self, other: &Self, components: &[ComponentId]) -> bool {
         let self_ids =
             &components[self.component_start..(self.component_start + self.component_count)];
@@ -27,7 +33,17 @@ impl ArchetypeEntry {
             component_count: 0,
             component_start: 0,
             last_edge: None,
+            entities: Vec::new(),
         }
+    }
+
+    pub(crate) fn push(&mut self, entity: Entity) -> EntityIndex {
+        self.entities.push(entity);
+        self.entities.len() - 1
+    }
+
+    pub(crate) fn swap_remove(&mut self, index: EntityIndex) {
+        self.entities.swap_remove(index);
     }
 }
 
@@ -42,7 +58,7 @@ struct ArchetypeEdge {
 
 pub(crate) struct ArchetypeTable {
     components: Vec<ComponentId>,
-    entries: Vec<ArchetypeEntry>,
+    entries: Vec<Archetype>,
     edges: Vec<ArchetypeEdge>,
 }
 
@@ -50,7 +66,7 @@ impl ArchetypeTable {
     pub(crate) fn new() -> Self {
         Self {
             components: Vec::with_capacity(256),
-            entries: vec![ArchetypeEntry::empty()],
+            entries: vec![Archetype::empty()],
             edges: Vec::with_capacity(256),
         }
     }
@@ -141,10 +157,11 @@ impl ArchetypeTable {
                     + self.entries[archetype].component_count)],
         );
         self.components.push(component);
-        self.entries.push(ArchetypeEntry {
+        self.entries.push(Archetype {
             component_count,
             component_start,
             last_edge: None,
+            entities: Vec::new(),
         });
         let new_archetype = self.entries.len() - 1;
         // Link new archetype to existing archetypes
@@ -182,5 +199,19 @@ impl ArchetypeTable {
             next = self.find_add(next, *component);
         }
         next
+    }
+}
+
+impl Index<ArchetypeId> for ArchetypeTable {
+    type Output = Archetype;
+
+    fn index(&self, index: ArchetypeId) -> &Self::Output {
+        &self.entries[index]
+    }
+}
+
+impl IndexMut<ArchetypeId> for ArchetypeTable {
+    fn index_mut(&mut self, index: ArchetypeId) -> &mut Self::Output {
+        todo!()
     }
 }
