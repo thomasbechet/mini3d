@@ -1,3 +1,5 @@
+use crate::registry::component::ComponentId;
+
 use super::{archetype::ArchetypeId, container::AnySceneContainer, entity::Entity};
 
 pub struct Query<'a> {
@@ -176,4 +178,30 @@ enum QueryKind {
 
 pub(crate) struct QueryTable {
     queries: Vec<QueryKind>,
+}
+
+pub struct QueryBuilder<'a>;
+
+impl<'a> QueryBuilder<'a> {
+    pub fn all(self, components: &[ComponentId]) -> Self {
+        self
+    }
+    pub fn any(self, components: &[ComponentId]) -> Self {
+        self
+    }
+    pub fn not(self, components: &[ComponentId]) -> Self {
+        self
+    }
+    pub fn filter_added(self) -> Self {
+        self
+    }
+    pub fn filter_removed(self) -> Self {
+        self
+    }
+    pub fn filter_changed(self, component: ComponentId) -> Self {
+        self
+    }
+    pub fn build(self) -> QueryId {
+        0
+    }
 }

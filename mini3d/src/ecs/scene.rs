@@ -7,9 +7,9 @@ use crate::{
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
-use super::archetype::{ArchetypeTable, ArchetypeId, EntityIndex};
+use super::archetype::{ArchetypeTable, ArchetypeId, ArchetypeEntityIndex};
+use super::entity::EntityTable;
 use super::singleton::AnySceneSingleton;
-use super::sparse::PagedVector;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
 use super::{
     container::{AnySceneContainer, StaticSceneContainer},
@@ -18,21 +18,12 @@ use super::{
     query::Query,
 };
 
-#[derive(Default, Clone, Copy)]
-struct EntityInfo {
-    archetype: (ArchetypeId, EntityIndex),
-    index: usize,
-}
-
 pub(crate) struct Scene {
     pub(crate) name: String,
     containers: SparseSecondaryMap<Box<dyn AnySceneContainer>>,
     singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
     archetypes: ArchetypeTable,
-    entities: Vec<EntityInfo>,
-    entitiy_indices: PagedVector<EntityInfo>,
-    free_entities: Vec<Entity>,
-    next_entity: Entity,
+    entities: EntityTable,
 }
 
 impl Scene {
@@ -109,26 +100,21 @@ impl Scene {
             containers: SparseSecondaryMap::default(),
             singletons: SparseSecondaryMap::default(),
             archetypes: ArchetypeTable::new(),
-            free_entities: Vec::new(),
-            next_entity: Entity::new(1, 0),
+            entities: EntityTable::default(),
         }
     }
 
     pub(crate) fn add_entity(&mut self) -> Entity {
-        if let Some(entity) = self.free_entities.pop() {
-            return entity;
-        }
-        let entity = self.next_entity;
-        self.next_entity = Entity::new(entity.key() + 1, 0);
-        entity
+        let entity = self.entities.add();
+        self.archetypes.set_entity(&mut self.entities[entity]);
+        entitiy
     }
 
     pub(crate) fn remove_entity(&mut self, entity: Entity) -> Result<(), SceneError> {
         for container in self.containers.values_mut() {
             container.remove(entity);
         }
-        self.free_entities
-            .push(Entity::new(entity.key(), entity.version() + 1));
+        self.entities.remove(entity);
         Ok(())
     }
 

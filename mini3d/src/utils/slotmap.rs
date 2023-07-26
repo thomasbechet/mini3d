@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 #[derive(Debug, Hash, Copy, Clone, PartialEq, Eq)]
 pub struct SlotId(u32);
 
@@ -117,6 +119,20 @@ impl<V> SlotMap<V> {
             SlotEntry::Value(value) => Some(value),
             SlotEntry::Free(_) => None,
         })
+    }
+}
+
+impl<V> Index<SlotId> for SlotMap<V> {
+    type Output = V;
+
+    fn index(&self, id: SlotId) -> &Self::Output {
+        self.get(id).unwrap()
+    }
+}
+
+impl<V> IndexMut<SlotId> for SlotMap<V> {
+    fn index_mut(&mut self, id: SlotId) -> &mut Self::Output {
+        self.get_mut(id).unwrap()
     }
 }
 
@@ -279,18 +295,17 @@ impl<V> DenseSlotMap<V> {
 //     }
 // }
 
-pub struct SecondaryMap<T, V> {
+#[derive(Default)]
+pub struct SecondaryMap<V> {
     map: SlotMap<V>,
     indices: Vec<Option<SlotId>>,
-    _marker: core::marker::PhantomData<T>,
 }
 
-impl<V> SecondaryMap<SlotId, V> {
+impl<V> SecondaryMap<V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: SlotMap::with_capacity(capacity),
             indices: Vec::with_capacity(capacity),
-            _marker: core::marker::PhantomData,
         }
     }
 
@@ -321,6 +336,20 @@ impl<V> SecondaryMap<SlotId, V> {
         self.indices
             .get(key.index())
             .and_then(|index| index.and_then(move |id| self.map.get_mut(id)))
+    }
+}
+
+impl<V> Index<SlotId> for SecondaryMap<V> {
+    type Output = V;
+
+    fn index(&self, id: SlotId) -> &Self::Output {
+        self.get(id).unwrap()
+    }
+}
+
+impl<V> IndexMut<SlotId> for SecondaryMap<V> {
+    fn index_mut(&mut self, id: SlotId) -> &mut Self::Output {
+        self.get_mut(id).unwrap()
     }
 }
 

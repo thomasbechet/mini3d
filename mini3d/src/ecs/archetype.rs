@@ -1,17 +1,16 @@
 use std::ops::{Index, IndexMut};
 
-use crate::registry::component::ComponentId;
+use crate::{
+    registry::component::ComponentId,
+    utils::slotmap::{SlotId, SlotMap},
+};
 
-use super::entity::Entity;
-
-pub(crate) type ArchetypeId = usize;
-pub(crate) type EntityIndex = usize;
+pub(crate) type ArchetypeId = SlotId;
 
 pub(crate) struct Archetype {
     component_count: usize,
     component_start: usize,
     last_edge: Option<ArchetypeEdgeId>,
-    entities: Vec<Entity>,
 }
 
 impl Archetype {
@@ -33,17 +32,7 @@ impl Archetype {
             component_count: 0,
             component_start: 0,
             last_edge: None,
-            entities: Vec::new(),
         }
-    }
-
-    pub(crate) fn push(&mut self, entity: Entity) -> EntityIndex {
-        self.entities.push(entity);
-        self.entities.len() - 1
-    }
-
-    pub(crate) fn swap_remove(&mut self, index: EntityIndex) {
-        self.entities.swap_remove(index);
     }
 }
 
@@ -58,17 +47,21 @@ struct ArchetypeEdge {
 
 pub(crate) struct ArchetypeTable {
     components: Vec<ComponentId>,
-    entries: Vec<Archetype>,
+    entries: SlotMap<Archetype>,
     edges: Vec<ArchetypeEdge>,
+    pub(crate) empty: ArchetypeId,
 }
 
 impl ArchetypeTable {
     pub(crate) fn new() -> Self {
-        Self {
+        let mut table = Self {
             components: Vec::with_capacity(256),
-            entries: vec![Archetype::empty()],
+            entries: SlotMap::default(),
             edges: Vec::with_capacity(256),
-        }
+            empty: SlotId::null(),
+        };
+        table.empty = table.entries.add(Archetype::empty());
+        table
     }
 
     fn found_edge(
@@ -149,25 +142,25 @@ impl ArchetypeTable {
             }
         }
         // Create new archetype
-        let component_count = self.entries[archetype].component_count + 1;
+        let archetype = self.entries.get(archetype).unwrap();
+        let component_count = archetype.component_count + 1;
         let component_start = self.components.len();
         self.components.extend_from_slice(
-            &self.components[self.entries[archetype].component_start
-                ..(self.entries[archetype].component_start
-                    + self.entries[archetype].component_count)],
+            &self.components[archetype.component_start
+                ..(archetype.component_start + archetype.component_count)],
         );
         self.components.push(component);
-        self.entries.push(Archetype {
+        let new_archetype = self.entries.add(Archetype {
             component_count,
             component_start,
             last_edge: None,
-            entities: Vec::new(),
         });
-        let new_archetype = self.entries.len() - 1;
         // Link new archetype to existing archetypes
-        for i in 0..new_archetype {
-            self.link_if_previous(i, new_archetype);
-        }
+        self.entries.iter().for_each(|(id, _)| {
+            if id != new_archetype {
+                self.link_if_previous(id, new_archetype);
+            }
+        });
         new_archetype
     }
 
@@ -183,7 +176,7 @@ impl ArchetypeTable {
             }
         }
         // Find brutforce
-        let mut next = 0; // Empty archetype
+        let mut next = self.empty;
         for i in 0..self.entries[archetype].component_count {
             let id = self.components[self.entries[archetype].component_start + i];
             if id != component {
@@ -194,24 +187,41 @@ impl ArchetypeTable {
     }
 
     pub(crate) fn find(&mut self, components: &[ComponentId]) -> ArchetypeId {
-        let mut next = 0; // Empty archetype
+        let mut next = self.empty;
         for component in components {
             next = self.find_add(next, *component);
         }
         next
     }
+
+    // pub(crate) fn add_entity(
+    //     &mut self,
+    //     entity: Entity,
+    //     info: &mut EntityInfo,
+    //     archetype: ArchetypeId,
+    // ) {
+    //     info.archetype = archetype;
+    //     info.archetype_index = self.entries[archetype].entities.len();
+    //     self.entries[archetype].entities.push(entity);
+    // }
+
+    // pub(crate) fn set_entity(&mut self, info: &mut EntityInfo, archetype: ArchetypeId) {
+    //     let last_archetype = info.archetype;
+    //     let last_index = info.archetype_index;
+    //     info.archetype = archetype;
+    // }
 }
 
 impl Index<ArchetypeId> for ArchetypeTable {
     type Output = Archetype;
 
-    fn index(&self, index: ArchetypeId) -> &Self::Output {
-        &self.entries[index]
+    fn index(&self, id: ArchetypeId) -> &Self::Output {
+        self.entries.get(id).unwrap()
     }
 }
 
 impl IndexMut<ArchetypeId> for ArchetypeTable {
-    fn index_mut(&mut self, index: ArchetypeId) -> &mut Self::Output {
-        todo!()
+    fn index_mut(&mut self, id: ArchetypeId) -> &mut Self::Output {
+        self.entries.get_mut(id).unwrap()
     }
 }
