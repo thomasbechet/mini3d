@@ -10,4 +10,22 @@ a&(b|c)
 
 new().all()
 
-scene.query(+transform & model)
++transform & +model
+added component
+removed component
+enter group
+leave group
+
+set operators: & | !
+filter operators: + - ~
+
+component ::= identifier
+filtered  ::= (+,-,~)component
+group     ::= component (&,|,!) group
+filtered_group ::= (+,-,~)group
+
+
+resolver.query().any()
+
+Matcher::new().all(transform, model).added(transform)
+Matcher::n

@@ -151,13 +151,21 @@ impl Match {
     }
 }
 
+pub(crate) struct SpatialIndex {}
+
+pub(crate) struct GraphRelationIndex {}
+
+pub(crate) struct ProbabilityIndex {}
+
 pub(crate) struct GroupQuery {
     archetypes: Vec<ArchetypeId>,
 }
 
-pub(crate) struct FilterQuery {
+pub(crate) struct EventQuery {
     entities: Vec<Entity>,
 }
+
+pub(crate) struct GenericQuery {}
 
 pub type QueryId = usize;
 
