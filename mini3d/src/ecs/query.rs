@@ -198,7 +198,7 @@ impl<'a> QueryBuilder<'a> {
     pub fn filter_removed(self) -> Self {
         self
     }
-    pub fn filter_changed(self, component: ComponentId) -> Self {
+    pub fn filter_changed(self, components: &[ComponentId]) -> Self {
         self
     }
     pub fn build(self) -> QueryId {

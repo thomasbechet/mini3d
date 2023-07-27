@@ -5,6 +5,7 @@ use crate::{
 
 use super::{
     archetype::{ArchetypeId, ArchetypeTable},
+    query::QueryId,
     sparse::PagedVector,
 };
 
@@ -57,14 +58,20 @@ impl Serialize for Entity {
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityInfo {
     pub(crate) archetype: ArchetypeId,
-    pub(crate) pool_index: usize,
+    pub(crate) group_index: usize,
+}
+
+#[derive(Default)]
+pub(crate) struct EntityGroup {
+    entities: Vec<Entity>,
+    query: Vec<QueryId>,
 }
 
 pub(crate) struct EntityTable {
     entities: PagedVector<EntityInfo>,
     free_entities: Vec<Entity>,
     next_entity: Entity,
-    pools: SecondaryMap<Vec<Entity>>,
+    groups: SecondaryMap<EntityGroup>,
 }
 
 impl EntityTable {
@@ -76,56 +83,56 @@ impl EntityTable {
         let entity = self.next_entity;
         self.next_entity = Entity::new(entity.key() + 1, 0);
         // Put the entity in the empty pool
-        self.add_to_pool(entity, archetypes.empty);
+        self.add_to_group(entity, archetypes.empty);
         entity
     }
 
-    fn get_pool(&mut self, archetype: ArchetypeId) -> &mut Vec<Entity> {
-        if let Some(pool) = self.pools.get_mut(archetype) {
-            return pool;
+    fn group(&mut self, archetype: ArchetypeId) -> &mut EntityGroup {
+        if let Some(group) = self.groups.get_mut(archetype) {
+            return group;
         } else {
-            self.pools.insert(archetype, Vec::default());
-            return &mut self.pools[archetype];
+            self.groups.insert(archetype, Vec::default());
+            return &mut self.groups[archetype];
         }
     }
 
-    fn add_to_pool(&mut self, entity: Entity, archetype: ArchetypeId) {
-        let pool = self.get_pool(archetype);
-        let pool_index = pool.len();
-        pool.push(entity);
+    fn add_to_group(&mut self, entity: Entity, archetype: ArchetypeId) {
+        let group = self.group(archetype);
+        let group_index = group.len();
+        group.push(entity);
         self.entities.set(
             entity.key(),
             EntityInfo {
                 archetype,
-                pool_index,
+                group_index,
             },
         );
     }
 
-    fn remove_from_pool(&mut self, entity: Entity) {
-        // Swap remove entity from pool
+    fn remove_from_group(&mut self, entity: Entity) {
+        // Swap remove entity from group
         let info = *self.entities.get(entity.key()).unwrap();
-        let pool = self.get_pool(info.archetype);
-        let last_entity = pool.last().copied();
-        pool.swap_remove(info.pool_index);
+        let group = self.group(info.archetype);
+        let last_entity = group.last().copied();
+        group.swap_remove(info.group_index);
         if let Some(last_entity) = last_entity {
             self.entities.set(last_entity.key(), info);
         }
     }
 
     pub(crate) fn remove(&mut self, entity: Entity) {
-        // Remove from pool
-        self.remove_from_pool(entity);
+        // Remove from group
+        self.remove_from_group(entity);
         // Add entity to free list
         self.free_entities
             .push(Entity::new(entity.key(), entity.version() + 1));
     }
 
     pub(crate) fn set_entity_archetype(&mut self, entity: Entity, archetype: ArchetypeId) {
-        // Remove from current pool
-        self.remove_from_pool(entity);
-        // Add to new pool
-        self.add_to_pool(entity, archetype);
+        // Remove from current group
+        self.remove_from_group(entity);
+        // Add to new group
+        self.add_to_group(entity, archetype);
     }
 }
 
@@ -135,7 +142,7 @@ impl Default for EntityTable {
             entities: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
-            pools: SecondaryMap::default(),
+            groups: SecondaryMap::default(),
         }
     }
 }
