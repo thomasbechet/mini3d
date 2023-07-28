@@ -1,13 +1,13 @@
 use crate::registry::component::ComponentId;
 use crate::serialize::Serialize;
-use crate::utils::slotmap::{SparseSecondaryMap, SecondaryMap};
+use crate::utils::slotmap::SparseSecondaryMap;
 use crate::utils::uid::UID;
 use crate::{
     registry::component::{Component, ComponentRegistry},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
-use super::archetype::{ArchetypeTable, ArchetypeId, ArchetypeEntityIndex};
+use super::archetype::ArchetypeTable;
 use super::entity::EntityTable;
 use super::singleton::AnySceneSingleton;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
@@ -24,6 +24,7 @@ pub(crate) struct Scene {
     singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
     archetypes: ArchetypeTable,
     entities: EntityTable,
+    global_counter: usize,
 }
 
 impl Scene {
@@ -101,19 +102,23 @@ impl Scene {
             singletons: SparseSecondaryMap::default(),
             archetypes: ArchetypeTable::new(),
             entities: EntityTable::default(),
+            global_counter: 0,
         }
     }
 
     pub(crate) fn add_entity(&mut self) -> Entity {
-        let entity = self.entities.add();
-        self.archetypes.set_entity(&mut self.entities[entity]);
-        entitiy
+        self.entities.add(&self.archetypes)
     }
 
     pub(crate) fn remove_entity(&mut self, entity: Entity) -> Result<(), SceneError> {
-        for container in self.containers.values_mut() {
-            container.remove(entity);
-        }
+        // Remove components
+        let archetype = self.entities.get_archetype(entity);
+        self.archetypes
+            .iter_components(archetype)
+            .for_each(|component| {
+                self.remove_component(entity, component).unwrap();
+            });
+        // Remove from entities
         self.entities.remove(entity);
         Ok(())
     }
@@ -191,8 +196,6 @@ impl Scene {
         containers.sort_by_key(|a| a.len());
         Query::new(containers)
     }
-
-    pub(crate) fn added<'a>(&'a self, components: &[ComponentId]) -> 
 
     pub(crate) fn add_static_singleton<C: Component>(
         &mut self,

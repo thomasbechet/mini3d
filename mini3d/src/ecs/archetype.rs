@@ -194,22 +194,15 @@ impl ArchetypeTable {
         next
     }
 
-    // pub(crate) fn add_entity(
-    //     &mut self,
-    //     entity: Entity,
-    //     info: &mut EntityInfo,
-    //     archetype: ArchetypeId,
-    // ) {
-    //     info.archetype = archetype;
-    //     info.archetype_index = self.entries[archetype].entities.len();
-    //     self.entries[archetype].entities.push(entity);
-    // }
-
-    // pub(crate) fn set_entity(&mut self, info: &mut EntityInfo, archetype: ArchetypeId) {
-    //     let last_archetype = info.archetype;
-    //     let last_index = info.archetype_index;
-    //     info.archetype = archetype;
-    // }
+    pub(crate) fn iter_components(
+        &self,
+        archetype: ArchetypeId,
+    ) -> impl Iterator<Item = ComponentId> + '_ {
+        let archetype = &self.entries[archetype];
+        let components = &self.components
+            [archetype.component_start..(archetype.component_start + archetype.component_count)];
+        components.iter().copied()
+    }
 }
 
 impl Index<ArchetypeId> for ArchetypeTable {

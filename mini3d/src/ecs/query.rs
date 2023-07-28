@@ -1,4 +1,4 @@
-use crate::registry::component::ComponentId;
+use crate::{registry::component::ComponentId, utils::slotmap::SparseSecondaryMap};
 
 use super::{archetype::ArchetypeId, container::AnySceneContainer, entity::Entity};
 
@@ -129,30 +129,6 @@ impl<'a> Iterator for QueryAddedIter<'a> {
     }
 }
 
-struct Match;
-
-impl Match {
-    fn new() -> Self {
-        Self {}
-    }
-
-    fn with(self) -> Self {
-        self
-    }
-    fn without(self) -> Self {
-        self
-    }
-    fn and(self) -> Self {
-        self
-    }
-    fn or(self) -> Self {
-        self
-    }
-    fn not(self) -> Self {
-        self
-    }
-}
-
 pub(crate) struct SpatialIndex {}
 
 pub(crate) struct GraphRelationIndex {}
@@ -163,21 +139,15 @@ pub(crate) struct GroupQuery {
     archetypes: Vec<ArchetypeId>,
 }
 
-pub(crate) struct EventQuery {
-    entities: Vec<Entity>,
+pub(crate) struct FilteredQuery {
+    sparse: SparseSecondaryMap<u32>,
 }
-
-pub(crate) struct GenericQuery {}
 
 pub type QueryId = usize;
 
-enum QueryKind {
-    Group(GroupQuery),
-    Filter(FilterQuery),
-}
-
 pub(crate) struct QueryTable {
-    queries: Vec<QueryKind>,
+    group_queries: Vec<GroupQuery>,
+    filters: Vec<FilteredQuery>,
 }
 
 pub struct QueryBuilder<'a>;

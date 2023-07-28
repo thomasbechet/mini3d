@@ -58,7 +58,7 @@ impl Serialize for Entity {
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityInfo {
     pub(crate) archetype: ArchetypeId,
-    pub(crate) group_index: usize,
+    pub(crate) group_index: u32,
 }
 
 #[derive(Default)]
@@ -68,10 +68,10 @@ pub(crate) struct EntityGroup {
 }
 
 pub(crate) struct EntityTable {
-    entities: PagedVector<EntityInfo>,
+    entities: PagedVector<EntityInfo>, // EntityKey -> EntityInfo
     free_entities: Vec<Entity>,
     next_entity: Entity,
-    groups: SecondaryMap<EntityGroup>,
+    groups: SecondaryMap<EntityGroup>, // ArchetypeId -> EntityGroup
 }
 
 impl EntityTable {
@@ -128,11 +128,15 @@ impl EntityTable {
             .push(Entity::new(entity.key(), entity.version() + 1));
     }
 
-    pub(crate) fn set_entity_archetype(&mut self, entity: Entity, archetype: ArchetypeId) {
+    pub(crate) fn change_archetype(&mut self, entity: Entity, archetype: ArchetypeId) {
         // Remove from current group
         self.remove_from_group(entity);
         // Add to new group
         self.add_to_group(entity, archetype);
+    }
+
+    pub(crate) fn get_archetype(&self, entitiy: Entity) -> ArchetypeId {
+        self.entities.get(entitiy.key()).unwrap().archetype
     }
 }
 
