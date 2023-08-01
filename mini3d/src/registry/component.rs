@@ -94,6 +94,7 @@ pub(crate) struct ComponentDefinition {
     pub(crate) name: String,
     pub(crate) reflection: Box<dyn AnyComponentReflection>,
     pub(crate) kind: ComponentKind,
+    pub(crate) require_finalizer: bool,
 }
 
 #[derive(Default)]
@@ -119,6 +120,7 @@ impl ComponentRegistry {
             name: name.to_string(),
             kind,
             reflection,
+            require_finalizer: true,
         });
         self.lookup_cache.insert(uid, id.into());
         Ok(())

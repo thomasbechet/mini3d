@@ -115,18 +115,18 @@ pub(crate) enum ComponentStatus {
 
 pub(crate) struct StaticSceneContainer<C: Component> {
     pub(crate) components: RefCell<StaticComponentVec<C>>,
-    pub(crate) meta: Vec<(Entity, ComponentStatus)>,
+    pub(crate) entities: Vec<(Entity, ComponentStatus)>,
     pub(crate) indices: PagedVector<usize>,
     pub(crate) frame_size: usize,
     pub(crate) removed: Vec<Entity>,
-    pub(crate) changed: Vec<(Entity, C)>,
+    pub(crate) changed: Vec<Entity>,
 }
 
 impl<C: Component> StaticSceneContainer<C> {
     pub(crate) fn new() -> Self {
         Self {
             components: RefCell::new(StaticComponentVec::with_capacity(128)),
-            meta: Vec::with_capacity(128),
+            entities: Vec::with_capacity(128),
             indices: PagedVector::new(),
             frame_size: 0,
             removed: Vec::new(),
@@ -143,33 +143,33 @@ impl<C: Component> StaticSceneContainer<C> {
             if let Some(index) = self.indices.get_mut(e.key()) {
                 // Swap remove component and meta
                 self.components.get_mut().swap_remove(*index);
-                self.meta.swap_remove(*index);
+                self.entities.swap_remove(*index);
                 // Remap swapped entity
-                let (swapped_entity, _) = self.meta[*index];
+                let (swapped_entity, _) = self.entities[*index];
                 self.indices.set(swapped_entity.key(), *index);
                 // Set the index unchanged, access will failed as the version entity is different
             }
         }
-        self.frame_size = self.meta.len();
+        self.frame_size = self.entities.len();
         self.changed.clear();
         Ok(())
     }
 
     pub(crate) fn add(&mut self, entity: Entity, component: C) -> Result<(), ECSError> {
         // Append component
-        self.meta.push((entity, ComponentStatus::Added));
+        self.entities.push((entity, ComponentStatus::Added));
         self.components
             .try_borrow_mut()
             .map_err(|_| ECSError::ContainerBorrowMut)?
             .push(component);
         // Update indices
-        self.indices.set(entity.key(), self.meta.len() - 1);
+        self.indices.set(entity.key(), self.entities.len() - 1);
         Ok(())
     }
 
     pub(crate) fn remove(&mut self, entity: Entity) -> Result<(), ECSError> {
         if let Some(index) = self.indices.get(entity.key()).copied() {
-            let (entity, status) = &mut self.meta[index];
+            let (entity, status) = &mut self.entities[index];
             match *status {
                 ComponentStatus::Unchanged | ComponentStatus::Changed | ComponentStatus::Added => {
                     *status = ComponentStatus::Removed;
@@ -185,21 +185,23 @@ impl<C: Component> StaticSceneContainer<C> {
         self.components.borrow_mut()[self.frame_size..]
             .iter()
             .enumerate()
-            .filter(|(index, _)| self.meta[self.frame_size + index].1 != ComponentStatus::Removed)
-            .map(|(index, component)| (self.meta[self.frame_size + index].0, component))
+            .filter(|(index, _)| {
+                self.entities[self.frame_size + index].1 != ComponentStatus::Removed
+            })
+            .map(|(index, component)| (self.entities[self.frame_size + index].0, component))
     }
 
     pub(crate) fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         // Write header
         C::Header::default().serialize(encoder)?;
         // Write entity count
-        encoder.write_u32(self.meta.len() as u32)?;
+        encoder.write_u32(self.entities.len() as u32)?;
         // Write components
         for component in self.components.borrow().iter() {
             component.serialize(encoder)?;
         }
         // Write entities
-        for (entity, _) in self.meta.iter() {
+        for (entity, _) in self.entities.iter() {
             encoder.write_u32(entity.key())?;
         }
         Ok(())
@@ -209,7 +211,7 @@ impl<C: Component> StaticSceneContainer<C> {
         // Reset container
         let mut components = self.components.borrow_mut();
         components.clear();
-        self.meta.clear();
+        self.entities.clear();
         // Read header
         let header = C::Header::deserialize(decoder, &Default::default())?;
         // Read entity count
@@ -221,11 +223,11 @@ impl<C: Component> StaticSceneContainer<C> {
         }
         // Read entities
         for _ in 0..count {
-            self.meta
+            self.entities
                 .push((Entity(decoder.read_u32()?), ComponentStatus::Unchanged));
         }
         // Update indices
-        for (index, (entity, _)) in self.meta.iter().enumerate() {
+        for (index, (entity, _)) in self.entities.iter().enumerate() {
             self.indices.set(entity.key(), index);
         }
         Ok(())
@@ -258,11 +260,11 @@ impl<C: Component> AnySceneContainer for StaticSceneContainer<C> {
         self
     }
     fn entity(&self, index: usize) -> Entity {
-        self.meta[index].0
+        self.entities[index].0
     }
     fn contains(&self, entity: Entity) -> bool {
         if let Some(index) = self.indices.get(entity.key()).copied() {
-            index < self.meta.len() && self.meta[index].0 == entity
+            index < self.entities.len() && self.entities[index].0 == entity
         } else {
             false
         }
@@ -282,14 +284,14 @@ impl<C: Component> AnySceneContainer for StaticSceneContainer<C> {
     fn any_view(&self) -> SceneComponentViewRef<'_> {
         SceneComponentViewRef(SceneComponentViewRefInner::Static {
             components: self.components.borrow(),
-            entities: &self.meta,
+            entities: &self.entities,
             indices: &self.indices,
         })
     }
     fn any_view_mut(&self) -> SceneComponentViewMut<'_> {
         SceneComponentViewMut(SceneComponentViewMutInner::Static {
             components: self.components.borrow_mut(),
-            entities: &self.meta,
+            entities: &self.entities,
             indices: &self.indices,
         })
     }

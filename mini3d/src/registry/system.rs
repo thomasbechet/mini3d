@@ -3,19 +3,18 @@ use std::collections::HashMap;
 use crate::{
     ecs::{
         context::{ExclusiveContext, ParallelContext},
-        system::SystemResult,
+        system::{
+            AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
+            ParallelResolver, StaticSystemInstance, SystemInstance, SystemResult,
+        },
     },
-    feature::component::common::program::Program,
     utils::{
         slotmap::{SlotId, SlotMap},
         uid::UID,
     },
 };
 
-use super::{
-    component::{ComponentId, ComponentRegistry},
-    error::RegistryError,
-};
+use super::error::RegistryError;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct SystemId(SlotId);
@@ -29,50 +28,6 @@ impl From<SlotId> for SystemId {
 impl From<SystemId> for SlotId {
     fn from(id: SystemId) -> Self {
         id.0
-    }
-}
-
-pub struct ExclusiveResolver<'a> {
-    registry: &'a ComponentRegistry,
-}
-
-impl<'a> ExclusiveResolver<'a> {
-    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
-        self.registry
-            .find_id(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })
-    }
-}
-
-pub struct ParallelResolver<'a> {
-    registry: &'a ComponentRegistry,
-    reads: Vec<ComponentId>,
-    writes: Vec<ComponentId>,
-}
-
-impl<'a> ParallelResolver<'a> {
-    pub fn read(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
-        let id = self
-            .registry
-            .find_id(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        if !self.reads.contains(&id) && !self.writes.contains(&id) {
-            self.reads.push(id);
-        }
-        Ok(id)
-    }
-    pub fn write(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
-        let id = self
-            .registry
-            .find_id(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        if self.reads.contains(&id) {
-            self.reads.retain(|&x| x != id);
-        }
-        if !self.writes.contains(&id) {
-            self.writes.push(id);
-        }
-        Ok(id)
     }
 }
 
@@ -90,60 +45,62 @@ pub trait ParallelSystem: 'static + Default {
     fn run(&self, ctx: &mut ParallelContext) -> SystemResult;
 }
 
-struct StaticExclusiveSystemInstance<S: ExclusiveSystem> {
-    instance: S,
+pub(crate) trait AnySystemReflection {
+    fn create_instance(&self) -> SystemInstance;
 }
 
-trait AnyStaticExclusiveSystemInstance {
-    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError>;
-    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult;
+struct StaticExclusiveSystemReflection<S: ExclusiveSystem> {
+    _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for StaticExclusiveSystemInstance<S> {
-    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
-        self.instance.resolve(resolver)
-    }
-    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
-        self.instance.run(ctx)
-    }
-}
-
-struct StaticParallelSystemInstance<S: ParallelSystem> {
-    instance: S,
-}
-
-trait AnyStaticParallelSystemInstance {
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
-    fn run(&self, ctx: &mut ParallelContext) -> SystemResult;
-}
-
-impl<S: ParallelSystem> AnyStaticParallelSystemInstance for StaticParallelSystemInstance<S> {
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.instance.resolve(resolver)
-    }
-    fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        self.instance.run(ctx)
+impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection<S> {
+    fn create_instance(&self) -> SystemInstance {
+        struct InstanceHolder<S: ExclusiveSystem> {
+            system: S,
+        }
+        impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for InstanceHolder<S> {
+            fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
+                self.system.resolve(resolver)
+            }
+            fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
+                self.system.run(ctx)
+            }
+        }
+        SystemInstance::Static(StaticSystemInstance::Exclusive(Box::new(InstanceHolder {
+            system: S::default(),
+        })))
     }
 }
 
-enum StaticSystem {
-    Exclusive(Box<dyn AnyStaticExclusiveSystemInstance>),
-    Parallel(Box<dyn AnyStaticParallelSystemInstance>),
-    Reactive,
+struct StaticParallelSystemReflection<S: ParallelSystem> {
+    _phantom: std::marker::PhantomData<S>,
 }
 
-struct ProgramSystem {
-    program: Program,
-}
-
-enum SystemInstance {
-    Static(StaticSystem),
-    Program(ProgramSystem),
+impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S> {
+    fn create_instance(&self) -> SystemInstance {
+        struct InstanceHolder<S: ParallelSystem> {
+            system: S,
+        }
+        impl<S: ParallelSystem> AnyStaticParallelSystemInstance for InstanceHolder<S> {
+            fn resolve(
+                &mut self,
+                resolver: &mut ParallelResolver<'_>,
+            ) -> Result<(), RegistryError> {
+                self.system.resolve(resolver)
+            }
+            fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
+                self.system.run(ctx)
+            }
+        }
+        SystemInstance::Static(StaticSystemInstance::Parallel(Box::new(InstanceHolder {
+            system: S::default(),
+        })))
+    }
 }
 
 pub(crate) struct SystemDefinition {
     pub(crate) name: String,
-    pub(crate) instance: SystemInstance,
+    pub(crate) reflection: Box<dyn AnySystemReflection>,
 }
 
 #[derive(Default)]
@@ -176,11 +133,9 @@ impl SystemRegistry {
     ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            instance: SystemInstance::Static(StaticSystem::Exclusive(Box::new(
-                StaticExclusiveSystemInstance {
-                    instance: S::default(),
-                },
-            ))),
+            reflection: Box::new(StaticExclusiveSystemReflection::<S> {
+                _phantom: std::marker::PhantomData,
+            }),
         })
     }
 
@@ -190,11 +145,9 @@ impl SystemRegistry {
     ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
             name: name.to_string(),
-            instance: SystemInstance::Static(StaticSystem::Parallel(Box::new(
-                StaticParallelSystemInstance {
-                    instance: S::default(),
-                },
-            ))),
+            reflection: Box::new(StaticParallelSystemReflection::<S> {
+                _phantom: std::marker::PhantomData,
+            }),
         })
     }
 

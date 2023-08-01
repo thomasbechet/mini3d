@@ -9,7 +9,9 @@ use crate::{
 
 use super::archetype::ArchetypeTable;
 use super::entity::EntityTable;
+use super::query::QueryTable;
 use super::singleton::AnySceneSingleton;
+use super::system::SystemTable;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
 use super::{
     container::{AnySceneContainer, StaticSceneContainer},
@@ -24,7 +26,9 @@ pub(crate) struct Scene {
     singletons: SparseSecondaryMap<Box<dyn AnySceneSingleton>>,
     archetypes: ArchetypeTable,
     entities: EntityTable,
-    global_counter: usize,
+    queries: QueryTable,
+    systems: SystemTable,
+    global_cycle: usize,
 }
 
 impl Scene {
@@ -102,22 +106,21 @@ impl Scene {
             singletons: SparseSecondaryMap::default(),
             archetypes: ArchetypeTable::new(),
             entities: EntityTable::default(),
-            global_counter: 0,
+            queries: QueryTable::default(),
+            systems: SystemTable::default(),
+            global_cycle: 0,
         }
     }
 
     pub(crate) fn add_entity(&mut self) -> Entity {
-        self.entities.add(&self.archetypes)
+        self.entities.add()
     }
 
     pub(crate) fn remove_entity(&mut self, entity: Entity) -> Result<(), SceneError> {
         // Remove components
-        let archetype = self.entities.get_archetype(entity);
-        self.archetypes
-            .iter_components(archetype)
-            .for_each(|component| {
-                self.remove_component(entity, component).unwrap();
-            });
+        self.entities.iter_components(entity).for_each(|component| {
+            self.remove_component(entity, component).unwrap();
+        });
         // Remove from entities
         self.entities.remove(entity);
         Ok(())

@@ -1,6 +1,13 @@
-use crate::{registry::component::ComponentId, utils::slotmap::SparseSecondaryMap};
+use crate::{
+    registry::component::ComponentId,
+    utils::slotmap::{DenseSlotMap, SlotId, SlotMap},
+};
 
-use super::{archetype::ArchetypeId, container::AnySceneContainer, entity::Entity};
+use super::{
+    archetype::{ArchetypeId, ArchetypeTable},
+    container::AnySceneContainer,
+    entity::{Entity, EntityTable},
+};
 
 pub struct Query<'a> {
     containers: Vec<&'a dyn AnySceneContainer>,
@@ -129,49 +136,86 @@ impl<'a> Iterator for QueryAddedIter<'a> {
     }
 }
 
-pub(crate) struct SpatialIndex {}
+pub struct QueryId(SlotId);
+pub struct FilterQueryId(SlotId);
 
-pub(crate) struct GraphRelationIndex {}
-
-pub(crate) struct ProbabilityIndex {}
-
-pub(crate) struct GroupQuery {
+pub(crate) struct QueryEntry {
     archetypes: Vec<ArchetypeId>,
 }
 
-pub(crate) struct FilteredQuery {
-    sparse: SparseSecondaryMap<u32>,
+pub(crate) struct FilterQueryEntry {
+    query: QueryId,
+    cycle: usize,
+    entities: Vec<Entity>,
 }
 
-pub type QueryId = usize;
-
+#[derive(Default)]
 pub(crate) struct QueryTable {
-    group_queries: Vec<GroupQuery>,
-    filters: Vec<FilteredQuery>,
+    queries: SlotMap<QueryEntry>,
+    filter_queries: SlotMap<FilterQueryEntry>,
 }
 
-pub struct QueryBuilder<'a>;
+impl QueryTable {
+    fn add_query(&mut self, entities: EntityTable, archetypes: &mut ArchetypeTable, group_filters: &[GroupFilter]) -> QueryId {
+
+    }
+}
+
+enum GroupFilterKind {
+    All,
+    Any,
+    Not,
+}
+
+pub(crate) struct GroupFilter {
+    component: ComponentId,
+    kind: GroupFilterKind,
+}
+
+pub struct QueryBuilder<'a> {
+    group_filters: &'a mut Vec<GroupFilter>,
+    queries: &'a mut QueryTable,
+    archetypes: &'a mut ArchetypeTable,
+}
 
 impl<'a> QueryBuilder<'a> {
-    pub fn all(self, components: &[ComponentId]) -> Self {
+    fn try_add(&mut self, components: &[ComponentId], filter: GroupFilterKind) {
+        for component in components.iter().copied() {
+            if self.group_filters
+            .iter()
+            .all(|filter| filter.component != component) {
+                self.group_filters.push(GroupFilter {
+                    component,
+                    kind: filter,
+                });
+            }
+        }
+    }
+
+    pub fn all(mut self, components: &[ComponentId]) -> Self {
+        self.try_add(components, GroupFilterKind::All);
         self
     }
-    pub fn any(self, components: &[ComponentId]) -> Self {
+
+    pub fn any(mut self, components: &[ComponentId]) -> Self {
+        self.try_add(components, GroupFilterKind::Any);
         self
     }
-    pub fn not(self, components: &[ComponentId]) -> Self {
+
+    pub fn not(mut self, components: &[ComponentId]) -> Self {
+        self.try_add(components, GroupFilterKind::Not);
         self
     }
-    pub fn filter_added(self) -> Self {
-        self
-    }
-    pub fn filter_removed(self) -> Self {
-        self
-    }
-    pub fn filter_changed(self, components: &[ComponentId]) -> Self {
-        self
-    }
+
     pub fn build(self) -> QueryId {
-        0
+        self.queries.add_query(self.archetypes, &self.group_filters)
     }
+
+    pub fn added(self) -> FilterQueryId {
+        self.queries.
+    }
+
+    pub fn removed(self) -> FilterQueryId {}
+
+    pub fn changed(self, component: ComponentId) -> FilterQueryId {}
 }

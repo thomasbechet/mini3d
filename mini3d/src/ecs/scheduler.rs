@@ -1,13 +1,8 @@
-use core::cell::RefCell;
 use std::collections::HashMap;
 
 use mini3d_derive::Serialize;
 
-use crate::{
-    feature::component::common::system_graph::SystemGraph,
-    registry::{error::RegistryError, RegistryManager},
-    utils::uid::UID,
-};
+use crate::{feature::component::common::system_graph::SystemGraph, utils::uid::UID};
 
 use super::{error::SchedulerError, pipeline::SystemPipeline};
 

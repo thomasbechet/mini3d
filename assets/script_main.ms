@@ -12,3 +12,7 @@ let texture = asset.get(@texture, 'alfred')
 print('{}')
 
 for e in scene.query()
+
+let inventory = player.inventory
+
+for e in finalized()

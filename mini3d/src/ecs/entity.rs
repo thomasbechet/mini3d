@@ -1,4 +1,5 @@
 use crate::{
+    registry::component::ComponentId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SecondaryMap,
 };
@@ -68,6 +69,7 @@ pub(crate) struct EntityGroup {
 }
 
 pub(crate) struct EntityTable {
+    archetypes: ArchetypeTable,
     entities: PagedVector<EntityInfo>, // EntityKey -> EntityInfo
     free_entities: Vec<Entity>,
     next_entity: Entity,
@@ -75,31 +77,19 @@ pub(crate) struct EntityTable {
 }
 
 impl EntityTable {
-    pub(crate) fn add(&mut self, archetypes: &ArchetypeTable) -> Entity {
-        // Find next entitiy
-        if let Some(entity) = self.free_entities.pop() {
-            return entity;
-        }
-        let entity = self.next_entity;
-        self.next_entity = Entity::new(entity.key() + 1, 0);
-        // Put the entity in the empty pool
-        self.add_to_group(entity, archetypes.empty);
-        entity
-    }
-
     fn group(&mut self, archetype: ArchetypeId) -> &mut EntityGroup {
         if let Some(group) = self.groups.get_mut(archetype) {
             return group;
         } else {
-            self.groups.insert(archetype, Vec::default());
+            self.groups.insert(archetype, EntityGroup::default());
             return &mut self.groups[archetype];
         }
     }
 
     fn add_to_group(&mut self, entity: Entity, archetype: ArchetypeId) {
         let group = self.group(archetype);
-        let group_index = group.len();
-        group.push(entity);
+        let group_index = group.entities.len() as u32;
+        group.entities.push(entity);
         self.entities.set(
             entity.key(),
             EntityInfo {
@@ -113,11 +103,23 @@ impl EntityTable {
         // Swap remove entity from group
         let info = *self.entities.get(entity.key()).unwrap();
         let group = self.group(info.archetype);
-        let last_entity = group.last().copied();
-        group.swap_remove(info.group_index);
+        let last_entity = group.entities.last().copied();
+        group.entities.swap_remove(info.group_index as usize);
         if let Some(last_entity) = last_entity {
             self.entities.set(last_entity.key(), info);
         }
+    }
+
+    pub(crate) fn add(&mut self) -> Entity {
+        // Find next entitiy
+        if let Some(entity) = self.free_entities.pop() {
+            return entity;
+        }
+        let entity = self.next_entity;
+        self.next_entity = Entity::new(entity.key() + 1, 0);
+        // Put the entity in the empty pool
+        self.add_to_group(entity, self.archetypes.empty);
+        entity
     }
 
     pub(crate) fn remove(&mut self, entity: Entity) {
@@ -128,21 +130,19 @@ impl EntityTable {
             .push(Entity::new(entity.key(), entity.version() + 1));
     }
 
-    pub(crate) fn change_archetype(&mut self, entity: Entity, archetype: ArchetypeId) {
-        // Remove from current group
-        self.remove_from_group(entity);
-        // Add to new group
-        self.add_to_group(entity, archetype);
-    }
-
-    pub(crate) fn get_archetype(&self, entitiy: Entity) -> ArchetypeId {
-        self.entities.get(entitiy.key()).unwrap().archetype
+    pub(crate) fn iter_components(
+        &self,
+        entitiy: Entity,
+    ) -> impl Iterator<Item = ComponentId> + '_ {
+        let id = self.entities.get(entitiy.key()).unwrap().archetype;
+        self.archetypes.iter_components(id)
     }
 }
 
 impl Default for EntityTable {
     fn default() -> Self {
         Self {
+            archetypes: ArchetypeTable::new(),
             entities: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
