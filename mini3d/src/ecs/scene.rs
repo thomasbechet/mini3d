@@ -10,6 +10,7 @@ use crate::{
 use super::archetype::ArchetypeTable;
 use super::entity::EntityTable;
 use super::query::QueryTable;
+use super::scheduler::Scheduler;
 use super::singleton::AnySceneSingleton;
 use super::system::SystemTable;
 use super::view::{SceneComponentViewMut, SceneComponentViewRef};
@@ -28,6 +29,7 @@ pub(crate) struct Scene {
     entities: EntityTable,
     queries: QueryTable,
     systems: SystemTable,
+    scheduler: Scheduler,
     global_cycle: usize,
 }
 
