@@ -34,7 +34,7 @@ impl From<SystemId> for SlotId {
 pub trait ExclusiveSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError>;
+    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
     fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult;
 }
 
@@ -59,7 +59,7 @@ impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection
             system: S,
         }
         impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for InstanceHolder<S> {
-            fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
+            fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
                 self.system.resolve(resolver)
             }
             fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {

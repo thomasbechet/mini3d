@@ -1,12 +1,16 @@
 use glam::{Quat, Vec3};
 
 use crate::{
-    ecs::{context::ParallelContext, system::SystemResult},
+    ecs::{
+        context::ParallelContext,
+        query::QueryId,
+        system::{ParallelResolver, SystemResult},
+    },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
     registry::{
         component::{Component, ComponentId},
         error::RegistryError,
-        system::{ParallelResolver, ParallelSystem},
+        system::ParallelSystem,
     },
 };
 
@@ -14,6 +18,7 @@ use crate::{
 pub struct RotatorSystem {
     transform: ComponentId,
     rotator: ComponentId,
+    query: QueryId,
 }
 
 impl ParallelSystem for RotatorSystem {
@@ -22,6 +27,10 @@ impl ParallelSystem for RotatorSystem {
     fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         self.transform = resolver.write(Transform::UID)?;
         self.rotator = resolver.read(Rotator::UID)?;
+        self.query = resolver
+            .query()
+            .all(&[self.transform, self.rotator])
+            .build();
         Ok(())
     }
 
@@ -31,7 +40,7 @@ impl ParallelSystem for RotatorSystem {
             .view_mut(self.transform)?
             .as_static::<Transform>()?;
         let rotators = ctx.scene.view(self.rotator)?.as_static::<Rotator>()?;
-        for e in &ctx.scene.query(&[self.transform, self.rotator]) {
+        for e in ctx.scene.query(self.query) {
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
                 ctx.time.delta() as f32 * f32::to_radians(rotators[e].speed),

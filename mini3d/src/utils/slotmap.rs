@@ -67,6 +67,11 @@ impl<V> SlotMap<V> {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.free = SlotId::null();
+    }
+
     pub fn add(&mut self, value: V) -> SlotId {
         if self.free.is_null() {
             let index = self.entries.len();
@@ -116,6 +121,13 @@ impl<V> SlotMap<V> {
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.entries.iter().filter_map(|entry| match entry {
+            SlotEntry::Value(value) => Some(value),
+            SlotEntry::Free(_) => None,
+        })
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+        self.entries.iter_mut().filter_map(|entry| match entry {
             SlotEntry::Value(value) => Some(value),
             SlotEntry::Free(_) => None,
         })
@@ -457,6 +469,20 @@ impl<V> SparseSecondaryMap<V> {
         self.indices.get(id.index()).and_then(|index| {
             index.and_then(move |id| self.data.get_mut(id as usize).map(|e| &mut e.value))
         })
+    }
+}
+
+impl<V> Index<SlotId> for SparseSecondaryMap<V> {
+    type Output = V;
+
+    fn index(&self, id: SlotId) -> &Self::Output {
+        self.get(id).unwrap()
+    }
+}
+
+impl<V> IndexMut<SlotId> for SparseSecondaryMap<V> {
+    fn index_mut(&mut self, id: SlotId) -> &mut Self::Output {
+        self.get_mut(id).unwrap()
     }
 }
 

@@ -1,6 +1,6 @@
 use mini3d::{
     context::ExclusiveSystemContext,
-    ecs::{signal::Signal, system::SystemResult},
+    ecs::{stage::Stage, system::SystemResult},
     engine::Engine,
     event::asset::ImportAssetEvent,
     feature::component::{
@@ -617,7 +617,7 @@ fn setup_scheduler(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     ]);
 
     let mut group = SystemGroup::empty();
-    group.insert(Signal::UPDATE, pipeline, 0);
+    group.insert(Stage::UPDATE, pipeline, 0);
     ctx.scheduler.add_group("os", group)?;
     Ok(())
 }

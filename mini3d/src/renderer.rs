@@ -1,6 +1,5 @@
 use std::collections::{hash_map, HashMap, HashSet};
 
-use crate::ecs::view::StaticSceneComponentView;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;
@@ -11,7 +10,7 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
 use crate::feature::component::ui::viewport::Viewport;
-use crate::registry::component::Component;
+use crate::registry::component::{Component, ComponentId};
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::uid::UID;
 use crate::{
@@ -246,6 +245,13 @@ pub struct RendererManager {
     statistics: RendererStatistics,
     graphics: Graphics,
     clear_color: Color,
+
+    camera_id: ComponentId,
+    static_mesh_id: ComponentId,
+    canvas_id: ComponentId,
+    local_to_world_id: ComponentId,
+    viewport_id: ComponentId,
+    model_id: ComponentId,
 }
 
 impl RendererManager {

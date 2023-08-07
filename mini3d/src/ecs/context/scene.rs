@@ -1,124 +1,87 @@
-use std::{
-    cell::{Ref, RefMut},
-    collections::HashSet,
-};
-
 use crate::{
     ecs::{
-        entity::Entity,
+        archetype::ArchetypeTable,
+        component::ComponentTable,
+        entity::{Entity, EntityBuilder, EntityTable},
         error::SceneError,
-        query::Query,
-        scene::Scene,
-        singleton::{StaticSingletonMut, StaticSingletonRef},
-        view::{SceneComponentViewMut, SceneComponentViewRef},
+        query::{FilterQueryId, QueryId, QueryTable},
+        view::{ComponentViewMut, ComponentViewRef},
     },
-    registry::{
-        component::{Component, ComponentId},
-        RegistryManager,
-    },
+    registry::{component::ComponentId, RegistryManager},
     utils::uid::UID,
 };
 
 pub struct ExclusiveSceneContext<'a> {
-    uid: UID,
-    scene: RefMut<'a, Box<Scene>>,
-    registry: Ref<'a, RegistryManager>,
-    pub(crate) change_scene: &'a mut Option<UID>,
-    pub(crate) removed_scenes: &'a mut HashSet<UID>,
+    registry: &'a RegistryManager,
+    archetypes: &'a mut ArchetypeTable,
+    components: &'a mut ComponentTable,
+    entities: &'a mut EntityTable,
+    queries: &'a mut QueryTable,
+    cycle: u32,
 }
 
 impl<'a> ExclusiveSceneContext<'a> {
-    pub fn uid(&self) -> UID {
-        self.uid
+    pub fn add(&mut self) -> EntityBuilder<'_> {
+        EntityBuilder::new(
+            &self.registry.components,
+            &mut self.archetypes,
+            &mut self.entities,
+            &mut self.components,
+            self.cycle,
+        )
     }
 
-    pub fn add_entity(&mut self) -> Entity {
-        self.scene.add_entity()
+    pub fn remove(&mut self, entity: Entity) {
+        self.entities
+            .remove(entity, self.archetypes, self.components)
     }
 
-    pub fn remove_entity(&mut self, entity: Entity) -> Result<(), SceneError> {
-        self.scene.remove_entity(entity)
+    pub fn view(&self, component: ComponentId) -> Result<ComponentViewRef<'_>, SceneError> {
+        self.components.view(component)
     }
 
-    pub fn add_static_component<C: Component>(
-        &mut self,
-        entity: Entity,
-        component: ComponentId,
-        data: C,
-    ) -> Result<(), SceneError> {
-        self.scene
-            .add_static_component(&self.registry.components, entity, component, data)
+    pub fn view_mut(&self, component: ComponentId) -> Result<ComponentViewMut<'_>, SceneError> {
+        self.components.view_mut(component, self.cycle)
     }
 
-    pub fn remove_component(
-        &mut self,
-        entity: Entity,
-        component: ComponentId,
-    ) -> Result<(), SceneError> {
-        self.scene.remove_component(entity, component)
+    pub(crate) fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
+        self.queries
+            .query_archetypes(query)
+            .iter()
+            .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
     }
 
-    pub fn view(&self, component: ComponentId) -> Result<SceneComponentViewRef<'_>, SceneError> {
-        self.scene.view(component)
-    }
-
-    pub fn view_mut(
-        &self,
-        component: ComponentId,
-    ) -> Result<SceneComponentViewMut<'_>, SceneError> {
-        self.scene.view_mut(component)
-    }
-
-    pub fn query(&self, components: &[ComponentId]) -> Query<'_> {
-        self.scene.query(components)
-    }
-
-    pub fn add_singleton<C: Component>(
-        &mut self,
-        component: ComponentId,
-        data: C,
-    ) -> Result<(), SceneError> {
-        self.scene.add_static_singleton(component, data)
-    }
-
-    pub fn remove_singleton(&mut self, component: ComponentId) -> Result<(), SceneError> {
-        self.scene.remove_singleton(component)
-    }
-
-    pub fn get_singleton<C: Component>(
-        &self,
-        component: ComponentId,
-    ) -> Result<Option<StaticSingletonRef<'_, C>>, SceneError> {
-        self.scene.get_static_singleton(component)
-    }
-
-    pub fn get_singleton_mut<C: Component>(
-        &self,
-        component: ComponentId,
-    ) -> Result<Option<StaticSingletonMut<'_, C>>, SceneError> {
-        self.scene.get_static_singleton_mut(component)
+    pub(crate) fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
+        self.queries.filter_query(query).iter().copied()
     }
 }
 
 pub struct ParallelSceneContext<'a> {
     uid: UID,
-    scene: Ref<'a, Box<Scene>>,
-    registry: Ref<'a, RegistryManager>,
+    registry: &'a RegistryManager,
+    components: &'a ComponentTable,
+    entities: &'a EntityTable,
+    queries: &'a QueryTable,
+    cycle: u32,
 }
 
 impl<'a> ParallelSceneContext<'a> {
-    pub fn view(&self, component: ComponentId) -> Result<SceneComponentViewRef<'_>, SceneError> {
-        self.scene.view(component)
+    pub fn view(&self, component: ComponentId) -> Result<ComponentViewRef<'_>, SceneError> {
+        self.components.view(component)
     }
 
-    pub fn view_mut(
-        &self,
-        component: ComponentId,
-    ) -> Result<SceneComponentViewMut<'_>, SceneError> {
-        self.scene.view_mut(component)
+    pub fn view_mut(&self, component: ComponentId) -> Result<ComponentViewMut<'_>, SceneError> {
+        self.components.view_mut(component, self.cycle)
     }
 
-    pub fn query(&self, components: &[ComponentId]) -> Query<'_> {
-        self.scene.query(components)
+    pub(crate) fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
+        self.queries
+            .query_archetypes(query)
+            .iter()
+            .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
+    }
+
+    pub(crate) fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
+        self.queries.filter_query(query).iter().copied()
     }
 }

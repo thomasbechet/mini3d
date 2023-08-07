@@ -39,11 +39,15 @@ pub enum SceneError {
     #[error("Component type mismatch")]
     ComponentTypeMismatch,
     #[error("Singleton type mismatch")]
-    SingletonTypeMismatch,
-    #[error("Singleton not found")]
-    SingletonNotFound,
-    #[error("Duplicated singleton")]
-    DuplicatedSingleton,
-    #[error("Container already borrowed mutably")]
     ContainerBorrowMut,
+    #[error("System group not found")]
+    SystemGroupNotFound,
+    #[error("System already exists")]
+    SystemAlreadyExists,
+    #[error("System stage already exists")]
+    SystemStageAlreadyExists,
+    #[error("System stage not found")]
+    SystemStageNotFound,
+    #[error("System not found")]
+    SystemNotFound,
 }

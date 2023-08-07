@@ -1,6 +1,9 @@
 use crate::{
     serialize::{Decoder, DecoderError, EncoderError, Serialize},
-    utils::uid::UID,
+    utils::{
+        slotmap::{SlotId, SlotMap},
+        uid::UID,
+    },
 };
 use core::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -14,46 +17,35 @@ use crate::{
     serialize::Encoder,
 };
 
-use self::{
-    error::ECSError, pipeline::SystemPipeline, scene::Scene, scheduler::Scheduler, signal::Signal,
-};
+use self::{error::ECSError, scene::Scene, scheduler::Scheduler};
 
 pub mod archetype;
-pub mod container;
+pub mod component;
 pub mod context;
 pub mod entity;
 pub mod error;
-pub mod pipeline;
 pub mod query;
-pub mod reference;
 pub mod scene;
 pub mod scheduler;
-pub mod signal;
-pub mod singleton;
 pub mod sparse;
 pub mod system;
 pub mod view;
 
+pub(crate) type SceneId = SlotId;
+
 pub(crate) struct ECSManager {
-    scheduler: Scheduler,
-    next_frame_system_invocations: Vec<UID>,
-    next_frame_signals: VecDeque<UID>,
-    pub(crate) scenes: RefCell<HashMap<UID, RefCell<Box<Scene>>>>,
-    pub(crate) active_scene: UID,
+    pub(crate) scenes: SlotMap<Box<Scene>>,
+    pub(crate) active_scene: SceneId,
 }
 
 impl Default for ECSManager {
     fn default() -> Self {
-        Self {
-            scheduler: Scheduler::default(),
-            next_frame_system_invocations: Vec::new(),
-            next_frame_signals: VecDeque::new(),
-            scenes: RefCell::new(HashMap::from([(
-                Self::MAIN_SCENE.into(),
-                RefCell::new(Box::new(Scene::new(Self::MAIN_SCENE))),
-            )])),
-            active_scene: Self::MAIN_SCENE.into(),
-        }
+        let mut manager = Self {
+            scenes: Default::default(),
+            active_scene: SlotId::null(),
+        };
+        manager.active_scene = manager.scenes.add(Box::new(Scene::new(Self::MAIN_SCENE)));
+        manager
     }
 }
 
@@ -104,7 +96,7 @@ fn create_system_context<'b, 'a: 'b>(
         },
         scheduler: SchedulerContext { scheduler },
         time: TimeContext {
-            delta: if active_signal == Signal::FIXED_UPDATE.into() {
+            delta: if active_signal == Stage::FIXED_UPDATE.into() {
                 context.fixed_delta_time
             } else {
                 context.delta_time
@@ -169,8 +161,8 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn invoke(&mut self, system: UID) {
-        self.next_frame_system_invocations.push(system)
+    pub(crate) fn invoke(&mut self, stage: UID) {
+        self.next_frame_system_invocations.push(stage)
     }
 
     pub(crate) fn update(
@@ -186,9 +178,9 @@ impl ECSManager {
         // Collect signals
         let mut frame_signals = self.next_frame_signals.drain(..).collect::<VecDeque<_>>();
         for _ in 0..fixed_update_count {
-            frame_signals.push_back(Signal::FIXED_UPDATE.into());
+            frame_signals.push_back(Stage::FIXED_UPDATE.into());
         }
-        frame_signals.push_back(Signal::UPDATE.into());
+        frame_signals.push_back(Stage::UPDATE.into());
 
         // Invoke frame systems
         if !self.next_frame_system_invocations.is_empty() {
@@ -248,7 +240,7 @@ impl ECSManager {
             if let Some(scene) = change_scene {
                 self.active_scene = scene;
                 self.next_frame_signals
-                    .push_front(Signal::SCENE_CHANGED.into());
+                    .push_front(Stage::SCENE_CHANGED.into());
                 change_scene = None;
             }
         }

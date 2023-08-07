@@ -1,10 +1,15 @@
 use crate::{
-    ecs::{context::ExclusiveContext, entity::Entity, system::SystemResult},
+    ecs::{
+        context::ExclusiveContext,
+        entity::Entity,
+        query::QueryId,
+        system::{ExclusiveResolver, SystemResult},
+    },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::{
         component::{Component, ComponentId},
         error::RegistryError,
-        system::{ExclusiveResolver, ExclusiveSystem},
+        system::ExclusiveSystem,
     },
 };
 
@@ -12,14 +17,19 @@ use crate::{
 pub struct DespawnEntities {
     life_cycle: ComponentId,
     hierarchy: ComponentId,
+    query: QueryId,
 }
 
 impl ExclusiveSystem for DespawnEntities {
     const NAME: &'static str = "despawn_entities";
 
-    fn resolve(&mut self, resolver: &ExclusiveResolver) -> Result<(), RegistryError> {
+    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         self.life_cycle = resolver.find(Lifecycle::UID)?;
         self.hierarchy = resolver.find(Hierarchy::UID)?;
+        self.query = resolver
+            .query()
+            .all(&[self.life_cycle, self.hierarchy])
+            .build();
         Ok(())
     }
 
@@ -35,7 +45,7 @@ impl ExclusiveSystem for DespawnEntities {
             let lifecycles = ctx.scene.view(self.life_cycle)?.as_static::<Lifecycle>()?;
 
             // Collect despawned entities
-            for e in &ctx.scene.query(&[self.life_cycle, self.hierarchy]) {
+            for e in ctx.scene.query(self.query) {
                 if !lifecycles[e].alive {
                     despawn_entities.push(e);
                     if let Some(hierarchy) = hierarchies.get_mut(e) {
@@ -57,7 +67,7 @@ impl ExclusiveSystem for DespawnEntities {
 
         // Despawn entities
         for entity in despawn_entities {
-            ctx.scene.remove_entity(entity)?;
+            ctx.scene.remove(entity);
         }
 
         Ok(())

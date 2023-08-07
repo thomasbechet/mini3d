@@ -4,10 +4,9 @@ use crate::{
     ecs::{
         context::ParallelContext,
         entity::Entity,
-        system::SystemResult,
-        view::{
-            StaticSceneComponentView, StaticSceneComponentViewMut, StaticSceneComponentViewRef,
-        },
+        query::QueryId,
+        system::{ParallelResolver, SystemResult},
+        view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
     },
     feature::component::scene::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
@@ -15,17 +14,17 @@ use crate::{
     registry::{
         component::{Component, ComponentId},
         error::RegistryError,
-        system::{ParallelResolver, ParallelSystem},
+        system::ParallelSystem,
     },
 };
 
 fn recursive_propagate(
     entity: Entity,
-    transforms: &StaticSceneComponentViewRef<Transform>,
-    local_to_worlds: &mut StaticSceneComponentViewMut<LocalToWorld>,
-    hierarchies: &StaticSceneComponentViewRef<Hierarchy>,
+    transforms: &StaticComponentViewRef<Transform>,
+    local_to_worlds: &mut StaticComponentViewMut<LocalToWorld>,
+    hierarchies: &StaticComponentViewRef<Hierarchy>,
 ) -> Mat4 {
-    if let Some(mut local_to_world) = local_to_worlds.get_mut(entity).cloned() {
+    if let Some(mut local_to_world) = local_to_worlds.get(entity).cloned() {
         if !local_to_world.dirty {
             return local_to_world.matrix;
         } else if let Some(hierarchy) = hierarchies.get(entity) {
@@ -53,6 +52,7 @@ pub struct PropagateTransforms {
     transform: ComponentId,
     hierarchy: ComponentId,
     local_to_world: ComponentId,
+    query: QueryId,
 }
 
 impl ParallelSystem for PropagateTransforms {
@@ -62,6 +62,7 @@ impl ParallelSystem for PropagateTransforms {
         self.transform = resolver.read(Transform::UID)?;
         self.hierarchy = resolver.read(Hierarchy::UID)?;
         self.local_to_world = resolver.write(LocalToWorld::UID)?;
+        self.query = resolver.query().all(&[self.local_to_world]).build();
         Ok(())
     }
 
@@ -75,13 +76,13 @@ impl ParallelSystem for PropagateTransforms {
 
         // Reset all flags
         let mut entities = Vec::new();
-        for e in &ctx.scene.query(&[self.local_to_world]) {
+        for e in ctx.scene.query(self.query) {
             local_to_worlds[e].dirty = true;
             entities.push(e);
         }
 
         for e in entities {
-            let mut local_to_world = local_to_worlds.get_mut(e).cloned().unwrap();
+            let mut local_to_world = local_to_worlds.get(e).cloned().unwrap();
             if local_to_world.dirty {
                 if let Some(hierarcy) = hierarchies.get(e) {
                     if let Some(parent) = hierarcy.parent() {

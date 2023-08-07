@@ -3,10 +3,9 @@ use std::collections::HashMap;
 use crate::{
     asset::container::{AnyAssetContainer, AssetContainer},
     ecs::{
-        container::{AnySceneContainer, StaticSceneContainer},
+        component::{AnyComponentContainer, StaticComponentContainer},
         entity::Entity,
         error::ECSError,
-        singleton::{AnySceneSingleton, StaticSceneSingleton},
     },
     script::reflection::{Property, Reflect},
     serialize::Serialize,
@@ -58,8 +57,7 @@ pub(crate) enum ComponentKind {
 
 pub(crate) trait AnyComponentReflection {
     fn create_asset_container(&self) -> Box<dyn AnyAssetContainer>;
-    fn create_scene_container(&self) -> Box<dyn AnySceneContainer>;
-    fn create_scene_singleton(&self) -> Box<dyn AnySceneSingleton>;
+    fn create_scene_container(&self) -> Box<dyn AnyComponentContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
 }
@@ -73,12 +71,8 @@ impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
         Box::<AssetContainer<C>>::default()
     }
 
-    fn create_scene_container(&self) -> Box<dyn AnySceneContainer> {
-        Box::new(StaticSceneContainer::<C>::new())
-    }
-
-    fn create_scene_singleton(&self) -> Box<dyn AnySceneSingleton> {
-        Box::new(StaticSceneSingleton::<C>::new(C::default()))
+    fn create_scene_container(&self) -> Box<dyn AnyComponentContainer> {
+        Box::new(StaticComponentContainer::<C>::with_capacity(128))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {

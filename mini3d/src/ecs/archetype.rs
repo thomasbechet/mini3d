@@ -194,14 +194,48 @@ impl ArchetypeTable {
         next
     }
 
-    pub(crate) fn iter_components(
+    pub(crate) fn components(&self, archetype: ArchetypeId) -> &[ComponentId] {
+        let archetype = &self.entries[archetype];
+        &self.components
+            [archetype.component_start..(archetype.component_start + archetype.component_count)]
+    }
+
+    pub(crate) fn collect_unique_childs(
         &self,
         archetype: ArchetypeId,
-    ) -> impl Iterator<Item = ComponentId> + '_ {
-        let archetype = &self.entries[archetype];
-        let components = &self.components
-            [archetype.component_start..(archetype.component_start + archetype.component_count)];
-        components.iter().copied()
+        list: &mut Vec<ArchetypeId>,
+    ) {
+        let mut current = self.entries[archetype].last_edge;
+        while let Some(edge) = current {
+            if let Some(add) = self.edges[edge].add {
+                if !list.contains(&add) {
+                    list.push(add);
+                    self.collect_unique_childs(add, list);
+                }
+            }
+            current = self.edges[edge].previous;
+        }
+    }
+
+    pub(crate) fn collect_unique_parents(
+        &self,
+        archetype: ArchetypeId,
+        list: &mut Vec<ArchetypeId>,
+    ) {
+        let mut current = self.entries[archetype].last_edge;
+        while let Some(edge) = current {
+            if let Some(remove) = self.edges[edge].remove {
+                if remove != self.empty && !list.contains(&remove) {
+                    list.push(remove);
+                    self.collect_unique_parents(remove, list);
+                }
+            }
+            current = self.edges[edge].previous;
+        }
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = ArchetypeId> + '_ {
+        self.entries.iter().map(|(id, _)| id)
     }
 }
 

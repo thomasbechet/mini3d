@@ -2,7 +2,7 @@ use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::ecs::{
     entity::Entity,
-    view::{StaticSceneComponentView, StaticSceneComponentViewMut},
+    view::{StaticComponentView, StaticComponentViewMut},
 };
 
 #[derive(Debug, Error)]
@@ -35,7 +35,7 @@ impl Hierarchy {
         self.next_sibling
     }
 
-    pub fn collect_childs<V: StaticSceneComponentView<Hierarchy>>(
+    pub fn collect_childs<V: StaticComponentView<Hierarchy>>(
         entity: Entity,
         view: &V,
     ) -> Result<Vec<Entity>, HierarchyError> {
@@ -54,7 +54,7 @@ impl Hierarchy {
     pub fn attach(
         entity: Entity,
         child: Entity,
-        view: &mut StaticSceneComponentViewMut<Hierarchy>,
+        view: &mut StaticComponentViewMut<Hierarchy>,
     ) -> Result<(), HierarchyError> {
         // Find the last child
         let mut last_child: Option<Entity> = None;
@@ -85,7 +85,7 @@ impl Hierarchy {
     pub fn detach(
         entity: Entity,
         child: Entity,
-        view: &mut StaticSceneComponentViewMut<Hierarchy>,
+        view: &mut StaticComponentViewMut<Hierarchy>,
     ) -> Result<(), HierarchyError> {
         // Find the child
         if let Some(first_child) = view.get(entity).unwrap().first_child {

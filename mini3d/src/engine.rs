@@ -5,7 +5,6 @@ use crate::disk::backend::DiskBackend;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::event::system::SystemEvent;
 use crate::event::Events;
-use crate::feature::system::ui::RenderUI;
 use crate::feature::{component, system};
 use crate::input::backend::{InputBackend, InputBackendError};
 use crate::input::InputManager;
@@ -38,7 +37,6 @@ pub struct Engine {
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
-    accumulator: f64,
     time: f64,
     running: bool,
 }
@@ -55,9 +53,15 @@ impl Engine {
             };
         }
 
-        macro_rules! define_system {
-            ($name: literal, $system: path) => {
-                registry.systems.define_exclusive_callback($name, $system)?;
+        macro_rules! define_system_exclusive {
+            ($name: literal, $system: ty) => {
+                registry.systems.define_static_exclusive::<$system>($name)?;
+            };
+        }
+
+        macro_rules! define_system_parallel {
+            ($name: literal, $system: ty) => {
+                registry.systems.define_static_parallel::<$system>($name)?;
             };
         }
 
@@ -89,13 +93,16 @@ impl Engine {
         define_component!(component::scene::transform::Transform);
 
         // Define systems
-        define_system!("despawn_entities", system::despawn::run);
-        define_system!("renderer", system::renderer::despawn_renderer_entities);
-        define_system!("free_fly", system::free_fly::run);
-        define_system!("rotator", system::rotator::run);
-        define_system!("transform_propagate", system::transform::propagate);
-        define_system!("ui_update", system::ui::update);
-        define_system!("ui_render", system::ui::render);
+        define_system_exclusive!("despawn_entities", system::despawn::DespawnEntities);
+        define_system_exclusive!("renderer", system::renderer::DespawnRendererEntities);
+        define_system_parallel!("free_fly", system::free_fly::FreeFlySystem);
+        define_system_parallel!("rotator", system::rotator::RotatorSystem);
+        define_system_parallel!(
+            "transform_propagate",
+            system::transform::PropagateTransforms
+        );
+        define_system_parallel!("ui_update", system::ui::UpdateUI);
+        define_system_exclusive!("ui_render", system::ui::RenderUI);
 
         Ok(())
     }
@@ -109,7 +116,6 @@ impl Engine {
             ecs: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
-            accumulator: 0.0,
             time: 0.0,
             running: true,
         };
@@ -130,7 +136,6 @@ impl Engine {
         self.renderer.save_state(&mut buffer)?;
         self.ecs.save_state(&registry.components, &mut buffer)?;
         self.input.save_state(&mut buffer)?;
-        self.accumulator.serialize(&mut buffer)?;
         self.time.serialize(&mut buffer)?;
         self.running.serialize(&mut buffer)?;
         Ok(buffer.into_boxed_slice())
@@ -143,7 +148,6 @@ impl Engine {
         self.ecs
             .load_state(&self.registry.borrow().components, decoder)?;
         self.input.load_state(decoder)?;
-        self.accumulator = Serialize::deserialize(decoder, &Default::default())?;
         self.time = Serialize::deserialize(decoder, &Default::default())?;
         self.running = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
@@ -157,18 +161,6 @@ impl Engine {
             .borrow_mut()
             .components
             .define_static::<C>(name)
-    }
-
-    pub fn define_exclusive_callback(
-        &mut self,
-        name: &str,
-        system: ExclusiveSystemCallback,
-    ) -> Result<(), RegistryError> {
-        self.registry
-            .borrow_mut()
-            .systems
-            .define_exclusive_callback(name, system)?;
-        Ok(())
     }
 
     pub fn is_running(&self) -> bool {
@@ -186,11 +178,7 @@ impl Engine {
             dt = MAXIMUM_TIMESTEP; // Slowing down
         }
         // Integrate time
-        self.accumulator += dt;
         self.time += dt;
-        // Compute number of fixed updates
-        let fixed_update_count = (self.accumulator / FIXED_TIMESTEP) as u32;
-        self.accumulator -= fixed_update_count as f64 * FIXED_TIMESTEP;
 
         // ================= DISPATCH STAGE ================= //
 
