@@ -2,6 +2,7 @@ use glam::Mat4;
 
 use crate::{
     ecs::{
+        component::StaticComponent,
         context::ParallelContext,
         entity::Entity,
         query::QueryId,
@@ -11,11 +12,7 @@ use crate::{
     feature::component::scene::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
     },
-    registry::{
-        component::{Component, ComponentId},
-        error::RegistryError,
-        system::ParallelSystem,
-    },
+    registry::{component::Component, error::RegistryError, system::ParallelSystem},
 };
 
 fn recursive_propagate(
@@ -49,9 +46,9 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: ComponentId,
-    hierarchy: ComponentId,
-    local_to_world: ComponentId,
+    transform: StaticComponent<Transform>,
+    hierarchy: StaticComponent<Hierarchy>,
+    local_to_world: StaticComponent<LocalToWorld>,
     query: QueryId,
 }
 
@@ -62,17 +59,14 @@ impl ParallelSystem for PropagateTransforms {
         self.transform = resolver.read(Transform::UID)?;
         self.hierarchy = resolver.read(Hierarchy::UID)?;
         self.local_to_world = resolver.write(LocalToWorld::UID)?;
-        self.query = resolver.query().all(&[self.local_to_world]).build();
+        self.query = resolver.query().all(&[LocalToWorld::UID])?.build();
         Ok(())
     }
 
     fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let transforms = ctx.scene.view(self.transform)?.as_static::<Transform>()?;
-        let hierarchies = ctx.scene.view(self.hierarchy)?.as_static::<Hierarchy>()?;
-        let mut local_to_worlds = ctx
-            .scene
-            .view_mut(self.local_to_world)?
-            .as_static::<LocalToWorld>()?;
+        let transforms = ctx.scene.view(self.transform)?;
+        let hierarchies = ctx.scene.view(self.hierarchy)?;
+        let mut local_to_worlds = ctx.scene.view_mut(self.local_to_world)?;
 
         // Reset all flags
         let mut entities = Vec::new();

@@ -1,5 +1,6 @@
 use crate::{
     ecs::{
+        component::StaticComponent,
         context::{ExclusiveContext, ParallelContext},
         query::QueryId,
         system::{ExclusiveResolver, ParallelResolver, SystemResult},
@@ -9,7 +10,7 @@ use crate::{
         ui::{UIRenderTarget, UI},
     },
     registry::{
-        component::{Component, ComponentId},
+        component::Component,
         error::RegistryError,
         system::{ExclusiveSystem, ParallelSystem},
     },
@@ -17,7 +18,7 @@ use crate::{
 
 #[derive(Default)]
 pub struct UpdateUI {
-    ui: ComponentId,
+    ui: StaticComponent<UI>,
     query: QueryId,
 }
 
@@ -26,12 +27,12 @@ impl ParallelSystem for UpdateUI {
 
     fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         self.ui = resolver.write(UI::UID)?;
-        self.query = resolver.query().all(&[self.ui]).build();
+        self.query = resolver.query().all(&[UI::UID])?.build();
         Ok(())
     }
 
     fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let mut uis = ctx.scene.view_mut(self.ui)?.as_static::<UI>()?;
+        let mut uis = ctx.scene.view_mut(self.ui)?;
         for e in ctx.scene.query(self.query) {
             let ui = &mut uis[e];
             ui.update(ctx.time.global())?;
@@ -45,9 +46,9 @@ impl ParallelSystem for UpdateUI {
 
 #[derive(Default)]
 pub struct RenderUI {
-    canvas: ComponentId,
-    ui: ComponentId,
-    target: ComponentId,
+    canvas: StaticComponent<Canvas>,
+    ui: StaticComponent<UI>,
+    target: StaticComponent<UIRenderTarget>,
     query: QueryId,
 }
 
@@ -58,14 +59,17 @@ impl ExclusiveSystem for RenderUI {
         self.canvas = resolver.find(Canvas::UID)?;
         self.ui = resolver.find(UI::UID)?;
         self.target = resolver.find(UIRenderTarget::UID)?;
-        self.query = resolver.query().all(&[self.ui, self.target]).build();
+        self.query = resolver
+            .query()
+            .all(&[UI::UID, UIRenderTarget::UID])?
+            .build();
         Ok(())
     }
 
     fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
-        let mut canvases = ctx.scene.view_mut(self.canvas)?.as_static::<Canvas>()?;
-        let uis = ctx.scene.view(self.ui)?.as_static::<UI>()?;
-        let targets = ctx.scene.view(self.target)?.as_static::<UIRenderTarget>()?;
+        let mut canvases = ctx.scene.view_mut(self.canvas)?;
+        let uis = ctx.scene.view(self.ui)?;
+        let targets = ctx.scene.view(self.target)?;
 
         for e in ctx.scene.query(self.query) {
             let ui = &uis[e];

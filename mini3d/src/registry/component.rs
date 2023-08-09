@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    asset::container::{AnyAssetContainer, AssetContainer},
+    asset::container::{AnyAssetContainer, StaticAssetContainer},
     ecs::{
         component::{AnyComponentContainer, StaticComponentContainer},
         entity::Entity,
-        error::ECSError,
+        error::SceneError,
     },
     script::reflection::{Property, Reflect},
     serialize::Serialize,
@@ -35,7 +35,7 @@ impl From<ComponentId> for SlotId {
 pub struct EntityResolver;
 
 impl EntityResolver {
-    pub fn resolve(&self, entity: Entity) -> Result<Entity, ECSError> {
+    pub fn resolve(&self, entity: Entity) -> Result<Entity, SceneError> {
         // TODO: Resolve entity
         Ok(entity)
     }
@@ -43,7 +43,7 @@ impl EntityResolver {
 pub trait Component: Default + Serialize + Reflect + 'static {
     const NAME: &'static str;
     const UID: UID = UID::from(Self::NAME);
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
+    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), SceneError> {
         let _ = resolver;
         Ok(())
     }
@@ -68,7 +68,7 @@ pub(crate) struct StaticComponentReflection<C: Component> {
 
 impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
     fn create_asset_container(&self) -> Box<dyn AnyAssetContainer> {
-        Box::<AssetContainer<C>>::default()
+        Box::<StaticAssetContainer<C>>::default()
     }
 
     fn create_scene_container(&self) -> Box<dyn AnyComponentContainer> {

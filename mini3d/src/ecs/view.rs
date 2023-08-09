@@ -8,7 +8,6 @@ use crate::registry::component::Component;
 use super::{
     component::{AnyComponentContainer, StaticComponentContainer},
     entity::Entity,
-    error::SceneError,
 };
 
 pub trait StaticComponentView<C: Component> {
@@ -79,36 +78,11 @@ pub struct ComponentViewMut<'a> {
     pub(crate) cycle: u32,
 }
 
-impl<'a> ComponentViewRef<'a> {
-    pub fn as_static<C: Component>(self) -> Result<StaticComponentViewRef<'a, C>, SceneError> {
-        Ok(StaticComponentViewRef {
-            container: self
-                .container
-                .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(SceneError::ComponentTypeMismatch)?,
-        })
-    }
-}
-
 impl<'a> Deref for ComponentViewRef<'a> {
     type Target = Box<dyn AnyComponentContainer>;
 
     fn deref(&self) -> &Self::Target {
         &self.container
-    }
-}
-
-impl<'a> ComponentViewMut<'a> {
-    pub fn as_static<C: Component>(&self) -> Result<StaticComponentViewMut<'a, C>, SceneError> {
-        Ok(StaticComponentViewMut {
-            container: self
-                .container
-                .as_any()
-                .downcast_mut::<StaticComponentContainer<C>>()
-                .ok_or(SceneError::ComponentTypeMismatch)?,
-            cycle: self.cycle,
-        })
     }
 }
 

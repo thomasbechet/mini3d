@@ -1,12 +1,12 @@
 use crate::{
-    serialize::{Decoder, DecoderError, EncoderError, Serialize},
+    serialize::{Decoder, DecoderError, EncoderError},
     utils::{
-        slotmap::{SlotId, SlotMap},
+        slotmap::{DenseSlotMap, SlotId},
         uid::UID,
     },
 };
 use core::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 
 use crate::{
     asset::AssetManager,
@@ -17,7 +17,7 @@ use crate::{
     serialize::Encoder,
 };
 
-use self::{error::ECSError, scene::Scene, scheduler::Scheduler};
+use self::{error::SceneError, scene::Scene};
 
 pub mod archetype;
 pub mod component;
@@ -34,17 +34,15 @@ pub mod view;
 pub(crate) type SceneId = SlotId;
 
 pub(crate) struct ECSManager {
-    pub(crate) scenes: SlotMap<Box<Scene>>,
-    pub(crate) active_scene: SceneId,
+    pub(crate) scenes: DenseSlotMap<Box<Scene>>,
 }
 
 impl Default for ECSManager {
     fn default() -> Self {
         let mut manager = Self {
             scenes: Default::default(),
-            active_scene: SlotId::null(),
         };
-        manager.active_scene = manager.scenes.add(Box::new(Scene::new(Self::MAIN_SCENE)));
+        manager.scenes.add(Box::new(Scene::new(Self::MAIN_SCENE)));
         manager
     }
 }
@@ -56,61 +54,7 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) renderer: &'a mut RendererManager,
     pub(crate) events: &'a Events,
     pub(crate) delta_time: f64,
-    pub(crate) time: f64,
-    pub(crate) fixed_delta_time: f64,
-}
-
-#[allow(clippy::too_many_arguments)]
-fn create_system_context<'b, 'a: 'b>(
-    context: &'b mut ECSUpdateContext<'a>,
-    active_signal: UID,
-    active_scene: UID,
-    scheduler: &'b mut Scheduler,
-    frame_signals: &'b mut VecDeque<UID>,
-    next_frame_signals: &'b mut VecDeque<UID>,
-    scenes: &'b mut HashMap<UID, RefCell<Box<Scene>>>,
-    change_scene: &'b mut Option<UID>,
-    removed_scenes: &'b mut HashSet<UID>,
-) -> ExclusiveSystemContext<'b> {
-    ExclusiveSystemContext {
-        asset: AssetContext {
-            registry: context.registry,
-            manager: context.asset,
-        },
-        event: EventContext {
-            events: context.events,
-        },
-        input: InputContext {
-            manager: context.input,
-        },
-        signal: ProcedureContext {
-            active_procedure: active_signal,
-            frame_procedures: frame_signals,
-            next_frame_procedures: next_frame_signals,
-        },
-        registry: RegistryContext {
-            manager: context.registry,
-        },
-        renderer: RendererContext {
-            manager: context.renderer,
-        },
-        scheduler: SchedulerContext { scheduler },
-        time: TimeContext {
-            delta: if active_signal == Stage::FIXED_UPDATE.into() {
-                context.fixed_delta_time
-            } else {
-                context.delta_time
-            },
-            global: context.time,
-        },
-        scene: SceneContext {
-            registry: context.registry,
-            scenes,
-            active_scene,
-            change_scene,
-            removed_scenes,
-        },
-    }
+    pub(crate) global_time: f64,
 }
 
 impl ECSManager {
@@ -121,19 +65,10 @@ impl ECSManager {
         registry: &ComponentRegistry,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
-        // Scheduler
-        self.scheduler.serialize(encoder)?;
-        // Next frame system invocations
-        self.next_frame_system_invocations.serialize(encoder)?;
-        // Next frame procedures
-        self.next_frame_signals.serialize(encoder)?;
-        // Scenes
-        encoder.write_u32(self.scenes.borrow().len() as u32)?;
-        for scene in self.scenes.borrow().values() {
-            scene.borrow().serialize(registry, encoder)?;
+        encoder.write_u32(self.scenes.len() as u32)?;
+        for scene in self.scenes.values() {
+            scene.serialize(registry, encoder)?;
         }
-        // Active scene
-        self.active_scene.serialize(encoder)?;
         Ok(())
     }
 
@@ -142,107 +77,22 @@ impl ECSManager {
         registry: &ComponentRegistry,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
-        // Scheduler
-        self.scheduler = Scheduler::deserialize(decoder, &Default::default())?;
-        // Next frame system invocations
-        self.next_frame_system_invocations = Vec::<UID>::deserialize(decoder, &Default::default())?;
-        // Next frame procedures
-        self.next_frame_signals = VecDeque::<UID>::deserialize(decoder, &Default::default())?;
-        // Scenes
         let scenes_count = decoder.read_u32()?;
         for _ in 0..scenes_count {
             let scene = Scene::deserialize(registry, decoder)?;
-            self.scenes
-                .borrow_mut()
-                .insert(UID::new(&scene.name), RefCell::new(Box::new(scene)));
+            self.scenes.add(Box::new(scene));
         }
-        // Active scene
-        self.active_scene = UID::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
-    pub(crate) fn invoke(&mut self, stage: UID) {
-        self.next_frame_system_invocations.push(stage)
-    }
-
-    pub(crate) fn update(
-        &mut self,
-        mut context: ECSUpdateContext,
-        fixed_update_count: u32,
-    ) -> Result<(), ECSError> {
+    pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), SceneError> {
         // Prepare frame
         let mut change_scene: Option<UID> = None;
         let mut removed_scenes: HashSet<UID> = Default::default();
-        let mut scenes = self.scenes.borrow_mut();
-
-        // Collect signals
-        let mut frame_signals = self.next_frame_signals.drain(..).collect::<VecDeque<_>>();
-        for _ in 0..fixed_update_count {
-            frame_signals.push_back(Stage::FIXED_UPDATE.into());
-        }
-        frame_signals.push_back(Stage::UPDATE.into());
 
         // Invoke frame systems
-        if !self.next_frame_system_invocations.is_empty() {
-            // Build context
-            let pipeline = SystemPipeline::build(
-                &context.registry.borrow_mut().systems,
-                self.next_frame_system_invocations.iter(),
-            )
-            .map_err(|_| ECSError::RegistryError)?;
-            pipeline
-                .run(&mut create_system_context(
-                    &mut context,
-                    UID::null(),
-                    self.active_scene,
-                    &mut self.scheduler,
-                    &mut frame_signals,
-                    &mut self.next_frame_signals,
-                    &mut scenes,
-                    &mut change_scene,
-                    &mut removed_scenes,
-                ))
-                .map_err(|_| ECSError::SystemError)?;
-            self.next_frame_system_invocations.clear();
-        }
-
-        // Run procedures
-        // TODO: protect against infinite loop
-        while let Some(signal) = frame_signals.pop_front() {
-            // Build pipeline
-            if let Some(pipeline) = self
-                .scheduler
-                .build_pipeline(signal, context.registry)
-                .map_err(|_| ECSError::RegistryError)?
-            {
-                // Run pipeline
-                pipeline
-                    .run(&mut create_system_context(
-                        &mut context,
-                        signal,
-                        self.active_scene,
-                        &mut self.scheduler,
-                        &mut frame_signals,
-                        &mut self.next_frame_signals,
-                        &mut scenes,
-                        &mut change_scene,
-                        &mut removed_scenes,
-                    ))
-                    .map_err(|_| ECSError::RegistryError)?;
-            }
-
-            // Remove scenes
-            for uid in removed_scenes.drain() {
-                self.scenes.borrow_mut().remove(&uid);
-            }
-
-            // Change scene
-            if let Some(scene) = change_scene {
-                self.active_scene = scene;
-                self.next_frame_signals
-                    .push_front(Stage::SCENE_CHANGED.into());
-                change_scene = None;
-            }
+        for (id, scene) in self.scenes.iter() {
+            scene.update(&mut context)?;
         }
 
         Ok(())

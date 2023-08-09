@@ -1,14 +1,17 @@
+use std::collections::VecDeque;
+
 use crate::{
     ecs::{
         archetype::ArchetypeTable,
-        component::ComponentTable,
+        component::{ComponentHandle, ComponentTable},
         entity::{Entity, EntityBuilder, EntityTable},
         error::SceneError,
         query::{FilterQueryId, QueryId, QueryTable},
-        view::{ComponentViewMut, ComponentViewRef},
+        scheduler::Invocation,
+        system::SystemTable,
     },
-    registry::{component::ComponentId, RegistryManager},
-    utils::uid::UID,
+    registry::RegistryManager,
+    utils::{slotmap::SlotId, uid::UID},
 };
 
 pub struct ExclusiveSceneContext<'a> {
@@ -17,6 +20,9 @@ pub struct ExclusiveSceneContext<'a> {
     components: &'a mut ComponentTable,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
+    systems: &'a mut SystemTable,
+    pub(crate) frame_stages: &'a mut VecDeque<SlotId>,
+    pub(crate) next_frame_stages: &'a mut VecDeque<SlotId>,
     cycle: u32,
 }
 
@@ -36,12 +42,31 @@ impl<'a> ExclusiveSceneContext<'a> {
             .remove(entity, self.archetypes, self.components)
     }
 
-    pub fn view(&self, component: ComponentId) -> Result<ComponentViewRef<'_>, SceneError> {
+    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, SceneError> {
         self.components.view(component)
     }
 
-    pub fn view_mut(&self, component: ComponentId) -> Result<ComponentViewMut<'_>, SceneError> {
+    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, SceneError> {
         self.components.view_mut(component, self.cycle)
+    }
+
+    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), SceneError> {
+        let stage = self
+            .systems
+            .find_stage(stage)
+            .ok_or(SceneError::SystemStageNotFound)?;
+        match invocation {
+            Invocation::Immediate => {
+                self.frame_stages.push_front(stage);
+            }
+            Invocation::EndFrame => {
+                self.frame_stages.push_back(stage);
+            }
+            Invocation::NextFrame => {
+                self.next_frame_stages.push_back(stage);
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
@@ -57,7 +82,6 @@ impl<'a> ExclusiveSceneContext<'a> {
 }
 
 pub struct ParallelSceneContext<'a> {
-    uid: UID,
     registry: &'a RegistryManager,
     components: &'a ComponentTable,
     entities: &'a EntityTable,
@@ -66,11 +90,11 @@ pub struct ParallelSceneContext<'a> {
 }
 
 impl<'a> ParallelSceneContext<'a> {
-    pub fn view(&self, component: ComponentId) -> Result<ComponentViewRef<'_>, SceneError> {
+    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, SceneError> {
         self.components.view(component)
     }
 
-    pub fn view_mut(&self, component: ComponentId) -> Result<ComponentViewMut<'_>, SceneError> {
+    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, SceneError> {
         self.components.view_mut(component, self.cycle)
     }
 

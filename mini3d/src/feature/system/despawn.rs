@@ -1,22 +1,19 @@
 use crate::{
     ecs::{
+        component::StaticComponent,
         context::ExclusiveContext,
         entity::Entity,
         query::QueryId,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
-    registry::{
-        component::{Component, ComponentId},
-        error::RegistryError,
-        system::ExclusiveSystem,
-    },
+    registry::{component::Component, error::RegistryError, system::ExclusiveSystem},
 };
 
 #[derive(Default)]
 pub struct DespawnEntities {
-    life_cycle: ComponentId,
-    hierarchy: ComponentId,
+    life_cycle: StaticComponent<Lifecycle>,
+    hierarchy: StaticComponent<Hierarchy>,
     query: QueryId,
 }
 
@@ -28,7 +25,7 @@ impl ExclusiveSystem for DespawnEntities {
         self.hierarchy = resolver.find(Hierarchy::UID)?;
         self.query = resolver
             .query()
-            .all(&[self.life_cycle, self.hierarchy])
+            .all(&[Lifecycle::UID, Hierarchy::UID])?
             .build();
         Ok(())
     }
@@ -38,11 +35,8 @@ impl ExclusiveSystem for DespawnEntities {
         let mut detach_entities = Vec::new();
 
         {
-            let mut hierarchies = ctx
-                .scene
-                .view_mut(self.hierarchy)?
-                .as_static::<Hierarchy>()?;
-            let lifecycles = ctx.scene.view(self.life_cycle)?.as_static::<Lifecycle>()?;
+            let mut hierarchies = ctx.scene.view_mut(self.hierarchy)?;
+            let lifecycles = ctx.scene.view(self.life_cycle)?;
 
             // Collect despawned entities
             for e in ctx.scene.query(self.query) {

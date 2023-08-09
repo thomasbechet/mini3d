@@ -1,8 +1,15 @@
 use std::ops::Range;
 
 use crate::{
-    registry::{component::ComponentId, system::SystemId},
-    utils::slotmap::{SlotId, SlotMap},
+    registry::{
+        component::{ComponentId, ComponentRegistry},
+        error::RegistryError,
+        system::SystemId,
+    },
+    utils::{
+        slotmap::{SlotId, SlotMap},
+        uid::UID,
+    },
 };
 
 use super::{
@@ -199,6 +206,7 @@ impl QueryTable {
 }
 
 pub struct QueryBuilder<'a> {
+    registry: &'a ComponentRegistry,
     system: SystemId,
     all: &'a mut Vec<ComponentId>,
     any: &'a mut Vec<ComponentId>,
@@ -209,31 +217,43 @@ pub struct QueryBuilder<'a> {
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn all(mut self, components: &[ComponentId]) -> Self {
+    pub fn all(mut self, components: &[UID]) -> Result<Self, RegistryError> {
         for component in components {
-            if self.all.iter().all(|c| *c != *component) {
-                self.all.push(*component);
+            let component = self
+                .registry
+                .find_id(*component)
+                .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
+            if self.all.iter().all(|c| *c != component) {
+                self.all.push(component);
             }
         }
-        self
+        Ok(self)
     }
 
-    pub fn any(mut self, components: &[ComponentId]) -> Self {
+    pub fn any(mut self, components: &[UID]) -> Result<Self, RegistryError> {
         for component in components {
-            if self.any.iter().all(|c| *c != *component) {
-                self.any.push(*component);
+            let component = self
+                .registry
+                .find_id(*component)
+                .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
+            if self.any.iter().all(|c| *c != component) {
+                self.any.push(component);
             }
         }
-        self
+        Ok(self)
     }
 
-    pub fn not(mut self, components: &[ComponentId]) -> Self {
+    pub fn not(mut self, components: &[UID]) -> Result<Self, RegistryError> {
         for component in components {
-            if self.not.iter().all(|c| *c != *component) {
-                self.not.push(*component);
+            let component = self
+                .registry
+                .find_id(*component)
+                .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
+            if self.not.iter().all(|c| *c != component) {
+                self.not.push(component);
             }
         }
-        self
+        Ok(self)
     }
 
     pub fn build(self) -> QueryId {

@@ -2,22 +2,19 @@ use glam::{Quat, Vec3};
 
 use crate::{
     ecs::{
+        component::StaticComponent,
         context::ParallelContext,
         query::QueryId,
         system::{ParallelResolver, SystemResult},
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
-    registry::{
-        component::{Component, ComponentId},
-        error::RegistryError,
-        system::ParallelSystem,
-    },
+    registry::{component::Component, error::RegistryError, system::ParallelSystem},
 };
 
 #[derive(Default)]
 pub struct RotatorSystem {
-    transform: ComponentId,
-    rotator: ComponentId,
+    transform: StaticComponent<Transform>,
+    rotator: StaticComponent<Rotator>,
     query: QueryId,
 }
 
@@ -29,17 +26,14 @@ impl ParallelSystem for RotatorSystem {
         self.rotator = resolver.read(Rotator::UID)?;
         self.query = resolver
             .query()
-            .all(&[self.transform, self.rotator])
+            .all(&[Transform::UID, Rotator::UID])?
             .build();
         Ok(())
     }
 
     fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let mut transforms = ctx
-            .scene
-            .view_mut(self.transform)?
-            .as_static::<Transform>()?;
-        let rotators = ctx.scene.view(self.rotator)?.as_static::<Rotator>()?;
+        let mut transforms = ctx.scene.view_mut(self.transform)?;
+        let rotators = ctx.scene.view(self.rotator)?;
         for e in ctx.scene.query(self.query) {
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,

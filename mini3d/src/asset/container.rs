@@ -1,58 +1,15 @@
-use std::{
-    any::Any,
-    collections::{HashMap, HashSet},
-};
+use std::{any::Any, collections::HashSet};
 
 use crate::{
     registry::component::Component,
-    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::uid::UID,
+    serialize::{Decoder, Encoder, Serialize},
+    utils::{slotmap::SlotMap, uid::UID},
 };
 
 use super::error::AssetError;
 
-pub struct AssetEntry<C: Component> {
-    pub name: String,
-    pub asset: C,
-    pub bundle: UID,
-}
-
-impl<C: Component> AssetEntry<C> {
-    pub fn uid(&self) -> UID {
-        UID::new(&self.name)
-    }
-}
-
-impl<C: Component> Serialize for AssetEntry<C> {
-    type Header = C::Header;
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.name.serialize(encoder)?;
-        self.asset.serialize(encoder)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let name = String::deserialize(decoder, &Default::default())?;
-        let asset = C::deserialize(decoder, header)?;
-        Ok(AssetEntry {
-            name,
-            asset,
-            bundle: UID::default(),
-        })
-    }
-}
-
-pub(crate) struct AssetContainer<C: Component>(pub(crate) HashMap<UID, AssetEntry<C>>);
-
-impl<C: Component> Default for AssetContainer<C> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
+#[derive(Default)]
+pub(crate) struct StaticAssetContainer<C: Component>(SlotMap<Box<C>>);
 
 pub(crate) trait AnyAssetContainer: Any {
     fn as_any(&self) -> &dyn Any;
@@ -72,7 +29,7 @@ pub(crate) trait AnyAssetContainer: Any {
     ) -> Result<(), AssetError>;
 }
 
-impl<C: Component> AnyAssetContainer for AssetContainer<C> {
+impl<C: Component> AnyAssetContainer for StaticAssetContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -82,7 +39,7 @@ impl<C: Component> AnyAssetContainer for AssetContainer<C> {
     }
 
     fn merge(&mut self, other: &mut dyn AnyAssetContainer) -> Result<(), AssetError> {
-        let other: &mut AssetContainer<C> = other
+        let other: &mut StaticAssetContainer<C> = other
             .as_any_mut()
             .downcast_mut()
             .ok_or(AssetError::InvalidAssetTypeCast)?;
@@ -137,7 +94,7 @@ impl<C: Component> AnyAssetContainer for AssetContainer<C> {
             .read_u32()
             .map_err(|_| AssetError::DeserializationError)? as usize;
         for _ in 0..len {
-            let mut entry = AssetEntry::<C>::deserialize(&mut decoder, &header)
+            let mut entry = StaticAssetEntry::<C>::deserialize(&mut decoder, &header)
                 .map_err(|_| AssetError::DeserializationError)?;
             entry.bundle = bundle;
             self.0.insert(entry.uid(), entry);

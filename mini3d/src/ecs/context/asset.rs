@@ -1,5 +1,5 @@
 use crate::{
-    asset::{container::AssetEntry, error::AssetError, AssetManager},
+    asset::{container::StaticAssetEntry, error::AssetError, AssetManager},
     registry::component::{Component, ComponentId, ComponentRegistry},
     utils::uid::UID,
 };
@@ -34,14 +34,14 @@ impl<'a> ExclusiveAssetContext<'a> {
         &'_ self,
         asset: ComponentId,
         uid: UID,
-    ) -> Result<Option<&'_ AssetEntry<C>>, AssetError> {
+    ) -> Result<Option<&'_ StaticAssetEntry<C>>, AssetError> {
         self.manager.entry::<C>(asset, uid)
     }
 
     pub fn iter<C: Component>(
         &self,
         asset: ComponentId,
-    ) -> Result<Option<impl Iterator<Item = &AssetEntry<C>>>, AssetError> {
+    ) -> Result<Option<impl Iterator<Item = &StaticAssetEntry<C>>>, AssetError> {
         self.manager.iter::<C>(asset)
     }
 
@@ -99,14 +99,14 @@ impl<'a> ParallelAssetContext<'a> {
         &'_ self,
         asset: ComponentId,
         uid: UID,
-    ) -> Result<Option<&'_ AssetEntry<C>>, AssetError> {
+    ) -> Result<Option<&'_ StaticAssetEntry<C>>, AssetError> {
         self.manager.entry::<C>(asset, uid)
     }
 
     pub fn iter<C: Component>(
         &self,
         asset: ComponentId,
-    ) -> Result<Option<impl Iterator<Item = &AssetEntry<C>>>, AssetError> {
+    ) -> Result<Option<impl Iterator<Item = &StaticAssetEntry<C>>>, AssetError> {
         self.manager.iter::<C>(asset)
     }
 }

@@ -6,9 +6,13 @@ use super::{
     archetype::ArchetypeTable,
     component::ComponentTable,
     context::{
-        asset::ExclusiveAssetContext, event::EventContext, input::ExclusiveInputContext,
-        registry::RegistryContext, renderer::ExclusiveRendererContext,
-        scene::ExclusiveSceneContext, stage::ExclusiveStageContext, time::TimeContext,
+        asset::{ExclusiveAssetContext, ParallelAssetContext},
+        event::EventContext,
+        input::{ExclusiveInputContext, ParallelInputContext},
+        registry::RegistryContext,
+        renderer::{ExclusiveRendererContext, ParallelRendererContext},
+        scene::{ExclusiveSceneContext, ParallelSceneContext},
+        time::TimeContext,
         ExclusiveContext, ParallelContext,
     },
     entity::EntityTable,
@@ -61,21 +65,19 @@ impl Scheduler {
 
     pub(crate) fn update(
         &mut self,
-        delta_time: f64,
-        global_time: f64,
         archetypes: &mut ArchetypeTable,
         components: &mut ComponentTable,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         systems: &mut SystemTable,
-        mut context: ECSUpdateContext,
+        mut context: &mut ECSUpdateContext,
     ) -> Result<(), SceneError> {
         // Collect previous frame stages
         let mut frame_stages = self.next_frame_stages.drain(..).collect::<VecDeque<_>>();
 
         // Integrate fixed update stages
         for stage in self.fixed_update_stages.iter_mut() {
-            stage.accumulator += delta_time;
+            stage.accumulator += context.delta_time;
             let frequency = systems.stages[stage.stage].stage.frequency().unwrap();
             let count = (stage.accumulator / frequency) as u32;
             stage.accumulator -= count as f64 * frequency;
@@ -112,11 +114,6 @@ impl Scheduler {
                                     input: ExclusiveInputContext {
                                         manager: context.input,
                                     },
-                                    stage: ExclusiveStageContext {
-                                        active_stage: stage,
-                                        frame_stages: &mut frame_stages,
-                                        next_frame_stages: &mut self.next_frame_stages,
-                                    },
                                     registry: RegistryContext {
                                         manager: &context.registry.borrow(),
                                     },
@@ -129,27 +126,48 @@ impl Scheduler {
                                         components,
                                         entities,
                                         queries,
+                                        systems,
+                                        frame_stages: &mut frame_stages,
+                                        next_frame_stages: &mut self.next_frame_stages,
                                         cycle: self.global_cycle,
                                     },
                                     time: TimeContext {
-                                        delta: delta_time,
+                                        delta: context.delta_time,
                                         fixed: fixed_delta_time,
-                                        global: global_time,
+                                        global: context.global_time,
                                     },
                                 });
                             }
                             StaticSystemInstance::Parallel(system) => {
                                 // Run parallel system (TODO: use thread pool)
                                 system.run(&mut ParallelContext {
-                                    asset: todo!(),
-                                    event: todo!(),
-                                    input: todo!(),
-                                    stage: todo!(),
-                                    registry: todo!(),
-                                    renderer: todo!(),
-                                    scene: todo!(),
-                                    scheduler: todo!(),
-                                    time: todo!(),
+                                    asset: ParallelAssetContext {
+                                        manager: context.asset,
+                                    },
+                                    event: EventContext {
+                                        events: context.events,
+                                    },
+                                    input: ParallelInputContext {
+                                        manager: context.input,
+                                    },
+                                    registry: RegistryContext {
+                                        manager: &context.registry.borrow(),
+                                    },
+                                    renderer: ParallelRendererContext {
+                                        manager: context.renderer,
+                                    },
+                                    scene: ParallelSceneContext {
+                                        registry: &context.registry.borrow(),
+                                        components,
+                                        entities,
+                                        queries,
+                                        cycle: self.global_cycle,
+                                    },
+                                    time: TimeContext {
+                                        delta: context.delta_time,
+                                        fixed: fixed_delta_time,
+                                        global: context.global_time,
+                                    },
                                 });
                             }
                         },

@@ -2,22 +2,19 @@ use glam::{Quat, Vec3};
 
 use crate::{
     ecs::{
+        component::StaticComponent,
         context::ParallelContext,
         query::QueryId,
         system::{ParallelResolver, SystemResult},
     },
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
-    registry::{
-        component::{Component, ComponentId},
-        error::RegistryError,
-        system::ParallelSystem,
-    },
+    registry::{component::Component, error::RegistryError, system::ParallelSystem},
 };
 
 #[derive(Default)]
 pub struct FreeFlySystem {
-    free_fly: ComponentId,
-    transform: ComponentId,
+    free_fly: StaticComponent<FreeFly>,
+    transform: StaticComponent<Transform>,
     query: QueryId,
 }
 
@@ -29,17 +26,14 @@ impl ParallelSystem for FreeFlySystem {
         self.transform = resolver.write(Transform::UID)?;
         self.query = resolver
             .query()
-            .all(&[self.free_fly, self.transform])
+            .all(&[FreeFly::UID, Transform::UID])?
             .build();
         Ok(())
     }
 
     fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let mut transforms = ctx
-            .scene
-            .view_mut(self.transform)?
-            .as_static::<Transform>()?;
-        let mut free_flies = ctx.scene.view_mut(self.free_fly)?.as_static::<FreeFly>()?;
+        let mut transforms = ctx.scene.view_mut(self.transform)?;
+        let mut free_flies = ctx.scene.view_mut(self.free_fly)?;
 
         for e in ctx.scene.query(self.query) {
             let transform = transforms.get_mut(e).unwrap();

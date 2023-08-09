@@ -1,33 +1,64 @@
 use core::result::Result;
-use std::collections::HashMap;
 
+use crate::ecs::sparse::PagedVector;
 use crate::registry::component::{Component, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::utils::slotmap::SparseSecondaryMap;
+use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::uid::UID;
 
-use self::bundle::{AssetBundle, ImportAssetBundle};
-use self::container::{AnyAssetContainer, AssetContainer, AssetEntry};
+use self::container::{AnyAssetContainer, StaticAssetContainer};
 use self::error::AssetError;
+use self::handle::{AssetHandle, AssetId};
 
-pub mod bundle;
 pub mod container;
 pub mod error;
-pub mod reference;
+pub mod handle;
+
+type AssetEntryId = SlotId;
+type AssetBundleId = SlotId;
+
+enum AssetSource {
+    Disk,
+    Memory,
+}
+
+struct AssetEntry {
+    component: UID,
+    bundle: AssetBundleId,
+    next_in_bundle: AssetEntryId,
+    prev_in_bundle: AssetEntryId,
+}
+
+struct AssetBundle {
+    name: String,
+    first_entry: AssetEntryId,
+}
 
 #[derive(Default)]
 pub struct AssetManager {
     containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>,
-    defaults: SparseSecondaryMap<UID>,
-    bundles: HashMap<UID, AssetBundle>,
+    bundles: DenseSlotMap<AssetBundle>,
+    entries: DenseSlotMap<AssetEntry>,
+    handles: PagedVector<usize>,
+    free_handles: Vec<AssetId>,
+    next_handle: AssetId,
 }
 
 impl AssetManager {
+    fn next_handle(&mut self) -> AssetId {
+        if let Some(handle) = self.free_handles.pop() {
+            return handle;
+        }
+        let handle = self.next_handle;
+        self.next_handle = AssetId::new(handle.key() + 1, 0);
+        handle
+    }
+
     #[inline]
     fn container<C: Component>(
         &'_ self,
         asset: ComponentId,
-    ) -> Result<Option<&'_ AssetContainer<C>>, AssetError> {
+    ) -> Result<Option<&'_ StaticAssetContainer<C>>, AssetError> {
         if let Some(container) = self.containers.get(asset.into()) {
             return Ok(Some(
                 container
@@ -43,7 +74,7 @@ impl AssetManager {
     fn container_mut<C: Component>(
         &'_ mut self,
         asset: ComponentId,
-    ) -> Result<Option<&'_ mut AssetContainer<C>>, AssetError> {
+    ) -> Result<Option<&'_ mut StaticAssetContainer<C>>, AssetError> {
         if let Some(container) = self.containers.get_mut(asset.into()) {
             return Ok(Some(
                 container
@@ -116,15 +147,11 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn get<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ C>, AssetError> {
-        Ok(self
-            .container::<C>(asset)?
-            .and_then(|container| container.0.get(&uid).map(|entry| &entry.asset)))
-    }
+    pub(crate) fn get<H: AssetHandle>(&self, path: &str) -> Result<Option<H>, AssetError> {}
+
+    pub(crate) fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef> {}
+
+    pub(crate) fn write<H: AssetHandle>(&self, handle: H, asset: H::AssetRef) -> Result<()> {}
 
     pub(crate) fn get_or_default<C: Component>(
         &'_ self,
@@ -145,20 +172,10 @@ impl AssetManager {
         }))
     }
 
-    pub(crate) fn entry<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ AssetEntry<C>>, AssetError> {
-        Ok(self
-            .container::<C>(asset)?
-            .and_then(|container| container.0.get(&uid)))
-    }
-
     pub(crate) fn iter<C: Component>(
         &self,
         asset: ComponentId,
-    ) -> Result<Option<impl Iterator<Item = &AssetEntry<C>>>, AssetError> {
+    ) -> Result<Option<impl Iterator<Item = &StaticAssetEntry<C>>>, AssetError> {
         Ok(self
             .container::<C>(asset)?
             .map(|container| container.0.values()))
@@ -199,20 +216,6 @@ impl AssetManager {
         Ok(())
     }
 
-    // pub(crate) fn import_bundle(&mut self, import: ImportAssetBundle) -> Result<(), AssetError> {
-    //     let uid = self.add_bundle(&import.name)?;
-    //     let bundle = self.bundles.get_mut(&uid).unwrap();
-    //     for (asset, mut container) in import.containers.iter() {
-    //         bundle.assets.insert(asset, container.collect_uids());
-    //         if let Some(self_container) = self.containers.get_mut(asset) {
-    //             self_container.merge(container.as_mut())?;
-    //         } else {
-    //             self.containers.insert(asset, container);
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
     pub(crate) fn add<C: Component>(
         &mut self,
         registry: &ComponentRegistry,
@@ -235,7 +238,7 @@ impl AssetManager {
         // Downcast the container
         let container = container
             .as_any_mut()
-            .downcast_mut::<AssetContainer<C>>()
+            .downcast_mut::<StaticAssetContainer<C>>()
             .ok_or(AssetError::InvalidAssetTypeCast)?;
         // Check if asset already exists
         let uid = UID::new(name);
@@ -245,7 +248,7 @@ impl AssetManager {
             });
         }
         // Safely insert the asset
-        let value = AssetEntry {
+        let value = StaticAssetEntry {
             name: name.to_string(),
             asset: data,
             bundle,
@@ -272,7 +275,7 @@ impl AssetManager {
             .get_mut(asset.into())
             .ok_or(AssetError::AssetTypeNotFound)?
             .as_any_mut()
-            .downcast_mut::<AssetContainer<C>>()
+            .downcast_mut::<StaticAssetContainer<C>>()
             .ok_or(AssetError::InvalidAssetTypeCast)?;
         // Remove the asset
         if let Some(entry) = container.0.remove(&uid) {

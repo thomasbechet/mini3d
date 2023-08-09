@@ -15,7 +15,6 @@ use crate::registry::RegistryManager;
 use crate::renderer::backend::{RendererBackend, RendererBackendError};
 use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, EncoderError, Serialize};
-use crate::utils::uid::UID;
 use core::cell::RefCell;
 
 #[derive(Debug, Error)]
@@ -27,7 +26,6 @@ pub enum ProgressError {
 }
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
-const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 pub struct Engine {
     pub(crate) disk: Box<dyn DiskBackend>,
@@ -37,7 +35,7 @@ pub struct Engine {
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
-    time: f64,
+    global_time: f64,
     running: bool,
 }
 
@@ -116,17 +114,13 @@ impl Engine {
             ecs: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
-            time: 0.0,
+            global_time: 0.0,
             running: true,
         };
         engine
             .define_core_features()
             .expect("Failed to define core features");
         engine
-    }
-
-    pub fn invoke_system(&mut self, system: UID) {
-        self.ecs.invoke(system)
     }
 
     pub fn save_state(&self) -> Result<Box<[u8]>, EncoderError> {
@@ -136,7 +130,7 @@ impl Engine {
         self.renderer.save_state(&mut buffer)?;
         self.ecs.save_state(&registry.components, &mut buffer)?;
         self.input.save_state(&mut buffer)?;
-        self.time.serialize(&mut buffer)?;
+        self.global_time.serialize(&mut buffer)?;
         self.running.serialize(&mut buffer)?;
         Ok(buffer.into_boxed_slice())
     }
@@ -148,7 +142,7 @@ impl Engine {
         self.ecs
             .load_state(&self.registry.borrow().components, decoder)?;
         self.input.load_state(decoder)?;
-        self.time = Serialize::deserialize(decoder, &Default::default())?;
+        self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         self.running = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
     }
@@ -178,7 +172,7 @@ impl Engine {
             dt = MAXIMUM_TIMESTEP; // Slowing down
         }
         // Integrate time
-        self.time += dt;
+        self.global_time += dt;
 
         // ================= DISPATCH STAGE ================= //
 
@@ -201,19 +195,15 @@ impl Engine {
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
         self.ecs
-            .update(
-                ECSUpdateContext {
-                    registry: &self.registry,
-                    asset: &mut self.asset,
-                    input: &mut self.input,
-                    renderer: &mut self.renderer,
-                    events,
-                    delta_time: dt,
-                    time: self.time,
-                    fixed_delta_time: FIXED_TIMESTEP,
-                },
-                fixed_update_count,
-            )
+            .update(ECSUpdateContext {
+                registry: &self.registry,
+                asset: &mut self.asset,
+                input: &mut self.input,
+                renderer: &mut self.renderer,
+                events,
+                delta_time: dt,
+                global_time: self.global_time,
+            })
             .map_err(|_| ProgressError::ECSError)?;
 
         Ok(())

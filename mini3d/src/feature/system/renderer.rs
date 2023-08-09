@@ -1,29 +1,26 @@
 use crate::{
     ecs::{
+        component::StaticComponent,
         context::ExclusiveContext,
         query::QueryId,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{
         common::lifecycle::Lifecycle,
-        renderer::{camera::Camera, static_mesh::StaticMesh},
+        renderer::{camera::Camera, model::Model, static_mesh::StaticMesh},
         ui::{canvas::Canvas, viewport::Viewport},
     },
-    registry::{
-        component::{Component, ComponentId},
-        error::RegistryError,
-        system::ExclusiveSystem,
-    },
+    registry::{component::Component, error::RegistryError, system::ExclusiveSystem},
 };
 
 #[derive(Default)]
 pub struct DespawnRendererEntities {
-    life_cycle: ComponentId,
-    viewport: ComponentId,
-    camera: ComponentId,
-    model: ComponentId,
-    canvas: ComponentId,
-    static_mesh: ComponentId,
+    life_cycle: StaticComponent<Lifecycle>,
+    viewport: StaticComponent<Viewport>,
+    camera: StaticComponent<Camera>,
+    model: StaticComponent<Model>,
+    canvas: StaticComponent<Canvas>,
+    static_mesh: StaticComponent<StaticMesh>,
     viewport_query: QueryId,
     camera_query: QueryId,
     model_query: QueryId,
@@ -42,26 +39,29 @@ impl ExclusiveSystem for DespawnRendererEntities {
         self.static_mesh = resolver.find(StaticMesh::UID)?;
         self.viewport_query = resolver
             .query()
-            .all(&[self.life_cycle, self.viewport])
+            .all(&[Lifecycle::UID, Viewport::UID])?
             .build();
         self.camera_query = resolver
             .query()
-            .all(&[self.life_cycle, self.camera])
+            .all(&[Lifecycle::UID, Camera::UID])?
             .build();
-        self.model_query = resolver.query().all(&[self.life_cycle, self.model]).build();
+        self.model_query = resolver
+            .query()
+            .all(&[Lifecycle::UID, StaticMesh::UID])?
+            .build();
         self.canvas_query = resolver
             .query()
-            .all(&[self.life_cycle, self.canvas])
+            .all(&[Lifecycle::UID, Canvas::UID])?
             .build();
         Ok(())
     }
 
     fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
-        let lifecycles = ctx.scene.view(self.life_cycle)?.as_static::<Lifecycle>()?;
-        let viewports = ctx.scene.view(self.viewport)?.as_static::<Viewport>()?;
-        let cameras = ctx.scene.view(self.camera)?.as_static::<Camera>()?;
-        let models = ctx.scene.view(self.model)?.as_static::<StaticMesh>()?;
-        let canvases = ctx.scene.view(self.canvas)?.as_static::<Canvas>()?;
+        let lifecycles = ctx.scene.view(self.life_cycle)?;
+        let viewports = ctx.scene.view(self.viewport)?;
+        let cameras = ctx.scene.view(self.camera)?;
+        let static_meshes = ctx.scene.view(self.static_mesh)?;
+        let canvases = ctx.scene.view(self.canvas)?;
 
         for e in ctx.scene.query(self.viewport_query) {
             if !lifecycles[e].alive {
@@ -81,7 +81,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
 
         for e in ctx.scene.query(self.model_query) {
             if !lifecycles[e].alive {
-                if let Some(handle) = models[e].handle {
+                if let Some(handle) = static_meshes[e].handle {
                     ctx.renderer.manager.scene_models_removed.insert(handle);
                 }
             }

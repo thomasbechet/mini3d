@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     archetype::ArchetypeTable,
-    component::ComponentTable,
+    component::{ComponentHandle, ComponentTable},
     context::{ExclusiveContext, ParallelContext},
     entity::EntityTable,
     error::SceneError,
@@ -47,17 +47,18 @@ pub struct ExclusiveResolver<'a> {
 }
 
 impl<'a> ExclusiveResolver<'a> {
-    pub fn find(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
+    pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
         let id = self
             .registry
             .find_id(component)
             .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
         self.components.preallocate(id, self.registry);
-        Ok(id)
+        Ok(H::new(component, id))
     }
 
     pub fn query(&mut self) -> QueryBuilder<'a> {
         QueryBuilder {
+            registry: self.registry,
             system: self.system,
             all: &mut self.all,
             any: &mut self.any,
@@ -84,7 +85,7 @@ pub struct ParallelResolver<'a> {
 }
 
 impl<'a> ParallelResolver<'a> {
-    pub fn read(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
+    pub fn read<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
         let id = self
             .registry
             .find_id(component)
@@ -93,10 +94,10 @@ impl<'a> ParallelResolver<'a> {
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
         }
-        Ok(id)
+        Ok(H::new(component, id))
     }
 
-    pub fn write(&mut self, component: UID) -> Result<ComponentId, RegistryError> {
+    pub fn write<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
         let id = self
             .registry
             .find_id(component)
@@ -108,11 +109,12 @@ impl<'a> ParallelResolver<'a> {
         if !self.writes.contains(&id) {
             self.writes.push(id);
         }
-        Ok(id)
+        Ok(H::new(component, id))
     }
 
     pub fn query(&mut self) -> QueryBuilder<'a> {
         QueryBuilder {
+            registry: self.registry,
             system: self.system,
             all: &mut self.all,
             any: &mut self.any,

@@ -5,7 +5,7 @@ use super::{
     entity::Entity,
     error::SceneError,
     sparse::PagedVector,
-    view::{ComponentViewMut, ComponentViewRef},
+    view::{ComponentViewMut, ComponentViewRef, StaticComponentViewMut, StaticComponentViewRef},
 };
 use crate::{
     registry::component::{Component, ComponentId, ComponentRegistry},
@@ -14,6 +14,128 @@ use crate::{
 };
 use crate::{script::reflection::PropertyId, utils::uid::UID};
 use core::{any::Any, cell::RefCell};
+
+pub trait ComponentHandle {
+    type ViewRef<'a>;
+    type ViewMut<'a>;
+    fn new(uid: UID, id: ComponentId) -> Self;
+    fn view_ref<'a>(&self, components: &'a ComponentTable)
+        -> Result<Self::ViewRef<'a>, SceneError>;
+    fn view_mut<'a>(
+        &self,
+        components: &'a ComponentTable,
+        cycle: u32,
+    ) -> Result<Self::ViewMut<'a>, SceneError>;
+}
+
+pub struct StaticComponent<C: Component> {
+    _marker: std::marker::PhantomData<C>,
+    uid: UID,
+    id: ComponentId,
+}
+
+impl<C: Component> Default for StaticComponent<C> {
+    fn default() -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+            uid: UID::null(),
+            id: ComponentId::default(),
+        }
+    }
+}
+
+impl<C: Component> ComponentHandle for StaticComponent<C> {
+    type ViewRef<'a> = StaticComponentViewRef<'a, C>;
+    type ViewMut<'a> = StaticComponentViewMut<'a, C>;
+
+    fn new(uid: UID, id: ComponentId) -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+            uid,
+            id,
+        }
+    }
+
+    fn view_ref<'a>(
+        &self,
+        components: &'a ComponentTable,
+    ) -> Result<Self::ViewRef<'a>, SceneError> {
+        Ok(StaticComponentViewRef {
+            container: components
+                .containers
+                .get(self.id.into())
+                .unwrap()
+                .try_borrow()
+                .map_err(|_| SceneError::ContainerBorrowMut)?
+                .as_any()
+                .downcast_ref::<StaticComponentContainer<C>>()
+                .ok_or(SceneError::ComponentTypeMismatch)?,
+        })
+    }
+
+    fn view_mut<'a>(
+        &self,
+        components: &'a ComponentTable,
+        cycle: u32,
+    ) -> Result<Self::ViewMut<'a>, SceneError> {
+        Ok(StaticComponentViewMut {
+            container: components
+                .containers
+                .get(self.id.into())
+                .unwrap()
+                .try_borrow_mut()
+                .map_err(|_| SceneError::ContainerBorrowMut)?
+                .as_any_mut()
+                .downcast_mut::<StaticComponentContainer<C>>()
+                .ok_or(SceneError::ComponentTypeMismatch)?,
+            cycle,
+        })
+    }
+}
+
+pub struct DynamicComponent {
+    uid: UID,
+    id: ComponentId,
+}
+
+impl ComponentHandle for DynamicComponent {
+    type ViewRef<'a> = ComponentViewRef<'a>;
+    type ViewMut<'a> = ComponentViewMut<'a>;
+
+    fn new(uid: UID, id: ComponentId) -> Self {
+        Self { uid, id }
+    }
+
+    fn view_ref<'a>(
+        &self,
+        components: &'a ComponentTable,
+    ) -> Result<Self::ViewRef<'a>, SceneError> {
+        Ok(ComponentViewRef {
+            container: components
+                .containers
+                .get(self.id.into())
+                .unwrap()
+                .try_borrow()
+                .map_err(|_| SceneError::ContainerBorrowMut)?,
+        })
+    }
+
+    fn view_mut<'a>(
+        &self,
+        components: &'a ComponentTable,
+        cycle: u32,
+    ) -> Result<Self::ViewMut<'a>, SceneError> {
+        Ok(ComponentViewMut {
+            container: components
+                .containers
+                .get(self.id.into())
+                .unwrap()
+                .try_borrow_mut()
+                .map_err(|_| SceneError::ContainerBorrowMut)?,
+            cycle,
+        })
+    }
+}
 
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ComponentStatus {
@@ -371,30 +493,18 @@ impl ComponentTable {
             .remove(entity);
     }
 
-    pub(crate) fn view(&self, component: ComponentId) -> Result<ComponentViewRef<'_>, SceneError> {
-        Ok(ComponentViewRef {
-            container: self
-                .containers
-                .get(component.into())
-                .unwrap()
-                .try_borrow()
-                .map_err(|_| SceneError::ContainerBorrowMut)?,
-        })
+    pub(crate) fn view<H: ComponentHandle>(
+        &self,
+        component: H,
+    ) -> Result<H::ViewRef<'_>, SceneError> {
+        component.view_ref(self)
     }
 
-    pub(crate) fn view_mut(
+    pub(crate) fn view_mut<H: ComponentHandle>(
         &self,
-        component: ComponentId,
+        component: H,
         cycle: u32,
-    ) -> Result<ComponentViewMut<'_>, SceneError> {
-        Ok(ComponentViewMut {
-            container: self
-                .containers
-                .get(component.into())
-                .unwrap()
-                .try_borrow_mut()
-                .map_err(|_| SceneError::ContainerBorrowMut)?,
-            cycle,
-        })
+    ) -> Result<H::ViewMut<'_>, SceneError> {
+        component.view_mut(self, cycle)
     }
 }

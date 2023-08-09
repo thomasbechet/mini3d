@@ -7,7 +7,7 @@ use crate::{
 use super::archetype::ArchetypeTable;
 use super::component::ComponentTable;
 use super::entity::EntityTable;
-use super::error::ECSError;
+use super::error::SceneError;
 use super::query::QueryTable;
 use super::scheduler::Scheduler;
 use super::system::SystemTable;
@@ -58,7 +58,17 @@ impl Scene {
         }
     }
 
-    pub(crate) fn update(&mut self, context: &mut ECSUpdateContext) -> Result<(), ECSError> {
+    pub(crate) fn update(&mut self, context: &mut ECSUpdateContext) -> Result<(), SceneError> {
+        if self.active {
+            self.scheduler.update(
+                &mut self.archetypes,
+                &mut self.components,
+                &mut self.entities,
+                &mut self.queries,
+                &mut self.systems,
+                context,
+            )?;
+        }
         Ok(())
     }
 

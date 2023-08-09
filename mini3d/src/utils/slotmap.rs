@@ -267,6 +267,12 @@ impl<V> DenseSlotMap<V> {
     }
 }
 
+impl<V> Default for DenseSlotMap<V> {
+    fn default() -> Self {
+        Self::with_capacity(0)
+    }
+}
+
 // impl<V: Serialize> Serialize for DenseSlotMap<V> {
 //     type Header = V::Header;
 
