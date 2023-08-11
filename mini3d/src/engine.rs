@@ -1,7 +1,6 @@
 use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
-use crate::disk::backend::DiskBackend;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::event::system::SystemEvent;
 use crate::event::Events;
@@ -14,7 +13,9 @@ use crate::registry::error::RegistryError;
 use crate::registry::RegistryManager;
 use crate::renderer::backend::{RendererBackend, RendererBackendError};
 use crate::renderer::RendererManager;
-use crate::serialize::{Decoder, DecoderError, EncoderError, Serialize};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use crate::storage::backend::StorageBackend;
+use crate::storage::StorageManager;
 use core::cell::RefCell;
 
 #[derive(Debug, Error)]
@@ -28,8 +29,8 @@ pub enum ProgressError {
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 pub struct Engine {
-    pub(crate) disk: Box<dyn DiskBackend>,
     pub(crate) registry: RefCell<RegistryManager>,
+    pub(crate) storage: StorageManager,
     pub(crate) asset: AssetManager,
     pub(crate) input: InputManager,
     pub(crate) ecs: ECSManager,
@@ -105,10 +106,10 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new(disk: impl DiskBackend + 'static) -> Self {
+    pub fn new(io: impl StorageBackend + 'static) -> Self {
         let mut engine = Self {
-            disk: Box::new(disk),
             registry: Default::default(),
+            storage: StorageManager::new(io),
             asset: Default::default(),
             input: Default::default(),
             ecs: Default::default(),
@@ -123,16 +124,15 @@ impl Engine {
         engine
     }
 
-    pub fn save_state(&self) -> Result<Box<[u8]>, EncoderError> {
-        let mut buffer = Vec::new();
+    pub fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         let registry = self.registry.borrow();
-        self.asset.save_state(&registry.components, &mut buffer)?;
-        self.renderer.save_state(&mut buffer)?;
-        self.ecs.save_state(&registry.components, &mut buffer)?;
-        self.input.save_state(&mut buffer)?;
-        self.global_time.serialize(&mut buffer)?;
-        self.running.serialize(&mut buffer)?;
-        Ok(buffer.into_boxed_slice())
+        self.asset.save_state(&registry.components, encoder)?;
+        self.renderer.save_state(encoder)?;
+        self.ecs.save_state(&registry.components, encoder)?;
+        self.input.save_state(encoder)?;
+        self.global_time.serialize(encoder)?;
+        self.running.serialize(encoder)?;
+        Ok(())
     }
 
     pub fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
@@ -190,6 +190,10 @@ impl Engine {
             }
         }
 
+        // Dispatch network events
+
+        // Dispatch disk events
+
         // TODO: dispatch more events ...
 
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
@@ -229,4 +233,11 @@ impl Engine {
             .synchronize_backend(backend, &self.asset, &mut self.ecs)?;
         Ok(())
     }
+
+    // pub fn syncrhonize_network(
+    //     &mut self,
+    //     backend: &mut impl NetworkBackend,
+    // ) -> Result<(), NetworkBackendError> {
+    //     self.input.synchronize_backend(backend)
+    // }
 }

@@ -1,6 +1,5 @@
 use core::result::Result;
 
-use crate::ecs::sparse::PagedVector;
 use crate::registry::component::{Component, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
@@ -17,9 +16,9 @@ pub mod handle;
 type AssetEntryId = SlotId;
 type AssetBundleId = SlotId;
 
-enum AssetSource {
-    Disk,
-    Memory,
+enum AssetKind {
+    Persistent,
+    IO,
 }
 
 struct AssetEntry {
@@ -39,9 +38,6 @@ pub struct AssetManager {
     containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>,
     bundles: DenseSlotMap<AssetBundle>,
     entries: DenseSlotMap<AssetEntry>,
-    handles: PagedVector<usize>,
-    free_handles: Vec<AssetId>,
-    next_handle: AssetId,
 }
 
 impl AssetManager {
