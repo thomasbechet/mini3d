@@ -23,3 +23,9 @@ pub enum ImportAssetEvent {
     Script(AssetImportEntry<Script>),
     Texture(AssetImportEntry<Texture>),
 }
+
+#[derive(Serialize)]
+pub enum SystemEvent {
+    Shutdown,
+    ImportAsset(ImportAssetEvent),
+}

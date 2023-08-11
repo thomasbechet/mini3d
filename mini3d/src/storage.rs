@@ -1,15 +1,6 @@
-use self::backend::StorageBackend;
-
 pub mod backend;
 
-pub struct StorageManager {
-    backend: Box<dyn StorageBackend>,
-}
+#[derive(Default)]
+pub struct StorageManager {}
 
-impl StorageManager {
-    pub(crate) fn new(backend: impl StorageBackend + 'static) -> Self {
-        Self {
-            backend: Box::new(backend),
-        }
-    }
-}
+impl StorageManager {}

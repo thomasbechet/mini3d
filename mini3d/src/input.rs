@@ -1,15 +1,16 @@
 use mini3d_derive::{Error, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use crate::event::input::InputEvent;
 use crate::feature::component::input::input_table::{InputAxisRange, InputTable};
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::serialize::{Encoder, EncoderError};
 use crate::utils::uid::UID;
 
-use self::backend::{InputBackend, InputBackendError};
+use self::backend::InputBackend;
+use self::event::InputEvent;
 
 pub mod backend;
+pub mod event;
 
 #[derive(Debug, Error)]
 pub enum InputError {
@@ -83,7 +84,6 @@ pub struct InputManager {
     actions: HashMap<UID, InputActionState>,
     axis: HashMap<UID, InputAxisState>,
     texts: HashMap<UID, InputTextState>,
-    notify_tables: HashSet<UID>, // None means table removed
 }
 
 impl InputManager {
@@ -101,21 +101,23 @@ impl InputManager {
     }
 
     /// Process input events
-    pub(crate) fn dispatch_event(&mut self, event: &InputEvent) {
-        match event {
-            InputEvent::Action(event) => {
-                if let Some(action) = self.actions.get_mut(&event.action) {
-                    action.pressed = event.pressed;
+    pub(crate) fn dispatch_events(&mut self, events: &[InputEvent]) {
+        for event in events {
+            match event {
+                InputEvent::Action(event) => {
+                    if let Some(action) = self.actions.get_mut(&event.action) {
+                        action.pressed = event.pressed;
+                    }
                 }
-            }
-            InputEvent::Axis(event) => {
-                if let Some(axis) = self.axis.get_mut(&event.axis) {
-                    axis.set_value(event.value);
+                InputEvent::Axis(event) => {
+                    if let Some(axis) = self.axis.get_mut(&event.axis) {
+                        axis.set_value(event.value);
+                    }
                 }
-            }
-            InputEvent::Text(text) => {
-                if let Some(text) = self.texts.get_mut(&text.stream) {
-                    text.value = text.value.clone();
+                InputEvent::Text(text) => {
+                    if let Some(text) = self.texts.get_mut(&text.stream) {
+                        text.value = text.value.clone();
+                    }
                 }
             }
         }
@@ -128,28 +130,22 @@ impl InputManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+    pub(crate) fn load_state(
+        &mut self,
+        decoder: &mut impl Decoder,
+        backend: &mut impl InputBackend,
+    ) -> Result<(), DecoderError> {
         self.tables = HashMap::deserialize(decoder, &Default::default())?;
         self.actions = HashMap::deserialize(decoder, &Default::default())?;
         self.axis = HashMap::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
-    pub(crate) fn synchronize_backend(
+    pub(crate) fn add_table(
         &mut self,
         backend: &mut impl InputBackend,
-    ) -> Result<(), InputBackendError> {
-        for uid in self.notify_tables.drain() {
-            if let Some(table) = self.tables.get(&uid) {
-                backend.update_table(uid, Some(table))?;
-            } else {
-                backend.update_table(uid, None)?;
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
+        table: &InputTable,
+    ) -> Result<(), InputError> {
         // Check table validity
         table
             .validate()
@@ -196,7 +192,7 @@ impl InputManager {
         }
         self.tables.insert(table.uid(), table.clone());
         // Notify input mapping
-        self.notify_tables.insert(table.uid());
+        backend.update_table(table.uid(), Some(table));
         Ok(())
     }
 

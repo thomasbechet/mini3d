@@ -436,7 +436,14 @@ impl RendererManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+    pub(crate) fn load_state(
+        &mut self,
+        decoder: &mut impl Decoder,
+        backend: &mut impl RendererBackend,
+    ) -> Result<(), DecoderError> {
+        // Reset all previous resources
+        backend.reset();
+        // TODO: reset ECS resources
         self.graphics = Graphics::deserialize(decoder, &Default::default())?;
         Ok(())
     }

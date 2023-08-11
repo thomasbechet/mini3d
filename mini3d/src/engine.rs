@@ -2,10 +2,8 @@ use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
 use crate::ecs::{ECSManager, ECSUpdateContext};
-use crate::event::system::SystemEvent;
-use crate::event::Events;
 use crate::feature::{component, system};
-use crate::input::backend::{InputBackend, InputBackendError};
+use crate::input::backend::InputBackend;
 use crate::input::InputManager;
 use crate::network::backend::NetworkBackend;
 use crate::physics::PhysicsManager;
@@ -17,6 +15,8 @@ use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::storage::backend::StorageBackend;
 use crate::storage::StorageManager;
+use crate::system::backend::SystemBackend;
+use crate::system::event::SystemEvent;
 use core::cell::RefCell;
 
 #[derive(Debug, Error)]
@@ -110,7 +110,7 @@ impl Engine {
     pub fn new() -> Self {
         let mut engine = Self {
             registry: Default::default(),
-            storage: StorageManager::new(io),
+            storage: Default::default(),
             asset: Default::default(),
             input: Default::default(),
             ecs: Default::default(),
@@ -125,7 +125,11 @@ impl Engine {
         engine
     }
 
-    pub fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+    pub fn save_state(
+        &self,
+        encoder: &mut impl Encoder,
+        storage: &impl StorageBackend,
+    ) -> Result<(), EncoderError> {
         let registry = self.registry.borrow();
         self.asset.save_state(&registry.components, encoder)?;
         self.renderer.save_state(encoder)?;
@@ -136,13 +140,21 @@ impl Engine {
         Ok(())
     }
 
-    pub fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
+    pub fn load_state(
+        &mut self,
+        decoder: &mut impl Decoder,
+        input: &mut impl InputBackend,
+        renderer: &mut impl RendererBackend,
+        storage: &mut impl StorageBackend,
+        network: &mut impl NetworkBackend,
+        system: &mut impl SystemBackend,
+    ) -> Result<(), DecoderError> {
         self.asset
             .load_state(&self.registry.borrow().components, decoder)?;
-        self.renderer.load_state(decoder)?;
+        self.renderer.load_state(decoder, renderer)?;
         self.ecs
             .load_state(&self.registry.borrow().components, decoder)?;
-        self.input.load_state(decoder)?;
+        self.input.load_state(decoder, input)?;
         self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         self.running = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
@@ -168,7 +180,8 @@ impl Engine {
         renderer: &mut impl RendererBackend,
         storage: &mut impl StorageBackend,
         network: &mut impl NetworkBackend,
-        mut dt: f64,
+        system: &mut impl SystemBackend,
+        mut delta_time: f64,
     ) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
 
@@ -176,31 +189,32 @@ impl Engine {
         self.renderer.prepare();
 
         // Compute delta time
-        if dt > MAXIMUM_TIMESTEP {
-            dt = MAXIMUM_TIMESTEP; // Slowing down
+        if delta_time > MAXIMUM_TIMESTEP {
+            delta_time = MAXIMUM_TIMESTEP; // Slowing down
         }
         // Integrate time
-        self.global_time += dt;
+        self.global_time += delta_time;
 
-        // ================= DISPATCH STAGE ================= //
+        // ================= DISPATCH EVENTS STAGE ================= //
 
         // Prepare input manager
         self.input.prepare_dispatch();
         // Dispatch input events
-        for event in &events.input {
-            self.input.dispatch_event(event);
-        }
+        self.input.dispatch_events(input.events())?;
 
         // Dispatch system events
-        for event in &events.system {
+        for event in system.events() {
             match event {
                 SystemEvent::Shutdown => self.running = false,
+                SystemEvent::ImportAsset(import) => {
+                    todo!("import assets")
+                }
             }
         }
 
         // Dispatch network events
 
-        // Dispatch disk events
+        // Dispatch storage events
 
         // TODO: dispatch more events ...
 
@@ -211,21 +225,17 @@ impl Engine {
                 registry: &self.registry,
                 asset: &mut self.asset,
                 input: &mut self.input,
+                input_backend: input,
                 renderer: &mut self.renderer,
-                events,
-                delta_time: dt,
+                renderer_backend: renderer,
+                storage_backend: storage,
+                network_backend: network,
+                delta_time,
                 global_time: self.global_time,
             })
             .map_err(|_| ProgressError::ECSError)?;
 
         Ok(())
-    }
-
-    pub fn synchronize_input(
-        &mut self,
-        backend: &mut impl InputBackend,
-    ) -> Result<(), InputBackendError> {
-        self.input.synchronize_backend(backend)
     }
 
     pub fn synchronize_renderer(
@@ -241,11 +251,4 @@ impl Engine {
             .synchronize_backend(backend, &self.asset, &mut self.ecs)?;
         Ok(())
     }
-
-    // pub fn syncrhonize_network(
-    //     &mut self,
-    //     backend: &mut impl NetworkBackend,
-    // ) -> Result<(), NetworkBackendError> {
-    //     self.input.synchronize_backend(backend)
-    // }
 }
