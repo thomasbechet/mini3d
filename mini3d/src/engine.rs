@@ -7,6 +7,7 @@ use crate::event::Events;
 use crate::feature::{component, system};
 use crate::input::backend::{InputBackend, InputBackendError};
 use crate::input::InputManager;
+use crate::network::backend::NetworkBackend;
 use crate::physics::PhysicsManager;
 use crate::registry::component::Component;
 use crate::registry::error::RegistryError;
@@ -106,7 +107,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new(io: impl StorageBackend + 'static) -> Self {
+    pub fn new() -> Self {
         let mut engine = Self {
             registry: Default::default(),
             storage: StorageManager::new(io),
@@ -161,7 +162,14 @@ impl Engine {
         self.running
     }
 
-    pub fn progress(&mut self, events: &Events, mut dt: f64) -> Result<(), ProgressError> {
+    pub fn progress(
+        &mut self,
+        input: &mut impl InputBackend,
+        renderer: &mut impl RendererBackend,
+        storage: &mut impl StorageBackend,
+        network: &mut impl NetworkBackend,
+        mut dt: f64,
+    ) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
 
         // Reset graphics state

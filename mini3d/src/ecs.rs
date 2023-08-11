@@ -1,5 +1,9 @@
 use crate::{
+    input::backend::InputBackend,
+    network::backend::NetworkBackend,
+    renderer::backend::RendererBackend,
     serialize::{Decoder, DecoderError, EncoderError},
+    storage::backend::StorageBackend,
     utils::{
         slotmap::{DenseSlotMap, SlotId},
         uid::UID,
@@ -51,8 +55,11 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) registry: &'a RefCell<RegistryManager>,
     pub(crate) asset: &'a mut AssetManager,
     pub(crate) input: &'a mut InputManager,
+    pub(crate) input_backend: &'a mut dyn InputBackend,
     pub(crate) renderer: &'a mut RendererManager,
-    pub(crate) events: &'a Events,
+    pub(crate) renderer_backend: &'a mut dyn RendererBackend,
+    pub(crate) storage_backend: &'a mut dyn StorageBackend,
+    pub(crate) network_backend: &'a mut dyn NetworkBackend,
     pub(crate) delta_time: f64,
     pub(crate) global_time: f64,
 }
