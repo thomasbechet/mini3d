@@ -19,6 +19,8 @@ pub trait ComponentHandle {
     type ViewRef<'a>;
     type ViewMut<'a>;
     fn new(uid: UID, id: ComponentId) -> Self;
+    fn uid(&self) -> UID;
+    fn id(&self) -> ComponentId;
     fn view_ref<'a>(&self, components: &'a ComponentTable)
         -> Result<Self::ViewRef<'a>, SceneError>;
     fn view_mut<'a>(
@@ -54,6 +56,14 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
             uid,
             id,
         }
+    }
+
+    fn uid(&self) -> UID {
+        self.uid
+    }
+
+    fn id(&self) -> ComponentId {
+        self.id
     }
 
     fn view_ref<'a>(
@@ -104,6 +114,14 @@ impl ComponentHandle for DynamicComponent {
 
     fn new(uid: UID, id: ComponentId) -> Self {
         Self { uid, id }
+    }
+
+    fn uid(&self) -> UID {
+        self.uid
+    }
+
+    fn id(&self) -> ComponentId {
+        self.id
     }
 
     fn view_ref<'a>(

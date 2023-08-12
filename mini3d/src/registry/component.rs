@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use crate::{
     asset::container::{AnyAssetContainer, StaticAssetContainer},
     ecs::{
-        component::{AnyComponentContainer, StaticComponentContainer},
+        component::{AnyComponentContainer, ComponentHandle, StaticComponentContainer},
         entity::Entity,
         error::SceneError,
     },
@@ -94,7 +92,6 @@ pub(crate) struct ComponentDefinition {
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
     definitions: SlotMap<ComponentDefinition>,
-    lookup_cache: HashMap<UID, ComponentId>,
 }
 
 impl ComponentRegistry {
@@ -116,7 +113,6 @@ impl ComponentRegistry {
             reflection,
             require_finalizer: true,
         });
-        self.lookup_cache.insert(uid, id.into());
         Ok(())
     }
 
@@ -135,17 +131,16 @@ impl ComponentRegistry {
         unimplemented!()
     }
 
-    pub(crate) fn find(&self, uid: UID) -> Option<(ComponentId, &ComponentDefinition)> {
-        self.lookup_cache
-            .get(&uid)
-            .map(|id| (*id, self.definitions.get((*id).into()).unwrap()))
+    pub(crate) fn definition<H: ComponentHandle>(&self, handle: H) -> Option<&ComponentDefinition> {
+        self.definitions.get(handle.id())
     }
 
-    pub(crate) fn find_id(&self, uid: UID) -> Option<ComponentId> {
-        self.find(uid).map(|(id, _)| id)
-    }
-
-    pub(crate) fn get(&self, id: ComponentId) -> Option<&ComponentDefinition> {
-        self.definitions.get(id.into())
+    pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
+        let id = self
+            .registry
+            .find_id(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
+        self.components.preallocate(id, self.registry);
+        Ok(H::new(component, id))
     }
 }

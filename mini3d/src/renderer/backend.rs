@@ -2,12 +2,12 @@ use glam::{IVec2, Mat4, UVec2, Vec3};
 use mini3d_derive::Error;
 
 use crate::{
+    define_backend_handle,
     feature::component::renderer::{mesh::Mesh, texture::Texture},
     math::rect::IRect,
-    utils::uid::UID,
 };
 
-use super::{color::Color, graphics::TextureWrapMode, RendererStatistics};
+use super::{color::Color, event::RendererEvent, graphics::TextureWrapMode};
 
 #[derive(Debug, Error)]
 pub enum RendererBackendError {
@@ -19,45 +19,18 @@ pub enum RendererBackendError {
     MaxResourcesReached,
 }
 
-macro_rules! define_handle {
-    ($name:ident) => {
-        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct $name(u64);
-        impl From<u64> for $name {
-            fn from(value: u64) -> Self {
-                Self(value)
-            }
-        }
-        impl From<$name> for u64 {
-            fn from(handle: $name) -> Self {
-                handle.0
-            }
-        }
-        impl From<UID> for $name {
-            fn from(uid: UID) -> Self {
-                Self(uid.into())
-            }
-        }
-        impl From<$name> for UID {
-            fn from(handle: $name) -> Self {
-                UID::from(handle.0)
-            }
-        }
-    };
-}
+define_backend_handle!(CommandBufferHandle);
 
-define_handle!(CommandBufferHandle);
+define_backend_handle!(MeshHandle);
+define_backend_handle!(TextureHandle);
+define_backend_handle!(MaterialHandle);
 
-define_handle!(MeshHandle);
-define_handle!(TextureHandle);
-define_handle!(MaterialHandle);
+define_backend_handle!(ViewportHandle);
 
-define_handle!(ViewportHandle);
-
-define_handle!(SceneHandle);
-define_handle!(SceneCameraHandle);
-define_handle!(SceneModelHandle);
-define_handle!(SceneCanvasHandle);
+define_backend_handle!(SceneHandle);
+define_backend_handle!(SceneCameraHandle);
+define_backend_handle!(SceneModelHandle);
+define_backend_handle!(SceneCanvasHandle);
 
 pub struct BackendMaterialDescriptor<'a> {
     pub diffuse: TextureHandle,
@@ -67,6 +40,10 @@ pub struct BackendMaterialDescriptor<'a> {
 #[allow(unused_variables)]
 pub trait RendererBackend {
     /// Global API
+
+    fn events(&self) -> &[RendererEvent] {
+        &[]
+    }
 
     fn reset(&mut self) -> Result<(), RendererBackendError> {
         Ok(())
@@ -270,15 +247,6 @@ pub trait RendererBackend {
         mat: Mat4,
     ) -> Result<(), RendererBackendError> {
         Ok(())
-    }
-
-    /// Statistics API
-
-    fn statistics(&self) -> Result<RendererStatistics, RendererBackendError> {
-        Ok(RendererStatistics {
-            triangle_count: 0,
-            draw_count: 0,
-        })
     }
 }
 

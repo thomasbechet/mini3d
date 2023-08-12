@@ -8,7 +8,7 @@ pub struct StaticMesh {
     #[serialize(skip)]
     pub changed: bool,
     #[serialize(skip)]
-    pub(crate) handle: Option<SceneModelHandle>,
+    pub(crate) handle: SceneModelHandle,
 }
 
 impl StaticMesh {
@@ -16,7 +16,7 @@ impl StaticMesh {
         Self {
             model,
             changed: false,
-            handle: None,
+            handle: Default::default(),
         }
     }
 }

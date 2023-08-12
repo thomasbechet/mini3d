@@ -6,7 +6,7 @@ use crate::renderer::backend::SceneCameraHandle;
 pub struct Camera {
     pub fov: f32,
     #[serialize(skip)]
-    pub(crate) handle: Option<SceneCameraHandle>,
+    pub(crate) handle: SceneCameraHandle,
 }
 
 impl Camera {
@@ -20,7 +20,7 @@ impl Default for Camera {
     fn default() -> Self {
         Self {
             fov: 110.0,
-            handle: None,
+            handle: SceneCameraHandle::default(),
         }
     }
 }

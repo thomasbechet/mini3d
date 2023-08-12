@@ -1,6 +1,9 @@
 use mini3d_derive::Error;
 
-use crate::serialize::{Decoder, Encoder};
+use crate::{
+    define_backend_handle,
+    serialize::{Decoder, Encoder},
+};
 
 #[derive(Debug, Error)]
 pub enum StorageBackendError {
@@ -8,10 +11,8 @@ pub enum StorageBackendError {
     Unknown,
 }
 
-#[derive(Clone, Copy)]
-pub struct StorageFileHandle(u64);
-#[derive(Clone, Copy)]
-pub struct StorageMountHandle(u64);
+define_backend_handle!(StorageFileHandle);
+define_backend_handle!(StorageMountHandle);
 
 pub enum DiskFileKind {
     File,

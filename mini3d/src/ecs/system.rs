@@ -48,12 +48,12 @@ pub struct ExclusiveResolver<'a> {
 
 impl<'a> ExclusiveResolver<'a> {
     pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
-        let id = self
+        let handle = self
             .registry
-            .find_id(component)
+            .find::<H>(component)
             .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        self.components.preallocate(id, self.registry);
-        Ok(H::new(component, id))
+        self.components.preallocate(handle.id(), self.registry);
+        Ok(handle)
     }
 
     pub fn query(&mut self) -> QueryBuilder<'a> {

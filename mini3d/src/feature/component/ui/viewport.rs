@@ -8,7 +8,7 @@ pub struct Viewport {
     pub(crate) camera: Option<Entity>,
     pub(crate) resolution: UVec2,
     #[serialize(skip)]
-    pub(crate) handle: Option<ViewportHandle>,
+    pub(crate) handle: ViewportHandle,
     #[serialize(skip, default = true)]
     pub(crate) out_of_date: bool,
 }
@@ -18,7 +18,7 @@ impl Viewport {
         Self {
             camera,
             resolution,
-            handle: None,
+            handle: Default::default(),
             out_of_date: true,
         }
     }

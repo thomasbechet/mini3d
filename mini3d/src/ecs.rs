@@ -93,15 +93,10 @@ impl ECSManager {
     }
 
     pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), SceneError> {
-        // Prepare frame
-        let mut change_scene: Option<UID> = None;
-        let mut removed_scenes: HashSet<UID> = Default::default();
-
         // Invoke frame systems
         for (id, scene) in self.scenes.iter() {
             scene.update(&mut context)?;
         }
-
         Ok(())
     }
 }

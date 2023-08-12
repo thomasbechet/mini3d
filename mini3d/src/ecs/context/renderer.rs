@@ -1,7 +1,10 @@
-use crate::renderer::{color::Color, graphics::Graphics, RendererManager, RendererStatistics};
+use crate::renderer::{
+    backend::RendererBackend, color::Color, graphics::Graphics, RendererManager, RendererStatistics,
+};
 
 pub struct ExclusiveRendererContext<'a> {
     pub(crate) manager: &'a mut RendererManager,
+    pub(crate) backend: &'a dyn RendererBackend,
 }
 
 impl<'a> ExclusiveRendererContext<'a> {

@@ -1,4 +1,4 @@
-use std::collections::{hash_map, HashMap, HashSet};
+use std::collections::{hash_map, HashMap};
 
 use crate::ecs::component::StaticComponent;
 use crate::feature::component::renderer::camera::Camera;
@@ -11,7 +11,8 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
 use crate::feature::component::ui::viewport::Viewport;
-use crate::registry::component::Component;
+use crate::registry::component::{Component, ComponentRegistry};
+use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::uid::UID;
 use crate::{
@@ -23,11 +24,11 @@ use crate::{
 use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
+use self::event::RendererEvent;
 use self::{
     backend::{
         BackendMaterialDescriptor, MaterialHandle, MeshHandle, RendererBackend,
-        RendererBackendError, SceneCameraHandle, SceneCanvasHandle, SceneHandle, SceneModelHandle,
-        TextureHandle, ViewportHandle,
+        RendererBackendError, SceneCameraHandle, SceneHandle, TextureHandle, ViewportHandle,
     },
     color::Color,
     graphics::Graphics,
@@ -35,6 +36,7 @@ use self::{
 
 pub mod backend;
 pub mod color;
+pub mod event;
 pub mod graphics;
 pub mod rasterizer;
 
@@ -231,12 +233,6 @@ pub struct RendererManager {
     // Resources
     resources: RendererResourceManager,
 
-    // Destroyed handles
-    pub(crate) scene_cameras_removed: HashSet<SceneCameraHandle>,
-    pub(crate) scene_models_removed: HashSet<SceneModelHandle>,
-    pub(crate) scene_canvases_removed: HashSet<SceneCanvasHandle>,
-    pub(crate) viewports_removed: HashSet<ViewportHandle>,
-
     // Cached resources
     scenes: HashMap<UID, SceneHandle>,
     cameras: HashMap<Entity, SceneCameraHandle>,
@@ -258,10 +254,6 @@ pub struct RendererManager {
 impl RendererManager {
     pub(crate) fn reset(&mut self, ecs: &mut ECSManager) {
         self.resources.reset();
-
-        self.scene_cameras_removed.clear();
-        self.scene_models_removed.clear();
-        self.scene_canvases_removed.clear();
 
         for scene in ecs.scenes.get_mut().values_mut() {
             for camera in scene
@@ -292,6 +284,27 @@ impl RendererManager {
 
         self.scenes.clear();
         self.cameras.clear();
+    }
+
+    pub(crate) fn reload_component_handles(
+        &mut self,
+        registry: &ComponentRegistry,
+    ) -> Result<(), RegistryError> {
+        self.camera = registry.find(Camera::UID)?;
+        self.static_mesh = registry.find(StaticMesh::UID)?;
+        self.canvas = registry.find(Canvas::UID)?;
+        self.local_to_world = registry.find(LocalToWorld::UID)?;
+        self.viewport = registry.find(Viewport::UID)?;
+        self.model = registry.find(Model::UID)?;
+        Ok(())
+    }
+
+    pub(crate) fn dispatch_events(&mut self, backend: &mut impl RendererBackend) {
+        for event in backend.events() {
+            match event {
+                RendererEvent::Statistics(stats) => self.statistics = stats,
+            }
+        }
     }
 
     pub(crate) fn synchronize_backend(

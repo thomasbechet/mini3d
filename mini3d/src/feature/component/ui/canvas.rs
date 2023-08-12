@@ -10,5 +10,5 @@ pub struct Canvas {
     pub graphics: Graphics,
     pub visible: bool,
     #[serialize(skip)]
-    pub(crate) handle: Option<SceneCanvasHandle>,
+    pub(crate) handle: SceneCanvasHandle,
 }

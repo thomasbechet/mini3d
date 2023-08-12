@@ -119,6 +119,7 @@ impl Scheduler {
                                     },
                                     renderer: ExclusiveRendererContext {
                                         manager: context.renderer,
+                                        backend: &context.renderer_backend,
                                     },
                                     scene: ExclusiveSceneContext {
                                         registry: &context.registry.borrow(),
