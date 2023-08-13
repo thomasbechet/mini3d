@@ -1,5 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
+use crate::asset::handle::{AssetHandle, AssetId, StaticAsset};
 use crate::ecs::component::StaticComponent;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
@@ -99,57 +100,55 @@ pub(crate) struct RendererMaterial {
 
 #[derive(Default)]
 pub(crate) struct RendererResourceManager {
-    fonts: HashMap<UID, RendererFont>,
-    textures: HashMap<UID, RendererTexture>,
-    meshes: HashMap<UID, RendererMesh>,
-    materials: HashMap<UID, RendererMaterial>,
+    fonts: HashMap<AssetId, RendererFont>,
+    textures: HashMap<AssetId, RendererTexture>,
+    meshes: HashMap<AssetId, RendererMesh>,
+    materials: HashMap<AssetId, RendererMaterial>,
 }
 
 fn load_font(
-    uid: UID,
-    backend: &mut impl RendererBackend,
+    handle: StaticAsset<Font>,
+    backend: &mut dyn RendererBackend,
     asset: &AssetManager,
 ) -> Result<RendererFont, RendererBackendError> {
-    let font = asset.get::<Font>(Font::UID, uid).unwrap().unwrap();
+    let font = asset.read(handle).unwrap();
     let atlas = FontAtlas::new(font);
     let handle = backend.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(
-    uid: UID,
-    backend: &mut impl RendererBackend,
+    handle: StaticAsset<Mesh>,
+    backend: &mut dyn RendererBackend,
     asset: &AssetManager,
 ) -> Result<RendererMesh, RendererBackendError> {
-    let mesh = asset.get::<Mesh>(Mesh::UID, uid).unwrap().unwrap();
+    let mesh = asset.read(handle).unwrap();
     let handle = backend.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(
-    uid: UID,
-    backend: &mut impl RendererBackend,
+    handle: StaticAsset<Texture>,
+    backend: &mut dyn RendererBackend,
     asset: &AssetManager,
 ) -> Result<RendererTexture, RendererBackendError> {
-    let texture = asset.get::<Texture>(Texture::UID, uid).unwrap().unwrap();
+    let texture = asset.read(handle).unwrap();
     let handle = backend.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(
-    uid: UID,
-    textures: &HashMap<UID, RendererTexture>,
-    backend: &mut impl RendererBackend,
+    handle: StaticAsset<Material>,
+    textures: &HashMap<AssetId, RendererTexture>,
+    backend: &mut dyn RendererBackend,
     asset: &AssetManager,
 ) -> Result<RendererMaterial, RendererBackendError> {
-    let material = asset
-        .entry::<Material>(Material::UID, uid)
-        .unwrap()
-        .unwrap();
-    let diffuse = textures.get(&material.asset.diffuse).unwrap().handle;
+    let material = asset.read(handle).unwrap();
+    let info = asset.info(handle).unwrap();
+    let diffuse = textures.get(&material.diffuse.id()).unwrap().handle;
     let handle = backend.material_add(BackendMaterialDescriptor {
         diffuse,
-        name: &material.name,
+        name: &info.name,
     })?;
     Ok(RendererMaterial { handle })
 }
@@ -164,14 +163,14 @@ impl RendererResourceManager {
 
     pub(crate) fn request_font<'a>(
         &'a mut self,
-        uid: &UID,
+        handle: StaticAsset<Font>,
         backend: &mut impl RendererBackend,
         asset: &AssetManager,
     ) -> Result<&'a RendererFont, RendererBackendError> {
-        match self.fonts.entry(*uid) {
+        match self.fonts.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let font = load_font(*uid, backend, asset)?;
+                let font = load_font(handle, backend, asset)?;
                 Ok(e.insert(font))
             }
         }
@@ -179,14 +178,14 @@ impl RendererResourceManager {
 
     pub(crate) fn request_mesh(
         &mut self,
-        uid: &UID,
-        backend: &mut impl RendererBackend,
+        handle: StaticAsset<Mesh>,
+        backend: &mut dyn RendererBackend,
         asset: &AssetManager,
     ) -> Result<&RendererMesh, RendererBackendError> {
-        match self.meshes.entry(*uid) {
+        match self.meshes.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let mesh = load_mesh(*uid, backend, asset)?;
+                let mesh = load_mesh(handle, backend, asset)?;
                 Ok(e.insert(mesh))
             }
         }
@@ -194,14 +193,14 @@ impl RendererResourceManager {
 
     pub(crate) fn request_texture(
         &mut self,
-        uid: &UID,
-        backend: &mut impl RendererBackend,
+        handle: StaticAsset<Texture>,
+        backend: &mut dyn RendererBackend,
         asset: &AssetManager,
     ) -> Result<&RendererTexture, RendererBackendError> {
-        match self.textures.entry(*uid) {
+        match self.textures.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let texture = load_texture(*uid, backend, asset)?;
+                let texture = load_texture(handle, backend, asset)?;
                 Ok(e.insert(texture))
             }
         }
@@ -209,19 +208,19 @@ impl RendererResourceManager {
 
     pub(crate) fn request_material(
         &mut self,
-        uid: &UID,
-        backend: &mut impl RendererBackend,
+        handle: StaticAsset<Material>,
+        backend: &mut dyn RendererBackend,
         asset: &AssetManager,
     ) -> Result<&RendererMaterial, RendererBackendError> {
-        match self.materials.entry(*uid) {
+        match self.materials.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let material = asset.get::<Material>(Material::UID, *uid).unwrap().unwrap();
-                if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse) {
-                    let diffuse = load_texture(*uid, backend, asset)?;
+                let material = asset.read(handle).unwrap();
+                if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse.id()) {
+                    let diffuse = load_texture(material.diffuse, backend, asset)?;
                     e.insert(diffuse);
                 }
-                let material = load_material(*uid, &self.textures, backend, asset)?;
+                let material = load_material(handle, &self.textures, backend, asset)?;
                 Ok(e.insert(material))
             }
         }
@@ -231,7 +230,7 @@ impl RendererResourceManager {
 #[derive(Default)]
 pub struct RendererManager {
     // Resources
-    resources: RendererResourceManager,
+    pub(crate) resources: RendererResourceManager,
 
     // Cached resources
     scenes: HashMap<UID, SceneHandle>,

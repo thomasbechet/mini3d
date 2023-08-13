@@ -1,9 +1,11 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::utils::uid::UID;
+use crate::asset::handle::StaticAsset;
+
+use super::{material::Material, mesh::Mesh};
 
 #[derive(Default, Clone, Component, Serialize, Reflect)]
 pub struct Model {
-    pub mesh: UID,
-    pub materials: Vec<UID>,
+    pub mesh: StaticAsset<Mesh>,
+    pub materials: Vec<StaticAsset<Material>>,
 }

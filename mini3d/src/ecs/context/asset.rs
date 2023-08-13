@@ -1,5 +1,5 @@
 use crate::{
-    asset::{container::StaticAssetEntry, error::AssetError, AssetManager},
+    asset::{container::StaticAssetEntry, error::AssetError, handle::AssetHandle, AssetManager},
     registry::component::{Component, ComponentId, ComponentRegistry},
     utils::uid::UID,
 };
@@ -14,12 +14,20 @@ impl<'a> ExclusiveAssetContext<'a> {
         self.manager.set_default(asset, uid)
     }
 
-    pub fn get<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ C>, AssetError> {
-        self.manager.get::<C>(asset, uid)
+    pub fn get<H: AssetHandle>(&self, path: &str) -> Result<Option<H>, AssetError> {
+        Ok(None)
+    }
+
+    pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
+        Err(AssetError::AssetTypeNotFound)
+    }
+
+    pub fn write<H: AssetHandle>(
+        &self,
+        handle: H,
+        asset: H::AssetRef<'_>,
+    ) -> Result<(), AssetError> {
+        Ok(())
     }
 
     pub fn get_or_default<C: Component>(
@@ -28,14 +36,6 @@ impl<'a> ExclusiveAssetContext<'a> {
         uid: UID,
     ) -> Result<Option<&'_ C>, AssetError> {
         self.manager.get_or_default::<C>(asset, uid)
-    }
-
-    pub fn entry<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ StaticAssetEntry<C>>, AssetError> {
-        self.manager.entry::<C>(asset, uid)
     }
 
     pub fn iter<C: Component>(

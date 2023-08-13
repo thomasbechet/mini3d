@@ -36,7 +36,8 @@ pub trait StorageBackend {
         &mut self,
         path: &str,
         mode: DiskFileMode,
-    ) -> Result<StorageFileHandle, StorageBackendError>;
+    ) -> Result<StorageFileHandle, StorageBackendError> {
+    }
     fn close(&mut self, handle: StorageFileHandle) -> Result<(), StorageBackendError>;
     fn encoder(
         &mut self,

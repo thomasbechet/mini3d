@@ -40,7 +40,7 @@ impl<'a> Query<'a> {
 #[derive(Default, PartialEq, Eq)]
 pub struct QueryId(SlotId);
 
-#[derive(PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq)]
 pub struct FilterQueryId(SlotId);
 
 #[derive(PartialEq, Eq)]

@@ -4,7 +4,7 @@ use crate::renderer::{
 
 pub struct ExclusiveRendererContext<'a> {
     pub(crate) manager: &'a mut RendererManager,
-    pub(crate) backend: &'a dyn RendererBackend,
+    pub(crate) backend: &'a mut dyn RendererBackend,
 }
 
 impl<'a> ExclusiveRendererContext<'a> {

@@ -3,7 +3,7 @@ use core::fmt::Display;
 use crate::{
     feature::component::common::program::Program,
     registry::{
-        component::{ComponentId, ComponentRegistry},
+        component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,
         system::{SystemId, SystemRegistry},
     },
@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     archetype::ArchetypeTable,
-    component::{ComponentHandle, ComponentTable},
+    component::ComponentTable,
     context::{ExclusiveContext, ParallelContext},
     entity::EntityTable,
     error::SceneError,

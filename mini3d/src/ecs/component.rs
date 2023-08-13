@@ -1,159 +1,14 @@
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use mini3d_derive::Serialize;
 
-use super::{
-    entity::Entity,
-    error::SceneError,
-    sparse::PagedVector,
-    view::{ComponentViewMut, ComponentViewRef, StaticComponentViewMut, StaticComponentViewRef},
-};
+use super::{entity::Entity, error::SceneError, sparse::PagedVector};
 use crate::{
-    registry::component::{Component, ComponentId, ComponentRegistry},
+    registry::component::{Component, ComponentHandle, ComponentId, ComponentRegistry},
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SparseSecondaryMap,
 };
 use crate::{script::reflection::PropertyId, utils::uid::UID};
 use core::{any::Any, cell::RefCell};
-
-pub trait ComponentHandle {
-    type ViewRef<'a>;
-    type ViewMut<'a>;
-    fn new(uid: UID, id: ComponentId) -> Self;
-    fn uid(&self) -> UID;
-    fn id(&self) -> ComponentId;
-    fn view_ref<'a>(&self, components: &'a ComponentTable)
-        -> Result<Self::ViewRef<'a>, SceneError>;
-    fn view_mut<'a>(
-        &self,
-        components: &'a ComponentTable,
-        cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, SceneError>;
-}
-
-pub struct StaticComponent<C: Component> {
-    _marker: std::marker::PhantomData<C>,
-    uid: UID,
-    id: ComponentId,
-}
-
-impl<C: Component> Default for StaticComponent<C> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            uid: UID::null(),
-            id: ComponentId::default(),
-        }
-    }
-}
-
-impl<C: Component> ComponentHandle for StaticComponent<C> {
-    type ViewRef<'a> = StaticComponentViewRef<'a, C>;
-    type ViewMut<'a> = StaticComponentViewMut<'a, C>;
-
-    fn new(uid: UID, id: ComponentId) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            uid,
-            id,
-        }
-    }
-
-    fn uid(&self) -> UID {
-        self.uid
-    }
-
-    fn id(&self) -> ComponentId {
-        self.id
-    }
-
-    fn view_ref<'a>(
-        &self,
-        components: &'a ComponentTable,
-    ) -> Result<Self::ViewRef<'a>, SceneError> {
-        Ok(StaticComponentViewRef {
-            container: components
-                .containers
-                .get(self.id.into())
-                .unwrap()
-                .try_borrow()
-                .map_err(|_| SceneError::ContainerBorrowMut)?
-                .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(SceneError::ComponentTypeMismatch)?,
-        })
-    }
-
-    fn view_mut<'a>(
-        &self,
-        components: &'a ComponentTable,
-        cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, SceneError> {
-        Ok(StaticComponentViewMut {
-            container: components
-                .containers
-                .get(self.id.into())
-                .unwrap()
-                .try_borrow_mut()
-                .map_err(|_| SceneError::ContainerBorrowMut)?
-                .as_any_mut()
-                .downcast_mut::<StaticComponentContainer<C>>()
-                .ok_or(SceneError::ComponentTypeMismatch)?,
-            cycle,
-        })
-    }
-}
-
-pub struct DynamicComponent {
-    uid: UID,
-    id: ComponentId,
-}
-
-impl ComponentHandle for DynamicComponent {
-    type ViewRef<'a> = ComponentViewRef<'a>;
-    type ViewMut<'a> = ComponentViewMut<'a>;
-
-    fn new(uid: UID, id: ComponentId) -> Self {
-        Self { uid, id }
-    }
-
-    fn uid(&self) -> UID {
-        self.uid
-    }
-
-    fn id(&self) -> ComponentId {
-        self.id
-    }
-
-    fn view_ref<'a>(
-        &self,
-        components: &'a ComponentTable,
-    ) -> Result<Self::ViewRef<'a>, SceneError> {
-        Ok(ComponentViewRef {
-            container: components
-                .containers
-                .get(self.id.into())
-                .unwrap()
-                .try_borrow()
-                .map_err(|_| SceneError::ContainerBorrowMut)?,
-        })
-    }
-
-    fn view_mut<'a>(
-        &self,
-        components: &'a ComponentTable,
-        cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, SceneError> {
-        Ok(ComponentViewMut {
-            container: components
-                .containers
-                .get(self.id.into())
-                .unwrap()
-                .try_borrow_mut()
-                .map_err(|_| SceneError::ContainerBorrowMut)?,
-            cycle,
-        })
-    }
-}
 
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ComponentStatus {
@@ -436,7 +291,7 @@ impl AnyComponentContainer for DynamicComponentContainer {
 
 #[derive(Default)]
 pub(crate) struct ComponentTable {
-    containers: SparseSecondaryMap<RefCell<Box<dyn AnyComponentContainer>>>,
+    pub(crate) containers: SparseSecondaryMap<RefCell<Box<dyn AnyComponentContainer>>>,
 }
 
 impl ComponentTable {

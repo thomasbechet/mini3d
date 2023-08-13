@@ -21,6 +21,10 @@ enum AssetKind {
     IO,
 }
 
+pub struct AssetInfo<'a> {
+    pub name: &'a str,
+}
+
 struct AssetEntry {
     component: UID,
     bundle: AssetBundleId,
@@ -145,9 +149,17 @@ impl AssetManager {
 
     pub(crate) fn get<H: AssetHandle>(&self, path: &str) -> Result<Option<H>, AssetError> {}
 
-    pub(crate) fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef> {}
+    pub(crate) fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {}
 
-    pub(crate) fn write<H: AssetHandle>(&self, handle: H, asset: H::AssetRef) -> Result<()> {}
+    pub(crate) fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {}
+
+    pub(crate) fn write<H: AssetHandle>(
+        &self,
+        handle: H,
+        asset: H::AssetRef<'_>,
+    ) -> Result<(), AssetError> {
+        Ok(())
+    }
 
     pub(crate) fn get_or_default<C: Component>(
         &'_ self,

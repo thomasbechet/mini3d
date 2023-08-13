@@ -1,21 +1,20 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{renderer::backend::SceneModelHandle, utils::uid::UID};
+use crate::{asset::handle::StaticAsset, renderer::backend::SceneModelHandle};
+
+use super::model::Model;
 
 #[derive(Default, Component, Serialize, Reflect)]
 pub struct StaticMesh {
-    pub model: UID,
-    #[serialize(skip)]
-    pub changed: bool,
+    pub model: StaticAsset<Model>,
     #[serialize(skip)]
     pub(crate) handle: SceneModelHandle,
 }
 
 impl StaticMesh {
-    pub fn new(model: UID) -> Self {
+    pub fn new(model: StaticAsset<Model>) -> Self {
         Self {
             model,
-            changed: false,
             handle: Default::default(),
         }
     }

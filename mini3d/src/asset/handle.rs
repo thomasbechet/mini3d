@@ -3,6 +3,7 @@ use crate::{
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct AssetId(u32);
 
 pub(crate) type AssetVersion = u8;
@@ -35,21 +36,25 @@ impl Default for AssetId {
 pub(crate) trait AssetHandle {
     type AssetRef<'a>;
     fn new(id: AssetId) -> Self;
+    fn id(&self) -> AssetId;
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct StaticAsset<C: Component> {
     _marker: std::marker::PhantomData<C>,
-    handle: AssetId,
+    id: AssetId,
 }
 
 impl<C: Component> AssetHandle for StaticAsset<C> {
     type AssetRef<'a> = &'a C;
-    fn new(handle: AssetId) -> Self {
+    fn new(id: AssetId) -> Self {
         Self {
             _marker: std::marker::PhantomData::<C>,
-            handle,
+            id,
         }
+    }
+    fn id(&self) -> AssetId {
+        self.id
     }
 }
 
@@ -57,7 +62,7 @@ impl<C: Component> Serialize for StaticAsset<C> {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.handle.0)?;
+        encoder.write_u32(self.id.0)?;
         Ok(())
     }
 
@@ -68,7 +73,7 @@ impl<C: Component> Serialize for StaticAsset<C> {
         let handle = AssetId(decoder.read_u32()?);
         Ok(Self {
             _marker: std::marker::PhantomData::<C>,
-            handle,
+            id: handle,
         })
     }
 }
