@@ -2,7 +2,6 @@ use glam::Mat4;
 
 use crate::{
     ecs::{
-        component::StaticComponent,
         context::ParallelContext,
         entity::Entity,
         query::QueryId,
@@ -12,7 +11,11 @@ use crate::{
     feature::component::scene::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
     },
-    registry::{component::Component, error::RegistryError, system::ParallelSystem},
+    registry::{
+        component::{Component, StaticComponent},
+        error::RegistryError,
+        system::ParallelSystem,
+    },
 };
 
 fn recursive_propagate(

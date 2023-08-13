@@ -2,13 +2,16 @@ use glam::{Quat, Vec3};
 
 use crate::{
     ecs::{
-        component::StaticComponent,
         context::ParallelContext,
         query::QueryId,
         system::{ParallelResolver, SystemResult},
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
-    registry::{component::Component, error::RegistryError, system::ParallelSystem},
+    registry::{
+        component::{Component, StaticComponent},
+        error::RegistryError,
+        system::ParallelSystem,
+    },
 };
 
 #[derive(Default)]

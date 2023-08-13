@@ -221,7 +221,7 @@ impl<'a> QueryBuilder<'a> {
         for component in components {
             let component = self
                 .registry
-                .find_id(*component)
+                .find(*component)
                 .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
             if self.all.iter().all(|c| *c != component) {
                 self.all.push(component);

@@ -1,5 +1,5 @@
 use crate::{
-    asset::{container::StaticAssetEntry, error::AssetError, handle::AssetHandle, AssetManager},
+    asset::{error::AssetError, handle::AssetHandle, AssetManager},
     registry::component::{Component, ComponentId, ComponentRegistry},
     utils::uid::UID,
 };

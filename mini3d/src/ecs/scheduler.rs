@@ -7,7 +7,6 @@ use super::{
     component::ComponentTable,
     context::{
         asset::{ExclusiveAssetContext, ParallelAssetContext},
-        event::EventContext,
         input::{ExclusiveInputContext, ParallelInputContext},
         registry::RegistryContext,
         renderer::{ExclusiveRendererContext, ParallelRendererContext},
@@ -108,9 +107,6 @@ impl Scheduler {
                                         registry: &context.registry.borrow().components,
                                         manager: context.asset,
                                     },
-                                    event: EventContext {
-                                        events: context.events,
-                                    },
                                     input: ExclusiveInputContext {
                                         manager: context.input,
                                     },
@@ -144,9 +140,6 @@ impl Scheduler {
                                 system.run(&mut ParallelContext {
                                     asset: ParallelAssetContext {
                                         manager: context.asset,
-                                    },
-                                    event: EventContext {
-                                        events: context.events,
                                     },
                                     input: ParallelInputContext {
                                         manager: context.input,

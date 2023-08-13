@@ -1,13 +1,16 @@
 use crate::{
     ecs::{
-        component::StaticComponent,
         context::ExclusiveContext,
         entity::Entity,
         query::QueryId,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
-    registry::{component::Component, error::RegistryError, system::ExclusiveSystem},
+    registry::{
+        component::{Component, StaticComponent},
+        error::RegistryError,
+        system::ExclusiveSystem,
+    },
 };
 
 #[derive(Default)]

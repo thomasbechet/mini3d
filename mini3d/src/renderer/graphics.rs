@@ -3,7 +3,12 @@ use std::collections::HashMap;
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
-use crate::{asset::AssetManager, ecs::entity::Entity, math::rect::IRect, utils::uid::UID};
+use crate::{
+    asset::{handle::AssetId, AssetManager},
+    ecs::entity::Entity,
+    math::rect::IRect,
+    utils::uid::UID,
+};
 
 use super::{
     backend::{RendererBackend, RendererBackendError, SceneCanvasHandle, ViewportHandle},
@@ -27,7 +32,7 @@ enum Command {
         font: UID,
     },
     BlitTexture {
-        texture: UID,
+        texture: AssetId,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,

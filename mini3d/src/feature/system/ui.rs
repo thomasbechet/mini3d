@@ -1,6 +1,5 @@
 use crate::{
     ecs::{
-        component::StaticComponent,
         context::{ExclusiveContext, ParallelContext},
         query::QueryId,
         system::{ExclusiveResolver, ParallelResolver, SystemResult},
@@ -10,7 +9,7 @@ use crate::{
         ui::{UIRenderTarget, UI},
     },
     registry::{
-        component::Component,
+        component::{Component, StaticComponent},
         error::RegistryError,
         system::{ExclusiveSystem, ParallelSystem},
     },

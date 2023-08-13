@@ -3,14 +3,14 @@ use std::collections::VecDeque;
 use crate::{
     ecs::{
         archetype::ArchetypeTable,
-        component::{ComponentHandle, ComponentTable},
+        component::ComponentTable,
         entity::{Entity, EntityBuilder, EntityTable},
         error::SceneError,
         query::{FilterQueryId, QueryId, QueryTable},
         scheduler::Invocation,
         system::SystemTable,
     },
-    registry::RegistryManager,
+    registry::{component::ComponentHandle, RegistryManager},
     utils::{slotmap::SlotId, uid::UID},
 };
 

@@ -1,3 +1,5 @@
+use std::any::{Any, TypeId};
+
 use crate::{
     asset::container::{AnyAssetContainer, StaticAssetContainer},
     ecs::{
@@ -46,6 +48,7 @@ pub trait ComponentHandle {
         components: &'a ComponentTable,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError>;
+    fn check_type(reflection: &dyn AnyComponentReflection) -> bool;
 }
 
 pub struct StaticComponent<C: Component> {
@@ -119,6 +122,10 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
             cycle,
         })
     }
+
+    fn check_type(reflection: &dyn AnyComponentReflection) -> bool {
+        reflection.type_id() == TypeId::of::<StaticComponentReflection<C>>()
+    }
 }
 
 pub struct DynamicComponent {
@@ -170,6 +177,10 @@ impl ComponentHandle for DynamicComponent {
                 .map_err(|_| SceneError::ContainerBorrowMut)?,
             cycle,
         })
+    }
+
+    fn check_type(reflection: &dyn AnyComponentReflection) -> bool {
+        true // Dynamic handle is valid for both static and dynamic components
     }
 }
 
@@ -229,7 +240,6 @@ pub(crate) struct ComponentDefinition {
     pub(crate) name: String,
     pub(crate) reflection: Box<dyn AnyComponentReflection>,
     pub(crate) kind: ComponentKind,
-    pub(crate) require_finalizer: bool,
 }
 
 #[derive(Default)]
@@ -245,7 +255,7 @@ impl ComponentRegistry {
         reflection: Box<dyn AnyComponentReflection>,
     ) -> Result<(), RegistryError> {
         let uid: UID = name.into();
-        if self.find(uid).is_some() {
+        if self.find_any(uid).is_some() {
             return Err(RegistryError::DuplicatedComponentDefinition {
                 name: name.to_string(),
             });
@@ -254,7 +264,6 @@ impl ComponentRegistry {
             name: name.to_string(),
             kind,
             reflection,
-            require_finalizer: true,
         });
         Ok(())
     }
@@ -274,14 +283,31 @@ impl ComponentRegistry {
         unimplemented!()
     }
 
-    pub(crate) fn definition<H: ComponentHandle>(&self, handle: H) -> Option<&ComponentDefinition> {
-        self.definitions.get(handle.id().into())
+    pub(crate) fn definition<H: ComponentHandle>(
+        &self,
+        handle: H,
+    ) -> Result<&ComponentDefinition, RegistryError> {
+        self.definitions
+            .get(handle.id().into())
+            .ok_or(RegistryError::AssetDefinitionNotFound)
     }
 
-    pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Result<Option<H>, RegistryError> {
-        let id = self
-            .find(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        Ok(H::new(component, id))
+    fn find_any(&self, component: UID) -> Option<ComponentId> {
+        self.definitions
+            .iter()
+            .find(|(_, def)| UID::new(&def.name) == component)
+            .map(|(id, _)| id.into())
+    }
+
+    pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Option<H> {
+        if let Some(id) = self.find_any(component) {
+            if !H::check_type(self.definitions[id.into()].reflection.as_ref()) {
+                return None;
+            } else {
+                return Some(H::new(component, id));
+            }
+        } else {
+            None
+        }
     }
 }

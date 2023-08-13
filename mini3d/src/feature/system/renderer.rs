@@ -1,6 +1,5 @@
 use crate::{
     ecs::{
-        component::StaticComponent,
         context::ExclusiveContext,
         query::{FilterQueryId, QueryId},
         system::{ExclusiveResolver, SystemResult},
@@ -10,7 +9,11 @@ use crate::{
         scene::local_to_world::LocalToWorld,
         ui::{canvas::Canvas, viewport::Viewport},
     },
-    registry::{component::Component, error::RegistryError, system::ExclusiveSystem},
+    registry::{
+        component::{Component, StaticComponent},
+        error::RegistryError,
+        system::ExclusiveSystem,
+    },
 };
 
 #[derive(Default)]

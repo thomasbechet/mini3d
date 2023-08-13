@@ -298,7 +298,7 @@ impl ComponentTable {
     pub(crate) fn preallocate(&mut self, component: ComponentId, registry: &ComponentRegistry) {
         if !self.containers.contains(component.into()) {
             let container = registry
-                .get(component)
+                .definition(component)
                 .unwrap()
                 .reflection
                 .create_scene_container();
@@ -314,7 +314,7 @@ impl ComponentTable {
     ) -> Result<(), EncoderError> {
         encoder.write_u32(self.containers.len() as u32)?;
         for (id, container) in self.containers.iter() {
-            let uid = UID::new(&registry.get(id.into()).unwrap().name);
+            let uid = UID::new(&registry.definition(id.into()).unwrap().name);
             uid.serialize(encoder)?;
             container.borrow().serialize(encoder)?;
         }

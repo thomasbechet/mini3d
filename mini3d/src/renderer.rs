@@ -1,7 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
 use crate::asset::handle::{AssetHandle, AssetId, StaticAsset};
-use crate::ecs::component::StaticComponent;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;
@@ -12,13 +11,13 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
 use crate::feature::component::ui::viewport::Viewport;
-use crate::registry::component::{Component, ComponentRegistry};
+use crate::registry::component::{Component, ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::uid::UID;
 use crate::{
     asset::AssetManager,
-    ecs::{entity::Entity, ECSManager},
+    ecs::ECSManager,
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
 };
@@ -29,7 +28,7 @@ use self::event::RendererEvent;
 use self::{
     backend::{
         BackendMaterialDescriptor, MaterialHandle, MeshHandle, RendererBackend,
-        RendererBackendError, SceneCameraHandle, SceneHandle, TextureHandle, ViewportHandle,
+        RendererBackendError, TextureHandle,
     },
     color::Color,
     graphics::Graphics,
@@ -232,16 +231,12 @@ pub struct RendererManager {
     // Resources
     pub(crate) resources: RendererResourceManager,
 
-    // Cached resources
-    scenes: HashMap<UID, SceneHandle>,
-    cameras: HashMap<Entity, SceneCameraHandle>,
-    viewports: HashMap<Entity, ViewportHandle>,
-
     // Persistent data
     statistics: RendererStatistics,
     graphics: Graphics,
     clear_color: Color,
 
+    // Components
     camera: StaticComponent<Camera>,
     static_mesh: StaticComponent<StaticMesh>,
     canvas: StaticComponent<Canvas>,
@@ -251,38 +246,8 @@ pub struct RendererManager {
 }
 
 impl RendererManager {
-    pub(crate) fn reset(&mut self, ecs: &mut ECSManager) {
+    pub(crate) fn reset(&mut self, ecs: &mut ECSManager, backend: &mut dyn RendererBackend) {
         self.resources.reset();
-
-        for scene in ecs.scenes.get_mut().values_mut() {
-            for camera in scene
-                .get_mut()
-                .static_view_mut::<Camera>(Camera::UID)
-                .unwrap()
-                .iter()
-            {
-                camera.handle = None;
-            }
-            for static_mesh in scene
-                .get_mut()
-                .static_view_mut::<StaticMesh>(StaticMesh::UID)
-                .unwrap()
-                .iter()
-            {
-                static_mesh.handle = None;
-            }
-            for canvas in scene
-                .get_mut()
-                .static_view_mut::<Canvas>(Canvas::UID)
-                .unwrap()
-                .iter()
-            {
-                canvas.handle = None;
-            }
-        }
-
-        self.scenes.clear();
-        self.cameras.clear();
     }
 
     pub(crate) fn reload_component_handles(
@@ -306,139 +271,6 @@ impl RendererManager {
         }
     }
 
-    pub(crate) fn synchronize_backend(
-        &mut self,
-        backend: &mut impl RendererBackend,
-        asset: &AssetManager,
-        ecs: &mut ECSManager,
-    ) -> Result<(), RendererBackendError> {
-        // Remove entities
-        for handle in self.scene_cameras_removed.drain() {
-            backend.scene_camera_remove(handle)?;
-        }
-        for handle in self.scene_models_removed.drain() {
-            backend.scene_model_remove(handle)?;
-        }
-        for handle in self.scene_canvases_removed.drain() {
-            backend.scene_canvas_remove(handle)?;
-        }
-        for handle in self.scene_canvases_removed.drain() {
-            backend.scene_canvas_remove(handle)?;
-        }
-        for handle in self.viewports_removed.drain() {
-            backend.viewport_remove(handle)?;
-        }
-
-        // Update scene
-        if let hash_map::Entry::Vacant(e) = self.scenes.entry(ecs.active_scene) {
-            let handle = backend.scene_add()?;
-            e.insert(handle);
-        }
-
-        // Update scene components
-        {
-            let scene = ecs
-                .scenes
-                .get_mut()
-                .get_mut(&ecs.active_scene)
-                .unwrap()
-                .get_mut();
-
-            // Prepare views
-            let local_to_world = scene
-                .static_view_mut::<LocalToWorld>(LocalToWorld::UID)
-                .unwrap();
-            let mut cameras = scene.static_view_mut::<Camera>(Camera::UID).unwrap();
-            let mut viewports = scene.static_view_mut::<Viewport>(Viewport::UID).unwrap();
-            let mut static_meshes = scene
-                .static_view_mut::<StaticMesh>(StaticMesh::UID)
-                .unwrap();
-            let mut canvases = scene.static_view_mut::<Canvas>(Canvas::UID).unwrap();
-
-            // Update cameras
-            for e in &scene.query(&[Camera::UID, LocalToWorld::UID]) {
-                let c = cameras.get_mut(e).unwrap();
-                let t = local_to_world.get(e).unwrap();
-                if c.handle.is_none() {
-                    let handle = backend.scene_camera_add()?;
-                    self.cameras.insert(e, handle);
-                    c.handle = Some(handle);
-                }
-                backend.scene_camera_update(
-                    c.handle.unwrap(),
-                    t.translation(),
-                    t.forward(),
-                    t.up(),
-                    c.fov,
-                )?;
-            }
-
-            // Update viewports
-            for e in &scene.query(&[Viewport::UID]) {
-                let v = viewports.get_mut(e).unwrap();
-                if v.handle.is_none() {
-                    v.handle = Some(backend.viewport_add(v.resolution)?);
-                    v.out_of_date = true;
-                    self.viewports.insert(e, v.handle.unwrap());
-                }
-                if v.out_of_date {
-                    let camera = v.camera.map(|entity| *self.cameras.get(&entity).unwrap());
-                    backend.viewport_set_camera(v.handle.unwrap(), camera)?;
-                    backend.viewport_set_resolution(v.handle.unwrap(), v.resolution)?;
-                    v.out_of_date = false;
-                }
-            }
-
-            // Update static meshes
-            for e in &scene.query(&[StaticMesh::UID, LocalToWorld::UID]) {
-                let s = static_meshes.get_mut(e).unwrap();
-                let t = local_to_world.get(e).unwrap();
-                if s.handle.is_none() {
-                    let model: &Model = asset.get(Model::UID, s.model).unwrap().unwrap();
-                    let mesh_handle = self
-                        .resources
-                        .request_mesh(&model.mesh, backend, asset)?
-                        .handle;
-                    let handle = backend.scene_model_add(mesh_handle)?;
-                    for (index, material) in model.materials.iter().enumerate() {
-                        let material_handle = self
-                            .resources
-                            .request_material(material, backend, asset)?
-                            .handle;
-                        backend.scene_model_set_material(handle, index, material_handle)?;
-                    }
-                    s.handle = Some(handle);
-                }
-                backend.scene_model_transfer_matrix(s.handle.unwrap(), t.matrix)?;
-            }
-
-            // Update Scene Canvas
-            for e in &scene.query(&[Canvas::UID, LocalToWorld::UID]) {
-                let c = canvases.get_mut(e).unwrap();
-                let t = local_to_world.get(e).unwrap();
-                if c.handle.is_none() {
-                    c.handle = Some(backend.scene_canvas_add(c.resolution)?);
-                }
-                backend.scene_canvas_transfer_matrix(c.handle.unwrap(), t.matrix)?;
-            }
-        }
-
-        // Render main screen
-        self.graphics.submit_backend(
-            None,
-            Color::TRANSPARENT,
-            &mut self.resources,
-            asset,
-            &self.viewports,
-            backend,
-        )?;
-
-        // Recover statistics of previous frame
-        self.statistics = backend.statistics()?;
-
-        Ok(())
-    }
-
     pub(crate) fn prepare(&mut self) {
         self.graphics.clear();
     }
@@ -458,6 +290,22 @@ impl RendererManager {
         // TODO: reset ECS resources
         self.graphics = Graphics::deserialize(decoder, &Default::default())?;
         Ok(())
+    }
+
+    pub(crate) fn submit_graphics(
+        &mut self,
+        asset: &AssetManager,
+        backend: &mut impl RendererBackend,
+    ) {
+        // Render main screen
+        self.graphics.submit_backend(
+            None,
+            Color::TRANSPARENT,
+            &mut self.resources,
+            asset,
+            &self.viewports,
+            backend,
+        )?;
     }
 
     pub fn graphics(&mut self) -> &mut Graphics {

@@ -1,9 +1,11 @@
+use mini3d_derive::Serialize;
+
 use crate::{
     registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub(crate) struct AssetId(u32);
 
 pub(crate) type AssetVersion = u8;
