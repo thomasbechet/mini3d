@@ -4,17 +4,12 @@ use crate::{
     renderer::backend::RendererBackend,
     serialize::{Decoder, DecoderError, EncoderError},
     storage::backend::StorageBackend,
-    utils::{
-        slotmap::{DenseSlotMap, SlotId},
-        uid::UID,
-    },
+    utils::slotmap::{DenseSlotMap, SlotId},
 };
 use core::cell::RefCell;
-use std::collections::HashSet;
 
 use crate::{
     asset::AssetManager,
-    event::Events,
     input::InputManager,
     registry::{component::ComponentRegistry, RegistryManager},
     renderer::RendererManager,

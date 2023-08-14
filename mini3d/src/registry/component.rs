@@ -1,7 +1,10 @@
 use std::any::{Any, TypeId};
 
 use crate::{
-    asset::container::{AnyAssetContainer, StaticAssetContainer},
+    asset::{
+        container::{AnyAssetContainer, StaticAssetContainer},
+        handle::{AssetHandle, StaticAsset},
+    },
     ecs::{
         component::{AnyComponentContainer, ComponentTable, StaticComponentContainer},
         entity::Entity,
@@ -38,6 +41,7 @@ impl From<ComponentId> for SlotId {
 pub trait ComponentHandle {
     type ViewRef<'a>;
     type ViewMut<'a>;
+    type AssetHandle: AssetHandle;
     fn new(uid: UID, id: ComponentId) -> Self;
     fn uid(&self) -> UID;
     fn id(&self) -> ComponentId;
@@ -70,6 +74,7 @@ impl<C: Component> Default for StaticComponent<C> {
 impl<C: Component> ComponentHandle for StaticComponent<C> {
     type ViewRef<'a> = StaticComponentViewRef<'a, C>;
     type ViewMut<'a> = StaticComponentViewMut<'a, C>;
+    type AssetHandle = StaticAsset<C>;
 
     fn new(uid: UID, id: ComponentId) -> Self {
         Self {
@@ -136,6 +141,7 @@ pub struct DynamicComponent {
 impl ComponentHandle for DynamicComponent {
     type ViewRef<'a> = ComponentViewRef<'a>;
     type ViewMut<'a> = ComponentViewMut<'a>;
+    type AssetHandle = ();
 
     fn new(uid: UID, id: ComponentId) -> Self {
         Self { uid, id }

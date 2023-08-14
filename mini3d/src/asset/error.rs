@@ -10,8 +10,8 @@ pub enum AssetError {
     DuplicatedAssetType { uid: UID },
     #[error("Invalid asset type cast")]
     InvalidAssetTypeCast,
-    #[error("Asset not found: {uid}")]
-    AssetNotFound { uid: UID },
+    #[error("Asset not found")]
+    AssetNotFound,
     #[error("Asset type not found")]
     AssetTypeNotFound,
     #[error("Bundle not found: {uid}")]

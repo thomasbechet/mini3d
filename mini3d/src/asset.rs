@@ -1,13 +1,13 @@
 use core::result::Result;
 
-use crate::registry::component::{Component, ComponentId, ComponentRegistry};
+use crate::registry::component::{Component, ComponentHandle, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::uid::UID;
 
 use self::container::{AnyAssetContainer, StaticAssetContainer};
 use self::error::AssetError;
-use self::handle::{AssetHandle, AssetId};
+use self::handle::{AssetHandle, AssetId, AssetVersion};
 
 pub mod container;
 pub mod error;
@@ -16,7 +16,7 @@ pub mod handle;
 type AssetEntryId = SlotId;
 type AssetBundleId = SlotId;
 
-enum AssetKind {
+enum AssetSource {
     Persistent,
     IO,
 }
@@ -26,7 +26,11 @@ pub struct AssetInfo<'a> {
 }
 
 struct AssetEntry {
-    component: UID,
+    name: UID,
+    component: ComponentId,
+    version: AssetVersion,
+    slot: Option<SlotId>, // None if not loaded
+    source: AssetSource,
     bundle: AssetBundleId,
     next_in_bundle: AssetEntryId,
     prev_in_bundle: AssetEntryId,
@@ -39,63 +43,22 @@ struct AssetBundle {
 
 #[derive(Default)]
 pub struct AssetManager {
-    containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>,
-    bundles: DenseSlotMap<AssetBundle>,
-    entries: DenseSlotMap<AssetEntry>,
+    containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // ComponentId -> Container
+    bundles: DenseSlotMap<AssetBundle>,                         // AssetBundleId -> AssetBundle
+    entries: DenseSlotMap<AssetEntry>,                          // AssetId -> AssetEntry
 }
 
 impl AssetManager {
-    fn next_handle(&mut self) -> AssetId {
-        if let Some(handle) = self.free_handles.pop() {
-            return handle;
-        }
-        let handle = self.next_handle;
-        self.next_handle = AssetId::new(handle.key() + 1, 0);
-        handle
-    }
-
-    #[inline]
-    fn container<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-    ) -> Result<Option<&'_ StaticAssetContainer<C>>, AssetError> {
-        if let Some(container) = self.containers.get(asset.into()) {
-            return Ok(Some(
-                container
-                    .as_any()
-                    .downcast_ref()
-                    .ok_or(AssetError::InvalidAssetTypeCast)?,
-            ));
-        }
-        Ok(None)
-    }
-
-    #[inline]
-    fn container_mut<C: Component>(
-        &'_ mut self,
-        asset: ComponentId,
-    ) -> Result<Option<&'_ mut StaticAssetContainer<C>>, AssetError> {
-        if let Some(container) = self.containers.get_mut(asset.into()) {
-            return Ok(Some(
-                container
-                    .as_any_mut()
-                    .downcast_mut()
-                    .ok_or(AssetError::InvalidAssetTypeCast)?,
-            ));
-        }
-        Ok(None)
-    }
-
     pub(crate) fn save_state(
         &self,
         registry: &ComponentRegistry,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
-        encoder.write_u32(self.bundles.len() as u32)?;
-        for uid in self.bundles.keys() {
-            self.serialize_bundle(*uid, registry, encoder)
-                .map_err(|_| EncoderError::Unsupported)?;
-        }
+        // encoder.write_u32(self.bundles.len() as u32)?;
+        // for uid in self.bundles.keys() {
+        //     self.serialize_bundle(*uid, registry, encoder)
+        //         .map_err(|_| EncoderError::Unsupported)?;
+        // }
         Ok(())
     }
 
@@ -104,54 +67,93 @@ impl AssetManager {
         registry: &ComponentRegistry,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
-        // Clear all data
-        self.bundles.clear();
-        self.containers.clear();
-        self.defaults.clear();
+        // // Clear all data
+        // self.bundles.clear();
+        // self.containers.clear();
+        // self.defaults.clear();
 
-        // Decode bundles
-        let bundle_count = decoder.read_u32()?;
-        for _ in 0..bundle_count {
-            let import = ImportAssetBundle::deserialize(registry, decoder)
-                .map_err(|_| DecoderError::CorruptedData)?;
-            self.import_bundle(import)
-                .map_err(|_| DecoderError::CorruptedData)?;
-        }
+        // // Decode bundles
+        // let bundle_count = decoder.read_u32()?;
+        // for _ in 0..bundle_count {
+        //     let import = ImportAssetBundle::deserialize(registry, decoder)
+        //         .map_err(|_| DecoderError::CorruptedData)?;
+        //     self.import_bundle(import)
+        //         .map_err(|_| DecoderError::CorruptedData)?;
+        // }
 
-        // Decode default values
-        let default_count = decoder.read_u32()?;
-        for _ in 0..default_count {
-            let uid = UID::deserialize(decoder, &Default::default())?;
-            if let Some(id) = registry.find_id(uid) {
-                let default = UID::deserialize(decoder, &Default::default())?;
-                self.defaults.insert(id.into(), default);
-            } else {
-                return Err(DecoderError::CorruptedData);
-            }
-        }
+        // // Decode default values
+        // let default_count = decoder.read_u32()?;
+        // for _ in 0..default_count {
+        //     let uid = UID::deserialize(decoder, &Default::default())?;
+        //     if let Some(id) = registry.find_id(uid) {
+        //         let default = UID::deserialize(decoder, &Default::default())?;
+        //         self.defaults.insert(id.into(), default);
+        //     } else {
+        //         return Err(DecoderError::CorruptedData);
+        //     }
+        // }
 
-        // Check that all assets have a default value
-        for (asset, _) in self.defaults.iter() {
-            if self.containers.get(asset).is_none() {
-                return Err(DecoderError::CorruptedData);
-            }
-        }
+        // // Check that all assets have a default value
+        // for (asset, _) in self.defaults.iter() {
+        //     if self.containers.get(asset).is_none() {
+        //         return Err(DecoderError::CorruptedData);
+        //     }
+        // }
         Ok(())
     }
 
-    pub(crate) fn set_default(&mut self, asset: ComponentId, uid: UID) -> Result<(), AssetError> {
+    pub(crate) fn set_default<H: AssetHandle>(
+        &mut self,
+        asset: ComponentId,
+        uid: UID,
+    ) -> Result<(), AssetError> {
         *self
             .defaults
             .get_mut(asset.into())
-            .ok_or(AssetError::AssetNotFound { uid })? = uid;
+            .ok_or(AssetError::AssetNotFound)? = uid;
         Ok(())
     }
 
-    pub(crate) fn get<H: AssetHandle>(&self, path: &str) -> Result<Option<H>, AssetError> {}
+    pub(crate) fn add<C: ComponentHandle>(
+        &mut self,
+        name: &str,
+        data: <C::AssetHandle as AssetHandle>::Contructor,
+    ) -> C::AssetHandle {
+    }
+
+    pub(crate) fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
+        self.entries
+            .iter()
+            .find(|(_, entry)| entry.name == UID::new(&name))
+            .filter(|(_, entry)| {
+                H::check_type(
+                    self.containers
+                        .get(entry.component.into())
+                        .unwrap()
+                        .as_ref(),
+                )
+            })
+            .map(|(id, entry)| H::new(AssetId::new(id, entry.version)))
+    }
 
     pub(crate) fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {}
 
-    pub(crate) fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {}
+    pub(crate) fn read<H: AssetHandle>(
+        &mut self,
+        handle: H,
+    ) -> Result<H::AssetRef<'_>, AssetError> {
+        let slot = handle.id().slot();
+        let version = handle.id().version();
+        let entry = self.entries.get(slot).ok_or(AssetError::AssetNotFound)?;
+        if entry.version != version {
+            return Err(AssetError::AssetNotFound);
+        }
+        if let Some(slot) = entry.slot {
+            Ok(handle.asset_ref(self.containers[entry.component.into()].as_ref()))
+        } else {
+            Err(AssetError::AssetNotFound) // TODO: load the asset from source
+        }
+    }
 
     pub(crate) fn write<H: AssetHandle>(
         &self,
@@ -159,34 +161,6 @@ impl AssetManager {
         asset: H::AssetRef<'_>,
     ) -> Result<(), AssetError> {
         Ok(())
-    }
-
-    pub(crate) fn get_or_default<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ C>, AssetError> {
-        let container = self.container::<C>(asset)?;
-        Ok(container.and_then(|container| {
-            container
-                .0
-                .get(&uid)
-                .or_else(|| {
-                    self.defaults
-                        .get(asset.into())
-                        .and_then(|uid| container.0.get(uid))
-                })
-                .map(|entry| &entry.asset)
-        }))
-    }
-
-    pub(crate) fn iter<C: Component>(
-        &self,
-        asset: ComponentId,
-    ) -> Result<Option<impl Iterator<Item = &StaticAssetEntry<C>>>, AssetError> {
-        Ok(self
-            .container::<C>(asset)?
-            .map(|container| container.0.values()))
     }
 
     pub(crate) fn add_bundle(&mut self, name: &str) -> Result<UID, AssetError> {

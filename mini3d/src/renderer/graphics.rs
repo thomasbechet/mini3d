@@ -4,8 +4,9 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    asset::{handle::AssetId, AssetManager},
+    asset::{handle::StaticAsset, AssetManager},
     ecs::entity::Entity,
+    feature::component::renderer::{font::Font, texture::Texture},
     math::rect::IRect,
     utils::uid::UID,
 };
@@ -29,10 +30,10 @@ enum Command {
         position: IVec2,
         start: usize,
         stop: usize,
-        font: UID,
+        font: StaticAsset<Font>,
     },
     BlitTexture {
-        texture: AssetId,
+        texture: StaticAsset<Texture>,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
@@ -108,7 +109,7 @@ impl Graphics {
                     stop,
                     font,
                 } => {
-                    let font = resources.request_font(font, backend, asset)?;
+                    let font = resources.request_font(*font, backend, asset)?;
                     let mut position = *position;
                     for c in self.text_buffer[*start..*stop].chars() {
                         let char_extent = font
@@ -141,7 +142,7 @@ impl Graphics {
                     wrap_mode,
                     alpha_threshold,
                 } => {
-                    let texture = resources.request_texture(texture, backend, asset)?;
+                    let texture = resources.request_texture(*texture, backend, asset)?;
                     backend.canvas_blit_texture(
                         texture.handle,
                         *extent,
@@ -183,7 +184,7 @@ impl Graphics {
         Ok(())
     }
 
-    pub fn print(&mut self, position: IVec2, text: &str, font: UID) {
+    pub fn print(&mut self, position: IVec2, text: &str, font: StaticAsset<Font>) {
         let start = self.text_buffer.len();
         self.text_buffer.push_str(text);
         let stop = self.text_buffer.len();
@@ -197,7 +198,7 @@ impl Graphics {
 
     pub fn blit_texture(
         &mut self,
-        texture: UID,
+        texture: StaticAsset<Texture>,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
