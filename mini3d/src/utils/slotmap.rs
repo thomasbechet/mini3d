@@ -273,6 +273,20 @@ impl<V> Default for DenseSlotMap<V> {
     }
 }
 
+impl<V> Index<SlotId> for DenseSlotMap<V> {
+    type Output = V;
+
+    fn index(&self, id: SlotId) -> &Self::Output {
+        self.get(id).unwrap()
+    }
+}
+
+impl<V> IndexMut<SlotId> for DenseSlotMap<V> {
+    fn index_mut(&mut self, id: SlotId) -> &mut Self::Output {
+        self.get_mut(id).unwrap()
+    }
+}
+
 // impl<V: Serialize> Serialize for DenseSlotMap<V> {
 //     type Header = V::Header;
 

@@ -4,8 +4,8 @@ use crate::utils::uid::UID;
 
 #[derive(Debug, Error)]
 pub enum AssetError {
-    #[error("Duplicated asset entry: {name}")]
-    DuplicatedAssetEntry { name: String },
+    #[error("Duplicated asset entry")]
+    DuplicatedAssetEntry,
     #[error("Duplicated asset type: {uid}")]
     DuplicatedAssetType { uid: UID },
     #[error("Invalid asset type cast")]
@@ -14,8 +14,8 @@ pub enum AssetError {
     AssetNotFound,
     #[error("Asset type not found")]
     AssetTypeNotFound,
-    #[error("Bundle not found: {uid}")]
-    BundleNotFound { uid: UID },
+    #[error("Bundle not found")]
+    BundleNotFound,
     #[error("Duplicated bundle entry: {name}")]
     DuplicatedBundleEntry { name: String },
     #[error("Deserialization error")]
