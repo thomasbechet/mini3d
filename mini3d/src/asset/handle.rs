@@ -37,6 +37,21 @@ impl Default for AssetId {
     }
 }
 
+#[derive(Default)]
+pub struct AssetBundleId(SlotId);
+
+impl From<AssetBundleId> for SlotId {
+    fn from(value: AssetBundleId) -> Self {
+        value.0
+    }
+}
+
+impl From<SlotId> for AssetBundleId {
+    fn from(value: SlotId) -> Self {
+        Self(value)
+    }
+}
+
 pub(crate) trait AssetHandle {
     type AssetRef<'a>;
     type Contructor;

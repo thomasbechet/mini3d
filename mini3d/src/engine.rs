@@ -200,7 +200,7 @@ impl Engine {
         // Prepare input manager
         self.input.prepare_dispatch();
         // Dispatch input events
-        self.input.dispatch_events(input.events())?;
+        self.input.dispatch_events(input.events());
 
         // Dispatch system events
         for event in system.events() {

@@ -3,7 +3,7 @@ use std::any::{Any, TypeId};
 use crate::{
     asset::{
         container::{AnyAssetContainer, StaticAssetContainer},
-        handle::{AssetHandle, StaticAsset},
+        handle::{AssetHandle, DynamicAsset, StaticAsset},
     },
     ecs::{
         component::{AnyComponentContainer, ComponentTable, StaticComponentContainer},
@@ -141,7 +141,7 @@ pub struct DynamicComponent {
 impl ComponentHandle for DynamicComponent {
     type ViewRef<'a> = ComponentViewRef<'a>;
     type ViewMut<'a> = ComponentViewMut<'a>;
-    type AssetHandle = ();
+    type AssetHandle = DynamicAsset;
 
     fn new(uid: UID, id: ComponentId) -> Self {
         Self { uid, id }

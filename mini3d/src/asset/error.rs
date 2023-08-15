@@ -16,8 +16,8 @@ pub enum AssetError {
     AssetTypeNotFound,
     #[error("Bundle not found")]
     BundleNotFound,
-    #[error("Duplicated bundle entry: {name}")]
-    DuplicatedBundleEntry { name: String },
+    #[error("Duplicated bundle")]
+    DuplicatedBundle,
     #[error("Deserialization error")]
     DeserializationError,
     #[error("Serialization error")]
