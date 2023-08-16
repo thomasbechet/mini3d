@@ -1,87 +1,85 @@
-use mini3d_derive::Serialize;
-
 use crate::{
     registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::slotmap::SlotId,
+    utils::generation::{GenerationId, VersionId},
 };
 
 use super::container::{AnyAssetContainer, StaticAssetContainer};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
-pub(crate) struct AssetId(u32);
-
-pub(crate) type AssetVersion = u8;
-
-impl AssetId {
-    pub(crate) fn new(slot: SlotId, version: AssetVersion) -> Self {
-        Self(u32::from(slot) | ((version as u32) << 24))
-    }
-
-    pub(crate) fn slot(&self) -> SlotId {
-        (self.0 & 0x00ff_ffff).into()
-    }
-
-    pub(crate) fn version(&self) -> AssetVersion {
-        (self.0 >> 24) as AssetVersion
-    }
-
-    pub fn null() -> Self {
-        Self(0)
-    }
-}
-
-impl Default for AssetId {
-    fn default() -> Self {
-        Self::null()
-    }
-}
-
 #[derive(Default)]
-pub struct AssetBundleId(SlotId);
+pub struct AssetBundleId(GenerationId);
 
-impl From<AssetBundleId> for SlotId {
-    fn from(value: AssetBundleId) -> Self {
-        value.0
+impl AssetBundleId {
+    pub(crate) fn new(id: GenerationId) -> Self {
+        Self(id)
     }
-}
 
-impl From<SlotId> for AssetBundleId {
-    fn from(value: SlotId) -> Self {
-        Self(value)
+    pub(crate) fn id(&self) -> GenerationId {
+        self.0
     }
 }
 
 pub(crate) trait AssetHandle {
     type AssetRef<'a>;
     type Contructor;
-    fn new(id: AssetId) -> Self;
-    fn id(&self) -> AssetId;
+    fn new(id: GenerationId) -> Self;
+    fn id(&self) -> GenerationId;
     fn asset_ref<'a>(&self, container: &'a dyn AnyAssetContainer) -> Self::AssetRef<'a>;
     fn insert(
         container: &mut dyn AnyAssetContainer,
         asset: Self::Contructor,
-        version: AssetVersion,
+        version: VersionId,
     ) -> Self;
     fn check_type(container: &dyn AnyAssetContainer) -> bool;
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default)]
 pub struct StaticAsset<C: Component> {
     _marker: std::marker::PhantomData<C>,
-    id: AssetId,
+    id: GenerationId,
+}
+
+impl<C: Component> StaticAsset<C> {
+    pub fn null() -> Self {
+        Default::default()
+    }
+}
+
+impl<C: Component> PartialEq for StaticAsset<C> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<C: Component> Eq for StaticAsset<C> {}
+
+impl<C: Component> Clone for StaticAsset<C> {
+    fn clone(&self) -> Self {
+        Self {
+            _marker: self._marker.clone(),
+            id: self.id.clone(),
+        }
+    }
+}
+
+impl<C: Component> Copy for StaticAsset<C> {}
+
+impl<C: Component> std::fmt::Debug for StaticAsset<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticAsset").field("id", &self.id).finish()
+    }
 }
 
 impl<C: Component> AssetHandle for StaticAsset<C> {
     type AssetRef<'a> = &'a C;
     type Contructor = C;
-    fn new(id: AssetId) -> Self {
+    fn new(id: GenerationId) -> Self {
         Self {
             _marker: std::marker::PhantomData::<C>,
             id,
         }
     }
-    fn id(&self) -> AssetId {
+    fn id(&self) -> GenerationId {
         self.id
     }
     fn asset_ref<'a>(&self, container: &'a dyn AnyAssetContainer) -> Self::AssetRef<'a> {
@@ -96,9 +94,9 @@ impl<C: Component> AssetHandle for StaticAsset<C> {
     fn insert(
         container: &mut dyn AnyAssetContainer,
         asset: Self::Contructor,
-        version: AssetVersion,
+        version: VersionId,
     ) -> Self {
-        Self::new(AssetId::new(
+        Self::new(GenerationId::from_slot(
             container
                 .as_any_mut()
                 .downcast_mut::<StaticAssetContainer<C>>()
@@ -120,43 +118,41 @@ impl<C: Component> Serialize for StaticAsset<C> {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.id.0)?;
-        Ok(())
+        self.id.serialize(encoder)
     }
 
     fn deserialize(
         decoder: &mut impl Decoder,
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let handle = AssetId(decoder.read_u32()?);
         Ok(Self {
             _marker: std::marker::PhantomData::<C>,
-            id: handle,
+            id: GenerationId::deserialize(decoder, &Default::default())?,
         })
     }
 }
 
 #[derive(Default)]
 pub struct DynamicAsset {
-    id: AssetId,
+    id: GenerationId,
 }
 
 impl AssetHandle for DynamicAsset {
     type AssetRef<'a> = ();
     type Contructor = ();
-    fn new(id: AssetId) -> Self {
+    fn new(id: GenerationId) -> Self {
         Self { id }
     }
-    fn id(&self) -> AssetId {
+    fn id(&self) -> GenerationId {
         self.id
     }
     fn asset_ref<'a>(&self, container: &'a dyn AnyAssetContainer) -> Self::AssetRef<'a> {}
     fn insert(
         container: &mut dyn AnyAssetContainer,
         asset: Self::Contructor,
-        version: AssetVersion,
+        version: VersionId,
     ) -> Self {
-        Self::new(AssetId::null())
+        Self::new(GenerationId::null())
     }
     fn check_type(container: &dyn AnyAssetContainer) -> bool {
         true
@@ -167,15 +163,15 @@ impl Serialize for DynamicAsset {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.id.0)?;
-        Ok(())
+        self.id.serialize(encoder)
     }
 
     fn deserialize(
         decoder: &mut impl Decoder,
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let handle = AssetId(decoder.read_u32()?);
-        Ok(Self { id: handle })
+        Ok(Self {
+            id: GenerationId::deserialize(decoder, &Default::default())?,
+        })
     }
 }

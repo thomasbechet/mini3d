@@ -10,7 +10,7 @@ use crate::physics::PhysicsManager;
 use crate::registry::component::Component;
 use crate::registry::error::RegistryError;
 use crate::registry::RegistryManager;
-use crate::renderer::backend::{RendererBackend, RendererBackendError};
+use crate::renderer::backend::RendererBackend;
 use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::storage::backend::StorageBackend;
@@ -82,12 +82,12 @@ impl Engine {
         define_component!(component::renderer::texture::Texture);
         define_component!(component::renderer::tilemap::Tilemap);
         define_component!(component::renderer::tileset::Tileset);
+        define_component!(component::renderer::viewport::Viewport);
         define_component!(component::ui::canvas::Canvas);
         define_component!(component::ui::ui_stylesheet::UIStyleSheet);
         define_component!(component::ui::ui_template::UITemplate);
         define_component!(component::ui::ui::UI);
         define_component!(component::ui::ui::UIRenderTarget);
-        define_component!(component::ui::viewport::Viewport);
         define_component!(component::scene::hierarchy::Hierarchy);
         define_component!(component::scene::local_to_world::LocalToWorld);
         define_component!(component::scene::transform::Transform);
@@ -235,20 +235,6 @@ impl Engine {
             })
             .map_err(|_| ProgressError::ECSError)?;
 
-        Ok(())
-    }
-
-    pub fn synchronize_renderer(
-        &mut self,
-        backend: &mut impl RendererBackend,
-        reset: bool,
-    ) -> Result<(), RendererBackendError> {
-        if reset {
-            backend.reset()?;
-            self.renderer.reset(&mut self.ecs);
-        }
-        self.renderer
-            .synchronize_backend(backend, &self.asset, &mut self.ecs)?;
         Ok(())
     }
 }

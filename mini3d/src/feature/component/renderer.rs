@@ -7,3 +7,4 @@ pub mod static_mesh;
 pub mod texture;
 pub mod tilemap;
 pub mod tileset;
+pub mod viewport;

@@ -1,6 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
-use crate::asset::handle::{AssetHandle, AssetId, StaticAsset};
+use crate::asset::handle::{AssetHandle, StaticAsset};
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;
@@ -10,10 +10,11 @@ use crate::feature::component::renderer::static_mesh::StaticMesh;
 use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
-use crate::feature::component::ui::viewport::Viewport;
 use crate::registry::component::{Component, ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
+use crate::utils::generation::GenerationId;
+use crate::utils::slotmap::DenseSlotMap;
 use crate::utils::uid::UID;
 use crate::{
     asset::AssetManager,
@@ -24,6 +25,7 @@ use crate::{
 use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
+use self::backend::ViewportHandle;
 use self::event::RendererEvent;
 use self::{
     backend::{
@@ -99,10 +101,10 @@ pub(crate) struct RendererMaterial {
 
 #[derive(Default)]
 pub(crate) struct RendererResourceManager {
-    fonts: HashMap<AssetId, RendererFont>,
-    textures: HashMap<AssetId, RendererTexture>,
-    meshes: HashMap<AssetId, RendererMesh>,
-    materials: HashMap<AssetId, RendererMaterial>,
+    fonts: HashMap<GenerationId, RendererFont>,
+    textures: HashMap<GenerationId, RendererTexture>,
+    meshes: HashMap<GenerationId, RendererMesh>,
+    materials: HashMap<GenerationId, RendererMaterial>,
 }
 
 fn load_font(
@@ -138,7 +140,7 @@ fn load_texture(
 
 fn load_material(
     handle: StaticAsset<Material>,
-    textures: &HashMap<AssetId, RendererTexture>,
+    textures: &HashMap<GenerationId, RendererTexture>,
     backend: &mut dyn RendererBackend,
     asset: &AssetManager,
 ) -> Result<RendererMaterial, RendererBackendError> {
@@ -231,6 +233,9 @@ pub struct RendererManager {
     // Resources
     pub(crate) resources: RendererResourceManager,
 
+    // Scene resources
+    viewports: DenseSlotMap<RendererViewport>,
+
     // Persistent data
     statistics: RendererStatistics,
     graphics: Graphics,
@@ -254,19 +259,31 @@ impl RendererManager {
         &mut self,
         registry: &ComponentRegistry,
     ) -> Result<(), RegistryError> {
-        self.camera = registry.find(Camera::UID)?;
-        self.static_mesh = registry.find(StaticMesh::UID)?;
-        self.canvas = registry.find(Canvas::UID)?;
-        self.local_to_world = registry.find(LocalToWorld::UID)?;
-        self.viewport = registry.find(Viewport::UID)?;
-        self.model = registry.find(Model::UID)?;
+        self.camera = registry
+            .find(Camera::UID)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.static_mesh = registry
+            .find(StaticMesh::UID)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.canvas = registry
+            .find(Canvas::UID)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.local_to_world = registry
+            .find(LocalToWorld::UID)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.viewport = registry
+            .find(Viewport::UID)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.model = registry
+            .find(Model::UID)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
         Ok(())
     }
 
     pub(crate) fn dispatch_events(&mut self, backend: &mut impl RendererBackend) {
         for event in backend.events() {
             match event {
-                RendererEvent::Statistics(stats) => self.statistics = stats,
+                RendererEvent::Statistics(stats) => self.statistics = *stats,
             }
         }
     }

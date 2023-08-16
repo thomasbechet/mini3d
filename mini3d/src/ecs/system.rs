@@ -51,8 +51,8 @@ impl<'a> ExclusiveResolver<'a> {
         let handle = self
             .registry
             .find::<H>(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        self.components.preallocate(handle.id(), self.registry);
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.components.preallocate(handle, self.registry);
         Ok(handle)
     }
 
@@ -86,11 +86,12 @@ pub struct ParallelResolver<'a> {
 
 impl<'a> ParallelResolver<'a> {
     pub fn read<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
-        let id = self
+        let handle: H = self
             .registry
-            .find_id(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        self.components.preallocate(id, self.registry);
+            .find(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.components.preallocate(handle, self.registry);
+        let id = handle.id();
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
         }
@@ -98,11 +99,12 @@ impl<'a> ParallelResolver<'a> {
     }
 
     pub fn write<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
-        let id = self
+        let handle: H = self
             .registry
-            .find_id(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound { uid: component })?;
-        self.components.preallocate(id, self.registry);
+            .find(component)
+            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+        self.components.preallocate(handle, self.registry);
+        let id = handle.id();
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);
         }

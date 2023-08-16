@@ -1,14 +1,12 @@
 use crate::{
-    asset::AssetManager,
+    asset::{handle::StaticAsset, AssetManager},
     feature::component::common::script::Script,
-    registry::component::ComponentId,
     script::{
         compiler::CompilationUnit,
         frontend::error::CompileError,
         mir::mir::MIR,
         module::{ModuleId, ModuleTable},
     },
-    utils::uid::UID,
 };
 
 use super::{
@@ -47,9 +45,8 @@ impl SourceCompiler {
 
     pub(crate) fn resolve_cu_and_exports(
         &mut self,
-        script_component: ComponentId,
         assets: &AssetManager,
-        asset: UID,
+        script: StaticAsset<Script>,
         modules: &mut ModuleTable,
         module: ModuleId,
         compilation_unit: &mut CompilationUnit,
@@ -57,9 +54,8 @@ impl SourceCompiler {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(script_component, asset)
-                .unwrap()
-                .ok_or(CompileError::ScriptNotFound)?
+                .read(script)
+                .map_err(|_| CompileError::ScriptNotFound)?
                 .source,
         );
         // Find imports and exports
@@ -76,9 +72,8 @@ impl SourceCompiler {
 
     pub(crate) fn generate_mir(
         &mut self,
-        script_component: ComponentId,
         assets: &AssetManager,
-        asset: UID,
+        script: StaticAsset<Script>,
         modules: &ModuleTable,
         module: ModuleId,
         mir: &mut MIR,
@@ -88,9 +83,8 @@ impl SourceCompiler {
         // Build source stream
         let mut stream = SourceStream::new(
             &assets
-                .get::<Script>(script_component, asset)
-                .unwrap()
-                .ok_or(CompileError::ScriptNotFound)?
+                .read(script)
+                .map_err(|_| CompileError::ScriptNotFound)?
                 .source,
         );
         // Generate AST

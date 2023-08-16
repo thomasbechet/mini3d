@@ -895,7 +895,12 @@ mod test {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
         let mut modules = ModuleTable::default();
-        let module = modules.add(UID::null(), Module::Source { asset: UID::null() });
+        let module = modules.add(
+            UID::null(),
+            Module::Source {
+                asset: Default::default(),
+            },
+        );
         let mut stream = SourceStream::new(
             r#"
         let x = 1 + 2 * 3
@@ -923,7 +928,12 @@ mod test {
         let mut strings = StringTable::default();
         let mut symbols = SymbolTable::default();
         let mut modules = ModuleTable::default();
-        let module = modules.add(UID::null(), Module::Source { asset: UID::null() });
+        let module = modules.add(
+            UID::null(),
+            Module::Source {
+                asset: Default::default(),
+            },
+        );
         let mut source = SourceStream::new(
             r#"
         let x = 2

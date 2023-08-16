@@ -2,28 +2,28 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    asset::handle::StaticAsset,
+    feature::component::{renderer::texture::Texture, ui::ui_stylesheet::UIStyleSheet},
     math::rect::IRect,
     renderer::{
         color::Color,
         graphics::{Graphics, TextureWrapMode},
     },
     ui::event::{Event, EventContext},
-    utils::uid::UID,
 };
 
 use super::Widget;
 
 #[derive(Serialize)]
 pub struct UISprite {
-    texture: UID,
+    texture: StaticAsset<Texture>,
     color: Color,
     position: IVec2,
     texture_extent: IRect,
 }
 
 impl UISprite {
-    pub fn new(texture: UID, position: IVec2, texture_extent: IRect) -> Self {
+    pub fn new(texture: StaticAsset<Texture>, position: IVec2, texture_extent: IRect) -> Self {
         Self {
             texture,
             color: Color::WHITE,

@@ -1,12 +1,13 @@
 use mini3d_derive::{Error, Serialize};
 
 use crate::{
+    asset::handle::StaticAsset,
+    feature::component::renderer::texture::Texture,
     math::rect::IRect,
     renderer::{
         color::Color,
         graphics::{Graphics, TextureWrapMode},
     },
-    utils::uid::UID,
 };
 
 #[derive(Debug, Error)]
@@ -45,7 +46,7 @@ impl UIMargin {
 
 #[derive(Serialize, Clone, Copy)]
 pub struct UIImageStyle {
-    texture: UID,
+    texture: StaticAsset<Texture>,
     extent: IRect,
     margin: UIMargin,
     wrap_mode: TextureWrapMode,
@@ -282,7 +283,7 @@ impl UIImageStyle {
         }
     }
 
-    pub fn simple(texture: UID, extent: IRect) -> Self {
+    pub fn simple(texture: StaticAsset<Texture>, extent: IRect) -> Self {
         Self {
             texture,
             extent,
@@ -293,7 +294,7 @@ impl UIImageStyle {
     }
 
     pub fn sliced(
-        texture: UID,
+        texture: StaticAsset<Texture>,
         extent: IRect,
         margin: UIMargin,
     ) -> Result<Self, UIImageStyleError> {

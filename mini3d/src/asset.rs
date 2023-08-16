@@ -2,11 +2,12 @@ use core::result::Result;
 
 use crate::registry::component::{ComponentHandle, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
+use crate::utils::generation::{GenerationId, VersionId};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 
 use self::container::AnyAssetContainer;
 use self::error::AssetError;
-use self::handle::{AssetBundleId, AssetHandle, AssetId, AssetVersion};
+use self::handle::{AssetBundleId, AssetHandle};
 
 pub mod container;
 pub mod error;
@@ -26,7 +27,7 @@ pub struct AssetInfo<'a> {
 struct AssetEntry {
     name: String, // TODO: use a string pool
     component: ComponentId,
-    version: AssetVersion,
+    version: VersionId,
     slot: SlotId, // Null if not loaded
     source: AssetSource,
     bundle: AssetBundleId,
@@ -37,6 +38,7 @@ struct AssetEntry {
 struct AssetBundle {
     name: String,
     first_entry: AssetEntryId, // Null if empty
+    version: VersionId,
 }
 
 #[derive(Default)]
@@ -44,16 +46,10 @@ pub struct AssetManager {
     containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // ComponentId -> Container
     bundles: DenseSlotMap<AssetBundle>,                         // AssetBundleId -> AssetBundle
     entries: DenseSlotMap<AssetEntry>,                          // AssetId -> AssetEntry
-    next_version: AssetVersion,
+    next_version: VersionId,
 }
 
 impl AssetManager {
-    fn next_version(version: &mut AssetVersion) -> AssetVersion {
-        let next = *version;
-        (*version).wrapping_add(1);
-        next
-    }
-
     pub(crate) fn save_state(
         &self,
         registry: &ComponentRegistry,
@@ -113,9 +109,10 @@ impl AssetManager {
         component: ComponentId,
         bundle: AssetBundleId,
         source: AssetSource,
-    ) -> Result<AssetId, AssetError> {
-        if let Some(bundle_entry) = self.bundles.get_mut(bundle.into()) {
-            let version = Self::next_version(&mut self.next_version);
+    ) -> Result<GenerationId, AssetError> {
+        let id = bundle.id();
+        if let Some(bundle_entry) = self.bundles.get_mut(id.slot()) {
+            let version = self.next_version.next();
             let slot = self.entries.add(AssetEntry {
                 name: name.to_owned(),
                 component,
@@ -132,7 +129,7 @@ impl AssetManager {
                 self.entries[slot].next_in_bundle = bundle_entry.first_entry;
             }
             bundle_entry.first_entry = slot;
-            Ok(AssetId::new(slot, version))
+            Ok(GenerationId::from_slot(slot, version))
         } else {
             Err(AssetError::BundleNotFound)
         }
@@ -144,7 +141,7 @@ impl AssetManager {
         let next = self.entries[slot].next_in_bundle;
         let prev = self.entries[slot].prev_in_bundle;
         if prev.is_null() {
-            self.bundles[bundle.into()].first_entry = next;
+            self.bundles[bundle.id().slot()].first_entry = next;
         } else {
             self.entries[prev].next_in_bundle = next;
         }
@@ -195,7 +192,7 @@ impl AssetManager {
                         .as_ref(),
                 )
             })
-            .map(|(id, entry)| H::new(AssetId::new(id, entry.version)))
+            .map(|(id, entry)| H::new(GenerationId::from_slot(id, entry.version)))
     }
 
     pub(crate) fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
@@ -246,10 +243,12 @@ impl AssetManager {
         {
             return Err(AssetError::DuplicatedBundle);
         }
+        let version = self.next_version.next();
         let slot = self.bundles.add(AssetBundle {
             name: name.to_owned(),
             first_entry: SlotId::null(),
+            version,
         });
-        Ok(slot.into())
+        Ok(AssetBundleId::new(GenerationId::from_slot(slot, version)))
     }
 }

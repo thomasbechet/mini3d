@@ -221,8 +221,8 @@ impl<'a> QueryBuilder<'a> {
         for component in components {
             let component = self
                 .registry
-                .find(*component)
-                .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
+                .find_id(*component)
+                .ok_or(RegistryError::ComponentDefinitionNotFound)?;
             if self.all.iter().all(|c| *c != component) {
                 self.all.push(component);
             }
@@ -235,7 +235,7 @@ impl<'a> QueryBuilder<'a> {
             let component = self
                 .registry
                 .find_id(*component)
-                .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
+                .ok_or(RegistryError::ComponentDefinitionNotFound)?;
             if self.any.iter().all(|c| *c != component) {
                 self.any.push(component);
             }
@@ -248,7 +248,7 @@ impl<'a> QueryBuilder<'a> {
             let component = self
                 .registry
                 .find_id(*component)
-                .ok_or(RegistryError::ComponentDefinitionNotFound { uid: *component })?;
+                .ok_or(RegistryError::ComponentDefinitionNotFound)?;
             if self.not.iter().all(|c| *c != component) {
                 self.not.push(component);
             }

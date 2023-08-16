@@ -2,11 +2,11 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    asset::handle::StaticAsset,
+    feature::component::{renderer::font::Font, ui::ui_stylesheet::UIStyleSheet},
     math::rect::IRect,
     renderer::graphics::Graphics,
     ui::event::{Event, EventContext},
-    utils::uid::UID,
 };
 
 use super::Widget;
@@ -15,11 +15,11 @@ use super::Widget;
 pub struct UILabel {
     position: IVec2,
     text: String,
-    font: UID,
+    font: StaticAsset<Font>,
 }
 
 impl UILabel {
-    pub fn new(position: IVec2, text: &str, font: UID) -> Self {
+    pub fn new(position: IVec2, text: &str, font: StaticAsset<Font>) -> Self {
         Self {
             position,
             text: text.to_owned(),

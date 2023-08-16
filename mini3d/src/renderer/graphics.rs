@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use glam::IVec2;
 use mini3d_derive::Serialize;
 
@@ -8,11 +6,11 @@ use crate::{
     ecs::entity::Entity,
     feature::component::renderer::{font::Font, texture::Texture},
     math::rect::IRect,
-    utils::uid::UID,
+    utils::slotmap::DenseSlotMap,
 };
 
 use super::{
-    backend::{RendererBackend, RendererBackendError, SceneCanvasHandle, ViewportHandle},
+    backend::{RendererBackend, RendererBackendError, SceneCanvasHandle},
     color::Color,
     RendererResourceManager,
 };
@@ -42,8 +40,7 @@ enum Command {
     },
     BlitViewport {
         position: IVec2,
-        scene: UID,
-        viewport: Entity,
+        viewport: Entity, // TODO: use scene ?
     },
     DrawLine {
         x0: IVec2,
@@ -93,7 +90,7 @@ impl Graphics {
         clear_color: Color,
         resources: &mut RendererResourceManager,
         asset: &AssetManager,
-        viewports: &HashMap<Entity, ViewportHandle>,
+        viewports: &DenseSlotMap<RendererViewport>,
         backend: &mut impl RendererBackend,
     ) -> Result<(), RendererBackendError> {
         if let Some(canvas) = canvas {
@@ -215,12 +212,9 @@ impl Graphics {
         });
     }
 
-    pub fn blit_viewport(&mut self, scene: UID, viewport: Entity, position: IVec2) {
-        self.commands.push(Command::BlitViewport {
-            position,
-            scene,
-            viewport,
-        });
+    pub fn blit_viewport(&mut self, viewport: ViewportId, position: IVec2) {
+        self.commands
+            .push(Command::BlitViewport { position, viewport });
     }
 
     pub fn fill_rect(&mut self, extent: IRect, color: Color) {

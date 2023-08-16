@@ -261,7 +261,7 @@ impl ComponentRegistry {
         reflection: Box<dyn AnyComponentReflection>,
     ) -> Result<(), RegistryError> {
         let uid: UID = name.into();
-        if self.find_any(uid).is_some() {
+        if self.find_id(uid).is_some() {
             return Err(RegistryError::DuplicatedComponentDefinition {
                 name: name.to_string(),
             });
@@ -298,7 +298,7 @@ impl ComponentRegistry {
             .ok_or(RegistryError::AssetDefinitionNotFound)
     }
 
-    fn find_any(&self, component: UID) -> Option<ComponentId> {
+    pub(crate) fn find_id(&self, component: UID) -> Option<ComponentId> {
         self.definitions
             .iter()
             .find(|(_, def)| UID::new(&def.name) == component)
@@ -306,7 +306,7 @@ impl ComponentRegistry {
     }
 
     pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Option<H> {
-        if let Some(id) = self.find_any(component) {
+        if let Some(id) = self.find_id(component) {
             if !H::check_type(self.definitions[id.into()].reflection.as_ref()) {
                 return None;
             } else {

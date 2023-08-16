@@ -295,15 +295,19 @@ pub(crate) struct ComponentTable {
 }
 
 impl ComponentTable {
-    pub(crate) fn preallocate(&mut self, component: ComponentId, registry: &ComponentRegistry) {
-        if !self.containers.contains(component.into()) {
+    pub(crate) fn preallocate<H: ComponentHandle>(
+        &mut self,
+        handle: H,
+        registry: &ComponentRegistry,
+    ) {
+        let id = handle.id();
+        if !self.containers.contains(id.into()) {
             let container = registry
-                .definition(component)
+                .definition(handle)
                 .unwrap()
                 .reflection
                 .create_scene_container();
-            self.containers
-                .insert(component.into(), RefCell::new(container));
+            self.containers.insert(id.into(), RefCell::new(container));
         }
     }
 
@@ -312,12 +316,12 @@ impl ComponentTable {
         registry: &ComponentRegistry,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
-        encoder.write_u32(self.containers.len() as u32)?;
-        for (id, container) in self.containers.iter() {
-            let uid = UID::new(&registry.definition(id.into()).unwrap().name);
-            uid.serialize(encoder)?;
-            container.borrow().serialize(encoder)?;
-        }
+        // encoder.write_u32(self.containers.len() as u32)?;
+        // for (id, container) in self.containers.iter() {
+        //     let uid = UID::new(&registry.definition(id.into()).unwrap().name);
+        //     uid.serialize(encoder)?;
+        //     container.borrow().serialize(encoder)?;
+        // }
         Ok(())
     }
 
@@ -326,18 +330,18 @@ impl ComponentTable {
         registry: &ComponentRegistry,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
-        self.containers.clear();
-        let count = decoder.read_u32()?;
-        for i in 0..count {
-            let uid = UID::deserialize(decoder, &Default::default())?;
-            let id = registry
-                .find_id(uid)
-                .expect("Component ID not found while deserializing");
-            self.preallocate(id, registry);
-            self.containers[id.into()]
-                .borrow_mut()
-                .deserialize(decoder)?;
-        }
+        // self.containers.clear();
+        // let count = decoder.read_u32()?;
+        // for i in 0..count {
+        //     let uid = UID::deserialize(decoder, &Default::default())?;
+        //     let id = registry
+        //         .find_id(uid)
+        //         .expect("Component ID not found while deserializing");
+        //     self.preallocate(id, registry);
+        //     self.containers[id.into()]
+        //         .borrow_mut()
+        //         .deserialize(decoder)?;
+        // }
         Ok(())
     }
 

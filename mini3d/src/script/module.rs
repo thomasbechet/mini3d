@@ -1,14 +1,16 @@
-use crate::utils::uid::UID;
+use crate::{
+    asset::handle::StaticAsset, feature::component::common::script::Script, utils::uid::UID,
+};
 
 use super::{interface::InterfaceId, mir::primitive::PrimitiveType};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModuleId(u32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Module {
-    Source { asset: UID },
-    Node { asset: UID },
+    Source { asset: StaticAsset<Script> },
+    Node { asset: StaticAsset<Script> },
     Interface { id: InterfaceId },
     Builtin,
 }
@@ -19,7 +21,7 @@ struct ModuleEntry {
     module: Module,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModuleSymbolId(u32);
 
 #[derive(Debug)]
