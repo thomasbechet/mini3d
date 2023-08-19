@@ -212,6 +212,9 @@ impl Engine {
             }
         }
 
+        // Dispatch renderer events
+        self.renderer.dispatch_events(renderer);
+
         // Dispatch network events
 
         // Dispatch storage events

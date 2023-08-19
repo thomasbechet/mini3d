@@ -88,8 +88,9 @@ impl ECSManager {
     }
 
     pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), SceneError> {
-        // Update active scene
-        let scene = self.scenes.get_mut(self.active_scene).unwrap();
-        scene.update(&mut context)
+        self.scenes
+            .get_mut(self.active_scene)
+            .unwrap()
+            .update(&mut context)
     }
 }

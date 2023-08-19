@@ -34,6 +34,8 @@ impl From<&str> for Box<dyn SystemError> {
     }
 }
 
+struct Foo<const N: usize>([i32; N]);
+
 pub struct ExclusiveResolver<'a> {
     registry: &'a ComponentRegistry,
     system: SystemId,
@@ -156,8 +158,10 @@ type SystemInstanceId = SlotId;
 pub(crate) type SystemStageId = SlotId;
 type SystemGroupId = SlotId;
 
+pub(crate) const MAX_SYSTEM_INSTANCE_NAME_LEN: usize = 64;
+
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) name: String,
+    pub(crate) name: [char; MAX_SYSTEM_INSTANCE_NAME_LEN],
     pub(crate) instance: SystemInstance,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQueryId>,

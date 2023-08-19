@@ -1,7 +1,5 @@
 use std::collections::VecDeque;
 
-use crate::utils::slotmap::SlotId;
-
 use super::{
     archetype::ArchetypeTable,
     component::ComponentTable,
@@ -26,8 +24,6 @@ pub enum Invocation {
     EndFrame,
     NextFrame,
 }
-
-type FixedStageId = SlotId;
 
 struct FixedStageEntry {
     accumulator: f64,
@@ -69,7 +65,7 @@ impl Scheduler {
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         systems: &mut SystemTable,
-        mut context: &mut ECSUpdateContext,
+        context: &mut ECSUpdateContext,
     ) -> Result<(), SceneError> {
         // Collect previous frame stages
         let mut frame_stages = self.next_frame_stages.drain(..).collect::<VecDeque<_>>();
@@ -80,7 +76,7 @@ impl Scheduler {
             let frequency = systems.stages[stage.stage].stage.frequency().unwrap();
             let count = (stage.accumulator / frequency) as u32;
             stage.accumulator -= count as f64 * frequency;
-            for i in 0..count {
+            for _ in 0..count {
                 frame_stages.push_back(stage.stage);
             }
         }

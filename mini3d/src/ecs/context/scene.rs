@@ -14,13 +14,18 @@ use crate::{
     utils::{slotmap::SlotId, uid::UID},
 };
 
+pub(crate) enum SceneContextCommand {
+    AddSystem,
+    RemoveSystem,
+}
+
 pub struct ExclusiveSceneContext<'a> {
     pub(crate) registry: &'a RegistryManager,
     pub(crate) archetypes: &'a mut ArchetypeTable,
     pub(crate) components: &'a mut ComponentTable,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
-    pub(crate) systems: &'a SystemTable,
+    pub(crate) systems: &'a mut SystemTable,
     pub(crate) frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) next_frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) cycle: u32,
