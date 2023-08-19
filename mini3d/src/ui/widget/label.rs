@@ -11,7 +11,7 @@ use crate::{
 
 use super::Widget;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct UILabel {
     position: IVec2,
     text: String,

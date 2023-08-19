@@ -7,7 +7,6 @@ use crate::{
     math::rect::IRect,
     renderer::graphics::Graphics,
     ui::event::{Event, EventContext},
-    utils::uid::UID,
 };
 
 use super::Widget;
@@ -15,17 +14,12 @@ use super::Widget;
 #[derive(Serialize)]
 pub struct UIViewport {
     pub position: IVec2,
-    pub scene: UID,
     pub viewport: Entity,
 }
 
 impl UIViewport {
-    pub fn new(position: IVec2, scene: UID, viewport: Entity) -> Self {
-        Self {
-            position,
-            scene,
-            viewport,
-        }
+    pub fn new(position: IVec2, viewport: Entity) -> Self {
+        Self { position, viewport }
     }
 }
 
@@ -35,7 +29,7 @@ impl Widget for UIViewport {
     }
 
     fn render(&self, gfx: &mut Graphics, styles: &UIStyleSheet, offset: IVec2, _time: f64) {
-        gfx.blit_viewport(self.scene, self.viewport, self.position + offset);
+        gfx.blit_viewport(self.viewport, self.position + offset);
     }
 
     fn extent(&self) -> IRect {

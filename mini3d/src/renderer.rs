@@ -1,6 +1,7 @@
 use std::collections::{hash_map, HashMap};
 
 use crate::asset::handle::{AssetHandle, StaticAsset};
+use crate::ecs::scene::Scene;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;
@@ -8,13 +9,13 @@ use crate::feature::component::renderer::mesh::Mesh;
 use crate::feature::component::renderer::model::Model;
 use crate::feature::component::renderer::static_mesh::StaticMesh;
 use crate::feature::component::renderer::texture::Texture;
+use crate::feature::component::renderer::viewport::Viewport;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
 use crate::registry::component::{Component, ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::generation::GenerationId;
-use crate::utils::slotmap::DenseSlotMap;
 use crate::utils::uid::UID;
 use crate::{
     asset::AssetManager,
@@ -25,7 +26,6 @@ use crate::{
 use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
-use self::backend::ViewportHandle;
 use self::event::RendererEvent;
 use self::{
     backend::{
@@ -233,9 +233,6 @@ pub struct RendererManager {
     // Resources
     pub(crate) resources: RendererResourceManager,
 
-    // Scene resources
-    viewports: DenseSlotMap<RendererViewport>,
-
     // Persistent data
     statistics: RendererStatistics,
     graphics: Graphics,
@@ -311,18 +308,24 @@ impl RendererManager {
 
     pub(crate) fn submit_graphics(
         &mut self,
-        asset: &AssetManager,
+        asset: &mut AssetManager,
+        scene: &Scene,
         backend: &mut impl RendererBackend,
     ) {
+        // Acquire active scene
+        let viewports = scene
+            .components
+            .view(self.viewport)
+            .expect("Failed to acquire viewport view");
         // Render main screen
         self.graphics.submit_backend(
             None,
             Color::TRANSPARENT,
             &mut self.resources,
             asset,
-            &self.viewports,
+            &viewports,
             backend,
-        )?;
+        );
     }
 
     pub fn graphics(&mut self) -> &mut Graphics {

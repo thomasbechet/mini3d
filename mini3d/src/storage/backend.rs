@@ -36,21 +36,43 @@ pub trait StorageBackend {
         &mut self,
         path: &str,
         mode: DiskFileMode,
-    ) -> Result<StorageFileHandle, StorageBackendError>;
-    fn close(&mut self, handle: StorageFileHandle) -> Result<(), StorageBackendError>;
+    ) -> Result<StorageFileHandle, StorageBackendError> {
+        Ok(Default::default())
+    }
+    fn close(&mut self, handle: StorageFileHandle) -> Result<(), StorageBackendError> {
+        Ok(())
+    }
     fn encoder(
         &mut self,
         handle: StorageFileHandle,
-    ) -> Result<&mut dyn Encoder, StorageBackendError>;
+    ) -> Result<&mut dyn Encoder, StorageBackendError> {
+        Err(StorageBackendError::Unknown)
+    }
     fn decoder(
         &mut self,
         handle: StorageFileHandle,
-    ) -> Result<&mut dyn Decoder, StorageBackendError>;
-    fn info(&self, handle: StorageFileHandle) -> Result<DiskFileInfo, StorageBackendError>;
-    fn seek(&mut self, handle: StorageFileHandle, pos: usize)
-        -> Result<usize, StorageBackendError>;
-    fn mount(&mut self, path: &str) -> Result<StorageMountHandle, StorageBackendError>;
-    fn unmount(&mut self, handle: StorageMountHandle) -> Result<(), StorageBackendError>;
+    ) -> Result<&mut dyn Decoder, StorageBackendError> {
+        Err(StorageBackendError::Unknown)
+    }
+    fn info(&self, handle: StorageFileHandle) -> Result<DiskFileInfo, StorageBackendError> {
+        Ok(DiskFileInfo {
+            name: "",
+            kind: DiskFileKind::File,
+        })
+    }
+    fn seek(
+        &mut self,
+        handle: StorageFileHandle,
+        pos: usize,
+    ) -> Result<usize, StorageBackendError> {
+        Ok(0)
+    }
+    fn mount(&mut self, path: &str) -> Result<StorageMountHandle, StorageBackendError> {
+        Ok(Default::default())
+    }
+    fn unmount(&mut self, handle: StorageMountHandle) -> Result<(), StorageBackendError> {
+        Ok(())
+    }
 }
 
 #[derive(Default)]

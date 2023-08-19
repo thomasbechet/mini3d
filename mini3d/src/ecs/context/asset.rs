@@ -1,7 +1,10 @@
 use crate::{
-    asset::{error::AssetError, handle::AssetHandle, AssetManager},
-    registry::component::{Component, ComponentId, ComponentRegistry},
-    utils::uid::UID,
+    asset::{
+        error::AssetError,
+        handle::{AssetBundleId, AssetHandle},
+        AssetManager, AssetSource,
+    },
+    registry::component::{ComponentHandle, ComponentRegistry},
 };
 
 pub struct ExclusiveAssetContext<'a> {
@@ -10,16 +13,33 @@ pub struct ExclusiveAssetContext<'a> {
 }
 
 impl<'a> ExclusiveAssetContext<'a> {
-    pub fn set_default(&mut self, asset: ComponentId, uid: UID) -> Result<(), AssetError> {
-        self.manager.set_default(asset, uid)
+    pub fn add_bundle(&mut self, name: &str) -> Result<AssetBundleId, AssetError> {
+        self.manager.add_bundle(name)
     }
 
-    pub fn get<H: AssetHandle>(&self, path: &str) -> Result<Option<H>, AssetError> {
-        Ok(None)
+    pub fn add<C: ComponentHandle>(
+        &mut self,
+        handle: C,
+        name: &str,
+        bundle: AssetBundleId,
+        data: <C::AssetHandle as AssetHandle>::Data,
+    ) -> Result<C::AssetHandle, AssetError> {
+        self.manager.add(
+            handle,
+            name,
+            bundle,
+            AssetSource::Persistent,
+            data,
+            self.registry,
+        )
+    }
+
+    pub fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {
+        self.manager.remove(handle)
     }
 
     pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
-        Err(AssetError::AssetTypeNotFound)
+        self.manager.read(handle)
     }
 
     pub fn write<H: AssetHandle>(
@@ -27,86 +47,16 @@ impl<'a> ExclusiveAssetContext<'a> {
         handle: H,
         asset: H::AssetRef<'_>,
     ) -> Result<(), AssetError> {
-        Ok(())
-    }
-
-    pub fn get_or_default<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ C>, AssetError> {
-        self.manager.get_or_default::<C>(asset, uid)
-    }
-
-    pub fn iter<C: Component>(
-        &self,
-        asset: ComponentId,
-    ) -> Result<Option<impl Iterator<Item = &StaticAssetEntry<C>>>, AssetError> {
-        self.manager.iter::<C>(asset)
-    }
-
-    pub fn add_bundle(&mut self, name: &str) -> Result<UID, AssetError> {
-        self.manager.add_bundle(name)
-    }
-
-    pub fn add<C: Component>(
-        &mut self,
-        asset: ComponentId,
-        name: &str,
-        bundle: UID,
-        data: C,
-    ) -> Result<(), AssetError> {
-        self.manager
-            .add::<C>(&self.registry, asset, name, bundle, data)
-    }
-
-    pub fn remove<C: Component>(&mut self, asset: ComponentId, uid: UID) -> Result<(), AssetError> {
-        self.manager.remove::<C>(asset, uid)
-    }
-
-    pub fn transfer<C: Component>(
-        &mut self,
-        asset: ComponentId,
-        uid: UID,
-        dst_bundle: UID,
-    ) -> Result<(), AssetError> {
-        self.manager.transfer::<C>(asset, uid, dst_bundle)
+        self.manager.write(handle, asset)
     }
 }
 
 pub struct ParallelAssetContext<'a> {
-    pub(crate) manager: &'a AssetManager,
+    pub(crate) manager: &'a mut AssetManager,
 }
 
 impl<'a> ParallelAssetContext<'a> {
-    pub fn get<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ C>, AssetError> {
-        self.manager.get::<C>(asset, uid)
-    }
-
-    pub fn get_or_default<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ C>, AssetError> {
-        self.manager.get_or_default::<C>(asset, uid)
-    }
-
-    pub fn entry<C: Component>(
-        &'_ self,
-        asset: ComponentId,
-        uid: UID,
-    ) -> Result<Option<&'_ StaticAssetEntry<C>>, AssetError> {
-        self.manager.entry::<C>(asset, uid)
-    }
-
-    pub fn iter<C: Component>(
-        &self,
-        asset: ComponentId,
-    ) -> Result<Option<impl Iterator<Item = &StaticAssetEntry<C>>>, AssetError> {
-        self.manager.iter::<C>(asset)
+    pub fn read<H: AssetHandle>(&mut self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
+        self.manager.read(handle)
     }
 }

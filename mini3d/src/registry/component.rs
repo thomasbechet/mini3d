@@ -1,4 +1,7 @@
-use std::any::{Any, TypeId};
+use std::{
+    any::TypeId,
+    cell::{Ref, RefMut},
+};
 
 use crate::{
     asset::{
@@ -24,7 +27,7 @@ use crate::{
 use super::error::RegistryError;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ComponentId(SlotId);
+pub struct ComponentId(SlotId);
 
 impl From<SlotId> for ComponentId {
     fn from(id: SlotId) -> Self {
@@ -38,21 +41,25 @@ impl From<ComponentId> for SlotId {
     }
 }
 
-pub trait ComponentHandle {
+pub struct PrivateComponentTable<'a>(pub(crate) &'a ComponentTable);
+
+pub trait ComponentHandle: Copy {
     type ViewRef<'a>;
     type ViewMut<'a>;
     type AssetHandle: AssetHandle;
     fn new(uid: UID, id: ComponentId) -> Self;
     fn uid(&self) -> UID;
     fn id(&self) -> ComponentId;
-    fn view_ref<'a>(&self, components: &'a ComponentTable)
-        -> Result<Self::ViewRef<'a>, SceneError>;
+    fn view_ref<'a>(
+        &self,
+        components: PrivateComponentTable<'a>,
+    ) -> Result<Self::ViewRef<'a>, SceneError>;
     fn view_mut<'a>(
         &self,
-        components: &'a ComponentTable,
+        components: PrivateComponentTable<'a>,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError>;
-    fn check_type(reflection: &dyn AnyComponentReflection) -> bool;
+    fn check_type_id(id: TypeId) -> bool;
 }
 
 pub struct StaticComponent<C: Component> {
@@ -60,6 +67,18 @@ pub struct StaticComponent<C: Component> {
     uid: UID,
     id: ComponentId,
 }
+
+impl<C: Component> Clone for StaticComponent<C> {
+    fn clone(&self) -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+            uid: self.uid,
+            id: self.id,
+        }
+    }
+}
+
+impl<C: Component> Copy for StaticComponent<C> {}
 
 impl<C: Component> Default for StaticComponent<C> {
     fn default() -> Self {
@@ -94,45 +113,56 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
 
     fn view_ref<'a>(
         &self,
-        components: &'a ComponentTable,
+        components: PrivateComponentTable<'a>,
     ) -> Result<Self::ViewRef<'a>, SceneError> {
         Ok(StaticComponentViewRef {
-            container: components
-                .containers
-                .get(self.id.into())
-                .unwrap()
-                .try_borrow()
-                .map_err(|_| SceneError::ContainerBorrowMut)?
-                .as_any()
-                .downcast_ref::<StaticComponentContainer<C>>()
-                .ok_or(SceneError::ComponentTypeMismatch)?,
+            container: Ref::map(
+                components
+                    .0
+                    .containers
+                    .get(self.id.into())
+                    .unwrap()
+                    .try_borrow()
+                    .map_err(|_| SceneError::ContainerBorrowMut)?,
+                |r| {
+                    r.as_any()
+                        .downcast_ref::<StaticComponentContainer<C>>()
+                        .unwrap()
+                },
+            ),
         })
     }
 
     fn view_mut<'a>(
         &self,
-        components: &'a ComponentTable,
+        components: PrivateComponentTable<'a>,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError> {
         Ok(StaticComponentViewMut {
-            container: components
-                .containers
-                .get(self.id.into())
-                .unwrap()
-                .try_borrow_mut()
-                .map_err(|_| SceneError::ContainerBorrowMut)?
-                .as_any_mut()
-                .downcast_mut::<StaticComponentContainer<C>>()
-                .ok_or(SceneError::ComponentTypeMismatch)?,
+            container: RefMut::map(
+                components
+                    .0
+                    .containers
+                    .get(self.id.into())
+                    .unwrap()
+                    .try_borrow_mut()
+                    .map_err(|_| SceneError::ContainerBorrowMut)?,
+                |r| {
+                    r.as_any_mut()
+                        .downcast_mut::<StaticComponentContainer<C>>()
+                        .unwrap()
+                },
+            ),
             cycle,
         })
     }
 
-    fn check_type(reflection: &dyn AnyComponentReflection) -> bool {
-        reflection.type_id() == TypeId::of::<StaticComponentReflection<C>>()
+    fn check_type_id(id: TypeId) -> bool {
+        id == TypeId::of::<C>()
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct DynamicComponent {
     uid: UID,
     id: ComponentId,
@@ -157,10 +187,11 @@ impl ComponentHandle for DynamicComponent {
 
     fn view_ref<'a>(
         &self,
-        components: &'a ComponentTable,
+        components: PrivateComponentTable<'a>,
     ) -> Result<Self::ViewRef<'a>, SceneError> {
         Ok(ComponentViewRef {
             container: components
+                .0
                 .containers
                 .get(self.id.into())
                 .unwrap()
@@ -171,11 +202,12 @@ impl ComponentHandle for DynamicComponent {
 
     fn view_mut<'a>(
         &self,
-        components: &'a ComponentTable,
+        components: PrivateComponentTable<'a>,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError> {
         Ok(ComponentViewMut {
             container: components
+                .0
                 .containers
                 .get(self.id.into())
                 .unwrap()
@@ -185,7 +217,7 @@ impl ComponentHandle for DynamicComponent {
         })
     }
 
-    fn check_type(reflection: &dyn AnyComponentReflection) -> bool {
+    fn check_type_id(_id: TypeId) -> bool {
         true // Dynamic handle is valid for both static and dynamic components
     }
 }
@@ -200,7 +232,7 @@ impl EntityResolver {
 }
 pub trait Component: Default + Serialize + Reflect + 'static {
     const NAME: &'static str;
-    const UID: UID = UID::from(Self::NAME);
+    const UID: UID = UID::new(Self::NAME);
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), SceneError> {
         let _ = resolver;
         Ok(())
@@ -218,6 +250,7 @@ pub(crate) trait AnyComponentReflection {
     fn create_scene_container(&self) -> Box<dyn AnyComponentContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
+    fn type_id(&self) -> TypeId;
 }
 
 pub(crate) struct StaticComponentReflection<C: Component> {
@@ -239,6 +272,10 @@ impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
 
     fn properties(&self) -> &[Property] {
         C::PROPERTIES
+    }
+
+    fn type_id(&self) -> TypeId {
+        TypeId::of::<C>()
     }
 }
 
@@ -305,12 +342,12 @@ impl ComponentRegistry {
             .map(|(id, _)| id.into())
     }
 
-    pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Option<H> {
+    pub fn find<H: ComponentHandle>(&self, component: UID) -> Option<H> {
         if let Some(id) = self.find_id(component) {
-            if !H::check_type(self.definitions[id.into()].reflection.as_ref()) {
-                return None;
+            if !H::check_type_id(self.definitions[id.into()].reflection.type_id()) {
+                None
             } else {
-                return Some(H::new(component, id));
+                Some(H::new(component, id))
             }
         } else {
             None

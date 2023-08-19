@@ -2,7 +2,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::utils::uid::UID;
 
-#[derive(Default, Component, Serialize, Reflect)]
+#[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct FreeFly {
     // Control if free fly is active
     pub active: bool,

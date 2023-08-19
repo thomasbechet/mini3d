@@ -110,6 +110,7 @@ impl ArchetypeTable {
     }
 
     fn link_if_previous(&mut self, a: ArchetypeId, b: ArchetypeId) {
+        // Check if previous
         if self.entries[a].component_count == self.entries[b].component_count + 1
             && self.entries[b].is_subset_of(&self.entries[b], &self.components)
         {
@@ -118,7 +119,7 @@ impl ArchetypeTable {
                 ..(self.entries[a].component_start + self.entries[a].component_count)];
             let b_components = &self.components[self.entries[b].component_start
                 ..(self.entries[b].component_start + self.entries[b].component_count)];
-            if let Some(component) = a_components.iter().enumerate().find_map(|(i, id)| {
+            if let Some(component) = a_components.iter().find_map(|id| {
                 if !b_components.contains(id) {
                     Some(*id)
                 } else {
@@ -145,10 +146,9 @@ impl ArchetypeTable {
         let archetype = self.entries.get(archetype).unwrap();
         let component_count = archetype.component_count + 1;
         let component_start = self.components.len();
-        self.components.extend_from_slice(
-            &self.components[archetype.component_start
-                ..(archetype.component_start + archetype.component_count)],
-        );
+        for i in component_start..(component_start + archetype.component_count) {
+            self.components.push(self.components[i]);
+        }
         self.components.push(component);
         let new_archetype = self.entries.add(Archetype {
             component_count,
@@ -156,11 +156,13 @@ impl ArchetypeTable {
             last_edge: None,
         });
         // Link new archetype to existing archetypes
-        self.entries.iter().for_each(|(id, _)| {
-            if id != new_archetype {
-                self.link_if_previous(id, new_archetype);
+        let mut slot = self.entries.keys().next();
+        while let Some(current) = slot {
+            if current != new_archetype {
+                self.link(current, new_archetype, component);
             }
-        });
+            slot = self.entries.next(current);
+        }
         new_archetype
     }
 

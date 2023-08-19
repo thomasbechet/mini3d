@@ -4,7 +4,7 @@ use crate::{asset::handle::StaticAsset, renderer::backend::SceneModelHandle};
 
 use super::model::Model;
 
-#[derive(Default, Component, Serialize, Reflect)]
+#[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct StaticMesh {
     pub model: StaticAsset<Model>,
     #[serialize(skip)]

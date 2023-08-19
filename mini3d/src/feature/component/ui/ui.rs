@@ -27,7 +27,7 @@ pub enum UIError {
     UIStyleSheetError(UIStyleSheetError),
 }
 
-#[derive(Component, Serialize, Reflect)]
+#[derive(Component, Serialize, Reflect, Clone)]
 pub enum UIRenderTarget {
     Screen { offset: IVec2 },
     Canvas { offset: IVec2, canvas: Entity },

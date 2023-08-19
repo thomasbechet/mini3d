@@ -15,7 +15,7 @@ pub enum HierarchyError {
     ParentWithoutChild,
 }
 
-#[derive(Default, Component, Reflect, Serialize)]
+#[derive(Default, Component, Reflect, Serialize, Clone)]
 pub struct Hierarchy {
     parent: Option<Entity>,
     first_child: Option<Entity>,

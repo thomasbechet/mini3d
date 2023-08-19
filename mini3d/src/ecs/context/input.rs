@@ -1,16 +1,20 @@
 use crate::{
     feature::component::input::input_table::InputTable,
-    input::{InputActionState, InputAxisState, InputError, InputManager, InputTextState},
+    input::{
+        backend::InputBackend, InputActionState, InputAxisState, InputError, InputManager,
+        InputTextState,
+    },
     utils::uid::UID,
 };
 
 pub struct ExclusiveInputContext<'a> {
     pub(crate) manager: &'a mut InputManager,
+    pub(crate) backend: &'a mut dyn InputBackend,
 }
 
 impl<'a> ExclusiveInputContext<'a> {
     pub fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
-        self.manager.add_table(table)
+        self.manager.add_table(self.backend, table)
     }
 
     pub fn action(&self, uid: UID) -> Result<&InputActionState, InputError> {
@@ -23,12 +27,6 @@ impl<'a> ExclusiveInputContext<'a> {
 
     pub fn text(&self, uid: UID) -> Result<&InputTextState, InputError> {
         self.manager.text(uid)
-    }
-}
-
-impl From<&ExclusiveInputContext<'_>> for &InputManager {
-    fn from(context: &ExclusiveInputContext) -> Self {
-        context.manager
     }
 }
 
@@ -47,11 +45,5 @@ impl<'a> ParallelInputContext<'a> {
 
     pub fn text(&self, uid: UID) -> Result<&InputTextState, InputError> {
         self.manager.text(uid)
-    }
-}
-
-impl From<&ParallelInputContext<'_>> for &InputManager {
-    fn from(context: &ParallelInputContext) -> Self {
-        context.manager
     }
 }

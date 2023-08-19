@@ -89,12 +89,10 @@ impl EntityTable {
     }
 
     fn get_or_create_group(&mut self, group: ArchetypeId) -> &mut EntityGroup {
-        if let Some(group) = self.groups.get_mut(group) {
-            return group;
-        } else {
+        if !self.groups.contains(group) {
             self.groups.insert(group, EntityGroup::default());
-            return &mut self.groups[group];
         }
+        return &mut self.groups[group];
     }
 
     fn add_to_group(&mut self, entity: Entity, archetype: ArchetypeId) {

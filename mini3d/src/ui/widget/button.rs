@@ -43,7 +43,7 @@ impl Default for UIButtonStyle {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct UIButton {
     pressed: bool,
     hovered: bool,

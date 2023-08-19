@@ -56,13 +56,13 @@ impl<'a> ExclusiveResolver<'a> {
         Ok(handle)
     }
 
-    pub fn query(&mut self) -> QueryBuilder<'a> {
+    pub fn query(&mut self) -> QueryBuilder<'_> {
         QueryBuilder {
             registry: self.registry,
             system: self.system,
-            all: &mut self.all,
-            any: &mut self.any,
-            not: &mut self.not,
+            all: self.all,
+            any: self.any,
+            not: self.not,
             entities: self.entities,
             archetypes: self.archetypes,
             queries: self.queries,
@@ -114,13 +114,13 @@ impl<'a> ParallelResolver<'a> {
         Ok(H::new(component, id))
     }
 
-    pub fn query(&mut self) -> QueryBuilder<'a> {
+    pub fn query(&mut self) -> QueryBuilder<'_> {
         QueryBuilder {
             registry: self.registry,
             system: self.system,
-            all: &mut self.all,
-            any: &mut self.any,
-            not: &mut self.not,
+            all: self.all,
+            any: self.any,
+            not: self.not,
             entities: self.entities,
             archetypes: self.archetypes,
             queries: self.queries,
@@ -143,7 +143,7 @@ pub(crate) enum StaticSystemInstance {
     Parallel(Box<dyn AnyStaticParallelSystemInstance>),
 }
 
-struct ProgramSystemInstance {
+pub(crate) struct ProgramSystemInstance {
     program: Program,
 }
 
@@ -185,6 +185,8 @@ impl SystemStage {
     pub const UPDATE: &'static str = "update";
     pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
     pub const SCENE_CHANGED: &'static str = "scene_changed";
+    pub const SCENE_START: &'static str = "scene_start";
+    pub const SCENE_STOP: &'static str = "scene_stop";
 
     fn update() -> Self {
         Self {

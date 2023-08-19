@@ -15,13 +15,12 @@ use super::ECSUpdateContext;
 
 pub(crate) struct Scene {
     pub(crate) name: String,
-    components: ComponentTable,
+    pub(crate) components: ComponentTable,
     archetypes: ArchetypeTable,
     entities: EntityTable,
     queries: QueryTable,
     systems: SystemTable,
     scheduler: Scheduler,
-    active: bool,
 }
 
 impl Scene {
@@ -54,22 +53,18 @@ impl Scene {
             queries: QueryTable::default(),
             systems: SystemTable::default(),
             scheduler: Scheduler::default(),
-            active: true,
         }
     }
 
     pub(crate) fn update(&mut self, context: &mut ECSUpdateContext) -> Result<(), SceneError> {
-        if self.active {
-            self.scheduler.update(
-                &mut self.archetypes,
-                &mut self.components,
-                &mut self.entities,
-                &mut self.queries,
-                &mut self.systems,
-                context,
-            )?;
-        }
-        Ok(())
+        self.scheduler.update(
+            &mut self.archetypes,
+            &mut self.components,
+            &mut self.entities,
+            &mut self.queries,
+            &mut self.systems,
+            context,
+        )
     }
 
     // TODO: pub(crate) fn transfer -> transfer scene to scene

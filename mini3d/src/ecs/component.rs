@@ -3,7 +3,9 @@ use mini3d_derive::Serialize;
 
 use super::{entity::Entity, error::SceneError, sparse::PagedVector};
 use crate::{
-    registry::component::{Component, ComponentHandle, ComponentId, ComponentRegistry},
+    registry::component::{
+        Component, ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTable,
+    },
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SparseSecondaryMap,
 };
@@ -374,7 +376,7 @@ impl ComponentTable {
         &self,
         component: H,
     ) -> Result<H::ViewRef<'_>, SceneError> {
-        component.view_ref(self)
+        component.view_ref(PrivateComponentTable(self))
     }
 
     pub(crate) fn view_mut<H: ComponentHandle>(
@@ -382,6 +384,6 @@ impl ComponentTable {
         component: H,
         cycle: u32,
     ) -> Result<H::ViewMut<'_>, SceneError> {
-        component.view_mut(self, cycle)
+        component.view_mut(PrivateComponentTable(self), cycle)
     }
 }

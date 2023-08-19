@@ -83,7 +83,7 @@ impl Widget for WidgetVariant {
     }
 }
 
-#[derive(Default, Serialize)]
+#[derive(Default, Serialize, Clone)]
 pub struct Navigation {
     pub up: Option<UID>,
     pub down: Option<UID>,

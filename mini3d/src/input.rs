@@ -143,7 +143,7 @@ impl InputManager {
 
     pub(crate) fn add_table(
         &mut self,
-        backend: &mut impl InputBackend,
+        backend: &mut dyn InputBackend,
         table: &InputTable,
     ) -> Result<(), InputError> {
         // Check table validity

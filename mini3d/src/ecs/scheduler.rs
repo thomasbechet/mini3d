@@ -98,7 +98,7 @@ impl Scheduler {
             let mut current = systems.stages[stage].first_instance;
             while let Some(instance) = current {
                 if systems.instances[instance].active {
-                    match systems.instances[instance].instance {
+                    match &systems.instances[instance].instance {
                         SystemInstance::Static(system) => match system {
                             StaticSystemInstance::Exclusive(system) => {
                                 // Run exclusive system
@@ -109,6 +109,7 @@ impl Scheduler {
                                     },
                                     input: ExclusiveInputContext {
                                         manager: context.input,
+                                        backend: context.input_backend,
                                     },
                                     registry: RegistryContext {
                                         manager: &context.registry.borrow(),

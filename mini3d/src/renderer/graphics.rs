@@ -3,10 +3,12 @@ use mini3d_derive::Serialize;
 
 use crate::{
     asset::{handle::StaticAsset, AssetManager},
-    ecs::entity::Entity,
-    feature::component::renderer::{font::Font, texture::Texture},
+    ecs::{
+        entity::Entity,
+        view::{StaticComponentView, StaticComponentViewRef},
+    },
+    feature::component::renderer::{font::Font, texture::Texture, viewport::Viewport},
     math::rect::IRect,
-    utils::slotmap::DenseSlotMap,
 };
 
 use super::{
@@ -89,8 +91,8 @@ impl Graphics {
         canvas: Option<SceneCanvasHandle>,
         clear_color: Color,
         resources: &mut RendererResourceManager,
-        asset: &AssetManager,
-        viewports: &DenseSlotMap<RendererViewport>,
+        asset: &mut AssetManager,
+        viewports: &StaticComponentViewRef<Viewport>,
         backend: &mut impl RendererBackend,
     ) -> Result<(), RendererBackendError> {
         if let Some(canvas) = canvas {
@@ -149,13 +151,9 @@ impl Graphics {
                         *alpha_threshold,
                     )?;
                 }
-                Command::BlitViewport {
-                    position,
-                    scene: _,
-                    viewport,
-                } => {
-                    let viewport = viewports.get(viewport).unwrap();
-                    backend.canvas_blit_viewport(*viewport, *position)?;
+                Command::BlitViewport { position, viewport } => {
+                    let viewport = viewports.get(*viewport).unwrap();
+                    backend.canvas_blit_viewport(viewport.handle, *position)?;
                 }
                 Command::DrawLine { x0, x1, color } => {
                     backend.canvas_draw_line(*x0, *x1, *color)?;
@@ -212,7 +210,7 @@ impl Graphics {
         });
     }
 
-    pub fn blit_viewport(&mut self, viewport: ViewportId, position: IVec2) {
+    pub fn blit_viewport(&mut self, viewport: Entity, position: IVec2) {
         self.commands
             .push(Command::BlitViewport { position, viewport });
     }

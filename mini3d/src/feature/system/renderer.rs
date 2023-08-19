@@ -5,9 +5,9 @@ use crate::{
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{
-        renderer::{camera::Camera, static_mesh::StaticMesh},
+        renderer::{camera::Camera, static_mesh::StaticMesh, viewport::Viewport},
         scene::local_to_world::LocalToWorld,
-        ui::{canvas::Canvas, viewport::Viewport},
+        ui::canvas::Canvas,
     },
     registry::{
         component::{Component, StaticComponent},
@@ -134,7 +134,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
                 .renderer
                 .manager
                 .resources
-                .request_mesh(model.mesh, ctx.renderer.backend, &ctx.asset.manager)?
+                .request_mesh(model.mesh, ctx.renderer.backend, ctx.asset.manager)?
                 .handle;
             let handle = ctx.renderer.backend.scene_model_add(mesh_handle)?;
             // Load material
@@ -143,7 +143,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
                     .renderer
                     .manager
                     .resources
-                    .request_material(*material, ctx.renderer.backend, &ctx.asset.manager)?
+                    .request_material(*material, ctx.renderer.backend, ctx.asset.manager)?
                     .handle;
                 ctx.renderer
                     .backend

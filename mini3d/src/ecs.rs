@@ -30,18 +30,18 @@ pub mod sparse;
 pub mod system;
 pub mod view;
 
-pub(crate) type SceneId = SlotId;
-
 pub(crate) struct ECSManager {
     pub(crate) scenes: DenseSlotMap<Box<Scene>>,
+    active_scene: SlotId,
 }
 
 impl Default for ECSManager {
     fn default() -> Self {
         let mut manager = Self {
             scenes: Default::default(),
+            active_scene: Default::default(),
         };
-        manager.scenes.add(Box::new(Scene::new(Self::MAIN_SCENE)));
+        manager.active_scene = manager.scenes.add(Box::new(Scene::new(Self::MAIN_SCENE)));
         manager
     }
 }
@@ -88,10 +88,8 @@ impl ECSManager {
     }
 
     pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), SceneError> {
-        // Invoke frame systems
-        for (id, scene) in self.scenes.iter() {
-            scene.update(&mut context)?;
-        }
-        Ok(())
+        // Update active scene
+        let scene = self.scenes.get_mut(self.active_scene).unwrap();
+        scene.update(&mut context)
     }
 }

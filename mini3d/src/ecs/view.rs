@@ -1,6 +1,6 @@
 use std::{
     cell::{Ref, RefMut},
-    ops::{Deref, DerefMut, Index, IndexMut},
+    ops::{Index, IndexMut},
 };
 
 use crate::registry::component::Component;
@@ -15,7 +15,7 @@ pub trait StaticComponentView<C: Component> {
 }
 
 pub struct StaticComponentViewRef<'a, C: Component> {
-    container: &'a StaticComponentContainer<C>,
+    pub(crate) container: Ref<'a, StaticComponentContainer<C>>,
 }
 
 impl<'a, C: Component> StaticComponentViewRef<'a, C> {
@@ -39,8 +39,8 @@ impl<'a, C: Component> Index<Entity> for StaticComponentViewRef<'a, C> {
 }
 
 pub struct StaticComponentViewMut<'a, C: Component> {
-    container: &'a mut StaticComponentContainer<C>,
-    cycle: u32,
+    pub(crate) container: RefMut<'a, StaticComponentContainer<C>>,
+    pub(crate) cycle: u32,
 }
 
 impl<'a, C: Component> StaticComponentViewMut<'a, C> {
@@ -76,26 +76,4 @@ pub struct ComponentViewRef<'a> {
 pub struct ComponentViewMut<'a> {
     pub(crate) container: RefMut<'a, Box<dyn AnyComponentContainer>>,
     pub(crate) cycle: u32,
-}
-
-impl<'a> Deref for ComponentViewRef<'a> {
-    type Target = Box<dyn AnyComponentContainer>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.container
-    }
-}
-
-impl<'a> Deref for ComponentViewMut<'a> {
-    type Target = Box<dyn AnyComponentContainer>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.container
-    }
-}
-
-impl<'a> DerefMut for ComponentViewMut<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.container
-    }
 }

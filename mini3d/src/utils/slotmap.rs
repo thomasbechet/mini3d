@@ -119,6 +119,27 @@ impl<V> SlotMap<V> {
             })
     }
 
+    pub fn keys(&self) -> impl Iterator<Item = SlotId> + '_ {
+        self.entries
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| match entry {
+                SlotEntry::Value(_) => Some(SlotId::new(index as u32)),
+                SlotEntry::Free(_) => None,
+            })
+    }
+
+    pub fn next(&self, slot: SlotId) -> Option<SlotId> {
+        let mut index = slot.index() + 1;
+        while index < self.entries.len() {
+            if let SlotEntry::Value(_) = self.entries[index] {
+                return Some(SlotId::new(index as u32));
+            }
+            index += 1;
+        }
+        None
+    }
+
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.entries.iter().filter_map(|entry| match entry {
             SlotEntry::Value(value) => Some(value),
@@ -218,7 +239,7 @@ impl<V> DenseSlotMap<V> {
             self.meta[size].slot_to_index = size as u32;
             self.meta[size].index_to_slot = free_id;
             self.free_count -= 1;
-            return SlotId::new(size as u32);
+            SlotId::new(size as u32)
         } else {
             let size = self.data.len();
             self.data.push(value);
@@ -226,7 +247,7 @@ impl<V> DenseSlotMap<V> {
                 slot_to_index: size as u32,
                 index_to_slot: size as u32,
             });
-            return SlotId::new(size as u32);
+            SlotId::new(size as u32)
         }
     }
 
@@ -245,6 +266,10 @@ impl<V> DenseSlotMap<V> {
         self.data.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (SlotId, &V)> {
         self.data
             .iter()
@@ -254,6 +279,10 @@ impl<V> DenseSlotMap<V> {
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.data.iter()
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+        self.data.iter_mut()
     }
 
     pub fn get(&self, slot: SlotId) -> Option<&V> {
@@ -365,9 +394,14 @@ impl<V> SecondaryMap<V> {
     }
 
     pub fn get_mut(&mut self, key: SlotId) -> Option<&mut V> {
-        self.indices
-            .get(key.index())
-            .and_then(|index| index.and_then(move |slot| self.map.get_mut(slot)))
+        if let Some(Some(slot)) = self.indices.get(key.index()) {
+            return self.map.get_mut(*slot);
+        }
+        None
+    }
+
+    pub fn contains(&self, key: SlotId) -> bool {
+        self.get(key).is_some()
     }
 }
 
@@ -421,6 +455,10 @@ impl<V> SparseSecondaryMap<V> {
         self.data.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn insert(&mut self, slot: SlotId, value: V) {
         if slot.index() >= self.indices.len() {
             self.indices.resize(slot.index() + 1, None);
@@ -460,15 +498,13 @@ impl<V> SparseSecondaryMap<V> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (SlotId, &V)> {
-        self.data
-            .iter()
-            .map(|e| (SlotId::new(e.index as u32), &e.value))
+        self.data.iter().map(|e| (SlotId::new(e.index), &e.value))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (SlotId, &mut V)> {
         self.data
             .iter_mut()
-            .map(|e| (SlotId::new(e.index as u32), &mut e.value))
+            .map(|e| (SlotId::new(e.index), &mut e.value))
     }
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
@@ -486,9 +522,13 @@ impl<V> SparseSecondaryMap<V> {
     }
 
     pub fn get_mut(&mut self, slot: SlotId) -> Option<&mut V> {
-        self.indices.get(slot.index()).and_then(|index| {
-            index.and_then(move |slot| self.data.get_mut(slot as usize).map(|e| &mut e.value))
-        })
+        if let Some(Some(slot)) = self.indices.get(slot.index()) {
+            return self
+                .data
+                .get_mut(*slot as usize)
+                .map(|entry| &mut entry.value);
+        }
+        None
     }
 }
 

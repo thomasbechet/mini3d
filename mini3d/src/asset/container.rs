@@ -9,7 +9,7 @@ use crate::{
 use super::error::AssetError;
 
 #[derive(Default)]
-pub(crate) struct StaticAssetContainer<C: Component>(pub(crate) SlotMap<Box<C>>);
+pub(crate) struct StaticAssetContainer<C: Component>(pub(crate) SlotMap<C>);
 
 pub(crate) trait AnyAssetContainer: Any {
     fn as_any(&self) -> &dyn Any;

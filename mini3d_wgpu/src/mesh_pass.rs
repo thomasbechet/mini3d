@@ -1,39 +1,42 @@
 use std::collections::HashMap;
 
-use mini3d::{uid::UID, renderer::backend::MaterialHandle};
+use mini3d::{renderer::backend::MaterialHandle, utils::uid::UID};
 
-use crate::{Object, model_buffer::ModelIndex, context::WGPUContext, vertex_allocator::VertexBufferDescriptor, error::WGPURendererError};
+use crate::{
+    context::WGPUContext, error::WGPURendererError, model_buffer::ModelIndex,
+    vertex_allocator::VertexBufferDescriptor, Object,
+};
 
-pub(crate) fn create_mesh_pass_bind_group_layout(
-    context: &WGPUContext
-) -> wgpu::BindGroupLayout {
-    context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("mesh_pass_bind_group_layout"),
-        entries: &[
-            // Instances Data
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer { 
-                    ty: wgpu::BufferBindingType::Uniform, 
-                    has_dynamic_offset: false, 
-                    min_binding_size: wgpu::BufferSize::new(64), 
+pub(crate) fn create_mesh_pass_bind_group_layout(context: &WGPUContext) -> wgpu::BindGroupLayout {
+    context
+        .device
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("mesh_pass_bind_group_layout"),
+            entries: &[
+                // Instances Data
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(64),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-            // Commands Data
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer { 
-                    ty: wgpu::BufferBindingType::Uniform, 
-                    has_dynamic_offset: false, 
-                    min_binding_size: wgpu::BufferSize::new(64), 
+                // Commands Data
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(64),
+                    },
+                    count: None,
                 },
-                count: None,
-            },
-        ],
-    })
+            ],
+        })
 }
 
 #[repr(C)]
@@ -83,7 +86,6 @@ pub(crate) struct MultiInstancedRenderBatch {
 }
 
 pub(crate) struct MeshPass {
-
     max_pass_object_count: usize,
     max_pass_command_count: usize,
 
@@ -95,7 +97,7 @@ pub(crate) struct MeshPass {
     pub(crate) instanced_batches: Vec<InstancedRenderBatch>,
     // Multi-Instanced sorted batches
     pub(crate) multi_instanced_batches: Vec<MultiInstancedRenderBatch>,
-    
+
     // Keep mapping between objects and batches
     instances: Box<[GPUInstanceData]>,
     pub(crate) instance_buffer: wgpu::Buffer,
@@ -111,44 +113,48 @@ pub(crate) struct MeshPass {
 }
 
 impl MeshPass {
-
     pub(crate) fn new(
         context: &WGPUContext,
         layout: &wgpu::BindGroupLayout,
-        max_pass_object_count: usize, 
+        max_pass_object_count: usize,
         max_pass_command_count: usize,
     ) -> Self {
-
         let instance_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("instance_buffer"), // TODO: custom name
             size: (std::mem::size_of::<GPUInstanceData>() * max_pass_object_count) as u64,
-            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::INDIRECT
+                | wgpu::BufferUsages::UNIFORM
+                | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let indirect_command_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("indirect_buffer"), // TODO: custom name
             size: (std::mem::size_of::<GPUDrawIndirect>() * max_pass_command_count) as u64,
-            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::INDIRECT
+                | wgpu::BufferUsages::UNIFORM
+                | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("mesh_pass_bind_group"), // TODO: custom name
-            layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: instance_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: indirect_command_buffer.as_entire_binding(),
-                }
-            ],
-        });
+        let bind_group = context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("mesh_pass_bind_group"), // TODO: custom name
+                layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: instance_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: indirect_command_buffer.as_entire_binding(),
+                    },
+                ],
+            });
 
-        Self { 
+        Self {
             max_pass_object_count,
             max_pass_command_count,
 
@@ -161,7 +167,8 @@ impl MeshPass {
             instances: vec![GPUInstanceData::default(); max_pass_object_count].into_boxed_slice(),
             instance_buffer,
 
-            indirect_commands: vec![GPUDrawIndirect::default(); max_pass_command_count].into_boxed_slice(), 
+            indirect_commands: vec![GPUDrawIndirect::default(); max_pass_command_count]
+                .into_boxed_slice(),
             indirect_command_buffer,
 
             bind_group,
@@ -174,15 +181,15 @@ impl MeshPass {
         if self.pass_objects.len() >= self.max_pass_object_count {
             return Err(WGPURendererError::MaxPassObjectReached);
         }
-        self.pass_objects.insert(uid, PassObject { 
-            sort_key: 0
-        });
+        self.pass_objects.insert(uid, PassObject { sort_key: 0 });
         self.out_of_date = true;
         Ok(())
     }
 
     pub(crate) fn remove(&mut self, uid: UID) {
-        self.pass_objects.remove(&uid).expect("Pass object not found");
+        self.pass_objects
+            .remove(&uid)
+            .expect("Pass object not found");
         self.out_of_date = true;
     }
 
@@ -195,11 +202,13 @@ impl MeshPass {
         objects: &HashMap<UID, Object>,
         submeshes: &HashMap<UID, VertexBufferDescriptor>,
     ) {
-
         // Create sorted batches from object pass
         {
             // Collect batches info (old batches are erased)
-            self.batches = self.pass_objects.keys().map(|id| RenderBatch {
+            self.batches = self
+                .pass_objects
+                .keys()
+                .map(|id| RenderBatch {
                     // TODO: use key to change draw order ?
                     submesh: objects.get(id).unwrap().submesh,
                     material: objects.get(id).unwrap().material,
@@ -229,19 +238,19 @@ impl MeshPass {
 
             // Prepare instance object id
             for (instance_id, batch) in self.batches.iter().enumerate() {
-                            
                 // Compare with previous batch
                 let same_submesh = batch.submesh == self.instanced_batches.last().unwrap().submesh;
-                let same_material = batch.material == self.instanced_batches.last().unwrap().material;
-            
+                let same_material =
+                    batch.material == self.instanced_batches.last().unwrap().material;
+
                 // Compare the batch
                 if same_submesh && same_material {
                     self.instanced_batches.last_mut().unwrap().instance_count += 1;
                 } else {
-                    self.instanced_batches.push(InstancedRenderBatch { 
-                        submesh: batch.submesh, 
-                        material: batch.material, 
-                        first_instance: instance_id, 
+                    self.instanced_batches.push(InstancedRenderBatch {
+                        submesh: batch.submesh,
+                        material: batch.material,
+                        first_instance: instance_id,
                         instance_count: 1,
                         triangle_count: 0,
                     });
@@ -255,7 +264,7 @@ impl MeshPass {
 
         // Write indirect command and compute total triangle count
         for (batch_id, batch) in self.instanced_batches.iter_mut().enumerate() {
-            self.indirect_commands[batch_id].base_instance  = batch.first_instance as u32;
+            self.indirect_commands[batch_id].base_instance = batch.first_instance as u32;
             self.indirect_commands[batch_id].instance_count = batch.instance_count as u32;
             let descriptor = submeshes.get(&batch.submesh).unwrap();
             self.indirect_commands[batch_id].base_vertex = descriptor.base_index;
@@ -270,12 +279,13 @@ impl MeshPass {
 
             // Insert first group
             if !self.instanced_batches.is_empty() {
-                self.multi_instanced_batches.push(MultiInstancedRenderBatch { 
-                    material: self.instanced_batches.first().unwrap().material,
-                    first: 0,
-                    count: 0,
-                    triangle_count: 0,
-                });
+                self.multi_instanced_batches
+                    .push(MultiInstancedRenderBatch {
+                        material: self.instanced_batches.first().unwrap().material,
+                        first: 0,
+                        count: 0,
+                        triangle_count: 0,
+                    });
             }
 
             // Build multi instanced render batches
@@ -285,12 +295,13 @@ impl MeshPass {
                     multi_batch.count += 1;
                     multi_batch.triangle_count += batch.triangle_count;
                 } else {
-                    self.multi_instanced_batches.push(MultiInstancedRenderBatch { 
-                        material: batch.material, 
-                        first: batch_id, 
-                        count: 1,
-                        triangle_count: batch.triangle_count,
-                    });
+                    self.multi_instanced_batches
+                        .push(MultiInstancedRenderBatch {
+                            material: batch.material,
+                            first: batch_id,
+                            count: 1,
+                            triangle_count: batch.triangle_count,
+                        });
                 }
             }
         }
@@ -300,7 +311,15 @@ impl MeshPass {
     }
 
     pub(crate) fn write_buffers(&self, context: &WGPUContext) {
-        context.queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&self.instances));
-        context.queue.write_buffer(&self.indirect_command_buffer, 0, bytemuck::cast_slice(&self.indirect_commands));
+        context.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&self.instances),
+        );
+        context.queue.write_buffer(
+            &self.indirect_command_buffer,
+            0,
+            bytemuck::cast_slice(&self.indirect_commands),
+        );
     }
 }

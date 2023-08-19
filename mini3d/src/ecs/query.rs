@@ -37,13 +37,13 @@ impl<'a> Query<'a> {
     }
 }
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub struct QueryId(SlotId);
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub struct FilterQueryId(SlotId);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub(crate) enum FilterKind {
     Added,
     Removed,
@@ -82,9 +82,9 @@ impl QueryTable {
     ) -> bool {
         let components = archetypes.components(archetype);
         let query = self.queries.get(query.0).unwrap();
-        let all = &self.group_filters[query.all];
-        let any = &self.group_filters[query.any];
-        let not = &self.group_filters[query.not];
+        let all = &self.group_filters[query.all.clone()];
+        let any = &self.group_filters[query.any.clone()];
+        let not = &self.group_filters[query.not.clone()];
         // All check
         if !all.is_empty() {
             for c in all {
@@ -114,7 +114,7 @@ impl QueryTable {
                 }
             }
         }
-        return true;
+        true
     }
 
     fn find_same_query(
@@ -133,9 +133,9 @@ impl QueryTable {
             if query.not.len() != not.len() {
                 continue;
             }
-            let all2 = &self.group_filters[query.all];
-            let any2 = &self.group_filters[query.any];
-            let not2 = &self.group_filters[query.not];
+            let all2 = &self.group_filters[query.all.clone()];
+            let any2 = &self.group_filters[query.any.clone()];
+            let not2 = &self.group_filters[query.not.clone()];
             if all.iter().any(|c| !all2.contains(c)) {
                 continue;
             }
@@ -169,7 +169,7 @@ impl QueryTable {
         let id = QueryId(self.queries.add(query));
         for archetype in archetypes.iter() {
             if self.query_match(id, archetype, archetypes) {
-                query.archetypes.push(archetype);
+                self.queries[id.0].archetypes.push(archetype);
             }
         }
         id
@@ -206,18 +206,18 @@ impl QueryTable {
 }
 
 pub struct QueryBuilder<'a> {
-    registry: &'a ComponentRegistry,
-    system: SystemId,
-    all: &'a mut Vec<ComponentId>,
-    any: &'a mut Vec<ComponentId>,
-    not: &'a mut Vec<ComponentId>,
-    entities: &'a mut EntityTable,
-    archetypes: &'a mut ArchetypeTable,
-    queries: &'a mut QueryTable,
+    pub(crate) registry: &'a ComponentRegistry,
+    pub(crate) system: SystemId,
+    pub(crate) all: &'a mut Vec<ComponentId>,
+    pub(crate) any: &'a mut Vec<ComponentId>,
+    pub(crate) not: &'a mut Vec<ComponentId>,
+    pub(crate) entities: &'a mut EntityTable,
+    pub(crate) archetypes: &'a mut ArchetypeTable,
+    pub(crate) queries: &'a mut QueryTable,
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn all(mut self, components: &[UID]) -> Result<Self, RegistryError> {
+    pub fn all(self, components: &[UID]) -> Result<Self, RegistryError> {
         for component in components {
             let component = self
                 .registry
@@ -230,7 +230,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn any(mut self, components: &[UID]) -> Result<Self, RegistryError> {
+    pub fn any(self, components: &[UID]) -> Result<Self, RegistryError> {
         for component in components {
             let component = self
                 .registry
@@ -243,7 +243,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn not(mut self, components: &[UID]) -> Result<Self, RegistryError> {
+    pub fn not(self, components: &[UID]) -> Result<Self, RegistryError> {
         for component in components {
             let component = self
                 .registry
@@ -257,33 +257,20 @@ impl<'a> QueryBuilder<'a> {
     }
 
     pub fn build(self) -> QueryId {
-        if let Some(id) = self
-            .queries
-            .find_same_query(&self.all, &self.any, &self.not)
-        {
+        if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
             return id;
         }
-        self.queries.add_query(
-            self.entities,
-            self.archetypes,
-            &self.all,
-            &self.any,
-            &self.not,
-        )
+        self.queries
+            .add_query(self.entities, self.archetypes, self.all, self.any, self.not)
     }
 
     fn add_filter_query(self, kind: FilterKind) -> FilterQueryId {
         let id = self
             .queries
-            .find_same_query(&self.all, &self.any, &self.not)
+            .find_same_query(self.all, self.any, self.not)
             .unwrap_or_else(|| {
-                self.queries.add_query(
-                    self.entities,
-                    self.archetypes,
-                    &self.all,
-                    &self.any,
-                    &self.not,
-                )
+                self.queries
+                    .add_query(self.entities, self.archetypes, self.all, self.any, self.not)
             });
         self.queries
             .add_filter_query(self.entities, kind, id, self.system)

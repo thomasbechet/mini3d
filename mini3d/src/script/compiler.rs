@@ -120,7 +120,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn compile(
+    pub(crate) fn compile(
         &mut self,
         entry: ModuleId,
         assets: &AssetManager,

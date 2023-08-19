@@ -1,12 +1,12 @@
 use crate::{
     registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::generation::{GenerationId, VersionId},
+    utils::{generation::GenerationId, slotmap::SlotId},
 };
 
 use super::container::{AnyAssetContainer, StaticAssetContainer};
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct AssetBundleId(GenerationId);
 
 impl AssetBundleId {
@@ -19,18 +19,18 @@ impl AssetBundleId {
     }
 }
 
-pub(crate) trait AssetHandle {
+pub struct PrivateAnyAssetContainerRef<'a>(pub(crate) &'a dyn AnyAssetContainer);
+pub struct PrivateAnyAssetContainerMut<'a>(pub(crate) &'a mut dyn AnyAssetContainer);
+
+pub trait AssetHandle {
     type AssetRef<'a>;
-    type Contructor;
+    type Data;
     fn new(id: GenerationId) -> Self;
     fn id(&self) -> GenerationId;
-    fn asset_ref<'a>(&self, container: &'a dyn AnyAssetContainer) -> Self::AssetRef<'a>;
-    fn insert(
-        container: &mut dyn AnyAssetContainer,
-        asset: Self::Contructor,
-        version: VersionId,
-    ) -> Self;
-    fn check_type(container: &dyn AnyAssetContainer) -> bool;
+    fn asset_ref<'a>(&self, container: PrivateAnyAssetContainerRef<'a>) -> Self::AssetRef<'a>;
+    fn insert_container(container: PrivateAnyAssetContainerMut, data: Self::Data) -> SlotId;
+    fn remove_container(container: PrivateAnyAssetContainerMut, slot: SlotId);
+    fn check_type(container: PrivateAnyAssetContainerRef) -> bool;
 }
 
 #[derive(Default)]
@@ -56,8 +56,8 @@ impl<C: Component> Eq for StaticAsset<C> {}
 impl<C: Component> Clone for StaticAsset<C> {
     fn clone(&self) -> Self {
         Self {
-            _marker: self._marker.clone(),
-            id: self.id.clone(),
+            _marker: self._marker,
+            id: self.id,
         }
     }
 }
@@ -72,7 +72,7 @@ impl<C: Component> std::fmt::Debug for StaticAsset<C> {
 
 impl<C: Component> AssetHandle for StaticAsset<C> {
     type AssetRef<'a> = &'a C;
-    type Contructor = C;
+    type Data = C;
     fn new(id: GenerationId) -> Self {
         Self {
             _marker: std::marker::PhantomData::<C>,
@@ -82,8 +82,9 @@ impl<C: Component> AssetHandle for StaticAsset<C> {
     fn id(&self) -> GenerationId {
         self.id
     }
-    fn asset_ref<'a>(&self, container: &'a dyn AnyAssetContainer) -> Self::AssetRef<'a> {
+    fn asset_ref<'a>(&self, container: PrivateAnyAssetContainerRef<'a>) -> Self::AssetRef<'a> {
         container
+            .0
             .as_any()
             .downcast_ref::<StaticAssetContainer<C>>()
             .expect("Invalid static asset container")
@@ -91,23 +92,27 @@ impl<C: Component> AssetHandle for StaticAsset<C> {
             .get(self.id.slot())
             .expect("Asset not found in container")
     }
-    fn insert(
-        container: &mut dyn AnyAssetContainer,
-        asset: Self::Contructor,
-        version: VersionId,
-    ) -> Self {
-        Self::new(GenerationId::from_slot(
-            container
-                .as_any_mut()
-                .downcast_mut::<StaticAssetContainer<C>>()
-                .expect("Invalid static asset container")
-                .0
-                .add(Box::new(asset)),
-            version,
-        ))
-    }
-    fn check_type(container: &dyn AnyAssetContainer) -> bool {
+    fn insert_container(container: PrivateAnyAssetContainerMut, asset: Self::Data) -> SlotId {
         container
+            .0
+            .as_any_mut()
+            .downcast_mut::<StaticAssetContainer<C>>()
+            .expect("Invalid static asset container")
+            .0
+            .add(asset)
+    }
+    fn remove_container(container: PrivateAnyAssetContainerMut, slot: SlotId) {
+        container
+            .0
+            .as_any_mut()
+            .downcast_mut::<StaticAssetContainer<C>>()
+            .expect("Invalid static asset container")
+            .0
+            .remove(slot);
+    }
+    fn check_type(container: PrivateAnyAssetContainerRef) -> bool {
+        container
+            .0
             .as_any()
             .downcast_ref::<StaticAssetContainer<C>>()
             .is_some()
@@ -139,22 +144,19 @@ pub struct DynamicAsset {
 
 impl AssetHandle for DynamicAsset {
     type AssetRef<'a> = ();
-    type Contructor = ();
+    type Data = ();
     fn new(id: GenerationId) -> Self {
         Self { id }
     }
     fn id(&self) -> GenerationId {
         self.id
     }
-    fn asset_ref<'a>(&self, container: &'a dyn AnyAssetContainer) -> Self::AssetRef<'a> {}
-    fn insert(
-        container: &mut dyn AnyAssetContainer,
-        asset: Self::Contructor,
-        version: VersionId,
-    ) -> Self {
-        Self::new(GenerationId::null())
+    fn asset_ref<'a>(&self, container: PrivateAnyAssetContainerRef<'a>) -> Self::AssetRef<'a> {}
+    fn insert_container(container: PrivateAnyAssetContainerMut, asset: Self::Data) -> SlotId {
+        SlotId::null()
     }
-    fn check_type(container: &dyn AnyAssetContainer) -> bool {
+    fn remove_container(container: PrivateAnyAssetContainerMut, slot: SlotId) {}
+    fn check_type(container: PrivateAnyAssetContainerRef) -> bool {
         true
     }
 }

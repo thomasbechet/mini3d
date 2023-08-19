@@ -15,24 +15,24 @@ use crate::{
 };
 
 pub struct ExclusiveSceneContext<'a> {
-    registry: &'a RegistryManager,
-    archetypes: &'a mut ArchetypeTable,
-    components: &'a mut ComponentTable,
-    entities: &'a mut EntityTable,
-    queries: &'a mut QueryTable,
-    systems: &'a mut SystemTable,
+    pub(crate) registry: &'a RegistryManager,
+    pub(crate) archetypes: &'a mut ArchetypeTable,
+    pub(crate) components: &'a mut ComponentTable,
+    pub(crate) entities: &'a mut EntityTable,
+    pub(crate) queries: &'a mut QueryTable,
+    pub(crate) systems: &'a SystemTable,
     pub(crate) frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) next_frame_stages: &'a mut VecDeque<SlotId>,
-    cycle: u32,
+    pub(crate) cycle: u32,
 }
 
 impl<'a> ExclusiveSceneContext<'a> {
     pub fn add(&mut self) -> EntityBuilder<'_> {
         EntityBuilder::new(
             &self.registry.components,
-            &mut self.archetypes,
-            &mut self.entities,
-            &mut self.components,
+            self.archetypes,
+            self.entities,
+            self.components,
             self.cycle,
         )
     }
@@ -82,11 +82,11 @@ impl<'a> ExclusiveSceneContext<'a> {
 }
 
 pub struct ParallelSceneContext<'a> {
-    registry: &'a RegistryManager,
-    components: &'a ComponentTable,
-    entities: &'a EntityTable,
-    queries: &'a QueryTable,
-    cycle: u32,
+    pub(crate) registry: &'a RegistryManager,
+    pub(crate) components: &'a ComponentTable,
+    pub(crate) entities: &'a EntityTable,
+    pub(crate) queries: &'a QueryTable,
+    pub(crate) cycle: u32,
 }
 
 impl<'a> ParallelSceneContext<'a> {
@@ -98,14 +98,14 @@ impl<'a> ParallelSceneContext<'a> {
         self.components.view_mut(component, self.cycle)
     }
 
-    pub(crate) fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
         self.queries
             .query_archetypes(query)
             .iter()
             .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
     }
 
-    pub(crate) fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
         self.queries.filter_query(query).iter().copied()
     }
 }

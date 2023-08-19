@@ -37,7 +37,7 @@ impl Default for UICheckBoxStyle {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct UICheckBox {
     extent: IRect,
     checked: bool,
