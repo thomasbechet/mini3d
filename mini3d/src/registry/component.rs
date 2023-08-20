@@ -20,6 +20,7 @@ use crate::{
     serialize::Serialize,
     utils::{
         slotmap::{SlotId, SlotMap},
+        string::AsciiArray,
         uid::UID,
     },
 };
@@ -279,8 +280,10 @@ impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
     }
 }
 
+pub(crate) const MAX_COMPONENT_NAME_LEN: usize = 64;
+
 pub(crate) struct ComponentDefinition {
-    pub(crate) name: String,
+    pub(crate) name: AsciiArray<MAX_COMPONENT_NAME_LEN>,
     pub(crate) reflection: Box<dyn AnyComponentReflection>,
     pub(crate) kind: ComponentKind,
 }
@@ -304,7 +307,7 @@ impl ComponentRegistry {
             });
         }
         let id = self.definitions.add(ComponentDefinition {
-            name: name.to_string(),
+            name: name.into(),
             kind,
             reflection,
         });

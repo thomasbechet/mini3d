@@ -10,6 +10,7 @@ use crate::{
     },
     utils::{
         slotmap::{SlotId, SlotMap},
+        string::AsciiArray,
         uid::UID,
     },
 };
@@ -98,8 +99,10 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
     }
 }
 
+pub(crate) const MAX_SYSTEM_NAME_LEN: usize = 64;
+
 pub(crate) struct SystemDefinition {
-    pub(crate) name: String,
+    pub(crate) name: AsciiArray<MAX_SYSTEM_NAME_LEN>,
     pub(crate) reflection: Box<dyn AnySystemReflection>,
 }
 
@@ -114,7 +117,7 @@ impl SystemRegistry {
         let uid: UID = definition.name.as_str().into();
         if self.find(uid).is_some() {
             return Err(RegistryError::DuplicatedSystemDefinition {
-                name: definition.name,
+                name: definition.name.to_string(),
             });
         }
         let id = self.systems.add(definition);
@@ -132,7 +135,7 @@ impl SystemRegistry {
         name: &str,
     ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
-            name: name.to_string(),
+            name: name.into(),
             reflection: Box::new(StaticExclusiveSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
             }),
@@ -144,7 +147,7 @@ impl SystemRegistry {
         name: &str,
     ) -> Result<SystemId, RegistryError> {
         self.define(SystemDefinition {
-            name: name.to_string(),
+            name: name.into(),
             reflection: Box::new(StaticParallelSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
             }),

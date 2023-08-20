@@ -4,7 +4,6 @@ use crate::{
     renderer::backend::RendererBackend,
     serialize::{Decoder, DecoderError, EncoderError},
     storage::backend::StorageBackend,
-    utils::slotmap::{DenseSlotMap, SlotId},
 };
 use core::cell::RefCell;
 
@@ -16,33 +15,42 @@ use crate::{
     serialize::Encoder,
 };
 
-use self::{error::SceneError, scene::Scene};
+use self::{
+    archetype::ArchetypeTable, component::ComponentTable, entity::EntityTable, error::SceneError,
+    query::QueryTable, scheduler::Scheduler, system::SystemTable,
+};
 
 pub mod archetype;
 pub mod component;
 pub mod context;
 pub mod entity;
 pub mod error;
+pub mod pipeline;
 pub mod query;
-pub mod scene;
 pub mod scheduler;
 pub mod sparse;
 pub mod system;
 pub mod view;
 
 pub(crate) struct ECSManager {
-    pub(crate) scenes: DenseSlotMap<Box<Scene>>,
-    active_scene: SlotId,
+    pub(crate) components: ComponentTable,
+    archetypes: ArchetypeTable,
+    entities: EntityTable,
+    queries: QueryTable,
+    systems: SystemTable,
+    scheduler: Scheduler,
 }
 
 impl Default for ECSManager {
     fn default() -> Self {
-        let mut manager = Self {
-            scenes: Default::default(),
-            active_scene: Default::default(),
-        };
-        manager.active_scene = manager.scenes.add(Box::new(Scene::new(Self::MAIN_SCENE)));
-        manager
+        Self {
+            components: ComponentTable::default(),
+            archetypes: ArchetypeTable::new(),
+            entities: EntityTable::default(),
+            queries: QueryTable::default(),
+            systems: SystemTable::default(),
+            scheduler: Scheduler::default(),
+        }
     }
 }
 
@@ -60,17 +68,15 @@ pub(crate) struct ECSUpdateContext<'a> {
 }
 
 impl ECSManager {
-    const MAIN_SCENE: &'static str = "main";
-
     pub(crate) fn save_state(
         &self,
         registry: &ComponentRegistry,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
-        encoder.write_u32(self.scenes.len() as u32)?;
-        for scene in self.scenes.values() {
-            scene.serialize(registry, encoder)?;
-        }
+        // encoder.write_u32(self.scenes.len() as u32)?;
+        // for scene in self.scenes.values() {
+        //     scene.serialize(registry, encoder)?;
+        // }
         Ok(())
     }
 
@@ -79,18 +85,22 @@ impl ECSManager {
         registry: &ComponentRegistry,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
-        let scenes_count = decoder.read_u32()?;
-        for _ in 0..scenes_count {
-            let scene = Scene::deserialize(registry, decoder)?;
-            self.scenes.add(Box::new(scene));
-        }
+        // let scenes_count = decoder.read_u32()?;
+        // for _ in 0..scenes_count {
+        //     let scene = Scene::deserialize(registry, decoder)?;
+        //     self.scenes.add(Box::new(scene));
+        // }
         Ok(())
     }
 
     pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), SceneError> {
-        self.scenes
-            .get_mut(self.active_scene)
-            .unwrap()
-            .update(&mut context)
+        self.scheduler.update(
+            &mut self.archetypes,
+            &mut self.components,
+            &mut self.entities,
+            &mut self.queries,
+            &mut self.systems,
+            &mut context,
+        )
     }
 }

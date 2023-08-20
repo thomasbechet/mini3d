@@ -9,6 +9,7 @@ use crate::{
     },
     utils::{
         slotmap::{SlotId, SlotMap},
+        string::AsciiArray,
         uid::UID,
     },
 };
@@ -159,10 +160,11 @@ pub(crate) type SystemStageId = SlotId;
 type SystemGroupId = SlotId;
 
 pub(crate) const MAX_SYSTEM_INSTANCE_NAME_LEN: usize = 64;
+pub(crate) const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) name: [char; MAX_SYSTEM_INSTANCE_NAME_LEN],
-    pub(crate) instance: SystemInstance,
+    pub(crate) name: AsciiArray<MAX_SYSTEM_INSTANCE_NAME_LEN>,
+    pub(crate) instance: SlotId,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQueryId>,
     pub(crate) active: bool,
@@ -181,7 +183,7 @@ pub(crate) enum SystemStageKind {
 }
 
 pub struct SystemStage {
-    pub(crate) name: String,
+    pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
     pub(crate) kind: SystemStageKind,
 }
 
@@ -194,7 +196,7 @@ impl SystemStage {
 
     fn update() -> Self {
         Self {
-            name: Self::UPDATE.to_string(),
+            name: Self::UPDATE.into(),
             kind: SystemStageKind::Update,
         }
     }
@@ -208,14 +210,14 @@ impl SystemStage {
 
     pub fn fixed_update(name: &str, frequency: f64) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.into(),
             kind: SystemStageKind::FixedUpdate(frequency),
         }
     }
 
     pub fn event(name: &str, event: StageEvent) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.into(),
             kind: SystemStageKind::Event(event),
         }
     }
@@ -228,7 +230,8 @@ pub(crate) struct StageEntry {
 
 pub(crate) struct SystemTable {
     pub(crate) stages: SlotMap<StageEntry>,
-    pub(crate) instances: SlotMap<SystemInstanceEntry>,
+    pub(crate) entries: SlotMap<SystemInstanceEntry>,
+    pub(crate) instances: SlotMap<SystemInstance>,
 }
 
 pub struct SystemOrder {}
@@ -250,7 +253,7 @@ impl SystemTable {
     fn find_system_in_stage(&self, stage: SystemStageId, system: UID) -> Option<SystemInstanceId> {
         let mut instance = self.stages[stage].first_instance;
         while let Some(id) = instance {
-            let entry = &self.instances[id];
+            let entry = &self.entries[id];
             if UID::new(&entry.name) == system {
                 return Some(id);
             }
@@ -262,7 +265,7 @@ impl SystemTable {
     fn find_last_system_in_stage(&self, stage: SystemStageId) -> Option<SystemInstanceId> {
         let mut instance = self.stages[stage].first_instance;
         while let Some(id) = instance {
-            let entry = &self.instances[id];
+            let entry = &self.entries[id];
             if entry.next_instance.is_none() {
                 return Some(id);
             }
@@ -288,9 +291,9 @@ impl SystemTable {
             .ok_or(SceneError::SystemStageNotFound)?;
         let mut instance = self.stages[stage].first_instance;
         while let Some(id) = instance {
-            let entry = &self.instances[id];
+            let entry = &self.entries[id];
             instance = entry.next_instance;
-            self.instances.remove(id);
+            self.entries.remove(id);
         }
         self.stages.remove(stage);
         Ok(())
@@ -316,9 +319,9 @@ impl SystemTable {
         let reg_id = registry.find(system).ok_or(SceneError::SystemNotFound)?;
         let instance = registry.get(reg_id).unwrap().reflection.create_instance();
         // Create new entry
-        let id = self.instances.add(SystemInstanceEntry {
-            name: name.to_string(),
-            instance,
+        let id = self.entries.add(SystemInstanceEntry {
+            name: name.into(),
+            instance: SlotId::null(),
             active: true,
             last_execution_cycle: 0,
             filter_queries: Vec::new(),
@@ -327,8 +330,8 @@ impl SystemTable {
         });
         // Find position
         if let Some(last) = self.find_last_system_in_stage(stage) {
-            self.instances[last].next_instance = Some(id);
-            self.instances[id].prev_instance = Some(last);
+            self.entries[last].next_instance = Some(id);
+            self.entries[id].prev_instance = Some(last);
         } else {
             self.stages[stage].first_instance = Some(id);
         }
@@ -342,12 +345,12 @@ impl SystemTable {
         let system = self
             .find_system_in_stage(stage, system)
             .ok_or(SceneError::SystemNotFound)?;
-        if let Some(prev) = self.instances[system].prev_instance {
-            self.instances[prev].next_instance = self.instances[system].next_instance;
+        if let Some(prev) = self.entries[system].prev_instance {
+            self.entries[prev].next_instance = self.entries[system].next_instance;
         } else {
-            self.stages[stage].first_instance = self.instances[system].next_instance;
+            self.stages[stage].first_instance = self.entries[system].next_instance;
         }
-        self.instances.remove(system);
+        self.entries.remove(system);
         Ok(())
     }
 
@@ -363,17 +366,20 @@ impl SystemTable {
         let system = self
             .find_system_in_stage(stage, system)
             .ok_or(SceneError::SystemNotFound)?;
-        self.instances[system].active = active;
+        self.entries[system].active = active;
         Ok(())
     }
 }
 
 impl Default for SystemTable {
     fn default() -> Self {
+        // Create table
         let mut table = Self {
-            instances: Default::default(),
+            entries: Default::default(),
             stages: Default::default(),
+            instances: Default::default(),
         };
+        // Prepare default stages
         table.add_stage(SystemStage::update()).unwrap();
         table
             .add_stage(SystemStage::fixed_update(

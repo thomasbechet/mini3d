@@ -4,6 +4,7 @@ use crate::registry::component::{ComponentHandle, ComponentId, ComponentRegistry
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::generation::{GenerationId, VersionId};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
+use crate::utils::string::AsciiArray;
 
 use self::container::AnyAssetContainer;
 use self::error::AssetError;
@@ -26,8 +27,10 @@ pub struct AssetInfo<'a> {
     pub name: &'a str,
 }
 
+pub(crate) const MAX_ASSET_NAME_LEN: usize = 64;
+
 struct AssetEntry {
-    name: String, // TODO: use a string pool
+    name: AsciiArray<MAX_ASSET_NAME_LEN>,
     component: ComponentId,
     version: VersionId,
     slot: SlotId, // Null if not loaded
@@ -43,8 +46,10 @@ impl AssetBundle {
     pub const DEFAULT: &'static str = "default";
 }
 
+pub(crate) const MAX_ASSET_BUNDLE_NAME_LEN: usize = 64;
+
 struct AssetBundleEntry {
-    name: String,
+    name: AsciiArray<MAX_ASSET_BUNDLE_NAME_LEN>,
     first_entry: AssetEntryId, // Null if empty
     version: VersionId,
 }
@@ -134,7 +139,7 @@ impl AssetManager {
         if let Some(bundle_entry) = self.bundles.get_mut(id.slot()) {
             let version = self.next_version.next();
             let slot = self.entries.add(AssetEntry {
-                name: name.to_owned(),
+                name: name.into(),
                 component,
                 version,
                 slot: SlotId::null(),
@@ -229,7 +234,7 @@ impl AssetManager {
     pub(crate) fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
         self.entries
             .iter()
-            .find(|(_, entry)| entry.name == name)
+            .find(|(_, entry)| entry.name.as_str() == name)
             .filter(|(_, entry)| {
                 H::check_type(PrivateAnyAssetContainerRef(
                     self.containers
@@ -280,12 +285,16 @@ impl AssetManager {
     }
 
     pub(crate) fn add_bundle(&mut self, name: &str) -> Result<AssetBundleId, AssetError> {
-        if self.bundles.values().any(|entry| entry.name == name) {
+        if self
+            .bundles
+            .values()
+            .any(|entry| entry.name.as_str() == name)
+        {
             return Err(AssetError::DuplicatedBundle);
         }
         let version = self.next_version.next();
         let slot = self.bundles.add(AssetBundleEntry {
-            name: name.to_owned(),
+            name: name.into(),
             first_entry: SlotId::null(),
             version,
         });

@@ -238,6 +238,11 @@ impl Engine {
             })
             .map_err(|_| ProgressError::ECSError)?;
 
+        // ================= POST-UPDATE STAGE ================== //
+
+        self.renderer
+            .submit_graphics(&mut self.asset, &mut self.ecs.components, renderer);
+
         Ok(())
     }
 }

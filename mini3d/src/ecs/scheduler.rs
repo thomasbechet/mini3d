@@ -93,8 +93,8 @@ impl Scheduler {
             let fixed_delta_time = systems.stages[stage].stage.frequency();
             let mut current = systems.stages[stage].first_instance;
             while let Some(instance) = current {
-                if systems.instances[instance].active {
-                    match &systems.instances[instance].instance {
+                if systems.entries[instance].active {
+                    match &systems.entries[instance].instance {
                         SystemInstance::Static(system) => match system {
                             StaticSystemInstance::Exclusive(system) => {
                                 // Run exclusive system
@@ -167,7 +167,7 @@ impl Scheduler {
                         }
                     }
                 }
-                current = systems.instances[instance].next_instance;
+                current = systems.entries[instance].next_instance;
             }
         }
 
