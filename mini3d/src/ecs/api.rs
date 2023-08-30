@@ -1,7 +1,7 @@
 use self::{
     asset::{ExclusiveAssetAPI, ParallelAssetAPI},
     input::{ExclusiveInputAPI, ParallelInputAPI},
-    registry::RegistryAPI,
+    registry::{ExclusiveRegistryAPI, ParallelRegistryAPI},
     renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
     time::TimeAPI,
 };
@@ -17,7 +17,7 @@ pub mod time;
 pub struct ExclusiveAPI<'a> {
     pub asset: ExclusiveAssetAPI<'a>,
     pub input: ExclusiveInputAPI<'a>,
-    pub registry: RegistryAPI<'a>,
+    pub registry: ExclusiveRegistryAPI<'a>,
     pub renderer: ExclusiveRendererAPI<'a>,
     pub time: TimeAPI,
 }
@@ -25,7 +25,7 @@ pub struct ExclusiveAPI<'a> {
 pub struct ParallelAPI<'a> {
     pub asset: ParallelAssetAPI<'a>,
     pub input: ParallelInputAPI<'a>,
-    pub registry: RegistryAPI<'a>,
+    pub registry: ParallelRegistryAPI<'a>,
     pub renderer: ParallelRendererAPI<'a>,
     pub time: TimeAPI,
 }

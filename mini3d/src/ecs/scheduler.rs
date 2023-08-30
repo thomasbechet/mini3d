@@ -11,7 +11,7 @@ use super::{
         asset::{ExclusiveAssetAPI, ParallelAssetAPI},
         ecs::{ExclusiveECS, ParallelECS},
         input::{ExclusiveInputAPI, ParallelInputAPI},
-        registry::RegistryAPI,
+        registry::{ExclusiveRegistryAPI, ParallelRegistryAPI},
         renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
         time::TimeAPI,
         ExclusiveAPI, ParallelAPI,
@@ -226,8 +226,8 @@ impl Scheduler {
                                     manager: context.input,
                                     backend: context.input_backend,
                                 },
-                                registry: RegistryAPI {
-                                    manager: &context.registry.borrow(),
+                                registry: ExclusiveRegistryAPI {
+                                    manager: context.registry.get_mut(),
                                 },
                                 renderer: ExclusiveRendererAPI {
                                     manager: context.renderer,
@@ -261,7 +261,7 @@ impl Scheduler {
                                 input: ParallelInputAPI {
                                     manager: context.input,
                                 },
-                                registry: RegistryAPI {
+                                registry: ParallelRegistryAPI {
                                     manager: &context.registry.borrow(),
                                 },
                                 renderer: ParallelRendererAPI {
