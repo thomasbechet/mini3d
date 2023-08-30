@@ -1,4 +1,5 @@
 use mini3d::{
+    ecs::{api::ExclusiveAPI, system::SystemResult},
     engine::Engine,
     feature::component::{
         common::{free_fly::FreeFly, lifecycle::Lifecycle, rotator::Rotator, script::Script},
@@ -39,7 +40,7 @@ use crate::{
     input::{CommonAction, CommonAxis},
 };
 
-fn setup_assets(ctx: &mut ExclusiveSystemContext) -> SystemResult {
+fn setup_assets(ctx: &mut ExclusiveAPI) -> SystemResult {
     ctx.asset.add_bundle(DefaultAsset::BUNDLE).unwrap();
     let default_bundle = DefaultAsset::BUNDLE.into();
 
@@ -321,8 +322,8 @@ fn setup_assets(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     Ok(())
 }
 
-fn setup_scene(ctx: &mut ExclusiveSystemContext) -> SystemResult {
-    let mut scene = ctx.scene.active();
+fn setup_scene(ctx: &mut ExclusiveAPI) -> SystemResult {
+    let mut scene = ctx.ecs.active();
     {
         let e = scene.add_entity();
         scene.add_static_component(e, Lifecycle::UID, Lifecycle::alive())?;
@@ -592,7 +593,8 @@ fn setup_scene(ctx: &mut ExclusiveSystemContext) -> SystemResult {
     Ok(())
 }
 
-fn setup_scheduler(ctx: &mut ExclusiveSystemContext) -> SystemResult {
+fn setup_scheduler(ctx: &mut ExclusiveAPI) -> SystemResult {
+    ctx.ecs.
     let pipeline = LinearSystemPipeline::new(&[
         UID::new("rotator"),
         UID::new("transform_propagate"),

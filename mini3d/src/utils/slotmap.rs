@@ -356,7 +356,6 @@ impl<V> IndexMut<SlotId> for DenseSlotMap<V> {
 //     }
 // }
 
-#[derive(Default)]
 pub struct SecondaryMap<V> {
     map: SlotMap<V>,
     indices: Vec<Option<SlotId>>,
@@ -402,6 +401,17 @@ impl<V> SecondaryMap<V> {
 
     pub fn contains(&self, key: SlotId) -> bool {
         self.get(key).is_some()
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
+        self.indices.clear();
+    }
+}
+
+impl<V> Default for SecondaryMap<V> {
+    fn default() -> Self {
+        Self::with_capacity(0)
     }
 }
 

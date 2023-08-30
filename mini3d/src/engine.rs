@@ -55,13 +55,13 @@ impl Engine {
 
         macro_rules! define_system_exclusive {
             ($name: literal, $system: ty) => {
-                registry.systems.define_static_exclusive::<$system>($name)?;
+                registry.systems.add_static_exclusive::<$system>($name)?;
             };
         }
 
         macro_rules! define_system_parallel {
             ($name: literal, $system: ty) => {
-                registry.systems.define_static_parallel::<$system>($name)?;
+                registry.systems.add_static_parallel::<$system>($name)?;
             };
         }
 

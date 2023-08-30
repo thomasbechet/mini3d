@@ -2,7 +2,7 @@ use glam::{Quat, Vec3};
 
 use crate::{
     ecs::{
-        context::ParallelContext,
+        api::{ecs::ParallelECS, ParallelAPI},
         query::QueryId,
         system::{ParallelResolver, SystemResult},
     },
@@ -24,7 +24,7 @@ pub struct RotatorSystem {
 impl ParallelSystem for RotatorSystem {
     const NAME: &'static str = "rotator_system";
 
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         self.transform = resolver.write(Transform::UID)?;
         self.rotator = resolver.read(Rotator::UID)?;
         self.query = resolver
@@ -34,13 +34,13 @@ impl ParallelSystem for RotatorSystem {
         Ok(())
     }
 
-    fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let mut transforms = ctx.scene.view_mut(self.transform)?;
-        let rotators = ctx.scene.view(self.rotator)?;
-        for e in ctx.scene.query(self.query) {
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+        let mut transforms = ecs.view_mut(self.transform)?;
+        let rotators = ecs.view(self.rotator)?;
+        for e in ecs.query(self.query) {
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
-                ctx.time.delta() as f32 * f32::to_radians(rotators[e].speed),
+                api.time.delta() as f32 * f32::to_radians(rotators[e].speed),
             );
         }
         Ok(())

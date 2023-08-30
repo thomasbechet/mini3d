@@ -7,12 +7,12 @@ use crate::{
     registry::component::{ComponentHandle, ComponentRegistry},
 };
 
-pub struct ExclusiveAssetContext<'a> {
+pub struct ExclusiveAssetAPI<'a> {
     pub(crate) registry: &'a ComponentRegistry,
     pub(crate) manager: &'a mut AssetManager,
 }
 
-impl<'a> ExclusiveAssetContext<'a> {
+impl<'a> ExclusiveAssetAPI<'a> {
     pub fn add_bundle(&mut self, name: &str) -> Result<AssetBundleId, AssetError> {
         self.manager.add_bundle(name)
     }
@@ -51,11 +51,11 @@ impl<'a> ExclusiveAssetContext<'a> {
     }
 }
 
-pub struct ParallelAssetContext<'a> {
+pub struct ParallelAssetAPI<'a> {
     pub(crate) manager: &'a mut AssetManager,
 }
 
-impl<'a> ParallelAssetContext<'a> {
+impl<'a> ParallelAssetAPI<'a> {
     pub fn read<H: AssetHandle>(&mut self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
         self.manager.read(handle)
     }

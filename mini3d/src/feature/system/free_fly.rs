@@ -2,7 +2,7 @@ use glam::{Quat, Vec3};
 
 use crate::{
     ecs::{
-        context::ParallelContext,
+        api::{ecs::ParallelECS, ParallelAPI},
         query::QueryId,
         system::{ParallelResolver, SystemResult},
     },
@@ -24,7 +24,7 @@ pub struct FreeFlySystem {
 impl ParallelSystem for FreeFlySystem {
     const NAME: &'static str = "free_fly_system";
 
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         self.free_fly = resolver.read(FreeFly::UID)?;
         self.transform = resolver.write(Transform::UID)?;
         self.query = resolver
@@ -34,11 +34,11 @@ impl ParallelSystem for FreeFlySystem {
         Ok(())
     }
 
-    fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let mut transforms = ctx.scene.view_mut(self.transform)?;
-        let mut free_flies = ctx.scene.view_mut(self.free_fly)?;
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+        let mut transforms = ecs.view_mut(self.transform)?;
+        let mut free_flies = ecs.view_mut(self.free_fly)?;
 
-        for e in ctx.scene.query(self.query) {
+        for e in ecs.query(self.query) {
             let transform = transforms.get_mut(e).unwrap();
             let free_fly = free_flies.get_mut(e).unwrap();
 
@@ -48,47 +48,47 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Update view mod
-            if ctx.input.action(free_fly.switch_mode)?.is_just_pressed() {
+            if api.input.action(free_fly.switch_mode)?.is_just_pressed() {
                 free_fly.free_mode = !free_fly.free_mode;
             }
 
             // Compute camera translation
             let mut direction = Vec3::ZERO;
-            direction += transform.forward() * ctx.input.axis(free_fly.move_forward)?.value;
-            direction += transform.backward() * ctx.input.axis(free_fly.move_backward)?.value;
-            direction += transform.left() * ctx.input.axis(free_fly.move_left)?.value;
-            direction += transform.right() * ctx.input.axis(free_fly.move_right)?.value;
+            direction += transform.forward() * api.input.axis(free_fly.move_forward)?.value;
+            direction += transform.backward() * api.input.axis(free_fly.move_backward)?.value;
+            direction += transform.left() * api.input.axis(free_fly.move_left)?.value;
+            direction += transform.right() * api.input.axis(free_fly.move_right)?.value;
             if free_fly.free_mode {
-                direction += transform.up() * ctx.input.axis(free_fly.move_up)?.value;
-                direction += transform.down() * ctx.input.axis(free_fly.move_down)?.value;
+                direction += transform.up() * api.input.axis(free_fly.move_up)?.value;
+                direction += transform.down() * api.input.axis(free_fly.move_down)?.value;
             } else {
-                direction += Vec3::Y * ctx.input.axis(free_fly.move_up)?.value;
-                direction += Vec3::NEG_Y * ctx.input.axis(free_fly.move_down)?.value;
+                direction += Vec3::Y * api.input.axis(free_fly.move_up)?.value;
+                direction += Vec3::NEG_Y * api.input.axis(free_fly.move_down)?.value;
             }
             let direction_length = direction.length();
             direction = direction.normalize_or_zero();
 
             // Camera speed
             let mut speed = FreeFly::NORMAL_SPEED;
-            if ctx.input.action(free_fly.move_fast)?.is_pressed() {
+            if api.input.action(free_fly.move_fast)?.is_pressed() {
                 speed = FreeFly::FAST_SPEED;
-            } else if ctx.input.action(free_fly.move_slow)?.is_pressed() {
+            } else if api.input.action(free_fly.move_slow)?.is_pressed() {
                 speed = FreeFly::SLOW_SPEED;
             }
 
             // Apply transformation
-            transform.translation += direction * direction_length * ctx.time.delta() as f32 * speed;
+            transform.translation += direction * direction_length * api.time.delta() as f32 * speed;
 
             // Apply rotation
-            let motion_x = ctx.input.axis(free_fly.view_x)?.value;
-            let motion_y = ctx.input.axis(free_fly.view_y)?.value;
+            let motion_x = api.input.axis(free_fly.view_x)?.value;
+            let motion_y = api.input.axis(free_fly.view_y)?.value;
             if free_fly.free_mode {
                 if motion_x != 0.0 {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Y,
                         -f32::to_radians(motion_x)
                             * FreeFly::ROTATION_SENSIBILITY
-                            * ctx.time.delta() as f32,
+                            * api.time.delta() as f32,
                     );
                 }
                 if motion_y != 0.0 {
@@ -96,29 +96,29 @@ impl ParallelSystem for FreeFlySystem {
                         Vec3::X,
                         f32::to_radians(motion_y)
                             * FreeFly::ROTATION_SENSIBILITY
-                            * ctx.time.delta() as f32,
+                            * api.time.delta() as f32,
                     );
                 }
-                if ctx.input.action(free_fly.roll_left)?.is_pressed() {
+                if api.input.action(free_fly.roll_left)?.is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
-                        -f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
+                        -f32::to_radians(FreeFly::ROLL_SPEED) * api.time.delta() as f32,
                     );
                 }
-                if ctx.input.action(free_fly.roll_right)?.is_pressed() {
+                if api.input.action(free_fly.roll_right)?.is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
-                        f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
+                        f32::to_radians(FreeFly::ROLL_SPEED) * api.time.delta() as f32,
                     );
                 }
             } else {
                 if motion_x != 0.0 {
                     free_fly.yaw +=
-                        motion_x * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
+                        motion_x * FreeFly::ROTATION_SENSIBILITY * api.time.delta() as f32;
                 }
                 if motion_y != 0.0 {
                     free_fly.pitch +=
-                        motion_y * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
+                        motion_y * FreeFly::ROTATION_SENSIBILITY * api.time.delta() as f32;
                 }
 
                 if free_fly.pitch < -90.0 {

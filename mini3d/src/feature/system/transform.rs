@@ -2,7 +2,7 @@ use glam::Mat4;
 
 use crate::{
     ecs::{
-        context::ParallelContext,
+        api::{ecs::ParallelECS, ParallelAPI},
         entity::Entity,
         query::QueryId,
         system::{ParallelResolver, SystemResult},
@@ -58,7 +58,7 @@ pub struct PropagateTransforms {
 impl ParallelSystem for PropagateTransforms {
     const NAME: &'static str = "propagate_transforms";
 
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         self.transform = resolver.read(Transform::UID)?;
         self.hierarchy = resolver.read(Hierarchy::UID)?;
         self.local_to_world = resolver.write(LocalToWorld::UID)?;
@@ -66,14 +66,14 @@ impl ParallelSystem for PropagateTransforms {
         Ok(())
     }
 
-    fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-        let transforms = ctx.scene.view(self.transform)?;
-        let hierarchies = ctx.scene.view(self.hierarchy)?;
-        let mut local_to_worlds = ctx.scene.view_mut(self.local_to_world)?;
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+        let transforms = ecs.view(self.transform)?;
+        let hierarchies = ecs.view(self.hierarchy)?;
+        let mut local_to_worlds = ecs.view_mut(self.local_to_world)?;
 
         // Reset all flags
         let mut entities = Vec::new();
-        for e in ctx.scene.query(self.query) {
+        for e in ecs.query(self.query) {
             local_to_worlds[e].dirty = true;
             entities.push(e);
         }

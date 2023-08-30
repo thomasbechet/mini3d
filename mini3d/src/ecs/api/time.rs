@@ -1,10 +1,10 @@
-pub struct TimeContext {
+pub struct TimeAPI {
     pub(crate) delta: f64,
     pub(crate) fixed: Option<f64>,
     pub(crate) global: f64,
 }
 
-impl TimeContext {
+impl TimeAPI {
     pub fn delta(&self) -> f64 {
         self.delta
     }

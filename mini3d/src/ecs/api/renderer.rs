@@ -2,12 +2,12 @@ use crate::renderer::{
     backend::RendererBackend, color::Color, graphics::Graphics, RendererManager, RendererStatistics,
 };
 
-pub struct ExclusiveRendererContext<'a> {
+pub struct ExclusiveRendererAPI<'a> {
     pub(crate) manager: &'a mut RendererManager,
     pub(crate) backend: &'a mut dyn RendererBackend,
 }
 
-impl<'a> ExclusiveRendererContext<'a> {
+impl<'a> ExclusiveRendererAPI<'a> {
     pub fn graphics(&mut self) -> &mut Graphics {
         self.manager.graphics()
     }
@@ -21,11 +21,11 @@ impl<'a> ExclusiveRendererContext<'a> {
     }
 }
 
-pub struct ParallelRendererContext<'a> {
+pub struct ParallelRendererAPI<'a> {
     pub(crate) manager: &'a RendererManager,
 }
 
-impl<'a> ParallelRendererContext<'a> {
+impl<'a> ParallelRendererAPI<'a> {
     pub fn statistics(&self) -> RendererStatistics {
         self.manager.statistics()
     }

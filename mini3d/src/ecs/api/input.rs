@@ -7,12 +7,12 @@ use crate::{
     utils::uid::UID,
 };
 
-pub struct ExclusiveInputContext<'a> {
+pub struct ExclusiveInputAPI<'a> {
     pub(crate) manager: &'a mut InputManager,
     pub(crate) backend: &'a mut dyn InputBackend,
 }
 
-impl<'a> ExclusiveInputContext<'a> {
+impl<'a> ExclusiveInputAPI<'a> {
     pub fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
         self.manager.add_table(self.backend, table)
     }
@@ -30,11 +30,11 @@ impl<'a> ExclusiveInputContext<'a> {
     }
 }
 
-pub struct ParallelInputContext<'a> {
+pub struct ParallelInputAPI<'a> {
     pub(crate) manager: &'a InputManager,
 }
 
-impl<'a> ParallelInputContext<'a> {
+impl<'a> ParallelInputAPI<'a> {
     pub fn action(&self, uid: UID) -> Result<&InputActionState, InputError> {
         self.manager.action(uid)
     }

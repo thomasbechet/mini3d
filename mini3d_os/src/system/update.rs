@@ -1,6 +1,6 @@
 use mini3d::{
     ecs::{
-        context::ExclusiveContext,
+        api::ExclusiveAPI,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
@@ -25,15 +25,15 @@ pub struct UpdateOS {
 impl ExclusiveSystem for UpdateOS {
     const NAME: &'static str = "update_os";
 
-    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         self.os = resolver.find(OS::UID)?;
         self.free_fly = resolver.find(FreeFly::UID)?;
         self.ui = resolver.find(UI::UID)?;
         Ok(())
     }
 
-    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
-        let scene = ctx.scene.active();
+    fn run(&self, ctx: &mut ExclusiveAPI) -> SystemResult {
+        let scene = ctx.ecs.active();
         let mut os = scene.get_singleton_mut::<OS>(OS::UID)?.unwrap();
 
         // Toggle control mode

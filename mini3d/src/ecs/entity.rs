@@ -1,5 +1,5 @@
 use crate::{
-    registry::component::{Component, ComponentId, ComponentRegistry},
+    registry::component::{Component, ComponentId},
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SecondaryMap,
 };
@@ -197,7 +197,6 @@ impl Default for EntityTable {
 pub struct EntityBuilder<'a> {
     entity: Entity,
     archetype: ArchetypeId,
-    registry: &'a ComponentRegistry,
     archetypes: &'a mut ArchetypeTable,
     entities: &'a mut EntityTable,
     components: &'a mut ComponentTable,
@@ -206,7 +205,6 @@ pub struct EntityBuilder<'a> {
 
 impl<'a> EntityBuilder<'a> {
     pub(crate) fn new(
-        registry: &'a ComponentRegistry,
         archetypes: &'a mut ArchetypeTable,
         entities: &'a mut EntityTable,
         components: &'a mut ComponentTable,
@@ -218,7 +216,6 @@ impl<'a> EntityBuilder<'a> {
             entity,
             archetype: archetypes.empty,
             archetypes,
-            registry,
             entities,
             components,
             cycle,

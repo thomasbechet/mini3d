@@ -1,7 +1,7 @@
 use crate::registry::RegistryManager;
 
-pub struct RegistryContext<'a> {
+pub struct RegistryAPI<'a> {
     pub(crate) manager: &'a RegistryManager,
 }
 
-impl<'a> RegistryContext<'a> {}
+impl<'a> RegistryAPI<'a> {}

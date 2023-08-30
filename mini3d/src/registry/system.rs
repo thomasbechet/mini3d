@@ -2,10 +2,14 @@ use std::collections::HashMap;
 
 use crate::{
     ecs::{
-        context::{ExclusiveContext, ParallelContext},
+        api::{
+            ecs::{ExclusiveECS, ParallelECS},
+            ExclusiveAPI, ParallelAPI,
+        },
+        scheduler::{StaticSystemInstance, SystemInstance},
         system::{
             AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
-            ParallelResolver, StaticSystemInstance, SystemInstance, SystemResult,
+            ParallelResolver, SystemResult,
         },
     },
     utils::{
@@ -35,15 +39,15 @@ impl From<SystemId> for SlotId {
 pub trait ExclusiveSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
-    fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult;
+    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult;
 }
 
 pub trait ParallelSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
-    fn run(&self, ctx: &mut ParallelContext) -> SystemResult;
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult;
 }
 
 pub(crate) trait AnySystemReflection {
@@ -61,10 +65,10 @@ impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection
         }
         impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for InstanceHolder<S> {
             fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-                self.system.resolve(resolver)
+                self.system.setup(resolver)
             }
-            fn run(&self, ctx: &mut ExclusiveContext) -> SystemResult {
-                self.system.run(ctx)
+            fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+                self.system.run(ecs, api)
             }
         }
         SystemInstance::Static(StaticSystemInstance::Exclusive(Box::new(InstanceHolder {
@@ -87,10 +91,10 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
                 &mut self,
                 resolver: &mut ParallelResolver<'_>,
             ) -> Result<(), RegistryError> {
-                self.system.resolve(resolver)
+                self.system.setup(resolver)
             }
-            fn run(&self, ctx: &mut ParallelContext) -> SystemResult {
-                self.system.run(ctx)
+            fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+                self.system.run(ecs, api)
             }
         }
         SystemInstance::Static(StaticSystemInstance::Parallel(Box::new(InstanceHolder {
@@ -113,7 +117,7 @@ pub(crate) struct SystemRegistry {
 }
 
 impl SystemRegistry {
-    fn define(&mut self, definition: SystemDefinition) -> Result<SystemId, RegistryError> {
+    fn add(&mut self, definition: SystemDefinition) -> Result<SystemId, RegistryError> {
         let uid: UID = definition.name.as_str().into();
         if self.find(uid).is_some() {
             return Err(RegistryError::DuplicatedSystemDefinition {
@@ -130,11 +134,11 @@ impl SystemRegistry {
         Ok(())
     }
 
-    pub(crate) fn define_static_exclusive<S: ExclusiveSystem>(
+    pub(crate) fn add_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
     ) -> Result<SystemId, RegistryError> {
-        self.define(SystemDefinition {
+        self.add(SystemDefinition {
             name: name.into(),
             reflection: Box::new(StaticExclusiveSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
@@ -142,11 +146,11 @@ impl SystemRegistry {
         })
     }
 
-    pub(crate) fn define_static_parallel<S: ParallelSystem>(
+    pub(crate) fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
     ) -> Result<SystemId, RegistryError> {
-        self.define(SystemDefinition {
+        self.add(SystemDefinition {
             name: name.into(),
             reflection: Box::new(StaticParallelSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,

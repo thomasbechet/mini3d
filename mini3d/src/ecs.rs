@@ -20,12 +20,11 @@ use self::{
     query::QueryTable, scheduler::Scheduler, system::SystemTable,
 };
 
+pub mod api;
 pub mod archetype;
 pub mod component;
-pub mod context;
 pub mod entity;
 pub mod error;
-pub mod pipeline;
 pub mod query;
 pub mod scheduler;
 pub mod sparse;

@@ -10,17 +10,11 @@ use crate::{
         scheduler::Invocation,
         system::SystemTable,
     },
-    registry::{component::ComponentHandle, RegistryManager},
+    registry::component::ComponentHandle,
     utils::{slotmap::SlotId, uid::UID},
 };
 
-pub(crate) enum SceneContextCommand {
-    AddSystem,
-    RemoveSystem,
-}
-
-pub struct ExclusiveSceneContext<'a> {
-    pub(crate) registry: &'a RegistryManager,
+pub struct ExclusiveECS<'a> {
     pub(crate) archetypes: &'a mut ArchetypeTable,
     pub(crate) components: &'a mut ComponentTable,
     pub(crate) entities: &'a mut EntityTable,
@@ -31,15 +25,9 @@ pub struct ExclusiveSceneContext<'a> {
     pub(crate) cycle: u32,
 }
 
-impl<'a> ExclusiveSceneContext<'a> {
+impl<'a> ExclusiveECS<'a> {
     pub fn add(&mut self) -> EntityBuilder<'_> {
-        EntityBuilder::new(
-            &self.registry.components,
-            self.archetypes,
-            self.entities,
-            self.components,
-            self.cycle,
-        )
+        EntityBuilder::new(self.archetypes, self.entities, self.components, self.cycle)
     }
 
     pub fn remove(&mut self, entity: Entity) {
@@ -86,15 +74,14 @@ impl<'a> ExclusiveSceneContext<'a> {
     }
 }
 
-pub struct ParallelSceneContext<'a> {
-    pub(crate) registry: &'a RegistryManager,
+pub struct ParallelECS<'a> {
     pub(crate) components: &'a ComponentTable,
     pub(crate) entities: &'a EntityTable,
     pub(crate) queries: &'a QueryTable,
     pub(crate) cycle: u32,
 }
 
-impl<'a> ParallelSceneContext<'a> {
+impl<'a> ParallelECS<'a> {
     pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, SceneError> {
         self.components.view(component)
     }
