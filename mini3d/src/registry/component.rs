@@ -294,7 +294,7 @@ pub(crate) struct ComponentRegistry {
 }
 
 impl ComponentRegistry {
-    fn define(
+    fn add(
         &mut self,
         name: &str,
         kind: ComponentKind,
@@ -314,18 +314,18 @@ impl ComponentRegistry {
         Ok(())
     }
 
-    pub(crate) fn define_static<C: Component>(&mut self, name: &str) -> Result<(), RegistryError> {
+    pub(crate) fn add_static<C: Component>(&mut self, name: &str) -> Result<(), RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
-        self.define(name, ComponentKind::Static, Box::new(reflection))
+        self.add(name, ComponentKind::Static, Box::new(reflection))
     }
 
-    pub(crate) fn define_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+    pub(crate) fn add_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
         unimplemented!()
     }
 
-    pub(crate) fn define_tag(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+    pub(crate) fn add_tag(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
         unimplemented!()
     }
 

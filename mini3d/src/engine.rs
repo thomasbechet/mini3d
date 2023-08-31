@@ -164,10 +164,7 @@ impl Engine {
         &mut self,
         name: &str,
     ) -> Result<(), RegistryError> {
-        self.registry
-            .borrow_mut()
-            .components
-            .define_static::<C>(name)
+        self.registry.borrow_mut().components.add_static::<C>(name)
     }
 
     pub fn is_running(&self) -> bool {
