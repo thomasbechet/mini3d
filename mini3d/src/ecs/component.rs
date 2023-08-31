@@ -4,7 +4,7 @@ use mini3d_derive::Serialize;
 use super::{entity::Entity, error::SceneError, sparse::PagedVector};
 use crate::{
     registry::component::{
-        Component, ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTable,
+        Component, ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTableRef,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SparseSecondaryMap,
@@ -347,23 +347,6 @@ impl ComponentTable {
         Ok(())
     }
 
-    pub(crate) fn add_static<C: Component>(
-        &mut self,
-        entity: Entity,
-        component: ComponentId,
-        data: C,
-        cycle: u32,
-    ) {
-        self.containers
-            .get_mut(component.into())
-            .expect("Component container not found while adding entity")
-            .get_mut()
-            .as_any_mut()
-            .downcast_mut::<StaticComponentContainer<C>>()
-            .expect("Component type mismatch while adding static component")
-            .add(entity, data, cycle);
-    }
-
     pub(crate) fn remove(&mut self, entity: Entity, component: ComponentId) {
         self.containers
             .get_mut(component.into())
@@ -376,7 +359,7 @@ impl ComponentTable {
         &self,
         component: H,
     ) -> Result<H::ViewRef<'_>, SceneError> {
-        component.view_ref(PrivateComponentTable(self))
+        component.view_ref(PrivateComponentTableRef(self))
     }
 
     pub(crate) fn view_mut<H: ComponentHandle>(
@@ -384,6 +367,6 @@ impl ComponentTable {
         component: H,
         cycle: u32,
     ) -> Result<H::ViewMut<'_>, SceneError> {
-        component.view_mut(PrivateComponentTable(self), cycle)
+        component.view_mut(PrivateComponentTableRef(self), cycle)
     }
 }

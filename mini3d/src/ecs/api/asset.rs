@@ -8,7 +8,6 @@ use crate::{
 };
 
 pub struct ExclusiveAssetAPI<'a> {
-    pub(crate) registry: &'a ComponentRegistry,
     pub(crate) manager: &'a mut AssetManager,
 }
 
@@ -24,18 +23,16 @@ impl<'a> ExclusiveAssetAPI<'a> {
         bundle: AssetBundleId,
         data: <C::AssetHandle as AssetHandle>::Data,
     ) -> Result<C::AssetHandle, AssetError> {
-        self.manager.add(
-            handle,
-            name,
-            bundle,
-            AssetSource::Persistent,
-            data,
-            self.registry,
-        )
+        self.manager
+            .add(handle, name, bundle, AssetSource::Persistent, data)
     }
 
     pub fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {
         self.manager.remove(handle)
+    }
+
+    pub fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
+        self.manager.find(name)
     }
 
     pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
@@ -56,6 +53,10 @@ pub struct ParallelAssetAPI<'a> {
 }
 
 impl<'a> ParallelAssetAPI<'a> {
+    pub fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
+        self.manager.find(name)
+    }
+
     pub fn read<H: AssetHandle>(&mut self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
         self.manager.read(handle)
     }

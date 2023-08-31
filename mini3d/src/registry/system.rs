@@ -22,7 +22,7 @@ use crate::{
 use super::error::RegistryError;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct SystemId(SlotId);
+pub struct SystemId(SlotId);
 
 impl From<SlotId> for SystemId {
     fn from(id: SlotId) -> Self {
@@ -39,15 +39,23 @@ impl From<SystemId> for SlotId {
 pub trait ExclusiveSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult;
+    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
+        Ok(())
+    }
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+        Ok(())
+    }
 }
 
 pub trait ParallelSystem: 'static + Default {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult;
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+        Ok(())
+    }
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+        Ok(())
+    }
 }
 
 pub(crate) trait AnySystemReflection {

@@ -128,6 +128,22 @@ impl AssetManager {
         Ok(())
     }
 
+    pub(crate) fn preallocate<H: ComponentHandle>(
+        &mut self,
+        handle: H,
+        registry: &ComponentRegistry,
+    ) {
+        let id = handle.id();
+        if !self.containers.contains(id.into()) {
+            let container = registry
+                .definition(handle)
+                .unwrap()
+                .reflection
+                .create_asset_container();
+            self.containers.insert(id.into(), container);
+        }
+    }
+
     fn add_entry(
         &mut self,
         name: &str,
@@ -184,33 +200,22 @@ impl AssetManager {
         bundle: AssetBundleId,
         source: AssetSource,
         data: <C::AssetHandle as AssetHandle>::Data,
-        registry: &ComponentRegistry,
     ) -> Result<C::AssetHandle, AssetError> {
         if self.find::<C::AssetHandle>(name).is_some() {
             return Err(AssetError::DuplicatedAssetEntry);
         }
         let id = self.add_entry(name, handle.id(), bundle, source)?;
-        // Allocate container if needed
-        if !self.containers.contains(handle.id().into()) {
-            let definition = registry
-                .definition(handle)
-                .map_err(|_| AssetError::AssetTypeNotFound)?;
-            self.containers.insert(
-                handle.id().into(),
-                definition.reflection.create_asset_container(),
-            );
-        }
         // TODO: preload asset in container ? wait for read ? define proper strategy
-        self.entries[id.slot()].slot = <C::AssetHandle as AssetHandle>::insert_container(
-            PrivateAnyAssetContainerMut(
-                self.containers
-                    .get_mut(handle.id().into())
-                    .unwrap()
-                    .as_mut(),
-            ),
-            data,
-        );
-        Ok(<C::AssetHandle as AssetHandle>::new(id))
+        if let Some(container) = self.containers.get_mut(handle.id().into()) {
+            self.entries[id.slot()].slot = <C::AssetHandle as AssetHandle>::insert_container(
+                PrivateAnyAssetContainerMut(container.as_mut()),
+                data,
+            );
+            Ok(<C::AssetHandle as AssetHandle>::new(id))
+        } else {
+            // TODO: report proper error (not sync with registry ?)
+            Err(AssetError::AssetTypeNotFound)
+        }
     }
 
     pub(crate) fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {

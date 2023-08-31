@@ -1,5 +1,5 @@
 use crate::{
-    registry::component::{Component, ComponentId},
+    registry::component::{Component, ComponentHandle, ComponentId, PrivateComponentTableMut},
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SecondaryMap,
 };
@@ -226,27 +226,22 @@ impl<'a> EntityBuilder<'a> {
         self.archetype = self.archetypes.find_add(self.archetype, component);
     }
 
-    pub fn with(mut self, component: ComponentId) -> Self {
-        self.update_archetype(component);
-        self.with_default(component) // TODO: build with properties
-    }
-
-    pub fn with_default(self, component: ComponentId) -> Self {
+    pub fn with<H: ComponentHandle>(mut self, component: H, data: H::Data) -> Self {
+        self.update_archetype(component.id());
+        component.insert_container(
+            PrivateComponentTableMut(self.components),
+            self.entity,
+            data,
+            self.cycle,
+        );
         self
     }
 
-    pub fn with_static<C: Component>(mut self, component: ComponentId, data: C) -> Self {
-        self.update_archetype(component);
-        self.components
-            .add_static(self.entity, component, data, self.cycle);
-        self
+    pub fn with_default<H: ComponentHandle>(self, component: H) -> Self {
+        self.with(component, H::Data::default())
     }
 
-    pub fn with_static_default<C: Component>(self, component: ComponentId) -> Self {
-        self.with_static(component, C::default())
-    }
-
-    pub fn entity(self) -> Entity {
+    pub fn build(self) -> Entity {
         self.entity
     }
 }

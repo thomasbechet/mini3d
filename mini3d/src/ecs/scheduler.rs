@@ -11,7 +11,10 @@ use super::{
         asset::{ExclusiveAssetAPI, ParallelAssetAPI},
         ecs::{ExclusiveECS, ParallelECS},
         input::{ExclusiveInputAPI, ParallelInputAPI},
-        registry::{ExclusiveRegistryAPI, ParallelRegistryAPI},
+        registry::{
+            ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
+            ParallelComponentRegistryAPI, ParallelRegistryAPI, ParallelSystemRegistryAPI,
+        },
         renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
         time::TimeAPI,
         ExclusiveAPI, ParallelAPI,
@@ -219,7 +222,6 @@ impl Scheduler {
                         SystemPipelineNode::Exclusive { instance, next } => {
                             let api = &mut ExclusiveAPI {
                                 asset: ExclusiveAssetAPI {
-                                    registry: &context.registry.borrow().components,
                                     manager: context.asset,
                                 },
                                 input: ExclusiveInputAPI {
@@ -227,7 +229,12 @@ impl Scheduler {
                                     backend: context.input_backend,
                                 },
                                 registry: ExclusiveRegistryAPI {
-                                    manager: context.registry.get_mut(),
+                                    systems: ExclusiveSystemRegistryAPI {
+                                        manager: &mut context.registry.systems,
+                                    },
+                                    components: ExclusiveComponentRegistryAPI {
+                                        manager: &mut context.registry.components,
+                                    },
                                 },
                                 renderer: ExclusiveRendererAPI {
                                     manager: context.renderer,
@@ -262,7 +269,12 @@ impl Scheduler {
                                     manager: context.input,
                                 },
                                 registry: ParallelRegistryAPI {
-                                    manager: &context.registry.borrow(),
+                                    systems: ParallelSystemRegistryAPI {
+                                        manager: &context.registry.systems,
+                                    },
+                                    components: ParallelComponentRegistryAPI {
+                                        manager: &context.registry.components,
+                                    },
                                 },
                                 renderer: ParallelRendererAPI {
                                     manager: context.renderer,

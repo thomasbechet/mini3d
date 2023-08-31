@@ -17,7 +17,6 @@ use crate::storage::backend::StorageBackend;
 use crate::storage::StorageManager;
 use crate::system::backend::SystemBackend;
 use crate::system::event::SystemEvent;
-use core::cell::RefCell;
 
 #[derive(Debug, Error)]
 pub enum ProgressError {
@@ -30,7 +29,7 @@ pub enum ProgressError {
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 pub struct Engine {
-    pub(crate) registry: RefCell<RegistryManager>,
+    pub(crate) registry: RegistryManager,
     pub(crate) storage: StorageManager,
     pub(crate) asset: AssetManager,
     pub(crate) input: InputManager,
@@ -43,25 +42,27 @@ pub struct Engine {
 
 impl Engine {
     fn define_core_features(&mut self) -> Result<(), RegistryError> {
-        let mut registry = self.registry.borrow_mut();
-
         macro_rules! define_component {
             ($component: ty) => {
-                registry
+                self.registry
                     .components
-                    .define_static::<$component>(<$component>::NAME)?;
+                    .add_static::<$component>(<$component>::NAME)?;
             };
         }
 
         macro_rules! define_system_exclusive {
             ($name: literal, $system: ty) => {
-                registry.systems.add_static_exclusive::<$system>($name)?;
+                self.registry
+                    .systems
+                    .add_static_exclusive::<$system>($name)?;
             };
         }
 
         macro_rules! define_system_parallel {
             ($name: literal, $system: ty) => {
-                registry.systems.add_static_parallel::<$system>($name)?;
+                self.registry
+                    .systems
+                    .add_static_parallel::<$system>($name)?;
             };
         }
 
@@ -130,10 +131,9 @@ impl Engine {
         encoder: &mut impl Encoder,
         storage: &impl StorageBackend,
     ) -> Result<(), EncoderError> {
-        let registry = self.registry.borrow();
-        self.asset.save_state(&registry.components, encoder)?;
+        self.asset.save_state(&self.registry.components, encoder)?;
         self.renderer.save_state(encoder)?;
-        self.ecs.save_state(&registry.components, encoder)?;
+        self.ecs.save_state(&self.registry.components, encoder)?;
         self.input.save_state(encoder)?;
         self.global_time.serialize(encoder)?;
         self.running.serialize(encoder)?;
@@ -149,11 +149,9 @@ impl Engine {
         network: &mut impl NetworkBackend,
         system: &mut impl SystemBackend,
     ) -> Result<(), DecoderError> {
-        self.asset
-            .load_state(&self.registry.borrow().components, decoder)?;
+        self.asset.load_state(&self.registry.components, decoder)?;
         self.renderer.load_state(decoder, renderer)?;
-        self.ecs
-            .load_state(&self.registry.borrow().components, decoder)?;
+        self.ecs.load_state(&self.registry.components, decoder)?;
         self.input.load_state(decoder, input)?;
         self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         self.running = Serialize::deserialize(decoder, &Default::default())?;
@@ -164,7 +162,7 @@ impl Engine {
         &mut self,
         name: &str,
     ) -> Result<(), RegistryError> {
-        self.registry.borrow_mut().components.add_static::<C>(name)
+        self.registry.components.add_static::<C>(name)
     }
 
     pub fn is_running(&self) -> bool {
@@ -222,7 +220,7 @@ impl Engine {
 
         self.ecs
             .update(ECSUpdateContext {
-                registry: &self.registry,
+                registry: &mut self.registry,
                 asset: &mut self.asset,
                 input: &mut self.input,
                 input_backend: input,

@@ -5,7 +5,6 @@ use crate::{
     serialize::{Decoder, DecoderError, EncoderError},
     storage::backend::StorageBackend,
 };
-use core::cell::RefCell;
 
 use crate::{
     asset::AssetManager,
@@ -54,7 +53,7 @@ impl Default for ECSManager {
 }
 
 pub(crate) struct ECSUpdateContext<'a> {
-    pub(crate) registry: &'a RefCell<RegistryManager>,
+    pub(crate) registry: &'a mut RegistryManager,
     pub(crate) asset: &'a mut AssetManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) input_backend: &'a mut dyn InputBackend,

@@ -42,25 +42,34 @@ impl From<ComponentId> for SlotId {
     }
 }
 
-pub struct PrivateComponentTable<'a>(pub(crate) &'a ComponentTable);
+pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ComponentTable);
+pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ComponentTable);
 
 pub trait ComponentHandle: Copy {
     type ViewRef<'a>;
     type ViewMut<'a>;
     type AssetHandle: AssetHandle;
+    type Data: Default;
     fn new(uid: UID, id: ComponentId) -> Self;
     fn uid(&self) -> UID;
     fn id(&self) -> ComponentId;
     fn view_ref<'a>(
         &self,
-        components: PrivateComponentTable<'a>,
+        components: PrivateComponentTableRef<'a>,
     ) -> Result<Self::ViewRef<'a>, SceneError>;
     fn view_mut<'a>(
         &self,
-        components: PrivateComponentTable<'a>,
+        components: PrivateComponentTableRef<'a>,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError>;
     fn check_type_id(id: TypeId) -> bool;
+    fn insert_container(
+        &self,
+        components: PrivateComponentTableMut,
+        entity: Entity,
+        data: Self::Data,
+        cycle: u32,
+    );
 }
 
 pub struct StaticComponent<C: Component> {
@@ -95,6 +104,7 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
     type ViewRef<'a> = StaticComponentViewRef<'a, C>;
     type ViewMut<'a> = StaticComponentViewMut<'a, C>;
     type AssetHandle = StaticAsset<C>;
+    type Data = C;
 
     fn new(uid: UID, id: ComponentId) -> Self {
         Self {
@@ -114,7 +124,7 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
 
     fn view_ref<'a>(
         &self,
-        components: PrivateComponentTable<'a>,
+        components: PrivateComponentTableRef<'a>,
     ) -> Result<Self::ViewRef<'a>, SceneError> {
         Ok(StaticComponentViewRef {
             container: Ref::map(
@@ -136,7 +146,7 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
 
     fn view_mut<'a>(
         &self,
-        components: PrivateComponentTable<'a>,
+        components: PrivateComponentTableRef<'a>,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError> {
         Ok(StaticComponentViewMut {
@@ -161,6 +171,25 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
     fn check_type_id(id: TypeId) -> bool {
         id == TypeId::of::<C>()
     }
+
+    fn insert_container(
+        &self,
+        components: PrivateComponentTableMut,
+        entity: Entity,
+        data: Self::Data,
+        cycle: u32,
+    ) {
+        components
+            .0
+            .containers
+            .get_mut(self.id.into())
+            .expect("Component container not found while adding entity")
+            .get_mut()
+            .as_any_mut()
+            .downcast_mut::<StaticComponentContainer<C>>()
+            .expect("Component type mismatch while adding static component")
+            .add(entity, data, cycle);
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -173,6 +202,7 @@ impl ComponentHandle for DynamicComponent {
     type ViewRef<'a> = ComponentViewRef<'a>;
     type ViewMut<'a> = ComponentViewMut<'a>;
     type AssetHandle = DynamicAsset;
+    type Data = ();
 
     fn new(uid: UID, id: ComponentId) -> Self {
         Self { uid, id }
@@ -188,7 +218,7 @@ impl ComponentHandle for DynamicComponent {
 
     fn view_ref<'a>(
         &self,
-        components: PrivateComponentTable<'a>,
+        components: PrivateComponentTableRef<'a>,
     ) -> Result<Self::ViewRef<'a>, SceneError> {
         Ok(ComponentViewRef {
             container: components
@@ -203,7 +233,7 @@ impl ComponentHandle for DynamicComponent {
 
     fn view_mut<'a>(
         &self,
-        components: PrivateComponentTable<'a>,
+        components: PrivateComponentTableRef<'a>,
         cycle: u32,
     ) -> Result<Self::ViewMut<'a>, SceneError> {
         Ok(ComponentViewMut {
@@ -220,6 +250,15 @@ impl ComponentHandle for DynamicComponent {
 
     fn check_type_id(_id: TypeId) -> bool {
         true // Dynamic handle is valid for both static and dynamic components
+    }
+
+    fn insert_container(
+        &self,
+        components: PrivateComponentTableMut,
+        entity: Entity,
+        data: Self::Data,
+        cycle: u32,
+    ) {
     }
 }
 
