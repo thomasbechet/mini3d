@@ -62,14 +62,14 @@ impl<'a> ExclusiveECS<'a> {
         Ok(())
     }
 
-    pub(crate) fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
         self.queries
             .query_archetypes(query)
             .iter()
             .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
     }
 
-    pub(crate) fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
         self.queries.filter_query(query).iter().copied()
     }
 }

@@ -1,6 +1,7 @@
 use mini3d::{
     ecs::{
-        api::ExclusiveAPI,
+        api::{ecs::ExclusiveECS, ExclusiveAPI},
+        query::QueryId,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
@@ -20,6 +21,7 @@ pub struct UpdateOS {
     os: StaticComponent<OS>,
     free_fly: StaticComponent<FreeFly>,
     ui: StaticComponent<UI>,
+    query: QueryId,
 }
 
 impl ExclusiveSystem for UpdateOS {
@@ -29,22 +31,22 @@ impl ExclusiveSystem for UpdateOS {
         self.os = resolver.find(OS::UID)?;
         self.free_fly = resolver.find(FreeFly::UID)?;
         self.ui = resolver.find(UI::UID)?;
+        self.query = resolver.query().all(&[FreeFly::UID])?.build();
         Ok(())
     }
 
-    fn run(&self, ctx: &mut ExclusiveAPI) -> SystemResult {
-        let scene = ctx.ecs.active();
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
         let mut os = scene.get_singleton_mut::<OS>(OS::UID)?.unwrap();
 
         // Toggle control mode
-        if ctx
+        if api
             .input
             .action(CommonAction::CHANGE_CONTROL_MODE.into())?
             .is_just_pressed()
         {
             os.layout_active = !os.layout_active;
-            let mut view = scene.static_view_mut::<FreeFly>(FreeFly::UID)?;
-            for e in &scene.query(&[FreeFly::UID]) {
+            let mut view = ecs.view_mut(self.free_fly)?;
+            for e in ecs.query(self.query) {
                 let free_fly = &mut view[e];
                 free_fly.active = !os.layout_active;
             }
@@ -57,14 +59,14 @@ impl ExclusiveSystem for UpdateOS {
         //     }
         // }
 
-        let mut view = scene.static_view_mut::<UI>(UI::UID)?;
-        let ui = view.iter().next().unwrap();
+        let uis = ecs.view_mut(self.ui)?;
+        let ui = uis.iter().next().unwrap();
         let user = ui.user("main".into())?;
 
-        os.controller.update(&ctx.input, user)?;
+        os.controller.update(&api.input, user)?;
 
         // Render center cross
-        ctx.renderer.graphics().fill_rect(
+        api.renderer.graphics().fill_rect(
             IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2),
             Color::WHITE,
         );

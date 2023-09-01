@@ -201,9 +201,7 @@ impl Engine {
         for event in system.events() {
             match event {
                 SystemEvent::Shutdown => self.running = false,
-                SystemEvent::ImportAsset(import) => {
-                    todo!("import assets")
-                }
+                SystemEvent::ImportAsset(import) => {}
             }
         }
 
