@@ -3,7 +3,7 @@ use glam::{Quat, Vec3};
 use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
-        query::QueryId,
+        query::Query,
         system::{ParallelResolver, SystemResult},
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
@@ -18,7 +18,7 @@ use crate::{
 pub struct RotatorSystem {
     transform: StaticComponent<Transform>,
     rotator: StaticComponent<Rotator>,
-    query: QueryId,
+    query: Query,
 }
 
 impl ParallelSystem for RotatorSystem {

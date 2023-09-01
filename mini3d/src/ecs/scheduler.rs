@@ -10,6 +10,7 @@ use super::{
     api::{
         asset::{ExclusiveAssetAPI, ParallelAssetAPI},
         ecs::{ExclusiveECS, ParallelECS},
+        event::EventAPI,
         input::{ExclusiveInputAPI, ParallelInputAPI},
         registry::{
             ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
@@ -240,6 +241,9 @@ impl Scheduler {
                                     manager: context.renderer,
                                     backend: context.renderer_backend,
                                 },
+                                event: EventAPI {
+                                    system: &context.system_backend.events(),
+                                },
                                 time: TimeAPI {
                                     delta: context.delta_time,
                                     fixed: stage.frequency,
@@ -278,6 +282,9 @@ impl Scheduler {
                                 },
                                 renderer: ParallelRendererAPI {
                                     manager: context.renderer,
+                                },
+                                event: EventAPI {
+                                    system: &context.system_backend.events(),
                                 },
                                 time: TimeAPI {
                                     delta: context.delta_time,

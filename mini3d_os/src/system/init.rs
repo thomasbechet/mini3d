@@ -1,7 +1,7 @@
 use mini3d::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        system::{ExclusiveResolver, SystemResult},
+        system::SystemResult,
     },
     engine::Engine,
     feature::component::{
@@ -26,8 +26,8 @@ use mini3d::{
     },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
     script::{compiler::Compiler, module::Module},
+    system::event::{ImportAssetEvent, SystemEvent},
     ui::{
-        self,
         controller::UIController,
         style::{UIBoxStyle, UIImageStyle, UIMargin},
         widget::{
@@ -67,6 +67,7 @@ struct OSInitialize {
     viewport: StaticComponent<Viewport>,
     ui: StaticComponent<UI>,
     ui_render_target: StaticComponent<UIRenderTarget>,
+    script: StaticComponent<Script>,
 }
 
 impl OSInitialize {
@@ -314,35 +315,35 @@ impl OSInitialize {
         )?;
 
         // Import assets
-        for import in api.event.import_asset() {
-            match import {
-                ImportAssetEvent::Material(material) => {
+        for event in api.event.system {
+            match event {
+                SystemEvent::ImportAsset(ImportAssetEvent::Material(material)) => {
                     api.asset.add(
-                        Material::UID,
+                        self.material,
                         &material.name,
                         default_bundle,
                         material.data.clone(),
                     )?;
                 }
-                ImportAssetEvent::Mesh(mesh) => {
+                SystemEvent::ImportAsset(ImportAssetEvent::Mesh(mesh)) => {
                     api.asset
-                        .add(Mesh::UID, &mesh.name, default_bundle, mesh.data.clone())?;
+                        .add(self.mesh, &mesh.name, default_bundle, mesh.data.clone())?;
                 }
-                ImportAssetEvent::Model(model) => {
+                SystemEvent::ImportAsset(ImportAssetEvent::Model(model)) => {
                     api.asset
-                        .add(Model::UID, &model.name, default_bundle, model.data.clone())?;
+                        .add(self.model, &model.name, default_bundle, model.data.clone())?;
                 }
-                ImportAssetEvent::Script(script) => {
+                SystemEvent::ImportAsset(ImportAssetEvent::Script(script)) => {
                     api.asset.add(
-                        Script::UID,
+                        self.script,
                         &script.name,
                         default_bundle,
                         script.data.clone(),
                     )?;
                 }
-                ImportAssetEvent::Texture(texture) => {
+                SystemEvent::ImportAsset(ImportAssetEvent::Texture(texture)) => {
                     api.asset.add(
-                        Texture::UID,
+                        self.texture,
                         &texture.name,
                         default_bundle,
                         texture.data.clone(),

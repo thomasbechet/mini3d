@@ -1,7 +1,7 @@
 use mini3d::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        query::QueryId,
+        query::Query,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
@@ -21,7 +21,7 @@ pub struct UpdateOS {
     os: StaticComponent<OS>,
     free_fly: StaticComponent<FreeFly>,
     ui: StaticComponent<UI>,
-    query: QueryId,
+    query: Query,
 }
 
 impl ExclusiveSystem for UpdateOS {

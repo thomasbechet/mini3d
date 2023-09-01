@@ -22,7 +22,7 @@ use super::{
     component::ComponentTable,
     entity::EntityTable,
     error::SceneError,
-    query::{FilterQueryId, QueryBuilder, QueryTable},
+    query::{FilterQuery, QueryBuilder, QueryTable},
 };
 
 pub trait SystemError: Display {}
@@ -151,7 +151,7 @@ pub(crate) struct SystemInstanceEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_INSTANCE_NAME_LEN>,
     pub(crate) system: SystemId,
     pub(crate) last_execution_cycle: usize,
-    pub(crate) filter_queries: Vec<FilterQueryId>,
+    pub(crate) filter_queries: Vec<FilterQuery>,
     pub(crate) active: bool,
     pub(crate) next_instance: Option<SystemInstanceId>,
     pub(crate) prev_instance: Option<SystemInstanceId>,

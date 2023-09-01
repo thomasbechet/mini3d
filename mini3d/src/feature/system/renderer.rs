@@ -1,7 +1,7 @@
 use crate::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        query::{FilterQueryId, QueryId},
+        query::{FilterQuery, Query},
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{
@@ -25,17 +25,17 @@ pub struct DespawnRendererEntities {
     static_mesh: StaticComponent<StaticMesh>,
     local_to_world: StaticComponent<LocalToWorld>,
     // Queries
-    added_viewport: FilterQueryId,
-    removed_viewport: FilterQueryId,
-    model_query: QueryId,
-    added_camera: FilterQueryId,
-    removed_camera: FilterQueryId,
-    camera_query: QueryId,
-    added_model: FilterQueryId,
-    removed_model: FilterQueryId,
-    added_canvas: FilterQueryId,
-    removed_canvas: FilterQueryId,
-    scene_canvas_query: QueryId,
+    added_viewport: FilterQuery,
+    removed_viewport: FilterQuery,
+    model_query: Query,
+    added_camera: FilterQuery,
+    removed_camera: FilterQuery,
+    camera_query: Query,
+    added_model: FilterQuery,
+    removed_model: FilterQuery,
+    added_canvas: FilterQuery,
+    removed_canvas: FilterQuery,
+    scene_canvas_query: Query,
 }
 
 impl ExclusiveSystem for DespawnRendererEntities {

@@ -4,7 +4,7 @@ use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
         entity::Entity,
-        query::QueryId,
+        query::Query,
         system::{ParallelResolver, SystemResult},
         view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
     },
@@ -52,7 +52,7 @@ pub struct PropagateTransforms {
     transform: StaticComponent<Transform>,
     hierarchy: StaticComponent<Hierarchy>,
     local_to_world: StaticComponent<LocalToWorld>,
-    query: QueryId,
+    query: Query,
 }
 
 impl ParallelSystem for PropagateTransforms {

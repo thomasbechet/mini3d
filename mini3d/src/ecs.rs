@@ -4,6 +4,7 @@ use crate::{
     renderer::backend::RendererBackend,
     serialize::{Decoder, DecoderError, EncoderError},
     storage::backend::StorageBackend,
+    system::backend::SystemBackend,
 };
 
 use crate::{
@@ -61,6 +62,7 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) renderer_backend: &'a mut dyn RendererBackend,
     pub(crate) storage_backend: &'a mut dyn StorageBackend,
     pub(crate) network_backend: &'a mut dyn NetworkBackend,
+    pub(crate) system_backend: &'a mut dyn SystemBackend,
     pub(crate) delta_time: f64,
     pub(crate) global_time: f64,
 }

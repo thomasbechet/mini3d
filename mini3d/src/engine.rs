@@ -226,6 +226,7 @@ impl Engine {
                 renderer_backend: renderer,
                 storage_backend: storage,
                 network_backend: network,
+                system_backend: system,
                 delta_time,
                 global_time: self.global_time,
             })

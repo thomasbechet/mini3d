@@ -1,5 +1,5 @@
 use crate::{
-    registry::component::{Component, ComponentHandle, ComponentId, PrivateComponentTableMut},
+    registry::component::{ComponentHandle, ComponentId, PrivateComponentTableMut},
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SecondaryMap,
 };
@@ -7,7 +7,7 @@ use crate::{
 use super::{
     archetype::{ArchetypeId, ArchetypeTable},
     component::ComponentTable,
-    query::{FilterKind, FilterQueryId},
+    query::{FilterKind, FilterQuery},
     sparse::PagedVector,
 };
 
@@ -67,8 +67,8 @@ pub(crate) struct EntityInfo {
 #[derive(Default)]
 pub(crate) struct EntityGroup {
     entities: Vec<Entity>,
-    added_filter_queries: Vec<FilterQueryId>,
-    removed_filter_queries: Vec<FilterQueryId>,
+    added_filter_queries: Vec<FilterQuery>,
+    removed_filter_queries: Vec<FilterQuery>,
 }
 
 pub(crate) struct EntityTable {
@@ -92,7 +92,7 @@ impl EntityTable {
         if !self.groups.contains(group) {
             self.groups.insert(group, EntityGroup::default());
         }
-        return &mut self.groups[group];
+        &mut self.groups[group]
     }
 
     fn add_to_group(&mut self, entity: Entity, archetype: ArchetypeId) {
@@ -164,7 +164,7 @@ impl EntityTable {
     pub(crate) fn register_filter_query(
         &mut self,
         group: ArchetypeId,
-        query: FilterQueryId,
+        query: FilterQuery,
         kind: FilterKind,
     ) {
         match kind {

@@ -17,31 +17,11 @@ use super::{
     entity::{Entity, EntityTable},
 };
 
-pub struct Query<'a> {
-    archetypes: &'a [ArchetypeId],
-    entities: &'a EntityTable,
-}
-
-impl<'a> Query<'a> {
-    pub(crate) fn new(archetypes: &'a [ArchetypeId], entities: &'a EntityTable) -> Self {
-        Self {
-            archetypes,
-            entities,
-        }
-    }
-
-    pub fn iter(&'a self) -> impl Iterator<Item = Entity> + '_ {
-        self.archetypes
-            .iter()
-            .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
-    }
-}
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
+pub struct Query(SlotId);
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub struct QueryId(SlotId);
-
-#[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub struct FilterQueryId(SlotId);
+pub struct FilterQuery(SlotId);
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub(crate) enum FilterKind {
@@ -59,7 +39,7 @@ pub(crate) struct QueryEntry {
 }
 
 pub(crate) struct FilterQueryEntry {
-    query: QueryId,
+    query: Query,
     cycle: usize,
     kind: FilterKind,
     entities: Vec<Entity>,
@@ -76,7 +56,7 @@ pub(crate) struct QueryTable {
 impl QueryTable {
     fn query_match(
         &self,
-        query: QueryId,
+        query: Query,
         archetype: ArchetypeId,
         archetypes: &ArchetypeTable,
     ) -> bool {
@@ -122,7 +102,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> Option<QueryId> {
+    ) -> Option<Query> {
         for (id, query) in self.queries.iter() {
             if query.all.len() != all.len() {
                 continue;
@@ -145,7 +125,7 @@ impl QueryTable {
             if not.iter().any(|c| !not2.contains(c)) {
                 continue;
             }
-            return Some(QueryId(id));
+            return Some(Query(id));
         }
         None
     }
@@ -157,7 +137,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> QueryId {
+    ) -> Query {
         let mut query = QueryEntry::default();
         let start = self.group_filters.len();
         self.group_filters.extend_from_slice(all);
@@ -166,7 +146,7 @@ impl QueryTable {
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
-        let id = QueryId(self.queries.add(query));
+        let id = Query(self.queries.add(query));
         for archetype in archetypes.iter() {
             if self.query_match(id, archetype, archetypes) {
                 self.queries[id.0].archetypes.push(archetype);
@@ -179,10 +159,10 @@ impl QueryTable {
         &mut self,
         entities: &mut EntityTable,
         kind: FilterKind,
-        query: QueryId,
+        query: Query,
         system: SystemId,
-    ) -> FilterQueryId {
-        let id = FilterQueryId(self.filter_queries.add(FilterQueryEntry {
+    ) -> FilterQuery {
+        let id = FilterQuery(self.filter_queries.add(FilterQueryEntry {
             query,
             cycle: 0,
             kind,
@@ -196,11 +176,11 @@ impl QueryTable {
         id
     }
 
-    pub(crate) fn query_archetypes(&self, id: QueryId) -> &[ArchetypeId] {
+    pub(crate) fn query_archetypes(&self, id: Query) -> &[ArchetypeId] {
         &self.queries.get(id.0).unwrap().archetypes
     }
 
-    pub(crate) fn filter_query(&self, id: FilterQueryId) -> &[Entity] {
+    pub(crate) fn filter_query(&self, id: FilterQuery) -> &[Entity] {
         &self.filter_queries.get(id.0).unwrap().entities
     }
 }
@@ -256,7 +236,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn build(self) -> QueryId {
+    pub fn build(self) -> Query {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
             return id;
         }
@@ -264,7 +244,7 @@ impl<'a> QueryBuilder<'a> {
             .add_query(self.entities, self.archetypes, self.all, self.any, self.not)
     }
 
-    fn add_filter_query(self, kind: FilterKind) -> FilterQueryId {
+    fn add_filter_query(self, kind: FilterKind) -> FilterQuery {
         let id = self
             .queries
             .find_same_query(self.all, self.any, self.not)
@@ -276,15 +256,15 @@ impl<'a> QueryBuilder<'a> {
             .add_filter_query(self.entities, kind, id, self.system)
     }
 
-    pub fn added(self) -> FilterQueryId {
+    pub fn added(self) -> FilterQuery {
         self.add_filter_query(FilterKind::Added)
     }
 
-    pub fn removed(self) -> FilterQueryId {
+    pub fn removed(self) -> FilterQuery {
         self.add_filter_query(FilterKind::Removed)
     }
 
-    pub fn changed(self, component: ComponentId) -> FilterQueryId {
+    pub fn changed(self, component: ComponentId) -> FilterQuery {
         self.add_filter_query(FilterKind::Changed)
     }
 }

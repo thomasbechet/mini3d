@@ -6,7 +6,7 @@ use crate::{
         component::ComponentTable,
         entity::{Entity, EntityBuilder, EntityTable},
         error::SceneError,
-        query::{FilterQueryId, QueryId, QueryTable},
+        query::{FilterQuery, Query, QueryTable},
         scheduler::Invocation,
         system::SystemTable,
     },
@@ -62,14 +62,14 @@ impl<'a> ExclusiveECS<'a> {
         Ok(())
     }
 
-    pub fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {
         self.queries
             .query_archetypes(query)
             .iter()
             .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
     }
 
-    pub fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
         self.queries.filter_query(query).iter().copied()
     }
 }
@@ -90,14 +90,14 @@ impl<'a> ParallelECS<'a> {
         self.components.view_mut(component, self.cycle)
     }
 
-    pub fn query(&self, query: QueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {
         self.queries
             .query_archetypes(query)
             .iter()
             .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
     }
 
-    pub fn filter_query(&self, query: FilterQueryId) -> impl Iterator<Item = Entity> + '_ {
+    pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
         self.queries.filter_query(query).iter().copied()
     }
 }

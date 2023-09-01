@@ -4,7 +4,7 @@ use crate::{
             ecs::{ExclusiveECS, ParallelECS},
             ExclusiveAPI, ParallelAPI,
         },
-        query::QueryId,
+        query::Query,
         system::{ExclusiveResolver, ParallelResolver, SystemResult},
     },
     feature::component::ui::{
@@ -21,7 +21,7 @@ use crate::{
 #[derive(Default)]
 pub struct UpdateUI {
     ui: StaticComponent<UI>,
-    query: QueryId,
+    query: Query,
 }
 
 impl ParallelSystem for UpdateUI {
@@ -51,7 +51,7 @@ pub struct RenderUI {
     canvas: StaticComponent<Canvas>,
     ui: StaticComponent<UI>,
     target: StaticComponent<UIRenderTarget>,
-    query: QueryId,
+    query: Query,
 }
 
 impl ExclusiveSystem for RenderUI {

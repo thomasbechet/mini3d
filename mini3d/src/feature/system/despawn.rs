@@ -2,7 +2,7 @@ use crate::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
         entity::Entity,
-        query::QueryId,
+        query::Query,
         system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
@@ -17,7 +17,7 @@ use crate::{
 pub struct DespawnEntities {
     life_cycle: StaticComponent<Lifecycle>,
     hierarchy: StaticComponent<Hierarchy>,
-    query: QueryId,
+    query: Query,
 }
 
 impl ExclusiveSystem for DespawnEntities {
