@@ -1,4 +1,4 @@
-use crate::{asset::AssetManager, registry::RegistryManager, utils::uid::UID};
+use crate::{asset::AssetManager, utils::uid::UID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -120,12 +120,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub(crate) fn compile(
-        &mut self,
-        entry: ModuleId,
-        assets: &AssetManager,
-        registry: &RegistryManager,
-    ) -> Result<(), CompileError> {
+    pub fn compile(&mut self, entry: ModuleId, assets: &AssetManager) -> Result<(), CompileError> {
         // Fetch all modules from the asset manager (sequential, acquire cached modules)
         self.fetch_modules(assets)?;
         // Resolve compilation unit and exports (sequential, fast if cached)

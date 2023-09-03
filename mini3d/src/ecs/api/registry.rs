@@ -1,6 +1,6 @@
 use crate::{
     registry::{
-        component::{Component, ComponentHandle, ComponentRegistry},
+        component::{ComponentData, ComponentHandle, ComponentRegistry},
         error::RegistryError,
         system::{ExclusiveSystem, ParallelSystem, SystemId, SystemRegistry},
     },
@@ -49,7 +49,7 @@ pub struct ExclusiveComponentRegistryAPI<'a> {
 }
 
 impl<'a> ExclusiveComponentRegistryAPI<'a> {
-    pub fn add_static<C: Component>(&mut self, name: &str) -> Result<(), RegistryError> {
+    pub fn add_static<C: ComponentData>(&mut self, name: &str) -> Result<(), RegistryError> {
         self.manager.add_static::<C>(name)
     }
 

@@ -12,7 +12,7 @@ use crate::{
         ui::{UIRenderTarget, UI},
     },
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::{ExclusiveSystem, ParallelSystem},
     },

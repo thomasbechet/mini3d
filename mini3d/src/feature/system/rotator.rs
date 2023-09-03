@@ -8,7 +8,7 @@ use crate::{
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ParallelSystem,
     },

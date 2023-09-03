@@ -12,7 +12,7 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::renderer::viewport::Viewport;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
-use crate::registry::component::{Component, ComponentRegistry, StaticComponent};
+use crate::registry::component::{ComponentData, ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::generation::GenerationId;

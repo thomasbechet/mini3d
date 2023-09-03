@@ -6,7 +6,7 @@ use std::{
 use crate::{
     asset::{
         container::{AnyAssetContainer, StaticAssetContainer},
-        handle::{AssetHandle, DynamicAsset, StaticAsset},
+        handle::{Asset, AssetHandle, StaticAsset},
     },
     ecs::{
         component::{AnyComponentContainer, ComponentTable, StaticComponentContainer},
@@ -50,8 +50,7 @@ pub trait ComponentHandle: Copy {
     type ViewMut<'a>;
     type AssetHandle: AssetHandle;
     type Data: Default;
-    fn new(uid: UID, id: ComponentId) -> Self;
-    fn uid(&self) -> UID;
+    fn new(id: ComponentId) -> Self;
     fn id(&self) -> ComponentId;
     fn view_ref<'a>(
         &self,
@@ -72,50 +71,42 @@ pub trait ComponentHandle: Copy {
     );
 }
 
-pub struct StaticComponent<C: Component> {
+pub struct StaticComponent<C: ComponentData> {
     _marker: std::marker::PhantomData<C>,
-    uid: UID,
     id: ComponentId,
 }
 
-impl<C: Component> Clone for StaticComponent<C> {
+impl<C: ComponentData> Clone for StaticComponent<C> {
     fn clone(&self) -> Self {
         Self {
             _marker: std::marker::PhantomData,
-            uid: self.uid,
             id: self.id,
         }
     }
 }
 
-impl<C: Component> Copy for StaticComponent<C> {}
+impl<C: ComponentData> Copy for StaticComponent<C> {}
 
-impl<C: Component> Default for StaticComponent<C> {
+impl<C: ComponentData> Default for StaticComponent<C> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
-            uid: UID::null(),
             id: ComponentId::default(),
         }
     }
 }
 
-impl<C: Component> ComponentHandle for StaticComponent<C> {
+impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
     type ViewRef<'a> = StaticComponentViewRef<'a, C>;
     type ViewMut<'a> = StaticComponentViewMut<'a, C>;
     type AssetHandle = StaticAsset<C>;
     type Data = C;
 
-    fn new(uid: UID, id: ComponentId) -> Self {
+    fn new(id: ComponentId) -> Self {
         Self {
             _marker: std::marker::PhantomData,
-            uid,
             id,
         }
-    }
-
-    fn uid(&self) -> UID {
-        self.uid
     }
 
     fn id(&self) -> ComponentId {
@@ -193,23 +184,18 @@ impl<C: Component> ComponentHandle for StaticComponent<C> {
 }
 
 #[derive(Clone, Copy)]
-pub struct DynamicComponent {
-    uid: UID,
+pub struct Component {
     id: ComponentId,
 }
 
-impl ComponentHandle for DynamicComponent {
+impl ComponentHandle for Component {
     type ViewRef<'a> = ComponentViewRef<'a>;
     type ViewMut<'a> = ComponentViewMut<'a>;
-    type AssetHandle = DynamicAsset;
+    type AssetHandle = Asset;
     type Data = ();
 
-    fn new(uid: UID, id: ComponentId) -> Self {
-        Self { uid, id }
-    }
-
-    fn uid(&self) -> UID {
-        self.uid
+    fn new(id: ComponentId) -> Self {
+        Self { id }
     }
 
     fn id(&self) -> ComponentId {
@@ -270,7 +256,7 @@ impl EntityResolver {
         Ok(entity)
     }
 }
-pub trait Component: Default + Serialize + Reflect + 'static {
+pub trait ComponentData: Default + Serialize + Reflect + 'static {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), SceneError> {
@@ -293,11 +279,11 @@ pub(crate) trait AnyComponentReflection {
     fn type_id(&self) -> TypeId;
 }
 
-pub(crate) struct StaticComponentReflection<C: Component> {
+pub(crate) struct StaticComponentReflection<C: ComponentData> {
     _phantom: std::marker::PhantomData<C>,
 }
 
-impl<C: Component> AnyComponentReflection for StaticComponentReflection<C> {
+impl<C: ComponentData> AnyComponentReflection for StaticComponentReflection<C> {
     fn create_asset_container(&self) -> Box<dyn AnyAssetContainer> {
         Box::<StaticAssetContainer<C>>::default()
     }
@@ -353,7 +339,7 @@ impl ComponentRegistry {
         Ok(())
     }
 
-    pub(crate) fn add_static<C: Component>(&mut self, name: &str) -> Result<(), RegistryError> {
+    pub(crate) fn add_static<C: ComponentData>(&mut self, name: &str) -> Result<(), RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
@@ -389,7 +375,7 @@ impl ComponentRegistry {
             if !H::check_type_id(self.definitions[id.into()].reflection.type_id()) {
                 None
             } else {
-                Some(H::new(component, id))
+                Some(H::new(id))
             }
         } else {
             None

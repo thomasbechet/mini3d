@@ -5,7 +5,7 @@ pub mod error;
 pub mod system;
 
 #[derive(Default)]
-pub(crate) struct RegistryManager {
+pub struct RegistryManager {
     pub(crate) systems: SystemRegistry,
     pub(crate) components: ComponentRegistry,
 }

@@ -7,7 +7,7 @@ use crate::input::backend::InputBackend;
 use crate::input::InputManager;
 use crate::network::backend::NetworkBackend;
 use crate::physics::PhysicsManager;
-use crate::registry::component::Component;
+use crate::registry::component::ComponentData;
 use crate::registry::error::RegistryError;
 use crate::registry::RegistryManager;
 use crate::renderer::backend::RendererBackend;
@@ -108,7 +108,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn new() -> Self {
+    pub fn new(core_features: bool) -> Self {
         let mut engine = Self {
             registry: Default::default(),
             storage: Default::default(),
@@ -120,9 +120,11 @@ impl Engine {
             global_time: 0.0,
             running: true,
         };
-        engine
-            .define_core_features()
-            .expect("Failed to define core features");
+        if core_features {
+            engine
+                .define_core_features()
+                .expect("Failed to define core features");
+        }
         engine
     }
 
@@ -158,7 +160,7 @@ impl Engine {
         Ok(())
     }
 
-    pub fn define_static_component<C: Component>(
+    pub fn define_static_component<C: ComponentData>(
         &mut self,
         name: &str,
     ) -> Result<(), RegistryError> {
@@ -235,7 +237,7 @@ impl Engine {
         // ================= POST-UPDATE STAGE ================== //
 
         self.renderer
-            .submit_graphics(&mut self.asset, &mut self.ecs.components, renderer);
+            .submit_graphics(&mut self.asset, &self.ecs.components, renderer);
 
         Ok(())
     }

@@ -7,7 +7,7 @@ use crate::{
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ExclusiveSystem,
     },

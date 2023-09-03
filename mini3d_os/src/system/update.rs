@@ -7,7 +7,7 @@ use mini3d::{
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ExclusiveSystem,
     },
@@ -36,7 +36,7 @@ impl ExclusiveSystem for UpdateOS {
     }
 
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
-        let mut os = scene.get_singleton_mut::<OS>(OS::UID)?.unwrap();
+        let mut os = ecs.view_mut(self.os)?.singleton().unwrap();
 
         // Toggle control mode
         if api
@@ -59,8 +59,8 @@ impl ExclusiveSystem for UpdateOS {
         //     }
         // }
 
-        let uis = ecs.view_mut(self.ui)?;
-        let ui = uis.iter().next().unwrap();
+        let mut uis = ecs.view_mut(self.ui)?;
+        let ui = uis.iter_mut().next().unwrap();
         let user = ui.user("main".into())?;
 
         os.controller.update(&api.input, user)?;

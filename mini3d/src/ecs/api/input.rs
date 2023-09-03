@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     feature::component::input::input_table::InputTable,
     input::{
@@ -27,6 +29,14 @@ impl<'a> ExclusiveInputAPI<'a> {
 
     pub fn text(&self, uid: UID) -> Result<&InputTextState, InputError> {
         self.manager.text(uid)
+    }
+}
+
+impl<'a> Deref for ExclusiveInputAPI<'a> {
+    type Target = InputManager;
+
+    fn deref(&self) -> &Self::Target {
+        self.manager
     }
 }
 

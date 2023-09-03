@@ -1,6 +1,6 @@
 use std::{fmt::Display, iter::Sum};
 
-use crate::serialize::{Serialize, Encoder, EncoderError, Decoder, DecoderError};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 /// Fast FNV1A hash algorithm taken from https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 
@@ -30,7 +30,8 @@ pub const fn fnv1a_hash_64(bytes: &[u8]) -> u64 {
     let mut hash = FNV1A_HASH_64;
     let len = bytes.len();
     let mut i = 0;
-    while i < len { // For loop is not supported in const fn
+    while i < len {
+        // For loop is not supported in const fn
         hash ^= bytes[i] as u64;
         hash = hash.wrapping_mul(FNV1A_PRIME_64);
         i += 1;
@@ -42,7 +43,6 @@ pub const fn fnv1a_hash_64(bytes: &[u8]) -> u64 {
 pub struct UID(u64);
 
 impl UID {
-
     pub const fn new(name: &str) -> Self {
         Self(fnv1a_hash_64(name.as_bytes()))
     }
@@ -103,7 +103,10 @@ impl Serialize for UID {
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         encoder.write_u64(self.0)
     }
-    fn deserialize(decoder: &mut impl Decoder, _header: &Self::Header) -> Result<Self, DecoderError> {
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
         Ok(Self(decoder.read_u64()?))
     }
 }
@@ -117,7 +120,8 @@ impl SequentialGenerator {
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> UID {
         self.next += 1;
-        if self.next == 0 { // Prevent generating null uid
+        if self.next == 0 {
+            // Prevent generating null uid
             self.next += 1;
         }
         UID::from(self.next)

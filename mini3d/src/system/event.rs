@@ -5,11 +5,11 @@ use crate::{
         common::script::Script,
         renderer::{font::Font, material::Material, mesh::Mesh, model::Model, texture::Texture},
     },
-    registry::component::Component,
+    registry::component::ComponentData,
 };
 
 #[derive(Serialize)]
-pub struct AssetImportEntry<C: Component> {
+pub struct AssetImportEntry<C: ComponentData> {
     pub name: String,
     pub data: C,
 }

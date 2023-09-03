@@ -12,7 +12,7 @@ use crate::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
     },
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ParallelSystem,
     },

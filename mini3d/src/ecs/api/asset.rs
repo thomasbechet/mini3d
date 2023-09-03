@@ -1,10 +1,12 @@
+use std::ops::Deref;
+
 use crate::{
     asset::{
         error::AssetError,
         handle::{AssetBundleId, AssetHandle},
         AssetManager, AssetSource,
     },
-    registry::component::{ComponentHandle, ComponentRegistry},
+    registry::component::ComponentHandle,
 };
 
 pub struct ExclusiveAssetAPI<'a> {
@@ -45,6 +47,14 @@ impl<'a> ExclusiveAssetAPI<'a> {
         asset: H::AssetRef<'_>,
     ) -> Result<(), AssetError> {
         self.manager.write(handle, asset)
+    }
+}
+
+impl<'a> Deref for ExclusiveAssetAPI<'a> {
+    type Target = AssetManager;
+
+    fn deref(&self) -> &Self::Target {
+        self.manager
     }
 }
 

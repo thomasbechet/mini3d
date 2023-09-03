@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    registry::component::Component,
+    registry::component::ComponentData,
     serialize::{Decoder, Encoder},
     utils::{slotmap::SlotMap, uid::UID},
 };
@@ -9,7 +9,7 @@ use crate::{
 use super::error::AssetError;
 
 #[derive(Default)]
-pub(crate) struct StaticAssetContainer<C: Component>(pub(crate) SlotMap<C>);
+pub(crate) struct StaticAssetContainer<C: ComponentData>(pub(crate) SlotMap<C>);
 
 pub(crate) trait AnyAssetContainer: Any {
     fn as_any(&self) -> &dyn Any;
@@ -27,7 +27,7 @@ pub(crate) trait AnyAssetContainer: Any {
     ) -> Result<(), AssetError>;
 }
 
-impl<C: Component> AnyAssetContainer for StaticAssetContainer<C> {
+impl<C: ComponentData> AnyAssetContainer for StaticAssetContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }

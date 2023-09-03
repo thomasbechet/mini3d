@@ -98,7 +98,7 @@ impl<'a> ParallelResolver<'a> {
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
         }
-        Ok(H::new(component, id))
+        Ok(H::new(id))
     }
 
     pub fn write<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
@@ -114,7 +114,7 @@ impl<'a> ParallelResolver<'a> {
         if !self.writes.contains(&id) {
             self.writes.push(id);
         }
-        Ok(H::new(component, id))
+        Ok(H::new(id))
     }
 
     pub fn query(&mut self) -> QueryBuilder<'_> {
@@ -144,11 +144,7 @@ pub(crate) trait AnyStaticParallelSystemInstance {
 pub(crate) type SystemInstanceId = SlotId;
 pub(crate) type SystemStageId = SlotId;
 
-pub(crate) const MAX_SYSTEM_INSTANCE_NAME_LEN: usize = 64;
-pub(crate) const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
-
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) name: AsciiArray<MAX_SYSTEM_INSTANCE_NAME_LEN>,
     pub(crate) system: SystemId,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQuery>,
@@ -158,42 +154,6 @@ pub(crate) struct SystemInstanceEntry {
 }
 
 pub enum StageEvent {}
-
-pub(crate) enum SystemStageKind {
-    Update,
-    FixedUpdate(f64),
-    Event(StageEvent),
-}
-
-pub struct SystemStage {
-    kind: SystemStageKind,
-}
-
-impl SystemStage {
-    pub const UPDATE: &'static str = "update";
-    pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
-    pub const SCENE_CHANGED: &'static str = "scene_changed";
-    pub const SCENE_START: &'static str = "scene_start";
-    pub const SCENE_STOP: &'static str = "scene_stop";
-
-    fn update() -> Self {
-        Self {
-            kind: SystemStageKind::Update,
-        }
-    }
-
-    pub fn fixed_update(frequency: f64) -> Self {
-        Self {
-            kind: SystemStageKind::FixedUpdate(frequency),
-        }
-    }
-
-    pub fn event(event: StageEvent) -> Self {
-        Self {
-            kind: SystemStageKind::Event(event),
-        }
-    }
-}
 
 pub(crate) struct StageEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,

@@ -1,7 +1,7 @@
 use mini3d::{
     feature::component::input::input_table::{InputAxisRange, InputTable},
     glam::Vec4,
-    uid::UID,
+    utils::uid::UID,
 };
 use mini3d_wgpu::context::WGPUContext;
 use winit::{

@@ -10,7 +10,7 @@ use crate::{
         ui::canvas::Canvas,
     },
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ExclusiveSystem,
     },

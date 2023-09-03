@@ -5,16 +5,13 @@ use std::{
 };
 
 use mini3d::{
-    event::{
-        asset::{AssetImportEntry, ImportAssetEvent},
-        Events,
-    },
     feature::component::renderer::{
         material::Material,
         mesh::{Mesh, SubMesh, Vertex},
         model::Model,
     },
     glam::{Vec2, Vec3, Vec4},
+    system::event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
 };
 use wavefront_obj::obj::{self, Primitive};
 
@@ -34,15 +31,17 @@ pub struct ModelImport {
 }
 
 impl ModelImport {
-    pub fn push(self, events: &mut Events) {
+    pub fn push(self, events: &mut Vec<SystemEvent>) {
         self.meshes.into_iter().for_each(|asset| {
-            events.asset.push(ImportAssetEvent::Mesh(asset));
+            events.push(SystemEvent::ImportAsset(ImportAssetEvent::Mesh(asset)));
         });
         self.materials.into_iter().for_each(|material| {
-            events.asset.push(ImportAssetEvent::Material(material));
+            events.push(SystemEvent::ImportAsset(ImportAssetEvent::Material(
+                material,
+            )));
         });
         self.models.into_iter().for_each(|model| {
-            events.asset.push(ImportAssetEvent::Model(model));
+            events.push(SystemEvent::ImportAsset(ImportAssetEvent::Model(model)));
         });
     }
 }

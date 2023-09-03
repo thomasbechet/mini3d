@@ -9,19 +9,17 @@ use gui::{WindowControl, WindowGUI};
 use mapper::InputMapper;
 use mini3d::{
     engine::Engine,
-    event::{
-        asset::{AssetImportEntry, ImportAssetEvent},
-        input::{InputEvent, InputTextEvent},
-        system::SystemEvent,
-        Events,
-    },
     feature::component::common::script::Script,
     glam::Vec2,
+    input::event::InputEvent,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
+    system::{
+        backend::SystemBackend,
+        event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
+    },
 };
 use mini3d_derive::Serialize;
-use mini3d_os::system::init::initialize_engine;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 // use serde::Serialize;
@@ -82,9 +80,9 @@ fn main_run() {
 
     // Instantiate engine with virtual disk
     let mut disk = VirtualDisk::new();
-    let mut events = Events::new();
+    let mut system_events = Vec::new();
 
-    let mut engine = Engine::new(disk);
+    let mut engine = Engine::new(true);
     initialize_engine(&mut engine).expect("Failed to initialize os");
 
     let mut last_click: Option<SystemTime> = None;
@@ -111,13 +109,13 @@ fn main_run() {
         .with_name("car")
         .import()
         .expect("Failed to import car texture.")
-        .push(&mut events);
+        .push(&mut system_events);
     ImageImporter::new()
         .from_source(Path::new("assets/GUI.png"))
         .with_name("GUI")
         .import()
         .expect("Failed to import GUI texture.")
-        .push(&mut events);
+        .push(&mut system_events);
 
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
@@ -125,35 +123,31 @@ fn main_run() {
         .with_name("car")
         .import()
         .expect("Failed to import car model.")
-        .push(&mut events);
+        .push(&mut system_events);
     ImageImporter::new()
         .from_source(Path::new("assets/alfred.png"))
         .with_name("alfred")
         .import()
         .expect("Failed to import alfred texture.")
-        .push(&mut events);
+        .push(&mut system_events);
     ModelImporter::new()
         .from_obj(Path::new("assets/alfred.obj"))
         .with_flat_normals(false)
         .with_name("alfred")
         .import()
         .expect("Failed to import alfred model.")
-        .push(&mut events);
+        .push(&mut system_events);
     let script = std::fs::read_to_string("assets/script_main.ms").expect("Failed to load.");
-    events
-        .asset
-        .push(ImportAssetEvent::Script(AssetImportEntry {
-            name: "main".to_string(),
-            data: Script { source: script },
-        }));
+    system_events.push(ImportAssetEvent::Script(AssetImportEntry {
+        name: "main".to_string(),
+        data: Script { source: script },
+    }));
     let script = std::fs::read_to_string("assets/script_utils.ms").expect("Failed to load.");
-    events
-        .asset
-        .push(ImportAssetEvent::Script(AssetImportEntry {
-            name: "utils".to_string(),
-            data: Script { source: script },
-        }));
-    events.system.push(SystemEvent::Shutdown);
+    system_events.push(ImportAssetEvent::Script(AssetImportEntry {
+        name: "utils".to_string(),
+        data: Script { source: script },
+    }));
+    system_events.system.push(SystemEvent::Shutdown);
 
     // Enter loop
     event_loop.run(move |event, _, control_flow| {
@@ -242,7 +236,7 @@ fn main_run() {
 
                             // Dispatch keyboard
                             if window.is_focus() {
-                                mapper.dispatch_keyboard(keycode, state, &mut events);
+                                mapper.dispatch_keyboard(keycode, state, &mut system_events);
                             }
                         }
                         WindowEvent::MouseInput {
@@ -270,11 +264,11 @@ fn main_run() {
 
                             // Dispatch mouse
                             if window.is_focus() {
-                                mapper.dispatch_mouse_button(button, state, &mut events);
+                                mapper.dispatch_mouse_button(button, state, &mut system_events);
                             }
                         }
                         WindowEvent::CloseRequested => {
-                            events.system.push(SystemEvent::Shutdown);
+                            system_events.system.push(SystemEvent::Shutdown);
                             *control_flow = ControlFlow::Exit;
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
@@ -286,7 +280,7 @@ fn main_run() {
                         }
                         WindowEvent::ReceivedCharacter(c) => {
                             if window.is_focus() {
-                                events.input.push(InputEvent::Text(InputTextEvent {
+                                system_events.input.push(InputEvent::Text(InputTextEvent {
                                     stream: "main".into(),
                                     value: c.to_string(),
                                 }));
@@ -308,7 +302,7 @@ fn main_run() {
                                     * SCREEN_RESOLUTION.as_vec2();
                                 mapper.dispatch_mouse_cursor(
                                     (final_position.x, final_position.y),
-                                    &mut events,
+                                    &mut system_events,
                                 );
                             }
                         }
@@ -329,13 +323,13 @@ fn main_run() {
                     if mouse_motion.0 != last_mouse_motion.0
                         || mouse_motion.1 != last_mouse_motion.1
                     {
-                        mapper.dispatch_mouse_motion(mouse_motion, &mut events);
+                        mapper.dispatch_mouse_motion(mouse_motion, &mut system_events);
                         last_mouse_motion = mouse_motion;
                     }
                     if wheel_motion.0 != last_wheel_motion.0
                         || wheel_motion.1 != last_wheel_motion.1
                     {
-                        mapper.dispatch_mouse_wheel(wheel_motion, &mut events);
+                        mapper.dispatch_mouse_wheel(wheel_motion, &mut system_events);
                         last_wheel_motion = wheel_motion;
                     }
                 }
@@ -349,13 +343,28 @@ fn main_run() {
                     } else {
                         match event {
                             gilrs::EventType::ButtonPressed(button, _) => {
-                                mapper.dispatch_controller_button(*id, *button, true, &mut events);
+                                mapper.dispatch_controller_button(
+                                    *id,
+                                    *button,
+                                    true,
+                                    &mut system_events,
+                                );
                             }
                             gilrs::EventType::ButtonReleased(button, _) => {
-                                mapper.dispatch_controller_button(*id, *button, false, &mut events);
+                                mapper.dispatch_controller_button(
+                                    *id,
+                                    *button,
+                                    false,
+                                    &mut system_events,
+                                );
                             }
                             gilrs::EventType::AxisChanged(axis, value, _) => {
-                                mapper.dispatch_controller_axis(*id, *axis, *value, &mut events);
+                                mapper.dispatch_controller_axis(
+                                    *id,
+                                    *axis,
+                                    *value,
+                                    &mut system_events,
+                                );
                             }
                             _ => {}
                         }
@@ -394,7 +403,7 @@ fn main_run() {
 
                 // Progress engine
                 engine
-                    .progress(&events, dt)
+                    .progress(&system_events, dt)
                     .expect("Failed to progress engine");
                 engine
                     .synchronize_input(&mut mapper)
@@ -486,7 +495,7 @@ fn main_run() {
                 }
 
                 // Reset events
-                events.clear();
+                system_events.clear();
 
                 // Check exit
                 if *control_flow != ControlFlow::Exit {

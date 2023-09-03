@@ -10,7 +10,7 @@ use mini3d::renderer::backend::{
 use mini3d::renderer::color::{srgb_to_linear, Color};
 use mini3d::renderer::graphics::TextureWrapMode;
 use mini3d::renderer::{RendererStatistics, SCREEN_RESOLUTION};
-use mini3d::utils::uid::SequentialGenerator;
+use mini3d::utils::uid::{SequentialGenerator, UID};
 
 use crate::blit_bind_group::{create_blit_bind_group, create_blit_bind_group_layout};
 use crate::blit_pipeline::{
@@ -780,11 +780,5 @@ impl RendererBackend for WGPURenderer {
             .ok_or(RendererBackendError::ResourceNotFound)?;
         self.model_buffer.set_transform(model.model_index, &mat);
         Ok(())
-    }
-
-    /// Statistics API
-
-    fn statistics(&self) -> Result<RendererStatistics, RendererBackendError> {
-        Ok(self.statistics)
     }
 }

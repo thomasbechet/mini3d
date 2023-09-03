@@ -2,13 +2,9 @@ use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
 use mini3d::{
-    event::{
-        input::{InputActionEvent, InputAxisEvent, InputEvent},
-        Events,
-    },
     feature::component::input::input_table::InputTable,
     input::backend::{InputBackend, InputBackendError},
-    uid::UID,
+    utils::uid::UID,
 };
 use mini3d_os::input::{CommonAction, CommonAxis};
 use serde::{Deserialize, Serialize};

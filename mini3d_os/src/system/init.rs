@@ -1,4 +1,5 @@
 use mini3d::{
+    asset::handle::StaticAsset,
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
         system::SystemResult,
@@ -20,7 +21,7 @@ use mini3d::{
     glam::{IVec2, Quat, Vec3},
     math::rect::IRect,
     registry::{
-        component::{Component, StaticComponent},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ExclusiveSystem,
     },
@@ -68,6 +69,7 @@ struct OSInitialize {
     ui: StaticComponent<UI>,
     ui_render_target: StaticComponent<UIRenderTarget>,
     script: StaticComponent<Script>,
+    os: StaticComponent<OS>,
 }
 
 impl OSInitialize {
@@ -609,13 +611,15 @@ impl OSInitialize {
 
         // Setup singleton
         {
-            scene.add_singleton(
-                OS::UID,
-                OS {
-                    layout_active: true,
-                    controller,
-                },
-            )?;
+            ecs.add()
+                .with(
+                    self.os,
+                    OS {
+                        layout_active: true,
+                        controller,
+                    },
+                )
+                .build();
         }
 
         Ok(())
@@ -628,49 +632,28 @@ impl ExclusiveSystem for OSInitialize {
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
         self.setup_assets(api)?;
         self.setup_scene(ecs, api)?;
+
+        let main_script: StaticAsset<Script> =
+            api.asset.find("main").expect("Script 'main' not found");
+        let utils_script: StaticAsset<Script> =
+            api.asset.find("utils").expect("Script 'utils' not found");
+        let script = api.asset.read(main_script)?;
+
+        println!("Script: {:?}", script.source);
+        let mut compiler = Compiler::default();
+        let entry = compiler.add_module("main".into(), Module::Source { asset: main_script });
+        compiler.add_module(
+            "utils".into(),
+            Module::Source {
+                asset: utils_script,
+            },
+        );
+        if let Result::Err(e) = compiler.compile(entry, &api.asset) {
+            println!("Error: {:?}", e);
+        } else {
+            println!("SUCCESS");
+        }
+
         Ok(())
     }
-}
-
-fn init_system(ctx: &mut ExclusiveSystemContext) -> SystemResult {
-    setup_assets(ctx)?;
-    setup_scene(ctx)?;
-
-    let script = ctx
-        .asset
-        .get::<Script>(Script::UID, "main".into())?
-        .expect("Script not registered");
-    println!("Script: {:?}", script.source);
-    let mut compiler = Compiler::default();
-    let entry = compiler.add_module(
-        "main".into(),
-        Module::Source {
-            asset: "main".into(),
-        },
-    );
-    compiler.add_module(
-        "utils".into(),
-        Module::Source {
-            asset: "utils".into(),
-        },
-    );
-    if let Result::Err(e) = compiler.compile(entry, &ctx.asset, &ctx.registry) {
-        println!("Error: {:?}", e);
-    } else {
-        println!("SUCCESS");
-    }
-
-    Ok(())
-}
-
-pub fn initialize_engine(engine: &mut Engine) -> Result<(), RegistryError> {
-    engine.define_static_component::<OS>(OS::NAME)?;
-    engine.define_exclusive_callback("update", crate::system::update::update)?;
-    engine
-        .define_exclusive_callback("init", init_system)
-        .expect("Failed to define init system");
-
-    engine.invoke_system("init".into());
-
-    Ok(())
 }

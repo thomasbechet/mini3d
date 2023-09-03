@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     ecs::{
         api::{
@@ -20,21 +18,6 @@ use crate::{
 };
 
 use super::error::RegistryError;
-
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SystemId(SlotId);
-
-impl From<SlotId> for SystemId {
-    fn from(id: SlotId) -> Self {
-        Self(id)
-    }
-}
-
-impl From<SystemId> for SlotId {
-    fn from(id: SystemId) -> Self {
-        id.0
-    }
-}
 
 pub trait ExclusiveSystem: 'static + Default {
     const NAME: &'static str;
@@ -111,66 +94,137 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
     }
 }
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct System(SlotId);
+
+impl From<SlotId> for System {
+    fn from(id: SlotId) -> Self {
+        Self(id)
+    }
+}
+
+impl From<System> for SlotId {
+    fn from(id: System) -> Self {
+        id.0
+    }
+}
+
+pub(crate) enum SystemStageKind<'a> {
+    Update,
+    FixedUpdate(f64),
+    Custom(&'a str),
+}
+
+pub struct SystemStage<'a> {
+    kind: SystemStageKind<'a>,
+}
+
+impl<'a> SystemStage<'a> {
+    pub const UPDATE: SystemStage<'static> = Self {
+        kind: SystemStageKind::Update,
+    };
+    pub const FIXED_UPDATE_60HZ: SystemStage<'static> = Self::fixed_update(60.0);
+    pub const SCENE_CHANGED: SystemStage<'static> = Self::custom("scene_changed");
+    pub const SCENE_START: SystemStage<'static> = Self::custom("scene_start");
+    pub const SCENE_STOP: SystemStage<'static> = Self::custom("scene_stop");
+
+    pub const fn fixed_update(frequency: f64) -> Self {
+        Self {
+            kind: SystemStageKind::FixedUpdate(frequency),
+        }
+    }
+
+    pub const fn custom(event: &'a str) -> Self {
+        Self {
+            kind: SystemStageKind::Custom(event),
+        }
+    }
+}
+
 pub(crate) const MAX_SYSTEM_NAME_LEN: usize = 64;
+pub(crate) const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
+
+pub(crate) struct SystemStageDefinition {
+    pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
+    uid: UID,
+    ref_count: usize,
+}
 
 pub(crate) struct SystemDefinition {
     pub(crate) name: AsciiArray<MAX_SYSTEM_NAME_LEN>,
+    uid: UID,
     pub(crate) reflection: Box<dyn AnySystemReflection>,
+    stage: SlotId,
 }
 
 #[derive(Default)]
 pub(crate) struct SystemRegistry {
     systems: SlotMap<SystemDefinition>,
-    lookup_cache: HashMap<UID, SystemId>,
+    stages: SlotMap<SystemStageDefinition>,
 }
 
 impl SystemRegistry {
-    fn add(&mut self, definition: SystemDefinition) -> Result<SystemId, RegistryError> {
-        let uid: UID = definition.name.as_str().into();
-        if self.find(uid).is_some() {
+    fn add_system(&mut self, definition: SystemDefinition) -> Result<System, RegistryError> {
+        if self.find(definition.uid).is_some() {
             return Err(RegistryError::DuplicatedSystemDefinition {
                 name: definition.name.to_string(),
             });
         }
         let id = self.systems.add(definition);
-        self.lookup_cache.insert(uid, id.into());
+        self.stages[definition.stage].ref_count += 1;
         Ok(id.into())
     }
 
-    fn resolve_components(&mut self) -> Result<(), RegistryError> {
-        // TODO: Resolve components
-        Ok(())
+    fn get_or_add_system_stage(&mut self, stage: SystemStage) -> SlotId {
+        for (id, stage) in self.stages.iter() {
+            if stage.uid == stage {
+                return id;
+            }
+        }
+        self.stages.add(SystemStageDefinition {
+            name: stage.uid().into(),
+            uid: stage.uid(),
+            ref_count: 0,
+        })
     }
 
     pub(crate) fn add_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
-    ) -> Result<SystemId, RegistryError> {
-        self.add(SystemDefinition {
+        stage: SystemStage,
+    ) -> Result<System, RegistryError> {
+        let stage = self.get_or_add_system_stage(stage);
+        self.add_system(SystemDefinition {
             name: name.into(),
+            uid: S::UID,
             reflection: Box::new(StaticExclusiveSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
             }),
+            stage,
         })
     }
 
     pub(crate) fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
-    ) -> Result<SystemId, RegistryError> {
-        self.add(SystemDefinition {
+        stage: SystemStage,
+    ) -> Result<System, RegistryError> {
+        let stage = self.get_or_add_system_stage(stage);
+        self.add_system(SystemDefinition {
             name: name.into(),
+            uid: S::UID,
             reflection: Box::new(StaticParallelSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
             }),
+            stage,
         })
     }
 
-    pub(crate) fn find(&self, uid: UID) -> Option<SystemId> {
-        self.lookup_cache.get(&uid).copied()
+    pub(crate) fn find(&self, uid: UID) -> Option<&SystemDefinition> {
+        self.systems.get(uid.into())
     }
 
-    pub(crate) fn get(&self, id: SystemId) -> Option<&SystemDefinition> {
-        self.systems.get(id.into())
+    pub(crate) fn get(&self, system: System) -> Option<&SystemDefinition> {
+        self.systems.get(system.into())
     }
 }

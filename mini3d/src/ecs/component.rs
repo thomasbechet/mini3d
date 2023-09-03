@@ -4,7 +4,7 @@ use mini3d_derive::Serialize;
 use super::{entity::Entity, error::SceneError, sparse::PagedVector};
 use crate::{
     registry::component::{
-        Component, ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTableRef,
+        ComponentData, ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTableRef,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SparseSecondaryMap,
@@ -100,13 +100,13 @@ pub(crate) trait AnyComponentContainer {
     trait_property!(UID, read_uid, write_uid);
 }
 
-pub(crate) struct StaticComponentContainer<C: Component> {
+pub(crate) struct StaticComponentContainer<C: ComponentData> {
     data: Vec<(C, Entity, ComponentFlags)>,
     indices: PagedVector<usize>, // Entity -> Index
     changed: Vec<Entity>,
 }
 
-impl<C: Component> StaticComponentContainer<C> {
+impl<C: ComponentData> StaticComponentContainer<C> {
     pub(crate) fn with_capacity(size: usize) -> Self {
         Self {
             data: Vec::with_capacity(size),
@@ -157,6 +157,13 @@ impl<C: Component> StaticComponentContainer<C> {
             .map(|(c, _, _)| c)
     }
 
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
+        self.data
+            .iter_mut()
+            .filter(|(_, _, f)| !matches!(f.status(), ComponentStatus::Removed))
+            .map(|(c, _, _)| c)
+    }
+
     pub(crate) fn add(&mut self, entity: Entity, component: C, cycle: u32) {
         // Append component
         self.data
@@ -166,7 +173,7 @@ impl<C: Component> StaticComponentContainer<C> {
     }
 }
 
-impl<C: Component> AnyComponentContainer for StaticComponentContainer<C> {
+impl<C: ComponentData> AnyComponentContainer for StaticComponentContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
