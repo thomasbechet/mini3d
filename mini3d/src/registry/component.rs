@@ -307,7 +307,7 @@ impl<C: ComponentData> AnyComponentReflection for StaticComponentReflection<C> {
 
 pub(crate) const MAX_COMPONENT_NAME_LEN: usize = 64;
 
-pub(crate) struct ComponentDefinition {
+pub(crate) struct ComponentEntry {
     pub(crate) name: AsciiArray<MAX_COMPONENT_NAME_LEN>,
     pub(crate) reflection: Box<dyn AnyComponentReflection>,
     pub(crate) kind: ComponentKind,
@@ -315,7 +315,7 @@ pub(crate) struct ComponentDefinition {
 
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
-    definitions: SlotMap<ComponentDefinition>,
+    entries: SlotMap<ComponentEntry>,
 }
 
 impl ComponentRegistry {
@@ -331,7 +331,7 @@ impl ComponentRegistry {
                 name: name.to_string(),
             });
         }
-        let id = self.definitions.add(ComponentDefinition {
+        let id = self.entries.add(ComponentEntry {
             name: name.into(),
             kind,
             reflection,
@@ -357,14 +357,14 @@ impl ComponentRegistry {
     pub(crate) fn definition<H: ComponentHandle>(
         &self,
         handle: H,
-    ) -> Result<&ComponentDefinition, RegistryError> {
-        self.definitions
+    ) -> Result<&ComponentEntry, RegistryError> {
+        self.entries
             .get(handle.id().into())
             .ok_or(RegistryError::AssetDefinitionNotFound)
     }
 
     pub(crate) fn find_id(&self, component: UID) -> Option<ComponentId> {
-        self.definitions
+        self.entries
             .iter()
             .find(|(_, def)| UID::new(&def.name) == component)
             .map(|(id, _)| id.into())
@@ -372,7 +372,7 @@ impl ComponentRegistry {
 
     pub fn find<H: ComponentHandle>(&self, component: UID) -> Option<H> {
         if let Some(id) = self.find_id(component) {
-            if !H::check_type_id(self.definitions[id.into()].reflection.type_id()) {
+            if !H::check_type_id(self.entries[id.into()].reflection.type_id()) {
                 None
             } else {
                 Some(H::new(id))

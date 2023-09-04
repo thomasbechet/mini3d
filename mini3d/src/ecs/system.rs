@@ -4,7 +4,7 @@ use crate::{
     registry::{
         component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,
-        system::{SystemId, SystemRegistry},
+        system::SystemRegistry,
     },
     utils::{
         slotmap::{SlotId, SlotMap},

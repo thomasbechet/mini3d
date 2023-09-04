@@ -4,7 +4,6 @@ use crate::{
     registry::{
         component::{ComponentId, ComponentRegistry},
         error::RegistryError,
-        system::SystemId,
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -43,7 +42,7 @@ pub(crate) struct FilterQueryEntry {
     cycle: usize,
     kind: FilterKind,
     entities: Vec<Entity>,
-    system: SystemId,
+    system: System,
 }
 
 #[derive(Default)]

@@ -2,7 +2,10 @@ use crate::{
     registry::{
         component::{ComponentData, ComponentHandle, ComponentRegistry},
         error::RegistryError,
-        system::{ExclusiveSystem, ParallelSystem, SystemId, SystemRegistry},
+        system::{
+            ExclusiveSystem, ParallelSystem, System, SystemRegistry, SystemStage,
+            SystemStageDefinition,
+        },
     },
     utils::uid::UID,
 };
@@ -28,20 +31,24 @@ impl<'a> ExclusiveSystemRegistryAPI<'a> {
     pub fn add_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
-    ) -> Result<SystemId, RegistryError> {
-        self.manager.add_static_exclusive::<S>(name)
+        stage: SystemStageDefinition,
+    ) -> Result<System, RegistryError> {
+        self.manager.add_static_exclusive::<S>(name, stage)
     }
 
     pub fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
-    ) -> Result<SystemId, RegistryError> {
-        self.manager.add_static_parallel::<S>(name)
+        stage: SystemStageDefinition,
+    ) -> Result<System, RegistryError> {
+        self.manager.add_static_parallel::<S>(name, stage)
     }
 
-    pub fn find(&self, uid: UID) -> Option<SystemId> {
+    pub fn find(&self, uid: UID) -> Option<System> {
         self.manager.find(uid)
     }
+
+    pub fn find_stage(&self, stage: SystemStageDefinition) -> Option<SystemStage> {}
 }
 
 pub struct ExclusiveComponentRegistryAPI<'a> {

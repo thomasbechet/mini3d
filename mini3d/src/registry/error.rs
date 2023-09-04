@@ -14,4 +14,6 @@ pub enum RegistryError {
     ComponentDefinitionNotFound,
     #[error("System definition not found")]
     SystemDefinitionNotFound,
+    #[error("Incompatible system stage definition")]
+    IncompatibleSystemStageDefinition,
 }
