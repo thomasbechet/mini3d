@@ -97,9 +97,6 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct System(SlotId);
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SystemStage(SlotId);
-
 impl From<SlotId> for System {
     fn from(id: SlotId) -> Self {
         Self(id)
@@ -107,56 +104,27 @@ impl From<SlotId> for System {
 }
 
 impl From<System> for SlotId {
-    fn from(id: System) -> Self {
-        id.0
+    fn from(system: System) -> Self {
+        system.0
     }
 }
 
-pub(crate) enum SystemStageBuildKind<'a> {
-    Update,
-    FixedUpdate(f64),
-    Custom(&'a str),
-}
-
-pub struct SystemStageDefinition<'a> {
-    kind: SystemStageBuildKind<'a>,
-}
+pub struct SystemStage;
 
 impl SystemStage {
-    pub const UPDATE: SystemStageDefinition<'static> = SystemStageDefinition {
-        kind: SystemStageBuildKind::Update,
-    };
-    pub const FIXED_UPDATE_60HZ: SystemStageDefinition<'static> = Self::fixed_update(60.0);
-    pub const SCENE_CHANGED: SystemStageDefinition<'static> = Self::custom("scene_changed");
-    pub const SCENE_START: SystemStageDefinition<'static> = Self::custom("scene_start");
-    pub const SCENE_STOP: SystemStageDefinition<'static> = Self::custom("scene_stop");
-
-    pub const fn fixed_update(frequency: f64) -> Self {
-        SystemStageDefinition {
-            kind: SystemStageBuildKind::FixedUpdate(frequency),
-        }
-    }
-
-    pub const fn custom(event: &str) -> Self {
-        SystemStageDefinition {
-            kind: SystemStageBuildKind::Custom(event),
-        }
-    }
+    pub const UPDATE: &'static str = "update";
+    pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
+    pub const SCENE_CHANGED: &'static str = "scene_changed";
+    pub const SCENE_START: &'static str = "scene_start";
+    pub const SCENE_STOP: &'static str = "scene_stop";
 }
 
-pub(crate) const MAX_SYSTEM_NAME_LEN: usize = 64;
-pub(crate) const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
-
-pub(crate) enum SystemStageKind {
-    Update,
-    FixedUpdate(f64),
-    Custom,
-}
+pub const MAX_SYSTEM_NAME_LEN: usize = 64;
+pub const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
 
 pub(crate) struct SystemStageEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
     pub(crate) uid: UID,
-    pub(crate) kind: SystemStageKind,
     ref_count: usize,
 }
 
@@ -167,10 +135,32 @@ pub(crate) struct SystemEntry {
     pub(crate) stage: SlotId,
 }
 
-#[derive(Default)]
 pub(crate) struct SystemRegistry {
     systems: SlotMap<SystemEntry>,
     stages: SlotMap<SystemStageEntry>,
+}
+
+impl Default for SystemRegistry {
+    fn default() -> Self {
+        let mut reg = Self {
+            systems: Default::default(),
+            stages: Default::default(),
+        };
+        for name in [
+            SystemStage::UPDATE,
+            SystemStage::FIXED_UPDATE_60HZ,
+            SystemStage::SCENE_CHANGED,
+            SystemStage::SCENE_START,
+            SystemStage::SCENE_STOP,
+        ] {
+            reg.stages.add(SystemStageEntry {
+                name: AsciiArray::from(name),
+                uid: UID::new(name),
+                ref_count: 0,
+            });
+        }
+        reg
+    }
 }
 
 impl SystemRegistry {
@@ -185,32 +175,16 @@ impl SystemRegistry {
         Ok(id.into())
     }
 
-    fn get_or_add_system_stage(&mut self, stage: SystemStage) -> Result<SlotId, RegistryError> {
-        let kind = match stage.kind {
-            SystemStageBuildKind::Update => SystemStageKind::Update,
-            SystemStageBuildKind::FixedUpdate(frequency) => SystemStageKind::FixedUpdate(frequency),
-            SystemStageBuildKind::Custom(_) => SystemStageKind::Custom,
-        };
-        let name = AsciiArray::from(match stage.kind {
-            SystemStageBuildKind::Update => "update",
-            SystemStageBuildKind::FixedUpdate(frequency) => {
-                format!("fixed_update_{:.2}hz", frequency).as_str()
-            }
-            SystemStageBuildKind::Custom(name) => name,
-        });
+    fn get_or_add_system_stage(&mut self, name: &str) -> Result<SlotId, RegistryError> {
         let uid = UID::from(name);
         for (id, def) in self.stages.iter() {
             if def.uid == uid {
-                if !matches!(def.kind, kind) {
-                    return Err(RegistryError::IncompatibleSystemStageDefinition);
-                }
                 return Ok(id);
             }
         }
         Ok(self.stages.add(SystemStageEntry {
-            name,
+            name: AsciiArray::from(name),
             uid,
-            kind,
             ref_count: 0,
         }))
     }
@@ -218,7 +192,7 @@ impl SystemRegistry {
     pub(crate) fn add_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
-        stage: SystemStage,
+        stage: &str,
     ) -> Result<System, RegistryError> {
         let stage = self.get_or_add_system_stage(stage)?;
         self.add_system(SystemEntry {
@@ -234,7 +208,7 @@ impl SystemRegistry {
     pub(crate) fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
-        stage: SystemStage,
+        stage: &str,
     ) -> Result<System, RegistryError> {
         let stage = self.get_or_add_system_stage(stage)?;
         self.add_system(SystemEntry {
@@ -247,6 +221,10 @@ impl SystemRegistry {
         })
     }
 
+    pub(crate) fn remove(&mut self, system: System) {
+        todo!()
+    }
+
     pub(crate) fn find(&self, uid: UID) -> Option<System> {
         self.systems
             .iter()
@@ -254,18 +232,7 @@ impl SystemRegistry {
             .map(|(id, _)| id.into())
     }
 
-    pub(crate) fn find_stage(&self, uid: UID) -> Option<SystemStage> {
-        self.stages
-            .iter()
-            .find(|(_, def)| def.uid == uid)
-            .map(|(id, _)| id.into())
-    }
-
     pub(crate) fn get(&self, system: System) -> Option<&SystemEntry> {
         self.systems.get(system.into())
-    }
-
-    pub(crate) fn get_stage(&self, stage: SystemStage) -> Option<&SystemStageEntry> {
-        self.stages.get(stage.into())
     }
 }

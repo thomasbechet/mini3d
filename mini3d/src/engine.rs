@@ -9,6 +9,7 @@ use crate::network::backend::NetworkBackend;
 use crate::physics::PhysicsManager;
 use crate::registry::component::ComponentData;
 use crate::registry::error::RegistryError;
+use crate::registry::system::SystemStage;
 use crate::registry::RegistryManager;
 use crate::renderer::backend::RendererBackend;
 use crate::renderer::RendererManager;
@@ -51,18 +52,18 @@ impl Engine {
         }
 
         macro_rules! define_system_exclusive {
-            ($name: literal, $system: ty) => {
+            ($name: literal, $system: ty, $stage: expr) => {
                 self.registry
                     .systems
-                    .add_static_exclusive::<$system>($name)?;
+                    .add_static_exclusive::<$system>($name, $stage)?;
             };
         }
 
         macro_rules! define_system_parallel {
-            ($name: literal, $system: ty) => {
+            ($name: literal, $system: ty, $stage: expr) => {
                 self.registry
                     .systems
-                    .add_static_parallel::<$system>($name)?;
+                    .add_static_parallel::<$system>($name, $stage)?;
             };
         }
 
@@ -94,16 +95,33 @@ impl Engine {
         define_component!(component::scene::transform::Transform);
 
         // Define systems
-        define_system_exclusive!("despawn_entities", system::despawn::DespawnEntities);
-        define_system_exclusive!("renderer", system::renderer::DespawnRendererEntities);
-        define_system_parallel!("free_fly", system::free_fly::FreeFlySystem);
-        define_system_parallel!("rotator", system::rotator::RotatorSystem);
+        define_system_exclusive!(
+            "despawn_entities",
+            system::despawn::DespawnEntities,
+            SystemStage::UPDATE
+        );
+        define_system_exclusive!(
+            "renderer",
+            system::renderer::DespawnRendererEntities,
+            SystemStage::UPDATE
+        );
+        define_system_parallel!(
+            "free_fly",
+            system::free_fly::FreeFlySystem,
+            SystemStage::UPDATE
+        );
+        define_system_parallel!(
+            "rotator",
+            system::rotator::RotatorSystem,
+            SystemStage::UPDATE
+        );
         define_system_parallel!(
             "transform_propagate",
-            system::transform::PropagateTransforms
+            system::transform::PropagateTransforms,
+            SystemStage::UPDATE
         );
-        define_system_parallel!("ui_update", system::ui::UpdateUI);
-        define_system_exclusive!("ui_render", system::ui::RenderUI);
+        define_system_parallel!("ui_update", system::ui::UpdateUI, SystemStage::UPDATE);
+        define_system_exclusive!("ui_render", system::ui::RenderUI, SystemStage::UPDATE);
 
         Ok(())
     }

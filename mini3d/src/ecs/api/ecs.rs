@@ -43,6 +43,8 @@ impl<'a> ExclusiveECS<'a> {
         self.components.view_mut(component, self.cycle)
     }
 
+    pub fn set_periodic_invoke(&mut self, stage: UID, frequency: u32) -> Result<(), SceneError> {}
+
     pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), SceneError> {
         let stage = self
             .systems

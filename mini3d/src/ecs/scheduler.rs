@@ -27,7 +27,7 @@ use super::{
     query::QueryTable,
     system::{
         AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceId,
-        SystemResult, SystemStageId, SystemStageKind, SystemTable,
+        SystemResult, SystemStageId, SystemTable,
     },
     ECSUpdateContext,
 };

@@ -4,6 +4,7 @@ use crate::{
     registry::{
         component::{ComponentId, ComponentRegistry},
         error::RegistryError,
+        system::System,
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -159,7 +160,7 @@ impl QueryTable {
         entities: &mut EntityTable,
         kind: FilterKind,
         query: Query,
-        system: SystemId,
+        system: System,
     ) -> FilterQuery {
         let id = FilterQuery(self.filter_queries.add(FilterQueryEntry {
             query,
@@ -186,7 +187,7 @@ impl QueryTable {
 
 pub struct QueryBuilder<'a> {
     pub(crate) registry: &'a ComponentRegistry,
-    pub(crate) system: SystemId,
+    pub(crate) system: System,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
     pub(crate) not: &'a mut Vec<ComponentId>,

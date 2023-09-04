@@ -4,7 +4,7 @@ use crate::{
     registry::{
         component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,
-        system::SystemRegistry,
+        system::{System, SystemRegistry, MAX_SYSTEM_STAGE_NAME_LEN},
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -39,7 +39,7 @@ impl From<&str> for Box<dyn SystemError> {
 
 pub struct ExclusiveResolver<'a> {
     registry: &'a ComponentRegistry,
-    system: SystemId,
+    system: System,
     all: &'a mut Vec<ComponentId>,
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
@@ -75,7 +75,7 @@ impl<'a> ExclusiveResolver<'a> {
 
 pub struct ParallelResolver<'a> {
     registry: &'a ComponentRegistry,
-    system: SystemId,
+    system: System,
     reads: Vec<ComponentId>,
     writes: Vec<ComponentId>,
     all: &'a mut Vec<ComponentId>,
@@ -145,7 +145,7 @@ pub(crate) type SystemInstanceId = SlotId;
 pub(crate) type SystemStageId = SlotId;
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) system: SystemId,
+    pub(crate) system: System,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQuery>,
     pub(crate) active: bool,
@@ -153,16 +153,18 @@ pub(crate) struct SystemInstanceEntry {
     pub(crate) prev_instance: Option<SystemInstanceId>,
 }
 
-pub enum StageEvent {}
+pub(crate) enum SystemStageKind {
+    Update,
+    FixedUpdate(f64),
+    Event(UID),
+}
 
 pub(crate) struct StageEntry {
-    pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
     pub(crate) kind: SystemStageKind,
     pub(crate) first_instance: Option<SystemInstanceId>,
 }
 
 pub(crate) struct SystemTable {
-    pub(crate) stages: SlotMap<StageEntry>,
     pub(crate) instances: SlotMap<SystemInstanceEntry>,
 }
 
