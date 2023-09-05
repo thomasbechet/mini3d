@@ -24,11 +24,11 @@ use super::{
     component::ComponentTable,
     entity::EntityTable,
     error::SceneError,
-    query::QueryTable,
-    system::{
-        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceId,
-        SystemResult, SystemStageId, SystemTable,
+    instance::{
+        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceTable,
+        SystemResult,
     },
+    query::QueryTable,
     ECSUpdateContext,
 };
 
@@ -114,7 +114,7 @@ pub(crate) struct Scheduler {
 }
 
 impl Scheduler {
-    pub(crate) fn build(&mut self, systems: &SystemTable, registry: &SystemRegistry) {
+    pub(crate) fn build(&mut self, systems: &SystemInstanceTable, registry: &SystemRegistry) {
         self.nodes.clear();
         self.stages.clear();
         self.update_stage = SystemStageId::null();
@@ -192,7 +192,7 @@ impl Scheduler {
         components: &mut ComponentTable,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-        systems: &mut SystemTable,
+        systems: &mut SystemInstanceTable,
         context: &mut ECSUpdateContext,
     ) -> Result<(), SceneError> {
         // Collect previous frame stages

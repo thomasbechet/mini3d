@@ -3,8 +3,8 @@ use glam::{Quat, Vec3};
 use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
+        instance::{ParallelResolver, SystemResult},
         query::Query,
-        system::{ParallelResolver, SystemResult},
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
     registry::{

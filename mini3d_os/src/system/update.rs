@@ -1,8 +1,8 @@
 use mini3d::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
+        instance::{ExclusiveResolver, SystemResult},
         query::Query,
-        system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,

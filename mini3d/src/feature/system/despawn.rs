@@ -2,8 +2,8 @@ use crate::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
         entity::Entity,
+        instance::{ExclusiveResolver, SystemResult},
         query::Query,
-        system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::{

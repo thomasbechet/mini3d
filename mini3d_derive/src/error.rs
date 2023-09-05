@@ -1,6 +1,6 @@
-use proc_macro2::{TokenStream, Span, Ident};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Result, Data, Error, Attribute, Generics, DataEnum, LitStr, Fields};
+use syn::{Attribute, Data, DataEnum, DeriveInput, Error, Fields, Generics, LitStr, Result};
 
 pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
@@ -9,14 +9,17 @@ pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
     }
 }
 
-pub(crate) fn derive_enum(ident: &Ident, _attrs: &[Attribute], generics: &Generics, data: &DataEnum) -> Result<TokenStream> {
-    
+pub(crate) fn derive_enum(
+    ident: &Ident,
+    _attrs: &[Attribute],
+    generics: &Generics,
+    data: &DataEnum,
+) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
-    
+
     let mut formats = Vec::new();
 
     for variant in &data.variants {
-
         // Parse format
         let mut format = None;
         for attr in &variant.attrs {
@@ -30,25 +33,34 @@ pub(crate) fn derive_enum(ident: &Ident, _attrs: &[Attribute], generics: &Generi
             match &variant.fields {
                 Fields::Named(fields) => {
                     let ident = &variant.ident;
-                    let field_idents = fields.named.iter().map(|field| &field.ident).collect::<Vec<_>>();
+                    let field_idents = fields
+                        .named
+                        .iter()
+                        .map(|field| &field.ident)
+                        .collect::<Vec<_>>();
                     formats.push(quote!{ Self::#ident { #(ref #field_idents),* } => core::write!(f, #format, #(#field_idents = #field_idents),*) })
-                },
+                }
                 Fields::Unnamed(fields) => {
                     let ident = &variant.ident;
-                    let field_indices = fields.unnamed.iter().enumerate().map(|(i, _)| Ident::new(&format!("field{}", i), Span::call_site()) ).collect::<Vec<_>>();
+                    let field_indices = fields
+                        .unnamed
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _)| Ident::new(&format!("field{}", i), Span::call_site()))
+                        .collect::<Vec<_>>();
                     formats.push(quote!{ Self::#ident(#(ref #field_indices),*) => core::write!(f, #format, #(#field_indices),*) })
-                },
+                }
                 Fields::Unit => {
                     let ident = &variant.ident;
-                    formats.push(quote!{ Self::#ident => core::write!(f, #format) })
-                },
+                    formats.push(quote! { Self::#ident => core::write!(f, #format) })
+                }
             }
         } else {
             let ident = &variant.ident;
-            formats.push(quote!{ Self::#ident => core::write!(f, #ident) })
+            formats.push(quote! { Self::#ident => core::write!(f, #ident) })
         }
     }
-    Ok(quote!{
+    Ok(quote! {
 
         impl core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -58,9 +70,9 @@ pub(crate) fn derive_enum(ident: &Ident, _attrs: &[Attribute], generics: &Generi
             }
         }
 
-        impl mini3d::ecs::system::SystemError for #ident #ty_generics #where_clause {}
+        impl mini3d::ecs::instance::SystemError for #ident #ty_generics #where_clause {}
 
-        impl From<#ident #ty_generics> for Box<dyn mini3d::ecs::system::SystemError> #ty_generics #where_clause {
+        impl From<#ident #ty_generics> for Box<dyn mini3d::ecs::instance::SystemError> #ty_generics #where_clause {
             fn from(error: #ident #ty_generics) -> Self {
                 Box::new(error)
             }

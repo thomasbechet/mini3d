@@ -1,7 +1,7 @@
 use mini3d::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        system::SystemResult,
+        instance::SystemResult,
     },
     registry::system::ExclusiveSystem,
 };

@@ -1,8 +1,8 @@
 use crate::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
+        instance::{ExclusiveResolver, SystemResult},
         query::{FilterQuery, Query},
-        system::{ExclusiveResolver, SystemResult},
     },
     feature::component::{
         renderer::{camera::Camera, static_mesh::StaticMesh, viewport::Viewport},

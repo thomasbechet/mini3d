@@ -2,7 +2,7 @@ use mini3d::{
     asset::handle::StaticAsset,
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        system::SystemResult,
+        instance::SystemResult,
     },
     engine::Engine,
     feature::component::{

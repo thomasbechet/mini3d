@@ -4,8 +4,8 @@ use crate::{
             ecs::{ExclusiveECS, ParallelECS},
             ExclusiveAPI, ParallelAPI,
         },
+        instance::{ExclusiveResolver, ParallelResolver, SystemResult},
         query::Query,
-        system::{ExclusiveResolver, ParallelResolver, SystemResult},
     },
     feature::component::ui::{
         canvas::Canvas,

@@ -4,11 +4,11 @@ use crate::{
             ecs::{ExclusiveECS, ParallelECS},
             ExclusiveAPI, ParallelAPI,
         },
-        scheduler::{StaticSystemInstance, SystemInstance},
-        system::{
+        instance::{
             AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
             ParallelResolver, SystemResult,
         },
+        scheduler::{StaticSystemInstance, SystemInstance},
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -125,7 +125,8 @@ pub const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
 pub(crate) struct SystemStageEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
     pub(crate) uid: UID,
-    ref_count: usize,
+    pub(crate) first_system: Option<SlotId>,
+    keep_alive: bool, // Ensure this stage is not removed
 }
 
 pub(crate) struct SystemEntry {
@@ -133,6 +134,9 @@ pub(crate) struct SystemEntry {
     pub(crate) uid: UID,
     pub(crate) reflection: Box<dyn AnySystemReflection>,
     pub(crate) stage: SlotId,
+    pub(crate) next_in_stage: Option<SlotId>,
+    pub(crate) prev_in_stage: Option<SlotId>,
+    pub(crate) active_by_default: bool,
 }
 
 pub(crate) struct SystemRegistry {
@@ -156,7 +160,8 @@ impl Default for SystemRegistry {
             reg.stages.add(SystemStageEntry {
                 name: AsciiArray::from(name),
                 uid: UID::new(name),
-                ref_count: 0,
+                first_system: None,
+                keep_alive: true,
             });
         }
         reg
@@ -164,29 +169,69 @@ impl Default for SystemRegistry {
 }
 
 impl SystemRegistry {
-    fn add_system(&mut self, definition: SystemEntry) -> Result<System, RegistryError> {
-        if self.find(definition.uid).is_some() {
+    fn find_stage(&self, stage: UID) -> Option<SlotId> {
+        self.stages
+            .iter()
+            .find(|(_, entry)| UID::new(&entry.name) == stage)
+            .map(|(id, _)| id)
+    }
+
+    fn find_last_system_in_stage(&self, stage: SlotId) -> Option<System> {
+        let mut system = self.stages[stage].first_system;
+        while let Some(id) = system {
+            let entry = &self.systems[id];
+            if entry.next_in_stage.is_none() {
+                return Some(id.into());
+            }
+            system = entry.next_in_stage;
+        }
+        None
+    }
+
+    fn add_system(&mut self, entry: SystemEntry) -> Result<System, RegistryError> {
+        if self.find(entry.uid).is_some() {
             return Err(RegistryError::DuplicatedSystemDefinition {
-                name: definition.name.to_string(),
+                name: entry.name.to_string(),
             });
         }
-        let id = self.systems.add(definition);
-        self.stages[definition.stage].ref_count += 1;
+        let id = self.systems.add(entry);
+        if let Some(last) = self.find_last_system_in_stage(entry.stage) {
+            let last = last.into();
+            self.systems[last].next_in_stage = Some(id);
+            self.systems[id].prev_in_stage = Some(last);
+        } else {
+            self.stages[entry.stage].first_system = Some(id);
+        }
         Ok(id.into())
     }
 
-    fn get_or_add_system_stage(&mut self, name: &str) -> Result<SlotId, RegistryError> {
+    pub(crate) fn remove(&mut self, system: System) {
+        let system = system.into();
+        let stage = self.systems[system].stage;
+        if let Some(prev) = self.systems[system].prev_in_stage {
+            self.systems[prev].next_in_stage = self.systems[system].next_in_stage;
+        } else {
+            self.stages[stage].first_system = self.systems[system].next_in_stage;
+        }
+        if self.stages[stage].first_system.is_none() && !self.stages[stage].keep_alive {
+            self.stages.remove(stage);
+        }
+        self.systems.remove(system);
+    }
+
+    fn get_or_add_system_stage(&mut self, name: &str) -> SlotId {
         let uid = UID::from(name);
         for (id, def) in self.stages.iter() {
             if def.uid == uid {
-                return Ok(id);
+                return id;
             }
         }
-        Ok(self.stages.add(SystemStageEntry {
+        self.stages.add(SystemStageEntry {
             name: AsciiArray::from(name),
             uid,
-            ref_count: 0,
-        }))
+            first_system: None,
+            keep_alive: false,
+        })
     }
 
     pub(crate) fn add_static_exclusive<S: ExclusiveSystem>(
@@ -194,7 +239,7 @@ impl SystemRegistry {
         name: &str,
         stage: &str,
     ) -> Result<System, RegistryError> {
-        let stage = self.get_or_add_system_stage(stage)?;
+        let stage = self.get_or_add_system_stage(stage);
         self.add_system(SystemEntry {
             name: name.into(),
             uid: S::UID,
@@ -202,6 +247,9 @@ impl SystemRegistry {
                 _phantom: std::marker::PhantomData,
             }),
             stage,
+            active_by_default: true,
+            next_in_stage: None,
+            prev_in_stage: None,
         })
     }
 
@@ -210,7 +258,7 @@ impl SystemRegistry {
         name: &str,
         stage: &str,
     ) -> Result<System, RegistryError> {
-        let stage = self.get_or_add_system_stage(stage)?;
+        let stage = self.get_or_add_system_stage(stage);
         self.add_system(SystemEntry {
             name: name.into(),
             uid: S::UID,
@@ -218,11 +266,10 @@ impl SystemRegistry {
                 _phantom: std::marker::PhantomData,
             }),
             stage,
+            active_by_default: true,
+            next_in_stage: None,
+            prev_in_stage: None,
         })
-    }
-
-    pub(crate) fn remove(&mut self, system: System) {
-        todo!()
     }
 
     pub(crate) fn find(&self, uid: UID) -> Option<System> {

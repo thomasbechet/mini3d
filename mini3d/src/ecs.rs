@@ -17,7 +17,7 @@ use crate::{
 
 use self::{
     archetype::ArchetypeTable, component::ComponentTable, entity::EntityTable, error::SceneError,
-    query::QueryTable, scheduler::Scheduler, system::SystemTable,
+    instance::SystemInstanceTable, query::QueryTable, scheduler::Scheduler,
 };
 
 pub mod api;
@@ -25,10 +25,10 @@ pub mod archetype;
 pub mod component;
 pub mod entity;
 pub mod error;
+pub mod instance;
 pub mod query;
 pub mod scheduler;
 pub mod sparse;
-pub mod system;
 pub mod view;
 
 pub(crate) struct ECSManager {
@@ -36,7 +36,7 @@ pub(crate) struct ECSManager {
     archetypes: ArchetypeTable,
     entities: EntityTable,
     queries: QueryTable,
-    systems: SystemTable,
+    systems: SystemInstanceTable,
     scheduler: Scheduler,
 }
 
@@ -47,7 +47,7 @@ impl Default for ECSManager {
             archetypes: ArchetypeTable::new(),
             entities: EntityTable::default(),
             queries: QueryTable::default(),
-            systems: SystemTable::default(),
+            systems: SystemInstanceTable::default(),
             scheduler: Scheduler::default(),
         }
     }

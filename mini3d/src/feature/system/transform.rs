@@ -4,8 +4,8 @@ use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
         entity::Entity,
+        instance::{ParallelResolver, SystemResult},
         query::Query,
-        system::{ParallelResolver, SystemResult},
         view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
     },
     feature::component::scene::{

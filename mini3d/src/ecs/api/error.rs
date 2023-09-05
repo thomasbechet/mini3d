@@ -3,7 +3,7 @@ use core::{
     result::Result,
 };
 
-use crate::ecs::system::SystemError;
+use crate::ecs::instance::SystemError;
 
 pub struct ErrorWithContext {
     error: Box<dyn SystemError>,
