@@ -4,9 +4,9 @@ use crate::{
     registry::{
         component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,
-        system::System,
+        system::{System, SystemRegistry},
     },
-    utils::{slotmap::SecondaryMap, uid::UID},
+    utils::uid::UID,
 };
 
 use super::{
@@ -17,8 +17,8 @@ use super::{
     archetype::ArchetypeTable,
     component::ComponentTable,
     entity::EntityTable,
-    error::SceneError,
     query::{FilterQuery, QueryBuilder, QueryTable},
+    scheduler::SystemInstance,
 };
 
 pub trait SystemError: Display {}
@@ -139,41 +139,25 @@ pub(crate) trait AnyStaticParallelSystemInstance {
 
 pub(crate) struct SystemInstanceEntry {
     pub(crate) system: System,
+    pub(crate) instance: SystemInstance,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQuery>,
     pub(crate) active: bool,
 }
 
-pub(crate) struct SystemInstanceTable {
-    pub(crate) instances: SecondaryMap<SystemInstanceEntry>,
-}
-
-impl SystemInstanceTable {
-    pub(crate) fn set_active(&mut self, system: System, active: bool) -> Result<(), RegistryError> {
-        self.instances
-            .get_mut(system.into())
-            .ok_or(ECS::SystemNotFound)?
-            .active = active;
-        Ok(())
-    }
-}
-
-impl Default for SystemInstanceTable {
-    fn default() -> Self {
-        // Create table
-        let mut table = Self {
-            instances: Default::default(),
-        };
-        // Prepare default stages
-        table
-            .add_stage(SystemStage::UPDATE, SystemStage::update())
-            .unwrap();
-        table
-            .add_stage(
-                SystemStage::FIXED_UPDATE_60HZ,
-                SystemStage::fixed_update(1.0 / 60.0),
-            )
-            .unwrap();
-        table
+impl SystemInstanceEntry {
+    pub(crate) fn new(system: System, registry: &SystemRegistry) -> Self {
+        let instance = registry
+            .get(system)
+            .expect("System not found")
+            .reflection
+            .create_instance();
+        Self {
+            system,
+            instance,
+            last_execution_cycle: 0,
+            filter_queries: Vec::new(),
+            active: true,
+        }
     }
 }

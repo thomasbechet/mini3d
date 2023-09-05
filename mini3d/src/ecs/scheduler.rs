@@ -3,7 +3,10 @@ use std::collections::VecDeque;
 use crate::{
     feature::component::common::program::Program,
     registry::system::SystemRegistry,
-    utils::slotmap::{SecondaryMap, SlotId, SlotMap, SparseSecondaryMap},
+    utils::{
+        slotmap::{SecondaryMap, SlotId, SlotMap, SparseSecondaryMap},
+        uid::UID,
+    },
 };
 
 use super::{
@@ -23,9 +26,9 @@ use super::{
     archetype::ArchetypeTable,
     component::ComponentTable,
     entity::EntityTable,
-    error::SceneError,
+    error::ECSError,
     instance::{
-        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceTable,
+        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceEntry,
         SystemResult,
     },
     query::QueryTable,
@@ -38,29 +41,10 @@ pub enum Invocation {
     NextFrame,
 }
 
-pub(crate) type SystemPipelineId = SlotId;
-pub(crate) type SystemPipelineNodeId = SlotId;
-
 pub(crate) enum SystemPipelineNode {
-    Exclusive {
-        instance: SystemInstanceId,
-        next: SystemPipelineNodeId,
-    },
-    Parallel {
-        first_item: SystemPipelineNodeId,
-        next: SystemPipelineNodeId,
-    },
-    ParallelItem {
-        instance: SystemInstanceId,
-        next: SystemPipelineNodeId,
-    },
-}
-
-#[derive(Default)]
-pub(crate) struct PipelineSystemStage {
-    first_node: SystemPipelineNodeId,
-    frequency: Option<f64>,
-    accumulator: f64,
+    Exclusive { instance: SlotId, next: SlotId },
+    Parallel { first_item: SlotId, next: SlotId },
+    ParallelItem { instance: SlotId, next: SlotId },
 }
 
 pub(crate) enum StaticSystemInstance {
@@ -98,34 +82,56 @@ impl SystemInstance {
     }
 }
 
+pub(crate) struct PeriodicStage {
+    pub(crate) stage: UID,
+    pub(crate) frequency: f64,
+    pub(crate) accumulator: f64,
+}
+
+pub(crate) struct StageEntry {
+    first_node: SlotId,
+    pub(crate) uid: UID,
+}
+
 #[derive(Default)]
 pub(crate) struct Scheduler {
+    // True when rebuild is required
     out_of_date: bool,
-    // Stages
-    stages: SparseSecondaryMap<PipelineSystemStage>,
-    update_stage: SystemStageId,
-    fixed_update_stages: Vec<SlotId>,
-    // Baked resource
+    // Specific update stage (build by engine)
+    update_stage: SlotId,
+    // Mapping between stage and first node
+    stages: SparseSecondaryMap<StageEntry>,
+    // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
-    instances: SecondaryMap<SystemInstance>,
-    // Runtime state
-    next_frame_stages: VecDeque<SystemStageId>,
+    // Periodic invocations
+    periodic_stages: Vec<PeriodicStage>,
+    // Runtime next stage
+    next_frame_stages: VecDeque<SlotId>,
+    // Concrete system instances
+    instances: SecondaryMap<SystemInstanceEntry>,
+    // Incremental cycle
     global_cycle: u32,
 }
 
 impl Scheduler {
-    pub(crate) fn build(&mut self, systems: &SystemInstanceTable, registry: &SystemRegistry) {
-        self.nodes.clear();
+    pub(crate) fn find_stage(&self, uid: UID) -> Option<SlotId> {
+        self.stages
+            .iter()
+            .find_map(|(id, entry)| if entry.uid == uid { Some(id) } else { None })
+    }
+
+    pub(crate) fn rebuild(&mut self, registry: &SystemRegistry) {
+        // Reset resources
         self.stages.clear();
-        self.update_stage = SystemStageId::null();
-        self.fixed_update_stages.clear();
-        for (id, entry) in systems.stages.iter() {
+        self.nodes.clear();
+        self.update_stage = SlotId::null();
+        for (id, entry) in registry.stages.iter() {
             // Build pipeline
             let mut previous_node = None;
-            while let Some(instance) = entry.first_instance {
+            while let Some(system) = entry.first_system {
                 // TODO: generate parallel pipeline steps
                 let node_id = self.nodes.add(SystemPipelineNode::Exclusive {
-                    instance,
+                    instance: system.into(),
                     next: SlotId::null(),
                 });
                 if let Some(previous_node) = previous_node {
@@ -142,42 +148,18 @@ impl Scheduler {
                     }
                 } else {
                     // Record baked stage
-                    match entry.kind {
-                        SystemStageKind::Update => {
-                            self.update_stage = id;
-                            self.stages.insert(
-                                id,
-                                PipelineSystemStage {
-                                    first_node: node_id,
-                                    frequency: None,
-                                    accumulator: 0.0,
-                                },
-                            );
-                        }
-                        SystemStageKind::FixedUpdate(frequency) => {
-                            self.fixed_update_stages.push(id);
-                            self.stages.insert(
-                                id,
-                                PipelineSystemStage {
-                                    first_node: node_id,
-                                    frequency: Some(frequency),
-                                    accumulator: 0.0,
-                                },
-                            );
-                        }
-                        SystemStageKind::Event(_) => todo!(),
-                    }
+                    self.stages.insert(
+                        id,
+                        StageEntry {
+                            first_node: node_id,
+                            uid: entry.uid,
+                        },
+                    );
                 }
                 // Create instance
-                if !self.instances.contains(instance) {
-                    self.instances.insert(
-                        instance,
-                        registry
-                            .get(systems.instances[instance].system)
-                            .expect("System not found")
-                            .reflection
-                            .create_instance(),
-                    );
+                if !self.instances.contains(system.into()) {
+                    self.instances
+                        .insert(system.into(), SystemInstanceEntry::new(system, registry));
                 }
                 // Next previous node
                 previous_node = Some(node_id);
@@ -192,21 +174,19 @@ impl Scheduler {
         components: &mut ComponentTable,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-        systems: &mut SystemInstanceTable,
         context: &mut ECSUpdateContext,
-    ) -> Result<(), SceneError> {
+    ) -> Result<(), ECSError> {
         // Collect previous frame stages
         let mut frame_stages = self.next_frame_stages.drain(..).collect::<VecDeque<_>>();
 
         // Integrate fixed update stages
-        for id in self.fixed_update_stages.iter() {
-            let stage = self.stages.get_mut(*id).unwrap();
+        for stage in self.periodic_stages.iter_mut() {
             stage.accumulator += context.delta_time;
-            let frequency = stage.frequency.unwrap();
+            let frequency = stage.frequency;
             let count = (stage.accumulator / frequency) as u32;
             stage.accumulator -= count as f64 * frequency;
             for _ in 0..count {
-                frame_stages.push_back(*id);
+                frame_stages.push_back(stage.id);
             }
         }
 
@@ -246,7 +226,6 @@ impl Scheduler {
                                 },
                                 time: TimeAPI {
                                     delta: context.delta_time,
-                                    fixed: stage.frequency,
                                     global: context.global_time,
                                 },
                             };
@@ -255,7 +234,6 @@ impl Scheduler {
                                 components,
                                 entities,
                                 queries,
-                                systems,
                                 frame_stages: &mut frame_stages,
                                 next_frame_stages: &mut self.next_frame_stages,
                                 cycle: self.global_cycle,

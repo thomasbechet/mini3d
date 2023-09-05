@@ -125,7 +125,7 @@ pub const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
 pub(crate) struct SystemStageEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
     pub(crate) uid: UID,
-    pub(crate) first_system: Option<SlotId>,
+    pub(crate) first_system: Option<System>,
     keep_alive: bool, // Ensure this stage is not removed
 }
 
@@ -134,14 +134,17 @@ pub(crate) struct SystemEntry {
     pub(crate) uid: UID,
     pub(crate) reflection: Box<dyn AnySystemReflection>,
     pub(crate) stage: SlotId,
-    pub(crate) next_in_stage: Option<SlotId>,
-    pub(crate) prev_in_stage: Option<SlotId>,
+    pub(crate) next_in_stage: Option<System>,
+    pub(crate) prev_in_stage: Option<System>,
     pub(crate) active_by_default: bool,
 }
 
+#[derive(Default)]
+pub struct SystemOrder;
+
 pub(crate) struct SystemRegistry {
-    systems: SlotMap<SystemEntry>,
-    stages: SlotMap<SystemStageEntry>,
+    pub(crate) systems: SlotMap<SystemEntry>,
+    pub(crate) stages: SlotMap<SystemStageEntry>,
 }
 
 impl Default for SystemRegistry {
@@ -179,7 +182,7 @@ impl SystemRegistry {
     fn find_last_system_in_stage(&self, stage: SlotId) -> Option<System> {
         let mut system = self.stages[stage].first_system;
         while let Some(id) = system {
-            let entry = &self.systems[id];
+            let entry = &self.systems[id.into()];
             if entry.next_in_stage.is_none() {
                 return Some(id.into());
             }
@@ -197,10 +200,10 @@ impl SystemRegistry {
         let id = self.systems.add(entry);
         if let Some(last) = self.find_last_system_in_stage(entry.stage) {
             let last = last.into();
-            self.systems[last].next_in_stage = Some(id);
-            self.systems[id].prev_in_stage = Some(last);
+            self.systems[last].next_in_stage = Some(id.into());
+            self.systems[id].prev_in_stage = Some(last.into());
         } else {
-            self.stages[entry.stage].first_system = Some(id);
+            self.stages[entry.stage].first_system = Some(id.into());
         }
         Ok(id.into())
     }
@@ -209,7 +212,7 @@ impl SystemRegistry {
         let system = system.into();
         let stage = self.systems[system].stage;
         if let Some(prev) = self.systems[system].prev_in_stage {
-            self.systems[prev].next_in_stage = self.systems[system].next_in_stage;
+            self.systems[prev.into()].next_in_stage = self.systems[system].next_in_stage;
         } else {
             self.stages[stage].first_system = self.systems[system].next_in_stage;
         }
@@ -238,6 +241,7 @@ impl SystemRegistry {
         &mut self,
         name: &str,
         stage: &str,
+        order: SystemOrder,
     ) -> Result<System, RegistryError> {
         let stage = self.get_or_add_system_stage(stage);
         self.add_system(SystemEntry {
@@ -257,6 +261,7 @@ impl SystemRegistry {
         &mut self,
         name: &str,
         stage: &str,
+        order: SystemOrder,
     ) -> Result<System, RegistryError> {
         let stage = self.get_or_add_system_stage(stage);
         self.add_system(SystemEntry {

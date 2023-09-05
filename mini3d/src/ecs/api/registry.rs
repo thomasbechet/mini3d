@@ -2,7 +2,7 @@ use crate::{
     registry::{
         component::{ComponentData, ComponentHandle, ComponentRegistry},
         error::RegistryError,
-        system::{ExclusiveSystem, ParallelSystem, System, SystemRegistry},
+        system::{ExclusiveSystem, ParallelSystem, System, SystemOrder, SystemRegistry},
     },
     utils::uid::UID,
 };
@@ -29,16 +29,18 @@ impl<'a> ExclusiveSystemRegistryAPI<'a> {
         &mut self,
         name: &str,
         stage: &str,
+        order: SystemOrder,
     ) -> Result<System, RegistryError> {
-        self.manager.add_static_exclusive::<S>(name, stage)
+        self.manager.add_static_exclusive::<S>(name, stage, order)
     }
 
     pub fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
         stage: &str,
+        order: SystemOrder,
     ) -> Result<System, RegistryError> {
-        self.manager.add_static_parallel::<S>(name, stage)
+        self.manager.add_static_parallel::<S>(name, stage, order)
     }
 
     pub fn remove(&mut self, system: System) {

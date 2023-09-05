@@ -11,7 +11,7 @@ use crate::{
     ecs::{
         component::{AnyComponentContainer, ComponentTable, StaticComponentContainer},
         entity::Entity,
-        error::SceneError,
+        error::ECSError,
         view::{
             ComponentViewMut, ComponentViewRef, StaticComponentViewMut, StaticComponentViewRef,
         },
@@ -55,12 +55,12 @@ pub trait ComponentHandle: Copy {
     fn view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::ViewRef<'a>, SceneError>;
+    ) -> Result<Self::ViewRef<'a>, ECSError>;
     fn view_mut<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
         cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, SceneError>;
+    ) -> Result<Self::ViewMut<'a>, ECSError>;
     fn check_type_id(id: TypeId) -> bool;
     fn insert_container(
         &self,
@@ -116,7 +116,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
     fn view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::ViewRef<'a>, SceneError> {
+    ) -> Result<Self::ViewRef<'a>, ECSError> {
         Ok(StaticComponentViewRef {
             container: Ref::map(
                 components
@@ -125,7 +125,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
                     .get(self.id.into())
                     .unwrap()
                     .try_borrow()
-                    .map_err(|_| SceneError::ContainerBorrowMut)?,
+                    .map_err(|_| ECSError::ContainerBorrowMut)?,
                 |r| {
                     r.as_any()
                         .downcast_ref::<StaticComponentContainer<C>>()
@@ -139,7 +139,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
         &self,
         components: PrivateComponentTableRef<'a>,
         cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, SceneError> {
+    ) -> Result<Self::ViewMut<'a>, ECSError> {
         Ok(StaticComponentViewMut {
             container: RefMut::map(
                 components
@@ -148,7 +148,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
                     .get(self.id.into())
                     .unwrap()
                     .try_borrow_mut()
-                    .map_err(|_| SceneError::ContainerBorrowMut)?,
+                    .map_err(|_| ECSError::ContainerBorrowMut)?,
                 |r| {
                     r.as_any_mut()
                         .downcast_mut::<StaticComponentContainer<C>>()
@@ -205,7 +205,7 @@ impl ComponentHandle for Component {
     fn view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::ViewRef<'a>, SceneError> {
+    ) -> Result<Self::ViewRef<'a>, ECSError> {
         Ok(ComponentViewRef {
             container: components
                 .0
@@ -213,7 +213,7 @@ impl ComponentHandle for Component {
                 .get(self.id.into())
                 .unwrap()
                 .try_borrow()
-                .map_err(|_| SceneError::ContainerBorrowMut)?,
+                .map_err(|_| ECSError::ContainerBorrowMut)?,
         })
     }
 
@@ -221,7 +221,7 @@ impl ComponentHandle for Component {
         &self,
         components: PrivateComponentTableRef<'a>,
         cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, SceneError> {
+    ) -> Result<Self::ViewMut<'a>, ECSError> {
         Ok(ComponentViewMut {
             container: components
                 .0
@@ -229,7 +229,7 @@ impl ComponentHandle for Component {
                 .get(self.id.into())
                 .unwrap()
                 .try_borrow_mut()
-                .map_err(|_| SceneError::ContainerBorrowMut)?,
+                .map_err(|_| ECSError::ContainerBorrowMut)?,
             cycle,
         })
     }
@@ -251,7 +251,7 @@ impl ComponentHandle for Component {
 pub struct EntityResolver;
 
 impl EntityResolver {
-    pub fn resolve(&self, entity: Entity) -> Result<Entity, SceneError> {
+    pub fn resolve(&self, entity: Entity) -> Result<Entity, ECSError> {
         // TODO: Resolve entity
         Ok(entity)
     }
@@ -259,7 +259,7 @@ impl EntityResolver {
 pub trait ComponentData: Default + Serialize + Reflect + 'static {
     const NAME: &'static str;
     const UID: UID = UID::new(Self::NAME);
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), SceneError> {
+    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
         let _ = resolver;
         Ok(())
     }

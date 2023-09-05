@@ -16,7 +16,7 @@ use crate::{
 };
 
 use self::{
-    archetype::ArchetypeTable, component::ComponentTable, entity::EntityTable, error::SceneError,
+    archetype::ArchetypeTable, component::ComponentTable, entity::EntityTable, error::ECSError,
     instance::SystemInstanceTable, query::QueryTable, scheduler::Scheduler,
 };
 
@@ -36,7 +36,7 @@ pub(crate) struct ECSManager {
     archetypes: ArchetypeTable,
     entities: EntityTable,
     queries: QueryTable,
-    systems: SystemInstanceTable,
+    instances: SystemInstanceTable,
     scheduler: Scheduler,
 }
 
@@ -47,7 +47,7 @@ impl Default for ECSManager {
             archetypes: ArchetypeTable::new(),
             entities: EntityTable::default(),
             queries: QueryTable::default(),
-            systems: SystemInstanceTable::default(),
+            instances: SystemInstanceTable::default(),
             scheduler: Scheduler::default(),
         }
     }
@@ -93,13 +93,13 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), SceneError> {
+    pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), ECSError> {
         self.scheduler.update(
             &mut self.archetypes,
             &mut self.components,
             &mut self.entities,
             &mut self.queries,
-            &mut self.systems,
+            &mut self.instances,
             &mut context,
         )
     }

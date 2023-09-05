@@ -5,13 +5,15 @@ use crate::{
         archetype::ArchetypeTable,
         component::ComponentTable,
         entity::{Entity, EntityBuilder, EntityTable},
-        error::SceneError,
-        instance::SystemInstanceTable,
+        error::ECSError,
         query::{FilterQuery, Query, QueryTable},
-        scheduler::Invocation,
+        scheduler::{Invocation, PeriodicStage, StageEntry},
     },
     registry::component::ComponentHandle,
-    utils::{slotmap::SlotId, uid::UID},
+    utils::{
+        slotmap::{SlotId, SparseSecondaryMap},
+        uid::UID,
+    },
 };
 
 pub struct ExclusiveECS<'a> {
@@ -19,7 +21,7 @@ pub struct ExclusiveECS<'a> {
     pub(crate) components: &'a mut ComponentTable,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
-    pub(crate) systems: &'a mut SystemInstanceTable,
+    pub(crate) periodic_stages: &'a mut Vec<PeriodicStage>,
     pub(crate) frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) next_frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) cycle: u32,
@@ -35,21 +37,34 @@ impl<'a> ExclusiveECS<'a> {
             .remove(entity, self.archetypes, self.components)
     }
 
-    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, SceneError> {
+    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, ECSError> {
         self.components.view(component)
     }
 
-    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, SceneError> {
+    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, ECSError> {
         self.components.view_mut(component, self.cycle)
     }
 
-    pub fn set_periodic_invoke(&mut self, stage: UID, frequency: u32) -> Result<(), SceneError> {}
+    pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) -> Result<(), ECSError> {
+        for periodic_stage in self.periodic_stages.iter_mut() {
+            if periodic_stage.stage == stage {
+                periodic_stage.frequency = frequency;
+                return Ok(());
+            }
+        }
+        self.periodic_stages.push(PeriodicStage {
+            stage,
+            frequency,
+            accumulator: 0.0,
+        });
+        Ok(())
+    }
 
-    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), SceneError> {
+    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {
         let stage = self
             .systems
             .find_stage(stage)
-            .ok_or(SceneError::SystemStageNotFound)?;
+            .ok_or(ECSError::SystemStageNotFound)?;
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);
@@ -84,11 +99,11 @@ pub struct ParallelECS<'a> {
 }
 
 impl<'a> ParallelECS<'a> {
-    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, SceneError> {
+    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, ECSError> {
         self.components.view(component)
     }
 
-    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, SceneError> {
+    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, ECSError> {
         self.components.view_mut(component, self.cycle)
     }
 

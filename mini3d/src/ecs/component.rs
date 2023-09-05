@@ -1,7 +1,7 @@
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use mini3d_derive::Serialize;
 
-use super::{entity::Entity, error::SceneError, sparse::PagedVector};
+use super::{entity::Entity, error::ECSError, sparse::PagedVector};
 use crate::{
     registry::component::{
         ComponentData, ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTableRef,
@@ -365,7 +365,7 @@ impl ComponentTable {
     pub(crate) fn view<H: ComponentHandle>(
         &self,
         component: H,
-    ) -> Result<H::ViewRef<'_>, SceneError> {
+    ) -> Result<H::ViewRef<'_>, ECSError> {
         component.view_ref(PrivateComponentTableRef(self))
     }
 
@@ -373,7 +373,7 @@ impl ComponentTable {
         &self,
         component: H,
         cycle: u32,
-    ) -> Result<H::ViewMut<'_>, SceneError> {
+    ) -> Result<H::ViewMut<'_>, ECSError> {
         component.view_mut(PrivateComponentTableRef(self), cycle)
     }
 }

@@ -3,7 +3,7 @@ use mini3d_derive::Error;
 use crate::registry::error::RegistryError;
 
 #[derive(Debug, Error)]
-pub enum SceneError {
+pub enum ECSError {
     #[error("Registry error: {0}")]
     Registry(RegistryError),
     #[error("System error")]
