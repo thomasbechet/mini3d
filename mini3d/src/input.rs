@@ -6,11 +6,11 @@ use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::serialize::{Encoder, EncoderError};
 use crate::utils::uid::UID;
 
-use self::backend::InputBackend;
 use self::event::InputEvent;
+use self::server::InputServer;
 
-pub mod backend;
 pub mod event;
+pub mod server;
 
 #[derive(Debug, Error)]
 pub enum InputError {
@@ -101,8 +101,8 @@ impl InputManager {
     }
 
     /// Process input events
-    pub(crate) fn dispatch_events(&mut self, events: &[InputEvent]) {
-        for event in events {
+    pub(crate) fn dispatch_events(&mut self, server: &mut dyn InputServer) {
+        while let Some(event) = server.poll_event() {
             match event {
                 InputEvent::Action(event) => {
                     if let Some(action) = self.actions.get_mut(&event.action) {
@@ -133,7 +133,7 @@ impl InputManager {
     pub(crate) fn load_state(
         &mut self,
         decoder: &mut impl Decoder,
-        backend: &mut impl InputBackend,
+        server: &mut dyn InputServer,
     ) -> Result<(), DecoderError> {
         self.tables = HashMap::deserialize(decoder, &Default::default())?;
         self.actions = HashMap::deserialize(decoder, &Default::default())?;
@@ -143,7 +143,7 @@ impl InputManager {
 
     pub(crate) fn add_table(
         &mut self,
-        backend: &mut dyn InputBackend,
+        server: &mut dyn InputServer,
         table: &InputTable,
     ) -> Result<(), InputError> {
         // Check table validity
@@ -192,7 +192,7 @@ impl InputManager {
         }
         self.tables.insert(table.uid(), table.clone());
         // Notify input mapping
-        backend.update_table(table.uid(), Some(table));
+        server.update_table(table.uid(), Some(table));
         Ok(())
     }
 

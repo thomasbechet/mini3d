@@ -13,13 +13,13 @@ use super::{
     api::{
         asset::{ExclusiveAssetAPI, ParallelAssetAPI},
         ecs::{ExclusiveECS, ParallelECS},
-        event::EventAPI,
         input::{ExclusiveInputAPI, ParallelInputAPI},
         registry::{
             ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
             ParallelComponentRegistryAPI, ParallelRegistryAPI, ParallelSystemRegistryAPI,
         },
         renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
+        system::{ExclusiveSystemAPI, ParallelSystemAPI},
         time::TimeAPI,
         ExclusiveAPI, ParallelAPI,
     },
@@ -211,7 +211,7 @@ impl Scheduler {
                                 },
                                 input: ExclusiveInputAPI {
                                     manager: context.input,
-                                    backend: context.input_backend,
+                                    server: context.input_server,
                                 },
                                 registry: ExclusiveRegistryAPI {
                                     systems: ExclusiveSystemRegistryAPI {
@@ -223,10 +223,11 @@ impl Scheduler {
                                 },
                                 renderer: ExclusiveRendererAPI {
                                     manager: context.renderer,
-                                    backend: context.renderer_backend,
+                                    server: context.renderer_server,
                                 },
-                                event: EventAPI {
-                                    system: &context.system_backend.events(),
+                                system: ExclusiveSystemAPI {
+                                    server: context.system_server,
+                                    manager: context.system,
                                 },
                                 time: TimeAPI {
                                     delta: context.delta_time,
@@ -267,8 +268,9 @@ impl Scheduler {
                                 renderer: ParallelRendererAPI {
                                     manager: context.renderer,
                                 },
-                                event: EventAPI {
-                                    system: &context.system_backend.events(),
+                                system: ParallelSystemAPI {
+                                    server: context.system_server,
+                                    manager: context.system,
                                 },
                                 time: TimeAPI {
                                     delta: context.delta_time,

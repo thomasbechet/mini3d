@@ -1,1 +1,1 @@
-pub struct ProgressRecorder {}
+pub struct EngineRecorder {}

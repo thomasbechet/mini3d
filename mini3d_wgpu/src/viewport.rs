@@ -1,4 +1,4 @@
-use mini3d::{renderer::backend::SceneCameraHandle, glam::UVec2};
+use mini3d::{glam::UVec2, renderer::server::SceneCameraHandle};
 
 use crate::context::WGPUContext;
 
@@ -39,13 +39,11 @@ pub(crate) struct Viewport {
 }
 
 impl Viewport {
-
     pub(crate) fn new(context: &WGPUContext, resolution: UVec2) -> Self {
-        
         let extent = wgpu::Extent3d {
             width: resolution.x,
             height: resolution.y,
-            depth_or_array_layers: 1
+            depth_or_array_layers: 1,
         };
 
         Self {
@@ -60,7 +58,7 @@ impl Viewport {
         self.extent = wgpu::Extent3d {
             width: resolution.x,
             height: resolution.y,
-            depth_or_array_layers: 1
+            depth_or_array_layers: 1,
         };
         self.color_view = create_color_view(context, &self.extent);
         self.depth_view = create_depth_view(context, &self.extent);

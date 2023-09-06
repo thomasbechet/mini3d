@@ -11,7 +11,7 @@ use mini3d::{
         model::Model,
     },
     glam::{Vec2, Vec3, Vec4},
-    system::event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
+    system::event::{AssetImportEntry, ImportAssetEvent},
 };
 use wavefront_obj::obj::{self, Primitive};
 
@@ -31,17 +31,15 @@ pub struct ModelImport {
 }
 
 impl ModelImport {
-    pub fn push(self, events: &mut Vec<SystemEvent>) {
+    pub fn push(self, events: &mut Vec<ImportAssetEvent>) {
         self.meshes.into_iter().for_each(|asset| {
-            events.push(SystemEvent::ImportAsset(ImportAssetEvent::Mesh(asset)));
+            events.push(ImportAssetEvent::Mesh(asset));
         });
         self.materials.into_iter().for_each(|material| {
-            events.push(SystemEvent::ImportAsset(ImportAssetEvent::Material(
-                material,
-            )));
+            events.push(ImportAssetEvent::Material(material));
         });
         self.models.into_iter().for_each(|model| {
-            events.push(SystemEvent::ImportAsset(ImportAssetEvent::Model(model)));
+            events.push(ImportAssetEvent::Model(model));
         });
     }
 }

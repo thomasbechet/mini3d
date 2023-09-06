@@ -14,10 +14,7 @@ use mini3d::{
     input::event::InputEvent,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
-    system::{
-        backend::SystemBackend,
-        event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
-    },
+    system::event::{AssetImportEntry, ImportAssetEvent},
 };
 use mini3d_derive::Serialize;
 use mini3d_os::system::bootstrap::OSBootstrap;
@@ -81,7 +78,6 @@ fn main_run() {
 
     // Instantiate engine with virtual disk
     let mut disk = VirtualDisk::new();
-    let mut system_events = Vec::new();
 
     let mut engine = Engine::new(true);
     engine.register_bootstrap_system::<OSBootstrap>();
@@ -105,18 +101,19 @@ fn main_run() {
     let mut save_state = false;
     let mut load_state = false;
 
+    let mut imports = Vec::new();
     ImageImporter::new()
         .from_source(Path::new("assets/car.png"))
         .with_name("car")
         .import()
         .expect("Failed to import car texture.")
-        .push(&mut system_events);
+        .push(&mut imports);
     ImageImporter::new()
         .from_source(Path::new("assets/GUI.png"))
         .with_name("GUI")
         .import()
         .expect("Failed to import GUI texture.")
-        .push(&mut system_events);
+        .push(&mut imports);
 
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
@@ -124,31 +121,30 @@ fn main_run() {
         .with_name("car")
         .import()
         .expect("Failed to import car model.")
-        .push(&mut system_events);
+        .push(&mut imports);
     ImageImporter::new()
         .from_source(Path::new("assets/alfred.png"))
         .with_name("alfred")
         .import()
         .expect("Failed to import alfred texture.")
-        .push(&mut system_events);
+        .push(&mut imports);
     ModelImporter::new()
         .from_obj(Path::new("assets/alfred.obj"))
         .with_flat_normals(false)
         .with_name("alfred")
         .import()
         .expect("Failed to import alfred model.")
-        .push(&mut system_events);
+        .push(&mut imports);
     let script = std::fs::read_to_string("assets/script_main.ms").expect("Failed to load.");
-    system_events.push(ImportAssetEvent::Script(AssetImportEntry {
+    imports.push(ImportAssetEvent::Script(AssetImportEntry {
         name: "main".to_string(),
         data: Script { source: script },
     }));
     let script = std::fs::read_to_string("assets/script_utils.ms").expect("Failed to load.");
-    system_events.push(ImportAssetEvent::Script(AssetImportEntry {
+    imports.push(ImportAssetEvent::Script(AssetImportEntry {
         name: "utils".to_string(),
         data: Script { source: script },
     }));
-    system_events.system.push(SystemEvent::Shutdown);
 
     // Enter loop
     event_loop.run(move |event, _, control_flow| {
@@ -423,7 +419,7 @@ fn main_run() {
 
                     {
                         let mut file = File::create("assets/state.bin").unwrap();
-                        let bytes = engine.save_state().unwrap();
+                        let bytes = engine.save().unwrap();
                         let bytes = miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 10);
                         file.write_all(&bytes).unwrap();
                     }

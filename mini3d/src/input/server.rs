@@ -5,27 +5,27 @@ use crate::{feature::component::input::input_table::InputTable, utils::uid::UID}
 use super::event::InputEvent;
 
 #[derive(Debug, Error)]
-pub enum InputBackendError {
+pub enum InputServerError {
     #[error("Unknown error")]
     Unknown,
 }
 
 #[allow(unused_variables)]
-pub trait InputBackend {
-    fn events(&self) -> &[InputEvent] {
-        &[]
+pub trait InputServer {
+    fn poll_event(&self) -> Option<InputEvent> {
+        None
     }
 
     fn update_table(
         &mut self,
         uid: UID,
         table: Option<&InputTable>,
-    ) -> Result<(), InputBackendError> {
+    ) -> Result<(), InputServerError> {
         Ok(())
     }
 }
 
 #[derive(Default)]
-pub struct DummyInputBackend;
+pub struct DummyInputServer;
 
-impl InputBackend for DummyInputBackend {}
+impl InputServer for DummyInputServer {}

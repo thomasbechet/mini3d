@@ -1,4 +1,4 @@
-use mini3d::storage::backend::StorageBackend;
+use mini3d::storage::server::StorageServer;
 
 pub struct VirtualDisk {
     data: Vec<u8>,
@@ -10,4 +10,4 @@ impl VirtualDisk {
     }
 }
 
-impl StorageBackend for VirtualDisk {}
+impl StorageServer for VirtualDisk {}

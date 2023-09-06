@@ -1,6 +1,6 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::renderer::backend::SceneCameraHandle;
+use crate::renderer::server::SceneCameraHandle;
 
 #[derive(Component, Serialize, Reflect, Clone)]
 pub struct Camera {

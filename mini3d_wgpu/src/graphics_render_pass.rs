@@ -1,4 +1,13 @@
-use mini3d::{renderer::{backend::{TextureHandle, ViewportHandle}, color::Color, rasterizer, graphics::TextureWrapMode}, math::rect::IRect, glam::{IVec2, UVec2}};
+use mini3d::{
+    glam::{IVec2, UVec2},
+    math::rect::IRect,
+    renderer::{
+        color::Color,
+        graphics::TextureWrapMode,
+        rasterizer,
+        server::{TextureHandle, ViewportHandle},
+    },
+};
 
 use crate::context::WGPUContext;
 
@@ -53,10 +62,7 @@ pub(crate) enum GraphicsCommand {
     Scissor(IRect),
 }
 
-fn create_vertex_buffer<T>(
-    context: &WGPUContext,
-    vertex_count: usize,
-) -> wgpu::Buffer {
+fn create_vertex_buffer<T>(context: &WGPUContext, vertex_count: usize) -> wgpu::Buffer {
     context.device.create_buffer(&wgpu::BufferDescriptor {
         label: None,
         size: (std::mem::size_of::<T>() * vertex_count) as u64,
@@ -76,11 +82,10 @@ pub(crate) struct GraphicsRenderPass {
 }
 
 impl GraphicsRenderPass {
-
     pub(crate) fn new(context: &WGPUContext) -> Self {
-        Self { 
-            commands: Default::default(), 
-            clear_color: wgpu::Color::TRANSPARENT, 
+        Self {
+            commands: Default::default(),
+            clear_color: wgpu::Color::TRANSPARENT,
             blit_transfer: Default::default(),
             primitive_transfer: Default::default(),
             blit_buffer: create_vertex_buffer::<GPUBlitData>(context, 512),
@@ -90,14 +95,30 @@ impl GraphicsRenderPass {
     }
 
     pub(crate) fn write_buffers(&mut self, context: &WGPUContext) {
-        if self.blit_buffer.size() < (std::mem::size_of::<GPUBlitData>() * self.blit_transfer.len()) as u64 {
-            self.blit_buffer = create_vertex_buffer::<GPUBlitData>(context, self.blit_transfer.len() * 2);
+        if self.blit_buffer.size()
+            < (std::mem::size_of::<GPUBlitData>() * self.blit_transfer.len()) as u64
+        {
+            self.blit_buffer =
+                create_vertex_buffer::<GPUBlitData>(context, self.blit_transfer.len() * 2);
         }
-        if self.primitive_buffer.size() < (std::mem::size_of::<GPUPrimitiveVertexData>() * self.primitive_transfer.len()) as u64 {
-            self.primitive_buffer = create_vertex_buffer::<GPUPrimitiveVertexData>(context, self.primitive_transfer.len() * 2);
+        if self.primitive_buffer.size()
+            < (std::mem::size_of::<GPUPrimitiveVertexData>() * self.primitive_transfer.len()) as u64
+        {
+            self.primitive_buffer = create_vertex_buffer::<GPUPrimitiveVertexData>(
+                context,
+                self.primitive_transfer.len() * 2,
+            );
         }
-        context.queue.write_buffer(&self.blit_buffer, 0, bytemuck::cast_slice(&self.blit_transfer));
-        context.queue.write_buffer(&self.primitive_buffer, 0, bytemuck::cast_slice(&self.primitive_transfer));
+        context.queue.write_buffer(
+            &self.blit_buffer,
+            0,
+            bytemuck::cast_slice(&self.blit_transfer),
+        );
+        context.queue.write_buffer(
+            &self.primitive_buffer,
+            0,
+            bytemuck::cast_slice(&self.primitive_transfer),
+        );
     }
 
     pub(crate) fn begin(&mut self, clear_color: Color) {
@@ -113,11 +134,16 @@ impl GraphicsRenderPass {
             a: clear_color[3],
         };
     }
-    pub(crate) fn end(&mut self) {
+    pub(crate) fn end(&mut self) {}
 
-    }
-
-    fn add_blit(&mut self, pos: IVec2, tex: UVec2, size: UVec2, filtering: Color, alpha_threshold: u8) {
+    fn add_blit(
+        &mut self,
+        pos: IVec2,
+        tex: UVec2,
+        size: UVec2,
+        filtering: Color,
+        alpha_threshold: u8,
+    ) {
         self.blit_transfer.push(GPUBlitData {
             color: filtering.into(),
             depth: (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH),
@@ -128,30 +154,46 @@ impl GraphicsRenderPass {
         });
     }
 
-    pub(crate) fn blit_rect(&mut self, texture: TextureHandle, extent: IRect, texture_extent: IRect, filtering: Color, wrap_mode: TextureWrapMode, alpha_threshold: u8) {
-        
+    pub(crate) fn blit_rect(
+        &mut self,
+        texture: TextureHandle,
+        extent: IRect,
+        texture_extent: IRect,
+        filtering: Color,
+        wrap_mode: TextureWrapMode,
+        alpha_threshold: u8,
+    ) {
         let mut blit_count;
 
         match wrap_mode {
             TextureWrapMode::Clamp => {
-
-                self.add_blit(extent.tl(), texture_extent.tl().as_uvec2(), texture_extent.size().min(extent.size()), filtering, alpha_threshold);
+                self.add_blit(
+                    extent.tl(),
+                    texture_extent.tl().as_uvec2(),
+                    texture_extent.size().min(extent.size()),
+                    filtering,
+                    alpha_threshold,
+                );
                 blit_count = 1;
-
-            },
+            }
             TextureWrapMode::Repeat => {
-                
                 // Calculate blit count
                 let full_hblit_count = extent.width() / texture_extent.width();
                 let full_vblit_count = extent.height() / texture_extent.height();
                 blit_count = full_vblit_count * full_hblit_count;
-                
+
                 // Insert full blits in transfer buffer
                 for y in 0..full_vblit_count {
                     for x in 0..full_hblit_count {
                         let pos_x = extent.tl().x + (x * texture_extent.width()) as i32;
                         let pos_y = extent.tl().y + (y * texture_extent.height()) as i32;
-                        self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), texture_extent.size(), filtering, alpha_threshold);
+                        self.add_blit(
+                            IVec2::new(pos_x, pos_y),
+                            texture_extent.tl().as_uvec2(),
+                            texture_extent.size(),
+                            filtering,
+                            alpha_threshold,
+                        );
                     }
                 }
 
@@ -161,10 +203,17 @@ impl GraphicsRenderPass {
 
                 if partial_hblit_size > 0 {
                     for y in 0..full_vblit_count {
-                        let pos_x = extent.tl().x + (full_hblit_count * texture_extent.width()) as i32;
+                        let pos_x =
+                            extent.tl().x + (full_hblit_count * texture_extent.width()) as i32;
                         let pos_y = extent.tl().y + (y * texture_extent.height()) as i32;
                         let size = UVec2::new(partial_hblit_size, texture_extent.height());
-                        self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), size, filtering, alpha_threshold);
+                        self.add_blit(
+                            IVec2::new(pos_x, pos_y),
+                            texture_extent.tl().as_uvec2(),
+                            size,
+                            filtering,
+                            alpha_threshold,
+                        );
                         blit_count += 1;
                     }
                 }
@@ -172,9 +221,16 @@ impl GraphicsRenderPass {
                 if partial_vblit_size > 0 {
                     for x in 0..full_hblit_count {
                         let pos_x = extent.tl().x + (x * texture_extent.width()) as i32;
-                        let pos_y = extent.tl().y + (full_vblit_count * texture_extent.height()) as i32;
+                        let pos_y =
+                            extent.tl().y + (full_vblit_count * texture_extent.height()) as i32;
                         let size = UVec2::new(texture_extent.width(), partial_vblit_size);
-                        self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), size, filtering, alpha_threshold);
+                        self.add_blit(
+                            IVec2::new(pos_x, pos_y),
+                            texture_extent.tl().as_uvec2(),
+                            size,
+                            filtering,
+                            alpha_threshold,
+                        );
                         blit_count += 1;
                     }
                 }
@@ -183,18 +239,23 @@ impl GraphicsRenderPass {
                     let pos_x = extent.tl().x + (full_hblit_count * texture_extent.width()) as i32;
                     let pos_y = extent.tl().y + (full_vblit_count * texture_extent.height()) as i32;
                     let size = UVec2::new(partial_hblit_size, partial_vblit_size);
-                    self.add_blit(IVec2::new(pos_x, pos_y), texture_extent.tl().as_uvec2(), size, filtering, alpha_threshold);
+                    self.add_blit(
+                        IVec2::new(pos_x, pos_y),
+                        texture_extent.tl().as_uvec2(),
+                        size,
+                        filtering,
+                        alpha_threshold,
+                    );
                     blit_count += 1;
                 }
-
-            },
+            }
             TextureWrapMode::Mirror => {
                 todo!();
-            },
+            }
         }
 
         self.depth += DEPTH_INCREMENT;
-        
+
         // Reuse command or create new one
         let mut new_command_required = true;
         if let Some(GraphicsCommand::Blit(blit)) = self.commands.last_mut() {
@@ -204,17 +265,22 @@ impl GraphicsRenderPass {
             }
         }
         if new_command_required {
-            self.commands.push(GraphicsCommand::Blit(BlitBatch { 
-                texture, 
+            self.commands.push(GraphicsCommand::Blit(BlitBatch {
+                texture,
                 instance_start: self.blit_transfer.len() as u32 - blit_count,
                 instance_count: blit_count,
             }));
         }
     }
-    pub(crate) fn blit_viewport(&mut self, viewport: ViewportHandle, extent: wgpu::Extent3d, position: IVec2) {
+    pub(crate) fn blit_viewport(
+        &mut self,
+        viewport: ViewportHandle,
+        extent: wgpu::Extent3d,
+        position: IVec2,
+    ) {
         let size = UVec2::new(extent.width, extent.height);
         self.add_blit(position, UVec2::ZERO, size, Color::WHITE, 0);
-        self.commands.push(GraphicsCommand::Viewport(ViewportBatch { 
+        self.commands.push(GraphicsCommand::Viewport(ViewportBatch {
             viewport,
             blit_index: self.blit_transfer.len() as u32 - 1,
         }));
@@ -227,10 +293,11 @@ impl GraphicsRenderPass {
             new_command_required = false;
         }
         if new_command_required {
-            self.commands.push(GraphicsCommand::Triangles(PrimitiveBatch { 
-                vertex_start: self.primitive_transfer.len() as u32 - vertex_count,
-                vertex_count,
-            }));
+            self.commands
+                .push(GraphicsCommand::Triangles(PrimitiveBatch {
+                    vertex_start: self.primitive_transfer.len() as u32 - vertex_count,
+                    vertex_count,
+                }));
         }
     }
     fn add_lines_primitive_command(&mut self, vertex_count: u32) {
@@ -240,7 +307,7 @@ impl GraphicsRenderPass {
             new_command_required = false;
         }
         if new_command_required {
-            self.commands.push(GraphicsCommand::Lines(PrimitiveBatch { 
+            self.commands.push(GraphicsCommand::Lines(PrimitiveBatch {
                 vertex_start: self.primitive_transfer.len() as u32 - vertex_count,
                 vertex_count,
             }));
@@ -253,7 +320,7 @@ impl GraphicsRenderPass {
             new_command_required = false;
         }
         if new_command_required {
-            self.commands.push(GraphicsCommand::Points(PrimitiveBatch { 
+            self.commands.push(GraphicsCommand::Points(PrimitiveBatch {
                 vertex_start: self.primitive_transfer.len() as u32 - vertex_count,
                 vertex_count,
             }));
@@ -263,26 +330,82 @@ impl GraphicsRenderPass {
         let color: [f32; 4] = color.into();
         let depth = (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y + 1], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tl().x, extent.tl().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x + 1, extent.tr().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x + 1, extent.tr().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x + 1, extent.br().y + 1], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y + 1], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.bl().x, extent.bl().y + 1],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tl().x, extent.tl().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tr().x + 1, extent.tr().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tr().x + 1, extent.tr().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.br().x + 1, extent.br().y + 1],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.bl().x, extent.bl().y + 1],
+            depth,
+            color,
+        });
         self.add_triangles_primitive_command(6);
     }
     pub(crate) fn draw_rect(&mut self, extent: IRect, color: Color) {
         let color: [f32; 4] = color.into();
         let depth = (self.depth - MIN_DEPTH) / (MAX_DEPTH - MIN_DEPTH);
         self.depth += DEPTH_INCREMENT;
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tl().x, extent.tl().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x, extent.tr().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x + 1, extent.br().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tl().x, extent.tl().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.bl().x, extent.bl().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.tr().x, extent.tr().y], depth, color });
-        self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [extent.br().x, extent.br().y + 1], depth, color });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tl().x, extent.tl().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tr().x, extent.tr().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.bl().x, extent.bl().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.br().x + 1, extent.br().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tl().x, extent.tl().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.bl().x, extent.bl().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.tr().x, extent.tr().y],
+            depth,
+            color,
+        });
+        self.primitive_transfer.push(GPUPrimitiveVertexData {
+            pos: [extent.br().x, extent.br().y + 1],
+            depth,
+            color,
+        });
         self.add_lines_primitive_command(8);
     }
     pub(crate) fn draw_line(&mut self, x0: IVec2, x1: IVec2, color: Color) {
@@ -294,7 +417,11 @@ impl GraphicsRenderPass {
         // self.add_lines_primitive_command(2);
         let mut vertex_count = 0;
         rasterizer::draw_line(x0, x1, |p| {
-            self.primitive_transfer.push(GPUPrimitiveVertexData { pos: [p.x, p.y], depth, color });
+            self.primitive_transfer.push(GPUPrimitiveVertexData {
+                pos: [p.x, p.y],
+                depth,
+                color,
+            });
             vertex_count += 1;
         });
         self.add_points_primitive_command(vertex_count);

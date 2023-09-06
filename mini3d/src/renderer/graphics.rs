@@ -12,8 +12,8 @@ use crate::{
 };
 
 use super::{
-    backend::{RendererBackend, RendererBackendError, SceneCanvasHandle},
     color::Color,
+    server::{RendererServer, RendererServerError, SceneCanvasHandle},
     RendererResourceManager,
 };
 
@@ -86,19 +86,19 @@ impl Graphics {
         self.text_buffer.clear();
     }
 
-    pub(crate) fn submit_backend(
+    pub(crate) fn submit_server(
         &self,
         canvas: Option<SceneCanvasHandle>,
         clear_color: Color,
         resources: &mut RendererResourceManager,
         asset: &mut AssetManager,
         viewports: &StaticComponentViewRef<Viewport>,
-        backend: &mut impl RendererBackend,
-    ) -> Result<(), RendererBackendError> {
+        server: &mut dyn RendererServer,
+    ) -> Result<(), RendererServerError> {
         if let Some(canvas) = canvas {
-            backend.scene_canvas_begin(canvas, clear_color)?;
+            server.scene_canvas_begin(canvas, clear_color)?;
         } else {
-            backend.screen_canvas_begin(clear_color)?;
+            server.screen_canvas_begin(clear_color)?;
         }
         for command in self.commands.iter() {
             match command {
@@ -108,7 +108,7 @@ impl Graphics {
                     stop,
                     font,
                 } => {
-                    let font = resources.request_font(*font, backend, asset)?;
+                    let font = resources.request_font(*font, server, asset)?;
                     let mut position = *position;
                     for c in self.text_buffer[*start..*stop].chars() {
                         let char_extent = font
@@ -122,7 +122,7 @@ impl Graphics {
                             char_extent.width(),
                             char_extent.height(),
                         );
-                        backend.canvas_blit_texture(
+                        server.canvas_blit_texture(
                             font.handle,
                             extent,
                             *char_extent,
@@ -141,8 +141,8 @@ impl Graphics {
                     wrap_mode,
                     alpha_threshold,
                 } => {
-                    let texture = resources.request_texture(*texture, backend, asset)?;
-                    backend.canvas_blit_texture(
+                    let texture = resources.request_texture(*texture, server, asset)?;
+                    server.canvas_blit_texture(
                         texture.handle,
                         *extent,
                         *texture_extent,
@@ -153,29 +153,29 @@ impl Graphics {
                 }
                 Command::BlitViewport { position, viewport } => {
                     let viewport = viewports.get(*viewport).unwrap();
-                    backend.canvas_blit_viewport(viewport.handle, *position)?;
+                    server.canvas_blit_viewport(viewport.handle, *position)?;
                 }
                 Command::DrawLine { x0, x1, color } => {
-                    backend.canvas_draw_line(*x0, *x1, *color)?;
+                    server.canvas_draw_line(*x0, *x1, *color)?;
                 }
                 Command::DrawVLine { x, y0, y1, color } => {
-                    backend.canvas_draw_vline(*x, *y0, *y1, *color)?;
+                    server.canvas_draw_vline(*x, *y0, *y1, *color)?;
                 }
                 Command::DrawHLine { y, x0, x1, color } => {
-                    backend.canvas_draw_hline(*y, *x0, *x1, *color)?;
+                    server.canvas_draw_hline(*y, *x0, *x1, *color)?;
                 }
                 Command::DrawRect { extent, color } => {
-                    backend.canvas_draw_rect(*extent, *color)?;
+                    server.canvas_draw_rect(*extent, *color)?;
                 }
                 Command::FillRect { extent, color } => {
-                    backend.canvas_fill_rect(*extent, *color)?;
+                    server.canvas_fill_rect(*extent, *color)?;
                 }
                 Command::Scissor { extent } => {
-                    backend.canvas_scissor(*extent)?;
+                    server.canvas_scissor(*extent)?;
                 }
             }
         }
-        backend.canvas_end()?;
+        server.canvas_end()?;
         Ok(())
     }
 

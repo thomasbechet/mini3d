@@ -1,4 +1,4 @@
-pub mod backend;
+pub mod server;
 
 #[derive(Default)]
 pub struct StorageManager {}

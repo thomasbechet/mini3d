@@ -1,7 +1,7 @@
 use glam::UVec2;
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{ecs::entity::Entity, renderer::backend::ViewportHandle};
+use crate::{ecs::entity::Entity, renderer::server::ViewportHandle};
 
 #[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct Viewport {

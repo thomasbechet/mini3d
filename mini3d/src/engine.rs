@@ -3,21 +3,22 @@ use mini3d_derive::Error;
 use crate::asset::AssetManager;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{component, system};
-use crate::input::backend::InputBackend;
+use crate::input::server::InputServer;
 use crate::input::InputManager;
-use crate::network::backend::NetworkBackend;
+use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
+use crate::recorder::EngineRecorder;
 use crate::registry::component::ComponentData;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
-use crate::renderer::backend::RendererBackend;
+use crate::renderer::server::RendererServer;
 use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::storage::backend::StorageBackend;
+use crate::storage::server::StorageServer;
 use crate::storage::StorageManager;
-use crate::system::backend::SystemBackend;
-use crate::system::event::SystemEvent;
+use crate::system::server::SystemServer;
+use crate::system::SystemManager;
 
 #[derive(Debug, Error)]
 pub enum ProgressError {
@@ -29,6 +30,14 @@ pub enum ProgressError {
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
+pub struct EngineServers<'a> {
+    input: &'a mut dyn InputServer,
+    renderer: &'a mut dyn RendererServer,
+    storage: &'a mut dyn StorageServer,
+    network: &'a mut dyn NetworkServer,
+    system: &'a mut dyn SystemServer,
+}
+
 pub struct Engine {
     pub(crate) registry: RegistryManager,
     pub(crate) storage: StorageManager,
@@ -37,6 +46,7 @@ pub struct Engine {
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
+    pub(crate) system: SystemManager,
     global_time: f64,
     running: bool,
 }
@@ -139,6 +149,7 @@ impl Engine {
             ecs: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
+            system: Default::default(),
             global_time: 0.0,
             running: true,
         };
@@ -150,38 +161,6 @@ impl Engine {
         engine
     }
 
-    pub fn save_state(
-        &self,
-        encoder: &mut impl Encoder,
-        storage: &impl StorageBackend,
-    ) -> Result<(), EncoderError> {
-        self.asset.save_state(&self.registry.components, encoder)?;
-        self.renderer.save_state(encoder)?;
-        self.ecs.save_state(&self.registry.components, encoder)?;
-        self.input.save_state(encoder)?;
-        self.global_time.serialize(encoder)?;
-        self.running.serialize(encoder)?;
-        Ok(())
-    }
-
-    pub fn load_state(
-        &mut self,
-        decoder: &mut impl Decoder,
-        input: &mut impl InputBackend,
-        renderer: &mut impl RendererBackend,
-        storage: &mut impl StorageBackend,
-        network: &mut impl NetworkBackend,
-        system: &mut impl SystemBackend,
-    ) -> Result<(), DecoderError> {
-        self.asset.load_state(&self.registry.components, decoder)?;
-        self.renderer.load_state(decoder, renderer)?;
-        self.ecs.load_state(&self.registry.components, decoder)?;
-        self.input.load_state(decoder, input)?;
-        self.global_time = Serialize::deserialize(decoder, &Default::default())?;
-        self.running = Serialize::deserialize(decoder, &Default::default())?;
-        Ok(())
-    }
-
     pub fn register_bootstrap_system<S: ExclusiveSystem>(&mut self) -> Result<(), RegistryError> {
         self.registry.systems.add_static_exclusive::<S>(
             "bootstrap",
@@ -191,17 +170,33 @@ impl Engine {
         Ok(())
     }
 
-    pub fn is_running(&self) -> bool {
-        self.running
+    pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.asset.save_state(&self.registry.components, encoder)?;
+        self.renderer.save_state(encoder)?;
+        self.ecs.save_state(&self.registry.components, encoder)?;
+        self.input.save_state(encoder)?;
+        self.global_time.serialize(encoder)?;
+        self.running.serialize(encoder)?;
+        Ok(())
+    }
+
+    pub fn load(
+        &mut self,
+        decoder: &mut impl Decoder,
+        servers: &mut EngineServers,
+    ) -> Result<(), DecoderError> {
+        self.asset.load_state(&self.registry.components, decoder)?;
+        self.renderer.load_state(decoder, servers.renderer)?;
+        self.ecs.load_state(&self.registry.components, decoder)?;
+        self.input.load_state(decoder, servers.input)?;
+        self.global_time = Serialize::deserialize(decoder, &Default::default())?;
+        self.running = Serialize::deserialize(decoder, &Default::default())?;
+        Ok(())
     }
 
     pub fn progress(
         &mut self,
-        input: &mut impl InputBackend,
-        renderer: &mut impl RendererBackend,
-        storage: &mut impl StorageBackend,
-        network: &mut impl NetworkBackend,
-        system: &mut impl SystemBackend,
+        servers: &mut EngineServers,
         mut delta_time: f64,
     ) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
@@ -221,18 +216,15 @@ impl Engine {
         // Prepare input manager
         self.input.prepare_dispatch();
         // Dispatch input events
-        self.input.dispatch_events(input.events());
+        self.input.dispatch_events(servers.input);
 
         // Dispatch system events
-        for event in system.events() {
-            match event {
-                SystemEvent::Shutdown => self.running = false,
-                SystemEvent::ImportAsset(import) => {}
-            }
+        if servers.system.request_stop() {
+            self.running = false;
         }
 
         // Dispatch renderer events
-        self.renderer.dispatch_events(renderer);
+        self.renderer.dispatch_events(servers.renderer);
 
         // Dispatch network events
 
@@ -247,12 +239,13 @@ impl Engine {
                 registry: &mut self.registry,
                 asset: &mut self.asset,
                 input: &mut self.input,
-                input_backend: input,
+                input_server: servers.input,
                 renderer: &mut self.renderer,
-                renderer_backend: renderer,
-                storage_backend: storage,
-                network_backend: network,
-                system_backend: system,
+                renderer_server: servers.renderer,
+                storage_server: servers.storage,
+                network_server: servers.network,
+                system: &mut self.system,
+                system_server: servers.system,
                 delta_time,
                 global_time: self.global_time,
             })
@@ -261,8 +254,17 @@ impl Engine {
         // ================= POST-UPDATE STAGE ================== //
 
         self.renderer
-            .submit_graphics(&mut self.asset, &self.ecs.components, renderer);
+            .submit_graphics(&mut self.asset, &self.ecs.components, servers.renderer);
 
+        Ok(())
+    }
+
+    pub fn progress_and_record(
+        &mut self,
+        servers: &mut EngineServers,
+        recorder: &mut EngineRecorder,
+        mut delta_time: f64,
+    ) -> Result<(), ProgressError> {
         Ok(())
     }
 }

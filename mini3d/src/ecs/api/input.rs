@@ -3,7 +3,7 @@ use std::ops::Deref;
 use crate::{
     feature::component::input::input_table::InputTable,
     input::{
-        backend::InputBackend, InputActionState, InputAxisState, InputError, InputManager,
+        server::InputServer, InputActionState, InputAxisState, InputError, InputManager,
         InputTextState,
     },
     utils::uid::UID,
@@ -11,12 +11,12 @@ use crate::{
 
 pub struct ExclusiveInputAPI<'a> {
     pub(crate) manager: &'a mut InputManager,
-    pub(crate) backend: &'a mut dyn InputBackend,
+    pub(crate) server: &'a mut dyn InputServer,
 }
 
 impl<'a> ExclusiveInputAPI<'a> {
     pub fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
-        self.manager.add_table(self.backend, table)
+        self.manager.add_table(self.server, table)
     }
 
     pub fn action(&self, uid: UID) -> Result<&InputActionState, InputError> {

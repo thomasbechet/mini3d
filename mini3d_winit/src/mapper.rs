@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::File};
 use gilrs::GamepadId;
 use mini3d::{
     feature::component::input::input_table::InputTable,
-    input::backend::{InputBackend, InputBackendError},
+    input::server::{InputServer, InputServerError},
     utils::uid::UID,
 };
 use mini3d_os::input::{CommonAction, CommonAxis};
@@ -720,12 +720,12 @@ impl InputMapper {
     }
 }
 
-impl InputBackend for InputMapper {
+impl InputServer for InputMapper {
     fn update_table(
         &mut self,
         uid: UID,
         table: Option<&InputTable>,
-    ) -> Result<(), InputBackendError> {
+    ) -> Result<(), InputServerError> {
         if let Some(table) = table {
             self.tables.insert(uid, table.clone());
         } else {

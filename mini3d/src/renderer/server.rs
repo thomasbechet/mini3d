@@ -2,7 +2,7 @@ use glam::{IVec2, Mat4, UVec2, Vec3};
 use mini3d_derive::Error;
 
 use crate::{
-    define_backend_handle,
+    define_server_handle,
     feature::component::renderer::{mesh::Mesh, texture::Texture},
     math::rect::IRect,
 };
@@ -10,7 +10,7 @@ use crate::{
 use super::{color::Color, event::RendererEvent, graphics::TextureWrapMode};
 
 #[derive(Debug, Error)]
-pub enum RendererBackendError {
+pub enum RendererServerError {
     #[error("Resource not found")]
     ResourceNotFound,
     #[error("Invalid material index")]
@@ -19,75 +19,75 @@ pub enum RendererBackendError {
     MaxResourcesReached,
 }
 
-define_backend_handle!(CommandBufferHandle);
+define_server_handle!(CommandBufferHandle);
 
-define_backend_handle!(MeshHandle);
-define_backend_handle!(TextureHandle);
-define_backend_handle!(MaterialHandle);
+define_server_handle!(MeshHandle);
+define_server_handle!(TextureHandle);
+define_server_handle!(MaterialHandle);
 
-define_backend_handle!(ViewportHandle);
+define_server_handle!(ViewportHandle);
 
-define_backend_handle!(SceneHandle);
-define_backend_handle!(SceneCameraHandle);
-define_backend_handle!(SceneModelHandle);
-define_backend_handle!(SceneCanvasHandle);
+define_server_handle!(SceneHandle);
+define_server_handle!(SceneCameraHandle);
+define_server_handle!(SceneModelHandle);
+define_server_handle!(SceneCanvasHandle);
 
-pub struct BackendMaterialDescriptor<'a> {
+pub struct ServerMaterialDescriptor<'a> {
     pub diffuse: TextureHandle,
     pub name: &'a str,
 }
 
 #[allow(unused_variables)]
-pub trait RendererBackend {
+pub trait RendererServer {
     /// Global API
 
     fn events(&self) -> &[RendererEvent] {
         &[]
     }
 
-    fn reset(&mut self) -> Result<(), RendererBackendError> {
+    fn reset(&mut self) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     /// Assets API
 
-    fn mesh_add(&mut self, mesh: &Mesh) -> Result<MeshHandle, RendererBackendError> {
+    fn mesh_add(&mut self, mesh: &Mesh) -> Result<MeshHandle, RendererServerError> {
         Ok(0.into())
     }
-    fn mesh_remove(&mut self, handle: MeshHandle) -> Result<(), RendererBackendError> {
+    fn mesh_remove(&mut self, handle: MeshHandle) -> Result<(), RendererServerError> {
         Ok(())
     }
 
-    fn texture_add(&mut self, texture: &Texture) -> Result<TextureHandle, RendererBackendError> {
+    fn texture_add(&mut self, texture: &Texture) -> Result<TextureHandle, RendererServerError> {
         Ok(0.into())
     }
-    fn texture_remove(&mut self, handle: TextureHandle) -> Result<(), RendererBackendError> {
+    fn texture_remove(&mut self, handle: TextureHandle) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     fn material_add(
         &mut self,
-        desc: BackendMaterialDescriptor,
-    ) -> Result<MaterialHandle, RendererBackendError> {
+        desc: ServerMaterialDescriptor,
+    ) -> Result<MaterialHandle, RendererServerError> {
         Ok(0.into())
     }
-    fn material_remove(&mut self, handle: MaterialHandle) -> Result<(), RendererBackendError> {
+    fn material_remove(&mut self, handle: MaterialHandle) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     /// Canvas API
 
-    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererBackendError> {
+    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn scene_canvas_begin(
         &mut self,
         canvas: SceneCanvasHandle,
         clear_color: Color,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
-    fn canvas_end(&mut self) -> Result<(), RendererBackendError> {
+    fn canvas_end(&mut self) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn canvas_blit_texture(
@@ -98,28 +98,20 @@ pub trait RendererBackend {
         filtering: Color,
         wrap_mode: TextureWrapMode,
         alpha_threshold: u8,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn canvas_blit_viewport(
         &mut self,
         viewport: ViewportHandle,
         position: IVec2,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
-    fn canvas_fill_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererBackendError> {
+    fn canvas_fill_rect(&mut self, extent: IRect, color: Color) -> Result<(), RendererServerError> {
         Ok(())
     }
-    fn canvas_draw_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererBackendError> {
+    fn canvas_draw_rect(&mut self, extent: IRect, color: Color) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn canvas_draw_line(
@@ -127,7 +119,7 @@ pub trait RendererBackend {
         x0: IVec2,
         x1: IVec2,
         color: Color,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn canvas_draw_vline(
@@ -136,7 +128,7 @@ pub trait RendererBackend {
         y0: i32,
         y1: i32,
         color: Color,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn canvas_draw_hline(
@@ -145,52 +137,52 @@ pub trait RendererBackend {
         x0: i32,
         x1: i32,
         color: Color,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
-    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererBackendError> {
+    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     /// Viewport API
 
-    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle, RendererBackendError> {
+    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle, RendererServerError> {
         Ok(0.into())
     }
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererBackendError> {
+    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn viewport_set_camera(
         &mut self,
         handle: ViewportHandle,
         camera: Option<SceneCameraHandle>,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn viewport_set_resolution(
         &mut self,
         handle: ViewportHandle,
         resolution: UVec2,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     /// Scene API
 
-    fn scene_add(&mut self) -> Result<SceneHandle, RendererBackendError> {
+    fn scene_add(&mut self) -> Result<SceneHandle, RendererServerError> {
         Ok(0.into())
     }
-    fn scene_remove(&mut self, handle: SceneHandle) -> Result<(), RendererBackendError> {
+    fn scene_remove(&mut self, handle: SceneHandle) -> Result<(), RendererServerError> {
         Ok(())
     }
 
-    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle, RendererBackendError> {
+    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle, RendererServerError> {
         Ok(0.into())
     }
     fn scene_camera_remove(
         &mut self,
         handle: SceneCameraHandle,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn scene_camera_update(
@@ -200,17 +192,17 @@ pub trait RendererBackend {
         forward: Vec3,
         up: Vec3,
         fov: f32,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     fn scene_model_add(
         &mut self,
         mesh: MeshHandle,
-    ) -> Result<SceneModelHandle, RendererBackendError> {
+    ) -> Result<SceneModelHandle, RendererServerError> {
         Ok(0.into())
     }
-    fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<(), RendererBackendError> {
+    fn scene_model_remove(&mut self, handle: SceneModelHandle) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn scene_model_set_material(
@@ -218,39 +210,39 @@ pub trait RendererBackend {
         handle: SceneModelHandle,
         index: usize,
         material: MaterialHandle,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn scene_model_transfer_matrix(
         &mut self,
         handle: SceneModelHandle,
         mat: Mat4,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
 
     fn scene_canvas_add(
         &mut self,
         resolution: UVec2,
-    ) -> Result<SceneCanvasHandle, RendererBackendError> {
+    ) -> Result<SceneCanvasHandle, RendererServerError> {
         Ok(0.into())
     }
     fn scene_canvas_remove(
         &mut self,
         handle: SceneCanvasHandle,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
     fn scene_canvas_transfer_matrix(
         &mut self,
         handle: SceneCanvasHandle,
         mat: Mat4,
-    ) -> Result<(), RendererBackendError> {
+    ) -> Result<(), RendererServerError> {
         Ok(())
     }
 }
 
 #[derive(Default)]
-pub struct DummyRendererBackend;
+pub struct DummyRendererserver;
 
-impl RendererBackend for DummyRendererBackend {}
+impl RendererServer for DummyRendererserver {}

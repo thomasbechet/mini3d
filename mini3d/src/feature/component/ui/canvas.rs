@@ -1,7 +1,7 @@
 use glam::UVec2;
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::renderer::{backend::SceneCanvasHandle, color::Color, graphics::Graphics};
+use crate::renderer::{color::Color, graphics::Graphics, server::SceneCanvasHandle};
 
 #[derive(Default, Component, Serialize, Reflect)]
 pub struct Canvas {

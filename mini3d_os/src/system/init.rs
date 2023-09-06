@@ -22,7 +22,7 @@ use mini3d::{
     registry::{component::StaticComponent, system::ExclusiveSystem},
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
     script::{compiler::Compiler, module::Module},
-    system::event::{ImportAssetEvent, SystemEvent},
+    system::event::ImportAssetEvent,
     ui::{
         controller::UIController,
         style::{UIBoxStyle, UIImageStyle, UIMargin},
@@ -312,9 +312,9 @@ impl OSInitialize {
         )?;
 
         // Import assets
-        for event in api.event.system {
-            match event {
-                SystemEvent::ImportAsset(ImportAssetEvent::Material(material)) => {
+        while let Some(import) = api.system.poll_import() {
+            match import {
+                ImportAssetEvent::Material(material) => {
                     api.asset.add(
                         self.material,
                         &material.name,
@@ -322,15 +322,15 @@ impl OSInitialize {
                         material.data.clone(),
                     )?;
                 }
-                SystemEvent::ImportAsset(ImportAssetEvent::Mesh(mesh)) => {
+                ImportAssetEvent::Mesh(mesh) => {
                     api.asset
                         .add(self.mesh, &mesh.name, default_bundle, mesh.data.clone())?;
                 }
-                SystemEvent::ImportAsset(ImportAssetEvent::Model(model)) => {
+                ImportAssetEvent::Model(model) => {
                     api.asset
                         .add(self.model, &model.name, default_bundle, model.data.clone())?;
                 }
-                SystemEvent::ImportAsset(ImportAssetEvent::Script(script)) => {
+                ImportAssetEvent::Script(script) => {
                     api.asset.add(
                         self.script,
                         &script.name,
@@ -338,7 +338,7 @@ impl OSInitialize {
                         script.data.clone(),
                     )?;
                 }
-                SystemEvent::ImportAsset(ImportAssetEvent::Texture(texture)) => {
+                ImportAssetEvent::Texture(texture) => {
                     api.asset.add(
                         self.texture,
                         &texture.name,

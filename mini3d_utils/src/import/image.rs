@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use mini3d::{
     feature::component::renderer::texture::{Texture, TextureFormat},
-    system::event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
+    system::event::{AssetImportEntry, ImportAssetEvent},
 };
 
 pub struct ImageImport {
@@ -10,10 +10,8 @@ pub struct ImageImport {
 }
 
 impl ImageImport {
-    pub fn push(self, events: &mut Vec<SystemEvent>) {
-        events.push(SystemEvent::ImportAsset(ImportAssetEvent::Texture(
-            self.texture,
-        )));
+    pub fn push(self, events: &mut Vec<ImportAssetEvent>) {
+        events.push(ImportAssetEvent::Texture(self.texture));
     }
 }
 

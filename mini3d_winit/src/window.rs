@@ -1,5 +1,9 @@
-use mini3d::renderer::{SCREEN_WIDTH, SCREEN_HEIGHT};
-use winit::{event_loop::EventLoop, dpi::PhysicalSize, window::{WindowBuilder, CursorGrabMode, Fullscreen}};
+use mini3d::renderer::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use winit::{
+    dpi::PhysicalSize,
+    event_loop::EventLoop,
+    window::{CursorGrabMode, Fullscreen, WindowBuilder},
+};
 
 pub(crate) struct Window {
     pub(crate) handle: winit::window::Window,
@@ -8,7 +12,6 @@ pub(crate) struct Window {
 }
 
 impl Window {
-
     pub(crate) fn new(event_loop: &EventLoop<()>) -> Self {
         let window = WindowBuilder::new()
             .with_inner_size(PhysicalSize::new(SCREEN_WIDTH * 3 - 30, SCREEN_HEIGHT * 3))
@@ -26,11 +29,20 @@ impl Window {
             });
         }
 
-        Self { handle: window, fullscreen: false, focus: false }
+        Self {
+            handle: window,
+            fullscreen: false,
+            focus: false,
+        }
     }
 
     pub(crate) fn set_focus(&mut self, toggle: bool) {
-        self.handle.set_cursor_grab(if toggle { CursorGrabMode::Confined } else { CursorGrabMode::None })
+        self.handle
+            .set_cursor_grab(if toggle {
+                CursorGrabMode::Confined
+            } else {
+                CursorGrabMode::None
+            })
             .expect("Failed to change cursor mode");
         self.handle.set_cursor_visible(!toggle);
         self.focus = toggle;

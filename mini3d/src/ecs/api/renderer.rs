@@ -1,10 +1,10 @@
 use crate::renderer::{
-    backend::RendererBackend, color::Color, graphics::Graphics, RendererManager, RendererStatistics,
+    color::Color, graphics::Graphics, server::RendererServer, RendererManager, RendererStatistics,
 };
 
 pub struct ExclusiveRendererAPI<'a> {
     pub(crate) manager: &'a mut RendererManager,
-    pub(crate) backend: &'a mut dyn RendererBackend,
+    pub(crate) server: &'a mut dyn RendererServer,
 }
 
 impl<'a> ExclusiveRendererAPI<'a> {

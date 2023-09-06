@@ -91,15 +91,13 @@ impl ExclusiveSystem for DespawnRendererEntities {
 
         // Camera
         for e in ecs.filter_query(self.removed_camera) {
-            api.renderer
-                .backend
-                .scene_camera_remove(cameras[e].handle)?;
+            api.renderer.server.scene_camera_remove(cameras[e].handle)?;
         }
         for e in ecs.filter_query(self.added_camera) {
             let camera = &mut cameras[e];
-            camera.handle = api.renderer.backend.scene_camera_add()?;
+            camera.handle = api.renderer.server.scene_camera_add()?;
             let local_to_world = &local_to_worlds[e];
-            api.renderer.backend.scene_camera_update(
+            api.renderer.server.scene_camera_update(
                 camera.handle,
                 local_to_world.translation(),
                 local_to_world.forward(),
@@ -109,9 +107,9 @@ impl ExclusiveSystem for DespawnRendererEntities {
         }
         for e in ecs.query(self.camera_query) {
             let camera = &mut cameras[e];
-            camera.handle = api.renderer.backend.scene_camera_add()?;
+            camera.handle = api.renderer.server.scene_camera_add()?;
             let local_to_world = &local_to_worlds[e];
-            api.renderer.backend.scene_camera_update(
+            api.renderer.server.scene_camera_update(
                 camera.handle,
                 local_to_world.translation(),
                 local_to_world.forward(),
@@ -122,7 +120,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
         // Model
         for e in ecs.filter_query(self.removed_model) {
             api.renderer
-                .backend
+                .server
                 .scene_model_remove(static_meshes[e].handle)?;
         }
         for e in ecs.filter_query(self.added_model) {
@@ -134,19 +132,19 @@ impl ExclusiveSystem for DespawnRendererEntities {
                 .renderer
                 .manager
                 .resources
-                .request_mesh(model.mesh, api.renderer.backend, api.asset.manager)?
+                .request_mesh(model.mesh, api.renderer.server, api.asset.manager)?
                 .handle;
-            let handle = api.renderer.backend.scene_model_add(mesh_handle)?;
+            let handle = api.renderer.server.scene_model_add(mesh_handle)?;
             // Load material
             for (index, material) in model.materials.iter().enumerate() {
                 let material_handle = api
                     .renderer
                     .manager
                     .resources
-                    .request_material(*material, api.renderer.backend, api.asset.manager)?
+                    .request_material(*material, api.renderer.server, api.asset.manager)?
                     .handle;
                 api.renderer
-                    .backend
+                    .server
                     .scene_model_set_material(handle, index, material_handle)?;
             }
             s.handle = handle;
@@ -155,38 +153,38 @@ impl ExclusiveSystem for DespawnRendererEntities {
             let s = &static_meshes[e];
             let t = &local_to_worlds[e];
             api.renderer
-                .backend
+                .server
                 .scene_model_transfer_matrix(s.handle, t.matrix)?;
         }
         // Canvas
         for e in ecs.filter_query(self.removed_canvas) {
             api.renderer
-                .backend
+                .server
                 .scene_canvas_remove(canvases[e].handle)?;
         }
         for e in ecs.filter_query(self.added_canvas) {
             let c = &mut canvases[e];
             let t = &local_to_worlds[e];
-            api.renderer.backend.scene_canvas_add(c.resolution)?;
+            api.renderer.server.scene_canvas_add(c.resolution)?;
         }
         for e in ecs.query(self.scene_canvas_query) {
             let c = &canvases[e];
             let t = &local_to_worlds[e];
             api.renderer
-                .backend
+                .server
                 .scene_canvas_transfer_matrix(c.handle, t.matrix)?;
         }
         // Viewport
         for e in ecs.filter_query(self.removed_viewport) {
-            api.renderer.backend.viewport_remove(viewports[e].handle)?;
+            api.renderer.server.viewport_remove(viewports[e].handle)?;
         }
         for e in ecs.filter_query(self.added_viewport) {
             let v = &mut viewports[e];
-            v.handle = api.renderer.backend.viewport_add(v.resolution)?;
+            v.handle = api.renderer.server.viewport_add(v.resolution)?;
             let camera = v.camera.map(|e| cameras[e].handle);
-            api.renderer.backend.viewport_set_camera(v.handle, camera)?;
+            api.renderer.server.viewport_set_camera(v.handle, camera)?;
             api.renderer
-                .backend
+                .server
                 .viewport_set_resolution(v.handle, v.resolution)?;
         }
 

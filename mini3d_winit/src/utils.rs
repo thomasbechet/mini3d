@@ -1,4 +1,7 @@
-use mini3d::{renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_ASPECT_RATIO, SCREEN_INV_ASPECT_RATIO}, glam::{Vec4, Vec4Swizzles}};
+use mini3d::{
+    glam::{Vec4, Vec4Swizzles},
+    renderer::{SCREEN_ASPECT_RATIO, SCREEN_HEIGHT, SCREEN_INV_ASPECT_RATIO, SCREEN_WIDTH},
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ViewportMode {
@@ -13,13 +16,15 @@ pub fn compute_fixed_viewport(global_viewport: Vec4, mode: ViewportMode) -> Vec4
     let global_size = global_viewport.zw().floor();
 
     let size = match mode {
-        ViewportMode::Fixed(factor) => (factor * SCREEN_WIDTH as f32, factor * SCREEN_HEIGHT as f32),
+        ViewportMode::Fixed(factor) => {
+            (factor * SCREEN_WIDTH as f32, factor * SCREEN_HEIGHT as f32)
+        }
         ViewportMode::FixedBestFit => {
             let w_factor = global_size.x / SCREEN_WIDTH as f32;
             let h_factor = global_size.y / SCREEN_HEIGHT as f32;
             let min = f32::floor(w_factor.min(h_factor)).max(1.0);
             (min * SCREEN_WIDTH as f32, min * SCREEN_HEIGHT as f32)
-        },
+        }
         ViewportMode::StretchKeepAspect => {
             if global_size.x / global_size.y >= SCREEN_ASPECT_RATIO {
                 let w = global_size.y * SCREEN_ASPECT_RATIO;
@@ -30,10 +35,8 @@ pub fn compute_fixed_viewport(global_viewport: Vec4, mode: ViewportMode) -> Vec4
                 let h = global_size.x * SCREEN_INV_ASPECT_RATIO;
                 (w.floor(), h.floor())
             }
-        },
-        ViewportMode::Stretch => {
-            (global_size.x, global_size.y)
-        },
+        }
+        ViewportMode::Stretch => (global_size.x, global_size.y),
     };
 
     let x = (global_size.x / 2.0) - (size.0 / 2.0);

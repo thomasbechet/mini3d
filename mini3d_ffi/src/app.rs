@@ -1,5 +1,5 @@
 // use libc::c_void;
-// use mini3d::{app::{self, App}, event::AppEvents, backend::BackendDescriptor, request::AppRequests, input::InputActionState};
+// use mini3d::{app::{self, App}, event::AppEvents, server::serverDescriptor, request::AppRequests, input::InputActionState};
 // use mini3d_os::program::OSProgram;
 
 // use crate::{renderer::{mini3d_renderer, RendererContext}, event::mini3d_app_events, request::mini3d_app_requests};
@@ -19,12 +19,12 @@
 //     }
 // }
 
-// #[repr(C)] 
+// #[repr(C)]
 // pub struct mini3d_app(*mut c_void);
 
 // #[no_mangle]
 // pub extern "C" fn mini3d_app_new() -> *mut mini3d_app {
-//     let app = app::App::new::<OSProgram>(()).unwrap(); 
+//     let app = app::App::new::<OSProgram>(()).unwrap();
 //     Box::into_raw(Box::new(app)) as *mut mini3d_app
 // }
 
@@ -46,16 +46,16 @@
 //     let events = (events as *mut AppEvents).as_mut().unwrap();
 //     let requests = (requests as *mut AppRequests).as_mut().unwrap();
 //     let renderer = (renderer as *mut RendererContext).as_mut().unwrap();
-    
-//     // Create the backend descriptor
-//     let mut backend_descriptor = BackendDescriptor::new();
-//     // Renderer backend
+
+//     // Create the server descriptor
+//     let mut server_descriptor = serverDescriptor::new();
+//     // Renderer server
 //     match renderer {
 //         RendererContext::None => {},
 //         RendererContext::Wgpu { context } => {
-//             backend_descriptor = backend_descriptor.with_renderer(context.as_mut());
+//             server_descriptor = server_descriptor.with_renderer(context.as_mut());
 //         },
 //     }
 //     // Progress the application
-//     app.progress(backend_descriptor, events, requests, delta_time).is_ok()
+//     app.progress(server_descriptor, events, requests, delta_time).is_ok()
 // }

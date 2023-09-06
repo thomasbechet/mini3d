@@ -63,7 +63,7 @@ impl<const SIZE: usize> From<&str> for AsciiArray<SIZE> {
         let mut array = Self::default();
         array
             .set(value)
-            .expect(AsciiArrayError::OutOfBounds.to_string().as_str());
+            .unwrap_or_else(|_| panic!("{}", AsciiArrayError::OutOfBounds.to_string()));
         array
     }
 }
@@ -95,7 +95,7 @@ mod test {
         let mut array = AsciiArray::<5>::default();
         assert_eq!(array.len(), 0);
         assert_eq!(array.capacity(), 5);
-        assert_eq!(array.is_empty(), true);
+        assert!(array.is_empty());
         assert_eq!(array.as_str(), "");
         assert_eq!(array.set("abcdef"), Err(AsciiArrayError::OutOfBounds));
         assert_eq!(array.set("abcde"), Ok(()));

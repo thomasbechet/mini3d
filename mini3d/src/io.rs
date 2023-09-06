@@ -1,6 +1,5 @@
 use crate::{
-    network::backend::NetworkBackend, storage::backend::StorageBackend,
-    utils::slotmap::DenseSlotMap,
+    network::server::NetworkServer, storage::server::StorageServer, utils::slotmap::DenseSlotMap,
 };
 
 pub struct IOFile;
@@ -14,7 +13,7 @@ pub(crate) enum IOFileKind {
 struct IOFileEntry {}
 
 pub(crate) struct IOManager {
-    storage: Box<dyn StorageBackend>,
-    network: Box<dyn NetworkBackend>,
+    storage: Box<dyn StorageServer>,
+    network: Box<dyn NetworkServer>,
     files: DenseSlotMap<IOFileEntry>,
 }

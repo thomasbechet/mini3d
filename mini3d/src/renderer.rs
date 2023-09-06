@@ -28,19 +28,19 @@ use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
 use self::{
-    backend::{
-        BackendMaterialDescriptor, MaterialHandle, MeshHandle, RendererBackend,
-        RendererBackendError, TextureHandle,
-    },
     color::Color,
     graphics::Graphics,
+    server::{
+        MaterialHandle, MeshHandle, RendererServer, RendererServerError, ServerMaterialDescriptor,
+        TextureHandle,
+    },
 };
 
-pub mod backend;
 pub mod color;
 pub mod event;
 pub mod graphics;
 pub mod rasterizer;
+pub mod server;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -109,47 +109,47 @@ pub(crate) struct RendererResourceManager {
 
 fn load_font(
     handle: StaticAsset<Font>,
-    backend: &mut dyn RendererBackend,
+    server: &mut dyn RendererServer,
     asset: &AssetManager,
-) -> Result<RendererFont, RendererBackendError> {
+) -> Result<RendererFont, RendererServerError> {
     let font = asset.read(handle).unwrap();
     let atlas = FontAtlas::new(font);
-    let handle = backend.texture_add(&atlas.texture)?;
+    let handle = server.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(
     handle: StaticAsset<Mesh>,
-    backend: &mut dyn RendererBackend,
+    server: &mut dyn RendererServer,
     asset: &AssetManager,
-) -> Result<RendererMesh, RendererBackendError> {
+) -> Result<RendererMesh, RendererServerError> {
     let mesh = asset.read(handle).unwrap();
-    let handle = backend.mesh_add(mesh)?;
+    let handle = server.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(
     handle: StaticAsset<Texture>,
-    backend: &mut dyn RendererBackend,
+    server: &mut dyn RendererServer,
     asset: &AssetManager,
-) -> Result<RendererTexture, RendererBackendError> {
+) -> Result<RendererTexture, RendererServerError> {
     let texture = asset.read(handle).unwrap();
-    let handle = backend.texture_add(texture)?;
+    let handle = server.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(
     handle: StaticAsset<Material>,
     textures: &HashMap<GenerationId, RendererTexture>,
-    backend: &mut dyn RendererBackend,
+    server: &mut dyn RendererServer,
     asset: &AssetManager,
-) -> Result<RendererMaterial, RendererBackendError> {
+) -> Result<RendererMaterial, RendererServerError> {
     let material = asset.read(handle).unwrap();
     let info = asset.info(handle).unwrap();
     let diffuse = textures.get(&material.diffuse.id()).unwrap().handle;
-    let handle = backend.material_add(BackendMaterialDescriptor {
+    let handle = server.material_add(ServerMaterialDescriptor {
         diffuse,
-        name: &info.name,
+        name: info.name,
     })?;
     Ok(RendererMaterial { handle })
 }
@@ -165,13 +165,13 @@ impl RendererResourceManager {
     pub(crate) fn request_font<'a>(
         &'a mut self,
         handle: StaticAsset<Font>,
-        backend: &mut impl RendererBackend,
+        server: &mut dyn RendererServer,
         asset: &AssetManager,
-    ) -> Result<&'a RendererFont, RendererBackendError> {
+    ) -> Result<&'a RendererFont, RendererServerError> {
         match self.fonts.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let font = load_font(handle, backend, asset)?;
+                let font = load_font(handle, server, asset)?;
                 Ok(e.insert(font))
             }
         }
@@ -180,13 +180,13 @@ impl RendererResourceManager {
     pub(crate) fn request_mesh(
         &mut self,
         handle: StaticAsset<Mesh>,
-        backend: &mut dyn RendererBackend,
+        server: &mut dyn RendererServer,
         asset: &AssetManager,
-    ) -> Result<&RendererMesh, RendererBackendError> {
+    ) -> Result<&RendererMesh, RendererServerError> {
         match self.meshes.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let mesh = load_mesh(handle, backend, asset)?;
+                let mesh = load_mesh(handle, server, asset)?;
                 Ok(e.insert(mesh))
             }
         }
@@ -195,13 +195,13 @@ impl RendererResourceManager {
     pub(crate) fn request_texture(
         &mut self,
         handle: StaticAsset<Texture>,
-        backend: &mut dyn RendererBackend,
+        server: &mut dyn RendererServer,
         asset: &AssetManager,
-    ) -> Result<&RendererTexture, RendererBackendError> {
+    ) -> Result<&RendererTexture, RendererServerError> {
         match self.textures.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let texture = load_texture(handle, backend, asset)?;
+                let texture = load_texture(handle, server, asset)?;
                 Ok(e.insert(texture))
             }
         }
@@ -210,18 +210,18 @@ impl RendererResourceManager {
     pub(crate) fn request_material(
         &mut self,
         handle: StaticAsset<Material>,
-        backend: &mut dyn RendererBackend,
+        server: &mut dyn RendererServer,
         asset: &AssetManager,
-    ) -> Result<&RendererMaterial, RendererBackendError> {
+    ) -> Result<&RendererMaterial, RendererServerError> {
         match self.materials.entry(handle.id()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
                 let material = asset.read(handle).unwrap();
                 if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse.id()) {
-                    let diffuse = load_texture(material.diffuse, backend, asset)?;
+                    let diffuse = load_texture(material.diffuse, server, asset)?;
                     e.insert(diffuse);
                 }
-                let material = load_material(handle, &self.textures, backend, asset)?;
+                let material = load_material(handle, &self.textures, server, asset)?;
                 Ok(e.insert(material))
             }
         }
@@ -248,7 +248,7 @@ pub struct RendererManager {
 }
 
 impl RendererManager {
-    pub(crate) fn reset(&mut self, ecs: &mut ECSManager, backend: &mut dyn RendererBackend) {
+    pub(crate) fn reset(&mut self, ecs: &mut ECSManager, server: &mut dyn RendererServer) {
         self.resources.reset();
     }
 
@@ -277,8 +277,8 @@ impl RendererManager {
         Ok(())
     }
 
-    pub(crate) fn dispatch_events(&mut self, backend: &mut impl RendererBackend) {
-        for event in backend.events() {
+    pub(crate) fn dispatch_events(&mut self, server: &mut dyn RendererServer) {
+        for event in server.events() {
             match event {
                 RendererEvent::Statistics(stats) => self.statistics = *stats,
             }
@@ -297,10 +297,10 @@ impl RendererManager {
     pub(crate) fn load_state(
         &mut self,
         decoder: &mut impl Decoder,
-        backend: &mut impl RendererBackend,
+        server: &mut dyn RendererServer,
     ) -> Result<(), DecoderError> {
         // Reset all previous resources
-        backend.reset();
+        server.reset();
         // TODO: reset ECS resources
         self.graphics = Graphics::deserialize(decoder, &Default::default())?;
         Ok(())
@@ -310,20 +310,20 @@ impl RendererManager {
         &mut self,
         asset: &mut AssetManager,
         components: &ComponentTable,
-        backend: &mut impl RendererBackend,
+        server: &mut dyn RendererServer,
     ) {
         // Acquire active scene
         let viewports = components
             .view(self.viewport)
             .expect("Failed to acquire viewport view");
         // Render main screen
-        self.graphics.submit_backend(
+        self.graphics.submit_server(
             None,
             Color::TRANSPARENT,
             &mut self.resources,
             asset,
             &viewports,
-            backend,
+            server,
         );
     }
 
