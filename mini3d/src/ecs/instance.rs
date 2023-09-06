@@ -1,12 +1,14 @@
 use core::fmt::Display;
 
+use std::ops::Index;
+
 use crate::{
     registry::{
         component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,
         system::{System, SystemRegistry},
     },
-    utils::uid::UID,
+    utils::{slotmap::SparseSecondaryMap, uid::UID},
 };
 
 use super::{
@@ -146,7 +148,7 @@ pub(crate) struct SystemInstanceEntry {
 }
 
 impl SystemInstanceEntry {
-    pub(crate) fn new(system: System, registry: &SystemRegistry) -> Self {
+    fn new(system: System, registry: &SystemRegistry) -> Self {
         let instance = registry
             .get(system)
             .expect("System not found")
@@ -159,5 +161,24 @@ impl SystemInstanceEntry {
             filter_queries: Vec::new(),
             active: true,
         }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct SystemInstanceTable {
+    instances: SparseSecondaryMap<SystemInstanceEntry>,
+}
+
+impl SystemInstanceTable {
+    pub(crate) fn insert(&mut self, system: System, registry: &SystemRegistry) {
+        self.instances
+            .insert(system.into(), SystemInstanceEntry::new(system, registry));
+    }
+}
+
+impl Index<System> for SystemInstanceTable {
+    type Output = SystemInstance;
+    fn index(&self, id: System) -> &Self::Output {
+        &self.instances[id.into()].instance
     }
 }

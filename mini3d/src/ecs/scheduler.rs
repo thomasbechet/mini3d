@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 
 use crate::{
     feature::component::common::program::Program,
-    registry::system::SystemRegistry,
+    registry::system::{System, SystemRegistry, SystemStage},
     utils::{
-        slotmap::{SecondaryMap, SlotId, SlotMap, SparseSecondaryMap},
+        slotmap::{SlotId, SlotMap, SparseSecondaryMap},
         uid::UID,
     },
 };
@@ -28,7 +28,7 @@ use super::{
     entity::EntityTable,
     error::ECSError,
     instance::{
-        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceEntry,
+        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceTable,
         SystemResult,
     },
     query::QueryTable,
@@ -42,9 +42,9 @@ pub enum Invocation {
 }
 
 pub(crate) enum SystemPipelineNode {
-    Exclusive { instance: SlotId, next: SlotId },
+    Exclusive { instance: System, next: SlotId },
     Parallel { first_item: SlotId, next: SlotId },
-    ParallelItem { instance: SlotId, next: SlotId },
+    ParallelItem { instance: System, next: SlotId },
 }
 
 pub(crate) enum StaticSystemInstance {
@@ -84,6 +84,7 @@ impl SystemInstance {
 
 pub(crate) struct PeriodicStage {
     pub(crate) stage: UID,
+    pub(crate) id: SlotId,
     pub(crate) frequency: f64,
     pub(crate) accumulator: f64,
 }
@@ -95,8 +96,6 @@ pub(crate) struct StageEntry {
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
-    // True when rebuild is required
-    out_of_date: bool,
     // Specific update stage (build by engine)
     update_stage: SlotId,
     // Mapping between stage and first node
@@ -107,25 +106,29 @@ pub(crate) struct Scheduler {
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next stage
     next_frame_stages: VecDeque<SlotId>,
-    // Concrete system instances
-    instances: SecondaryMap<SystemInstanceEntry>,
     // Incremental cycle
     global_cycle: u32,
 }
 
 impl Scheduler {
-    pub(crate) fn find_stage(&self, uid: UID) -> Option<SlotId> {
-        self.stages
-            .iter()
-            .find_map(|(id, entry)| if entry.uid == uid { Some(id) } else { None })
-    }
-
     pub(crate) fn rebuild(&mut self, registry: &SystemRegistry) {
-        // Reset resources
+        // Reset baked resources
         self.stages.clear();
         self.nodes.clear();
         self.update_stage = SlotId::null();
+
+        // Reset periodic stages
+        for stage in self.periodic_stages.iter_mut() {
+            stage.id = SlotId::null();
+        }
+
+        // Build nodes from registry stages
         for (id, entry) in registry.stages.iter() {
+            // Keep a reference to the update stage
+            if entry.uid == SystemStage::UPDATE.into() {
+                self.update_stage = id;
+            }
+
             // Build pipeline
             let mut previous_node = None;
             while let Some(system) = entry.first_system {
@@ -134,6 +137,8 @@ impl Scheduler {
                     instance: system.into(),
                     next: SlotId::null(),
                 });
+
+                // Link previous node or create new stage
                 if let Some(previous_node) = previous_node {
                     match &mut self.nodes[previous_node] {
                         SystemPipelineNode::Exclusive { next, .. } => {
@@ -156,16 +161,11 @@ impl Scheduler {
                         },
                     );
                 }
-                // Create instance
-                if !self.instances.contains(system.into()) {
-                    self.instances
-                        .insert(system.into(), SystemInstanceEntry::new(system, registry));
-                }
+
                 // Next previous node
                 previous_node = Some(node_id);
             }
         }
-        self.out_of_date = true;
     }
 
     pub(crate) fn update(
@@ -174,6 +174,7 @@ impl Scheduler {
         components: &mut ComponentTable,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
+        instances: &SystemInstanceTable,
         context: &mut ECSUpdateContext,
     ) -> Result<(), ECSError> {
         // Collect previous frame stages
@@ -196,11 +197,14 @@ impl Scheduler {
         // Run stages
         // TODO: protect against infinite loops
         while let Some(stage) = frame_stages.pop_front() {
+            // Find stage entry
             if let Some(stage) = self.stages.get(stage) {
+                // Iter nodes
                 let mut current = stage.first_node;
                 while !current.is_null() {
                     match self.nodes[current] {
                         SystemPipelineNode::Exclusive { instance, next } => {
+                            // Build node API
                             let api = &mut ExclusiveAPI {
                                 asset: ExclusiveAssetAPI {
                                     manager: context.asset,
@@ -234,11 +238,13 @@ impl Scheduler {
                                 components,
                                 entities,
                                 queries,
+                                periodic_stages: &mut self.periodic_stages,
+                                stages: &self.stages,
                                 frame_stages: &mut frame_stages,
                                 next_frame_stages: &mut self.next_frame_stages,
                                 cycle: self.global_cycle,
                             };
-                            self.instances[instance].run_exclusive(ecs, api);
+                            instances[instance].run_exclusive(ecs, api);
                             current = next;
                         }
                         SystemPipelineNode::Parallel { first_item, next } => {
@@ -266,7 +272,6 @@ impl Scheduler {
                                 },
                                 time: TimeAPI {
                                     delta: context.delta_time,
-                                    fixed: stage.frequency,
                                     global: context.global_time,
                                 },
                             };

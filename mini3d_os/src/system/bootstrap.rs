@@ -14,7 +14,7 @@ pub struct OSBootstrap;
 impl ExclusiveSystem for OSBootstrap {
     const NAME: &'static str = "os_bootstrap";
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+    fn run(&self, _ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
         api.registry.components.add_static::<OS>("os")?;
         Ok(())
     }

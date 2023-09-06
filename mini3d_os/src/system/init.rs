@@ -4,7 +4,6 @@ use mini3d::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
         instance::SystemResult,
     },
-    engine::Engine,
     feature::component::{
         common::{free_fly::FreeFly, lifecycle::Lifecycle, rotator::Rotator, script::Script},
         input::input_table::{InputAction, InputAxis, InputAxisRange, InputTable},
@@ -20,11 +19,7 @@ use mini3d::{
     },
     glam::{IVec2, Quat, Vec3},
     math::rect::IRect,
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ExclusiveSystem,
-    },
+    registry::{component::StaticComponent, system::ExclusiveSystem},
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
     script::{compiler::Compiler, module::Module},
     system::event::{ImportAssetEvent, SystemEvent},

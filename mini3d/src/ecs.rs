@@ -94,13 +94,15 @@ impl ECSManager {
     }
 
     pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), ECSError> {
+        // Update cycle
         self.scheduler.update(
             &mut self.archetypes,
             &mut self.components,
             &mut self.entities,
             &mut self.queries,
-            &mut self.instances,
+            &self.instances,
             &mut context,
         )
+        // Synchronize with registry
     }
 }

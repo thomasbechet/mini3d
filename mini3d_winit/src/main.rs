@@ -20,6 +20,7 @@ use mini3d::{
     },
 };
 use mini3d_derive::Serialize;
+use mini3d_os::system::bootstrap::OSBootstrap;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
 // use serde::Serialize;
@@ -83,7 +84,7 @@ fn main_run() {
     let mut system_events = Vec::new();
 
     let mut engine = Engine::new(true);
-    initialize_engine(&mut engine).expect("Failed to initialize os");
+    engine.register_bootstrap_system::<OSBootstrap>();
 
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();

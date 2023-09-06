@@ -9,7 +9,7 @@ use crate::network::backend::NetworkBackend;
 use crate::physics::PhysicsManager;
 use crate::registry::component::ComponentData;
 use crate::registry::error::RegistryError;
-use crate::registry::system::SystemStage;
+use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
 use crate::renderer::backend::RendererBackend;
 use crate::renderer::RendererManager;
@@ -42,7 +42,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    fn define_core_features(&mut self) -> Result<(), RegistryError> {
+    fn register_core_features(&mut self) -> Result<(), RegistryError> {
         macro_rules! define_component {
             ($component: ty) => {
                 self.registry
@@ -53,17 +53,21 @@ impl Engine {
 
         macro_rules! define_system_exclusive {
             ($name: literal, $system: ty, $stage: expr) => {
-                self.registry
-                    .systems
-                    .add_static_exclusive::<$system>($name, $stage)?;
+                self.registry.systems.add_static_exclusive::<$system>(
+                    $name,
+                    $stage,
+                    SystemOrder::default(),
+                )?;
             };
         }
 
         macro_rules! define_system_parallel {
             ($name: literal, $system: ty, $stage: expr) => {
-                self.registry
-                    .systems
-                    .add_static_parallel::<$system>($name, $stage)?;
+                self.registry.systems.add_static_parallel::<$system>(
+                    $name,
+                    $stage,
+                    SystemOrder::default(),
+                )?;
             };
         }
 
@@ -140,7 +144,7 @@ impl Engine {
         };
         if core_features {
             engine
-                .define_core_features()
+                .register_core_features()
                 .expect("Failed to define core features");
         }
         engine
@@ -178,11 +182,13 @@ impl Engine {
         Ok(())
     }
 
-    pub fn define_static_component<C: ComponentData>(
-        &mut self,
-        name: &str,
-    ) -> Result<(), RegistryError> {
-        self.registry.components.add_static::<C>(name)
+    pub fn register_bootstrap_system<S: ExclusiveSystem>(&mut self) -> Result<(), RegistryError> {
+        self.registry.systems.add_static_exclusive::<S>(
+            "bootstrap",
+            SystemStage::BOOTSTRAP,
+            SystemOrder::default(),
+        )?;
+        Ok(())
     }
 
     pub fn is_running(&self) -> bool {

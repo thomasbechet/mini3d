@@ -22,6 +22,7 @@ pub struct ExclusiveECS<'a> {
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
     pub(crate) periodic_stages: &'a mut Vec<PeriodicStage>,
+    pub(crate) stages: &'a SparseSecondaryMap<StageEntry>,
     pub(crate) frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) next_frame_stages: &'a mut VecDeque<SlotId>,
     pub(crate) cycle: u32,
@@ -54,6 +55,7 @@ impl<'a> ExclusiveECS<'a> {
         }
         self.periodic_stages.push(PeriodicStage {
             stage,
+            id: SlotId::null(),
             frequency,
             accumulator: 0.0,
         });
@@ -62,8 +64,17 @@ impl<'a> ExclusiveECS<'a> {
 
     pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {
         let stage = self
-            .systems
-            .find_stage(stage)
+            .stages
+            .iter()
+            .find_map(
+                |(id, entry)| {
+                    if entry.uid == stage {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                },
+            )
             .ok_or(ECSError::SystemStageNotFound)?;
         match invocation {
             Invocation::Immediate => {

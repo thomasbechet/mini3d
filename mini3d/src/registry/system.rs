@@ -114,9 +114,7 @@ pub struct SystemStage;
 impl SystemStage {
     pub const UPDATE: &'static str = "update";
     pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
-    pub const SCENE_CHANGED: &'static str = "scene_changed";
-    pub const SCENE_START: &'static str = "scene_start";
-    pub const SCENE_STOP: &'static str = "scene_stop";
+    pub const BOOTSTRAP: &'static str = "bootstrap";
 }
 
 pub const MAX_SYSTEM_NAME_LEN: usize = 64;
@@ -156,9 +154,7 @@ impl Default for SystemRegistry {
         for name in [
             SystemStage::UPDATE,
             SystemStage::FIXED_UPDATE_60HZ,
-            SystemStage::SCENE_CHANGED,
-            SystemStage::SCENE_START,
-            SystemStage::SCENE_STOP,
+            SystemStage::BOOTSTRAP,
         ] {
             reg.stages.add(SystemStageEntry {
                 name: AsciiArray::from(name),
@@ -197,13 +193,14 @@ impl SystemRegistry {
                 name: entry.name.to_string(),
             });
         }
+        let stage = entry.stage;
         let id = self.systems.add(entry);
-        if let Some(last) = self.find_last_system_in_stage(entry.stage) {
+        if let Some(last) = self.find_last_system_in_stage(stage) {
             let last = last.into();
             self.systems[last].next_in_stage = Some(id.into());
             self.systems[id].prev_in_stage = Some(last.into());
         } else {
-            self.stages[entry.stage].first_system = Some(id.into());
+            self.stages[stage].first_system = Some(id.into());
         }
         Ok(id.into())
     }
