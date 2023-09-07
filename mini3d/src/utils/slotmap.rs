@@ -1,16 +1,34 @@
 use std::ops::{Index, IndexMut};
 
+use mini3d_derive::Serialize;
+
+#[derive(Default, Copy, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct SlotVersion(u8);
+
+impl SlotVersion {
+    pub fn next(&mut self) -> Self {
+        let old = *self;
+        self.0 = self.0.wrapping_add(1);
+        old
+    }
+}
+
 #[derive(Debug, Hash, Copy, Clone, PartialEq, Eq)]
 pub struct SlotId(u32);
 
 impl SlotId {
-    fn new(value: u32) -> Self {
-        Self(value + 1)
+    fn new(index: u32, version: SlotVersion) -> Self {
+        Self((index + 1) | ((version.0 as u32) << 24))
     }
 
     fn index(&self) -> usize {
-        assert!(self.0 > 0);
-        (self.0 - 1) as usize
+        let index = self.0 & 0x00ff_ffff;
+        assert!(index > 0);
+        (index - 1) as usize
+    }
+
+    fn version(&self) -> SlotVersion {
+        SlotVersion((self.0 >> 24) as u8)
     }
 
     pub fn null() -> Self {
@@ -18,19 +36,7 @@ impl SlotId {
     }
 
     pub fn is_null(&self) -> bool {
-        self.0 == 0
-    }
-}
-
-impl From<u32> for SlotId {
-    fn from(value: u32) -> Self {
-        Self::new(value)
-    }
-}
-
-impl From<SlotId> for u32 {
-    fn from(value: SlotId) -> Self {
-        value.0
+        (self.0 & 0x00ff_ffff) == 0
     }
 }
 
@@ -40,9 +46,9 @@ impl Default for SlotId {
     }
 }
 
-enum SlotEntry<V> {
-    Value(V),
-    Free(SlotId),
+struct SlotEntry<V> {
+    value: V,
+    meta: SlotId, // if version 'is_free' then
 }
 
 pub struct SlotMap<V> {
@@ -74,19 +80,18 @@ impl<V> SlotMap<V> {
 
     pub fn add(&mut self, value: V) -> SlotId {
         if self.free.is_null() {
-            let index = self.entries.len();
-            self.entries.push(SlotEntry::Value(value));
-            SlotId::new(index as u32)
+            let index = self.entries.len() as u32;
+            let slot = SlotId::new(index, SlotVersion::default());
+            self.entries.push(SlotEntry { value, meta: slot });
+            slot
         } else {
             let free = self.free;
-            match self.entries[free.index()] {
-                SlotEntry::Free(next_free) => {
-                    self.entries[free.index()] = SlotEntry::Value(value);
-                    self.free = next_free;
-                    free
-                }
-                _ => panic!("Invalid slot entry"),
-            }
+            let entry = &mut self.entries[free.index()];
+            assert!(entry.meta.is_free());
+            entry.value = value;
+            entry.meta = SlotId::new(free.index() as u32, entry.meta.version().next());
+            self.free = entry.meta;
+            entry.meta
         }
     }
 
