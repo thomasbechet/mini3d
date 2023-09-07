@@ -1,20 +1,20 @@
 use crate::{
     registry::component::ComponentData,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::{generation::GenerationId, slotmap::SlotId},
+    utils::slotmap::SlotId,
 };
 
 use super::container::{AnyAssetContainer, StaticAssetContainer};
 
 #[derive(Default, Clone, Copy)]
-pub struct AssetBundleId(GenerationId);
+pub struct AssetBundleId(SlotId);
 
 impl AssetBundleId {
-    pub(crate) fn new(id: GenerationId) -> Self {
+    pub(crate) fn new(id: SlotId) -> Self {
         Self(id)
     }
 
-    pub(crate) fn id(&self) -> GenerationId {
+    pub(crate) fn id(&self) -> SlotId {
         self.0
     }
 }
@@ -25,8 +25,8 @@ pub struct PrivateAnyAssetContainerMut<'a>(pub(crate) &'a mut dyn AnyAssetContai
 pub trait AssetHandle {
     type AssetRef<'a>;
     type Data;
-    fn new(id: GenerationId) -> Self;
-    fn id(&self) -> GenerationId;
+    fn new(id: SlotId) -> Self;
+    fn id(&self) -> SlotId;
     fn asset_ref<'a>(&self, container: PrivateAnyAssetContainerRef<'a>) -> Self::AssetRef<'a>;
     fn insert_container(container: PrivateAnyAssetContainerMut, data: Self::Data) -> SlotId;
     fn remove_container(container: PrivateAnyAssetContainerMut, slot: SlotId);
@@ -36,7 +36,7 @@ pub trait AssetHandle {
 #[derive(Default)]
 pub struct StaticAsset<C: ComponentData> {
     _marker: std::marker::PhantomData<C>,
-    id: GenerationId,
+    id: SlotId,
 }
 
 impl<C: ComponentData> StaticAsset<C> {
@@ -73,13 +73,13 @@ impl<C: ComponentData> std::fmt::Debug for StaticAsset<C> {
 impl<C: ComponentData> AssetHandle for StaticAsset<C> {
     type AssetRef<'a> = &'a C;
     type Data = C;
-    fn new(id: GenerationId) -> Self {
+    fn new(id: SlotId) -> Self {
         Self {
             _marker: std::marker::PhantomData::<C>,
             id,
         }
     }
-    fn id(&self) -> GenerationId {
+    fn id(&self) -> SlotId {
         self.id
     }
     fn asset_ref<'a>(&self, container: PrivateAnyAssetContainerRef<'a>) -> Self::AssetRef<'a> {
@@ -89,7 +89,7 @@ impl<C: ComponentData> AssetHandle for StaticAsset<C> {
             .downcast_ref::<StaticAssetContainer<C>>()
             .expect("Invalid static asset container")
             .0
-            .get(self.id.slot())
+            .get(self.id)
             .expect("Asset not found in container")
     }
     fn insert_container(container: PrivateAnyAssetContainerMut, asset: Self::Data) -> SlotId {
@@ -132,23 +132,29 @@ impl<C: ComponentData> Serialize for StaticAsset<C> {
     ) -> Result<Self, DecoderError> {
         Ok(Self {
             _marker: std::marker::PhantomData::<C>,
-            id: GenerationId::deserialize(decoder, &Default::default())?,
+            id: SlotId::deserialize(decoder, &Default::default())?,
         })
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Asset {
-    id: GenerationId,
+    id: SlotId,
+}
+
+impl<C: ComponentData> From<StaticAsset<C>> for Asset {
+    fn from(asset: StaticAsset<C>) -> Self {
+        Self { id: asset.id }
+    }
 }
 
 impl AssetHandle for Asset {
     type AssetRef<'a> = ();
     type Data = ();
-    fn new(id: GenerationId) -> Self {
+    fn new(id: SlotId) -> Self {
         Self { id }
     }
-    fn id(&self) -> GenerationId {
+    fn id(&self) -> SlotId {
         self.id
     }
     fn asset_ref<'a>(&self, container: PrivateAnyAssetContainerRef<'a>) -> Self::AssetRef<'a> {}
@@ -173,7 +179,7 @@ impl Serialize for Asset {
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
         Ok(Self {
-            id: GenerationId::deserialize(decoder, &Default::default())?,
+            id: SlotId::deserialize(decoder, &Default::default())?,
         })
     }
 }

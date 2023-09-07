@@ -71,12 +71,12 @@ pub trait ComponentHandle: Copy {
     );
 }
 
-pub struct StaticComponent<C: ComponentData> {
+pub struct StaticComponentType<C: ComponentData> {
     _marker: std::marker::PhantomData<C>,
     id: ComponentId,
 }
 
-impl<C: ComponentData> Clone for StaticComponent<C> {
+impl<C: ComponentData> Clone for StaticComponentType<C> {
     fn clone(&self) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -85,9 +85,9 @@ impl<C: ComponentData> Clone for StaticComponent<C> {
     }
 }
 
-impl<C: ComponentData> Copy for StaticComponent<C> {}
+impl<C: ComponentData> Copy for StaticComponentType<C> {}
 
-impl<C: ComponentData> Default for StaticComponent<C> {
+impl<C: ComponentData> Default for StaticComponentType<C> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -96,7 +96,7 @@ impl<C: ComponentData> Default for StaticComponent<C> {
     }
 }
 
-impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
+impl<C: ComponentData> ComponentHandle for StaticComponentType<C> {
     type ViewRef<'a> = StaticComponentViewRef<'a, C>;
     type ViewMut<'a> = StaticComponentViewMut<'a, C>;
     type AssetHandle = StaticAsset<C>;
@@ -184,11 +184,11 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
 }
 
 #[derive(Clone, Copy)]
-pub struct Component {
+pub struct ComponentType {
     id: ComponentId,
 }
 
-impl ComponentHandle for Component {
+impl ComponentHandle for ComponentType {
     type ViewRef<'a> = ComponentViewRef<'a>;
     type ViewMut<'a> = ComponentViewMut<'a>;
     type AssetHandle = Asset;

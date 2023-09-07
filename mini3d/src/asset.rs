@@ -2,7 +2,6 @@ use core::result::Result;
 
 use crate::registry::component::{ComponentHandle, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
-use crate::utils::generation::{GenerationId, VersionId};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::string::AsciiArray;
 
@@ -32,7 +31,6 @@ pub(crate) const MAX_ASSET_NAME_LEN: usize = 64;
 struct AssetEntry {
     name: AsciiArray<MAX_ASSET_NAME_LEN>,
     component: ComponentId,
-    version: VersionId,
     slot: SlotId, // Null if not loaded
     source: AssetSource,
     bundle: AssetBundleId,
@@ -51,14 +49,12 @@ pub(crate) const MAX_ASSET_BUNDLE_NAME_LEN: usize = 64;
 struct AssetBundleEntry {
     name: AsciiArray<MAX_ASSET_BUNDLE_NAME_LEN>,
     first_entry: AssetEntryId, // Null if empty
-    version: VersionId,
 }
 
 pub struct AssetManager {
     containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // ComponentId -> Container
     bundles: DenseSlotMap<AssetBundleEntry>,                    // AssetBundleId -> AssetBundle
     entries: DenseSlotMap<AssetEntry>,                          // AssetId -> AssetEntry
-    next_version: VersionId,
 }
 
 impl Default for AssetManager {
@@ -67,7 +63,6 @@ impl Default for AssetManager {
             containers: Default::default(),
             bundles: Default::default(),
             entries: Default::default(),
-            next_version: Default::default(),
         };
         manager.add_bundle(AssetBundle::DEFAULT).unwrap();
         manager
@@ -150,14 +145,12 @@ impl AssetManager {
         component: ComponentId,
         bundle: AssetBundleId,
         source: AssetSource,
-    ) -> Result<GenerationId, AssetError> {
+    ) -> Result<SlotId, AssetError> {
         let id = bundle.id();
-        if let Some(bundle_entry) = self.bundles.get_mut(id.slot()) {
-            let version = self.next_version.next();
+        if let Some(bundle_entry) = self.bundles.get_mut(id) {
             let slot = self.entries.add(AssetEntry {
                 name: name.into(),
                 component,
-                version,
                 slot: SlotId::null(),
                 source,
                 bundle,
@@ -170,7 +163,7 @@ impl AssetManager {
                 self.entries[slot].next_in_bundle = bundle_entry.first_entry;
             }
             bundle_entry.first_entry = slot;
-            Ok(GenerationId::from_slot(slot, version))
+            Ok(slot)
         } else {
             Err(AssetError::BundleNotFound)
         }
@@ -182,7 +175,7 @@ impl AssetManager {
         let next = self.entries[slot].next_in_bundle;
         let prev = self.entries[slot].prev_in_bundle;
         if prev.is_null() {
-            self.bundles[bundle.id().slot()].first_entry = next;
+            self.bundles[bundle.id()].first_entry = next;
         } else {
             self.entries[prev].next_in_bundle = next;
         }
@@ -207,7 +200,7 @@ impl AssetManager {
         let id = self.add_entry(name, handle.id(), bundle, source)?;
         // TODO: preload asset in container ? wait for read ? define proper strategy
         if let Some(container) = self.containers.get_mut(handle.id().into()) {
-            self.entries[id.slot()].slot = <C::AssetHandle as AssetHandle>::insert_container(
+            self.entries[id].slot = <C::AssetHandle as AssetHandle>::insert_container(
                 PrivateAnyAssetContainerMut(container.as_mut()),
                 data,
             );
@@ -220,19 +213,18 @@ impl AssetManager {
 
     pub(crate) fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {
         let id = handle.id();
-        let slot = id.slot();
-        if self.entries[slot].version != id.version() {
+        if !self.entries.contains(id) {
             return Err(AssetError::AssetNotFound);
         }
         // TODO: remove cached data from container
-        if !self.entries[slot].slot.is_null() {
+        if !self.entries[id].slot.is_null() {
             <H as AssetHandle>::remove_container(
                 PrivateAnyAssetContainerMut(self.containers.get_mut(id.into()).unwrap().as_mut()),
-                self.entries[slot].slot,
+                self.entries[id].slot,
             );
         }
         // Remove entry
-        self.remove_entry(slot);
+        self.remove_entry(id);
         Ok(())
     }
 
@@ -248,30 +240,20 @@ impl AssetManager {
                         .as_ref(),
                 ))
             })
-            .map(|(id, entry)| H::new(GenerationId::from_slot(id, entry.version)))
+            .map(|(id, _)| H::new(id))
     }
 
     pub(crate) fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
         let id = handle.id();
         self.entries
-            .get(id.slot())
-            .and_then(|entry| {
-                if entry.version == id.version() {
-                    Some(AssetInfo { name: &entry.name })
-                } else {
-                    None
-                }
-            })
+            .get(id)
+            .map(|entry| AssetInfo { name: &entry.name })
             .ok_or(AssetError::AssetNotFound)
     }
 
     pub(crate) fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
-        let slot = handle.id().slot();
-        let version = handle.id().version();
+        let slot = handle.id();
         let entry = self.entries.get(slot).ok_or(AssetError::AssetNotFound)?;
-        if entry.version != version {
-            return Err(AssetError::AssetNotFound);
-        }
         if !entry.slot.is_null() {
             Ok(handle.asset_ref(PrivateAnyAssetContainerRef(
                 self.containers[entry.component.into()].as_ref(),
@@ -297,28 +279,24 @@ impl AssetManager {
         {
             return Err(AssetError::DuplicatedBundle);
         }
-        let version = self.next_version.next();
         let slot = self.bundles.add(AssetBundleEntry {
             name: name.into(),
             first_entry: SlotId::null(),
-            version,
         });
-        Ok(AssetBundleId::new(GenerationId::from_slot(slot, version)))
+        Ok(AssetBundleId::new(slot))
     }
 
     pub(crate) fn remove_bundle(&mut self, bundle: AssetBundleId) -> Result<(), AssetError> {
         let id = bundle.id();
-        if let Some(bundle) = self.bundles.get(id.slot()) {
-            if bundle.version != id.version() {
-                return Err(AssetError::BundleNotFound);
-            }
+        if !self.bundles.contains(id) {
+            return Err(AssetError::BundleNotFound);
         }
         // Remove all entries
-        while !self.bundles[id.slot()].first_entry.is_null() {
-            self.remove_entry(self.bundles[id.slot()].first_entry);
+        while !self.bundles[id].first_entry.is_null() {
+            self.remove_entry(self.bundles[id].first_entry);
         }
         // Remove bundle
-        self.bundles.remove(id.slot());
+        self.bundles.remove(id);
         Ok(())
     }
 }

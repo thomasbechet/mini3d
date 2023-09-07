@@ -12,7 +12,7 @@ use crate::{
         ui::{UIRenderTarget, UI},
     },
     registry::{
-        component::{ComponentData, StaticComponent},
+        component::{ComponentData, StaticComponentType},
         error::RegistryError,
         system::{ExclusiveSystem, ParallelSystem},
     },
@@ -20,7 +20,7 @@ use crate::{
 
 #[derive(Default)]
 pub struct UpdateUI {
-    ui: StaticComponent<UI>,
+    ui: StaticComponentType<UI>,
     query: Query,
 }
 
@@ -48,9 +48,9 @@ impl ParallelSystem for UpdateUI {
 
 #[derive(Default)]
 pub struct RenderUI {
-    canvas: StaticComponent<Canvas>,
-    ui: StaticComponent<UI>,
-    target: StaticComponent<UIRenderTarget>,
+    canvas: StaticComponentType<Canvas>,
+    ui: StaticComponentType<UI>,
+    target: StaticComponentType<UIRenderTarget>,
     query: Query,
 }
 

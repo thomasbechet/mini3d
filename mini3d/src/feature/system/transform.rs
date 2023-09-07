@@ -12,7 +12,7 @@ use crate::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
     },
     registry::{
-        component::{ComponentData, StaticComponent},
+        component::{ComponentData, StaticComponentType},
         error::RegistryError,
         system::ParallelSystem,
     },
@@ -49,9 +49,9 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: StaticComponent<Transform>,
-    hierarchy: StaticComponent<Hierarchy>,
-    local_to_world: StaticComponent<LocalToWorld>,
+    transform: StaticComponentType<Transform>,
+    hierarchy: StaticComponentType<Hierarchy>,
+    local_to_world: StaticComponentType<LocalToWorld>,
     query: Query,
 }
 

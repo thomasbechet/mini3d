@@ -8,7 +8,7 @@ use crate::{
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
     registry::{
-        component::{ComponentData, StaticComponent},
+        component::{ComponentData, StaticComponentType},
         error::RegistryError,
         system::ParallelSystem,
     },
@@ -16,8 +16,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct RotatorSystem {
-    transform: StaticComponent<Transform>,
-    rotator: StaticComponent<Rotator>,
+    transform: StaticComponentType<Transform>,
+    rotator: StaticComponentType<Rotator>,
     query: Query,
 }
 

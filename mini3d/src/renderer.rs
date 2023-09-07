@@ -1,6 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
-use crate::asset::handle::{AssetHandle, StaticAsset};
+use crate::asset::handle::{Asset, StaticAsset};
 use crate::ecs::component::ComponentTable;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
@@ -12,10 +12,9 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::renderer::viewport::Viewport;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
-use crate::registry::component::{ComponentData, ComponentRegistry, StaticComponent};
+use crate::registry::component::{ComponentData, ComponentRegistry, StaticComponentType};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
-use crate::utils::generation::GenerationId;
 use crate::utils::uid::UID;
 use crate::{
     asset::AssetManager,
@@ -101,10 +100,10 @@ pub(crate) struct RendererMaterial {
 
 #[derive(Default)]
 pub(crate) struct RendererResourceManager {
-    fonts: HashMap<GenerationId, RendererFont>,
-    textures: HashMap<GenerationId, RendererTexture>,
-    meshes: HashMap<GenerationId, RendererMesh>,
-    materials: HashMap<GenerationId, RendererMaterial>,
+    fonts: HashMap<Asset, RendererFont>,
+    textures: HashMap<Asset, RendererTexture>,
+    meshes: HashMap<Asset, RendererMesh>,
+    materials: HashMap<Asset, RendererMaterial>,
 }
 
 fn load_font(
@@ -140,13 +139,13 @@ fn load_texture(
 
 fn load_material(
     handle: StaticAsset<Material>,
-    textures: &HashMap<GenerationId, RendererTexture>,
+    textures: &HashMap<Asset, RendererTexture>,
     server: &mut dyn RendererServer,
     asset: &AssetManager,
 ) -> Result<RendererMaterial, RendererServerError> {
     let material = asset.read(handle).unwrap();
     let info = asset.info(handle).unwrap();
-    let diffuse = textures.get(&material.diffuse.id()).unwrap().handle;
+    let diffuse = textures.get(&material.diffuse.into()).unwrap().handle;
     let handle = server.material_add(ServerMaterialDescriptor {
         diffuse,
         name: info.name,
@@ -168,7 +167,7 @@ impl RendererResourceManager {
         server: &mut dyn RendererServer,
         asset: &AssetManager,
     ) -> Result<&'a RendererFont, RendererServerError> {
-        match self.fonts.entry(handle.id()) {
+        match self.fonts.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
                 let font = load_font(handle, server, asset)?;
@@ -183,7 +182,7 @@ impl RendererResourceManager {
         server: &mut dyn RendererServer,
         asset: &AssetManager,
     ) -> Result<&RendererMesh, RendererServerError> {
-        match self.meshes.entry(handle.id()) {
+        match self.meshes.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
                 let mesh = load_mesh(handle, server, asset)?;
@@ -198,7 +197,7 @@ impl RendererResourceManager {
         server: &mut dyn RendererServer,
         asset: &AssetManager,
     ) -> Result<&RendererTexture, RendererServerError> {
-        match self.textures.entry(handle.id()) {
+        match self.textures.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
                 let texture = load_texture(handle, server, asset)?;
@@ -213,11 +212,11 @@ impl RendererResourceManager {
         server: &mut dyn RendererServer,
         asset: &AssetManager,
     ) -> Result<&RendererMaterial, RendererServerError> {
-        match self.materials.entry(handle.id()) {
+        match self.materials.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
                 let material = asset.read(handle).unwrap();
-                if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse.id()) {
+                if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse.into()) {
                     let diffuse = load_texture(material.diffuse, server, asset)?;
                     e.insert(diffuse);
                 }
@@ -239,12 +238,12 @@ pub struct RendererManager {
     clear_color: Color,
 
     // Components
-    camera: StaticComponent<Camera>,
-    static_mesh: StaticComponent<StaticMesh>,
-    canvas: StaticComponent<Canvas>,
-    local_to_world: StaticComponent<LocalToWorld>,
-    viewport: StaticComponent<Viewport>,
-    model: StaticComponent<Model>,
+    camera: StaticComponentType<Camera>,
+    static_mesh: StaticComponentType<StaticMesh>,
+    canvas: StaticComponentType<Canvas>,
+    local_to_world: StaticComponentType<LocalToWorld>,
+    viewport: StaticComponentType<Viewport>,
+    model: StaticComponentType<Model>,
 }
 
 impl RendererManager {
