@@ -8,7 +8,7 @@ use crate::{
     },
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
     registry::{
-        component::{ComponentData, StaticComponentType},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ParallelSystem,
     },
@@ -16,8 +16,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct FreeFlySystem {
-    free_fly: StaticComponentType<FreeFly>,
-    transform: StaticComponentType<Transform>,
+    free_fly: StaticComponent<FreeFly>,
+    transform: StaticComponent<Transform>,
     query: Query,
 }
 

@@ -12,7 +12,7 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::renderer::viewport::Viewport;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
-use crate::registry::component::{ComponentData, ComponentRegistry, StaticComponentType};
+use crate::registry::component::{ComponentData, ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::uid::UID;
@@ -238,12 +238,12 @@ pub struct RendererManager {
     clear_color: Color,
 
     // Components
-    camera: StaticComponentType<Camera>,
-    static_mesh: StaticComponentType<StaticMesh>,
-    canvas: StaticComponentType<Canvas>,
-    local_to_world: StaticComponentType<LocalToWorld>,
-    viewport: StaticComponentType<Viewport>,
-    model: StaticComponentType<Model>,
+    camera: StaticComponent<Camera>,
+    static_mesh: StaticComponent<StaticMesh>,
+    canvas: StaticComponent<Canvas>,
+    local_to_world: StaticComponent<LocalToWorld>,
+    viewport: StaticComponent<Viewport>,
+    model: StaticComponent<Model>,
 }
 
 impl RendererManager {

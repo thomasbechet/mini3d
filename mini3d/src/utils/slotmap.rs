@@ -2,14 +2,12 @@ use std::ops::{Index, IndexMut};
 
 use mini3d_derive::Serialize;
 
-#[derive(Default, Copy, Clone, PartialEq, Eq, Serialize)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct SlotVersion(u8);
 
 impl SlotVersion {
-    pub fn next(&mut self) -> Self {
-        let old = *self;
-        self.0 = self.0.wrapping_add(1);
-        old
+    pub fn next(&self) -> Self {
+        Self(self.0.wrapping_add(1))
     }
 }
 
@@ -18,14 +16,11 @@ pub struct SlotId(u32);
 
 impl SlotId {
     fn new(index: usize, version: SlotVersion) -> Self {
-        Self((index as u32 + 1) | ((version.0 as u32) << 24))
+        Self(index as u32 | ((version.0 as u32) << 24))
     }
 
     fn index(&self) -> usize {
-        let index = self.0 & 0x00ff_ffff;
-        // Return upper bound when null allows to detect free slot on iteration
-        // by comparing the index with the current iterated index.
-        (index.wrapping_sub(1)) as usize
+        (self.0 & 0x00ff_ffff) as usize
     }
 
     fn version(&self) -> SlotVersion {
@@ -33,11 +28,11 @@ impl SlotId {
     }
 
     pub fn null() -> Self {
-        Self(0)
+        Self(0xffff_ffff)
     }
 
     pub fn is_null(&self) -> bool {
-        (self.0 & 0x00ff_ffff) == 0
+        self.0 & 0x00ff_ffff == 0x00ff_ffff
     }
 }
 
@@ -107,21 +102,33 @@ impl<V> SlotMap<V> {
         self.free = slot;
     }
 
+    pub fn contains(&self, slot: SlotId) -> bool {
+        self.get(slot).is_some()
+    }
+
+    fn get_unchecked(&self, index: usize) -> Option<&V> {
+        Some(&self.entries[index].value)
+    }
+
+    fn get_mut_unchecked(&mut self, index: usize) -> Option<&mut V> {
+        Some(&mut self.entries[index].value)
+    }
+
     pub fn get(&self, slot: SlotId) -> Option<&V> {
         let index = slot.index();
         if index >= self.entries.len() || self.entries[index].slot != slot {
-            return None;
+            None
         } else {
-            return Some(&self.entries[index].value);
+            self.get_unchecked(index)
         }
     }
 
     pub fn get_mut(&mut self, slot: SlotId) -> Option<&mut V> {
         let index = slot.index();
         if index >= self.entries.len() || self.entries[index].slot != slot {
-            return None;
+            None
         } else {
-            return Some(&mut self.entries[index].value);
+            self.get_mut_unchecked(index)
         }
     }
 
@@ -245,6 +252,7 @@ impl<V> IndexMut<SlotId> for SlotMap<V> {
 //     }
 // }
 
+#[derive(Debug)]
 struct DenseSlotMapMeta {
     slot_to_index: u32,
     index_to_slot: u32, // or free slot if unused
@@ -290,14 +298,15 @@ impl<V> DenseSlotMap<V> {
 
     pub fn remove(&mut self, slot: SlotId) {
         let last_index = self.data.len() - 1;
-        if slot.index() < self.meta.len() && self.meta[slot.index()].version == slot.version() {
-            let index = self.meta[slot.index()].slot_to_index as usize;
+        let slot_index = slot.index();
+        if slot_index < self.meta.len() && self.meta[slot_index].version == slot.version() {
+            let index = self.meta[slot_index].slot_to_index as usize;
             self.data.swap_remove(index);
             let last_id = self.meta[last_index].index_to_slot;
             self.meta[last_id as usize].slot_to_index = index as u32;
-            self.meta[last_id as usize].version = self.meta[last_id as usize].version.next();
+            self.meta[slot_index].version = self.meta[slot_index].version.next();
             self.meta[index].index_to_slot = last_id;
-            self.meta[last_index].index_to_slot = slot.index() as u32; // free slot
+            self.meta[last_index].index_to_slot = slot_index as u32; // free slot
             self.free_count += 1;
         }
     }
@@ -408,75 +417,77 @@ impl<V> IndexMut<SlotId> for DenseSlotMap<V> {
 //     }
 // }
 
-pub struct SecondaryMap<V> {
-    map: SlotMap<V>,
-    indices: Vec<SlotId>,
+#[derive(Default)]
+struct SecondarySlotEntry<V: Default> {
+    value: V,
+    slot: SlotId,
 }
 
-impl<V> SecondaryMap<V> {
+pub struct SecondaryMap<V: Default> {
+    entries: Vec<SecondarySlotEntry<V>>,
+}
+
+impl<V: Default> SecondaryMap<V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            map: SlotMap::with_capacity(capacity),
-            indices: Vec::with_capacity(capacity),
+            entries: Vec::with_capacity(capacity),
         }
-    }
-
-    pub fn insert(&mut self, key: SlotId, value: V) {
-        let index = key.index();
-        assert!(!key.is_null());
-        if index >= self.indices.len() {
-            self.indices.resize(index + 1, SlotId::null());
-        }
-        let slot = self.indices[index];
-        if !slot.is_null() {
-            self.map.remove(slot);
-        }
-        self.indices[index] = SlotId::new(self.map.add(value).index(), key.version());
-    }
-
-    pub fn remove(&mut self, key: SlotId) {
-        let index = key.index();
-        if index >= self.indices.len() || self.indices[index].version() != key.version() {
-            self.map.remove(self.indices[index]);
-        }
-        self.indices[index] = SlotId::null();
-    }
-
-    pub fn get(&self, key: SlotId) -> Option<&V> {
-        self.indices.get(key.index()).and_then(|index| {
-            if index.version() != key.version() {
-                return None;
-            }
-            self.map.get(*index)
-        })
-    }
-
-    pub fn get_mut(&mut self, key: SlotId) -> Option<&mut V> {
-        self.indices.get(key.index()).and_then(|index| {
-            if index.version() != key.version() {
-                return None;
-            }
-            self.map.get_mut(*index)
-        })
-    }
-
-    pub fn contains(&self, key: SlotId) -> bool {
-        self.get(key).is_some()
     }
 
     pub fn clear(&mut self) {
-        self.map.clear();
-        self.indices.clear();
+        self.entries.clear();
+    }
+
+    pub fn insert(&mut self, slot: SlotId, value: V) {
+        let index = slot.index();
+        assert!(!slot.is_null());
+        if index >= self.entries.len() {
+            self.entries.resize_with(index + 1, Default::default);
+        }
+        self.entries[index].value = value;
+        self.entries[index].slot = slot;
+    }
+
+    pub fn remove(&mut self, slot: SlotId) {
+        let index = slot.index();
+        if index >= self.entries.len() || self.entries[index].slot != slot {
+            return;
+        }
+        self.entries[index].slot = SlotId::null();
+    }
+
+    pub fn get(&self, slot: SlotId) -> Option<&V> {
+        self.entries.get(slot.index()).and_then(|entry| {
+            if entry.slot.version() != slot.version() {
+                None
+            } else {
+                Some(&entry.value)
+            }
+        })
+    }
+
+    pub fn get_mut(&mut self, slot: SlotId) -> Option<&mut V> {
+        self.entries.get_mut(slot.index()).and_then(|entry| {
+            if entry.slot.version() != slot.version() {
+                None
+            } else {
+                Some(&mut entry.value)
+            }
+        })
+    }
+
+    pub fn contains(&self, slot: SlotId) -> bool {
+        self.get(slot).is_some()
     }
 }
 
-impl<V> Default for SecondaryMap<V> {
+impl<V: Default> Default for SecondaryMap<V> {
     fn default() -> Self {
         Self::with_capacity(0)
     }
 }
 
-impl<V> Index<SlotId> for SecondaryMap<V> {
+impl<V: Default> Index<SlotId> for SecondaryMap<V> {
     type Output = V;
 
     fn index(&self, slot: SlotId) -> &Self::Output {
@@ -484,7 +495,7 @@ impl<V> Index<SlotId> for SecondaryMap<V> {
     }
 }
 
-impl<V> IndexMut<SlotId> for SecondaryMap<V> {
+impl<V: Default> IndexMut<SlotId> for SecondaryMap<V> {
     fn index_mut(&mut self, slot: SlotId) -> &mut Self::Output {
         self.get_mut(slot).unwrap()
     }
@@ -560,7 +571,7 @@ impl<V> SparseSecondaryMap<V> {
                 if index != self.data.len() - 1 {
                     let last_index = self.data.len() as u32 - 1;
                     let last_id_index = self.data[last_index as usize].index;
-                    self.data.swap(index as usize, last_index as usize);
+                    self.data.swap(index, last_index as usize);
                     self.indices[last_id_index as usize] = meta;
                 }
                 return self.data.pop().map(|e| e.value);
@@ -605,7 +616,7 @@ impl<V> SparseSecondaryMap<V> {
     pub fn get(&self, slot: SlotId) -> Option<&V> {
         self.indices.get(slot.index()).and_then(|index| {
             if index.is_null() || index.version() != slot.version() {
-                return None;
+                None
             } else {
                 self.data.get(index.index()).map(|e| &e.value)
             }
@@ -615,7 +626,7 @@ impl<V> SparseSecondaryMap<V> {
     pub fn get_mut(&mut self, slot: SlotId) -> Option<&mut V> {
         self.indices.get(slot.index()).and_then(|index| {
             if index.is_null() || index.version() != slot.version() {
-                return None;
+                None
             } else {
                 self.data.get_mut(index.index()).map(|e| &mut e.value)
             }
@@ -663,3 +674,66 @@ impl<V> IndexMut<SlotId> for SparseSecondaryMap<V> {
 //         Ok(map)
 //     }
 // }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_slotmap() {
+        let mut sm = SlotMap::<u32>::default();
+        let s0 = sm.add(1);
+        sm.add(0);
+        sm.add(0);
+        sm.add(0);
+        assert_eq!(sm.get(s0), Some(&1));
+        sm.remove(s0);
+        assert!(sm.get(s0).is_none());
+        let s1 = sm.add(2);
+        assert_eq!(sm.get(s1), Some(&2));
+        assert!(!sm.contains(s0));
+        sm.clear();
+        assert!(!sm.contains(s1));
+    }
+
+    #[test]
+    fn test_dense_slotmap() {
+        let mut sm = DenseSlotMap::<u32>::default();
+        let s0 = sm.add(1);
+        sm.add(0);
+        sm.add(0);
+        sm.add(0);
+        assert_eq!(sm.get(s0), Some(&1));
+        sm.remove(s0);
+        assert!(!sm.contains(s0));
+        let s1 = sm.add(2);
+        assert_eq!(sm.get(s1), Some(&2));
+        assert!(!sm.contains(s0));
+    }
+
+    #[test]
+    fn test_secondary_map() {
+        let mut sm = SlotMap::<u32>::default();
+        let mut ssm = SecondaryMap::<u32>::default();
+        let s0 = sm.add(1);
+        ssm.insert(s0, 1);
+        assert_eq!(ssm.get(s0), Some(&1));
+        ssm.insert(s0, 2);
+        assert_eq!(ssm.get(s0), Some(&2));
+        ssm.remove(s0);
+        assert!(ssm.get(s0).is_none());
+    }
+
+    #[test]
+    fn test_sparse_secondary_map() {
+        let mut sm = SlotMap::<u32>::default();
+        let mut ssm = SparseSecondaryMap::<u32>::default();
+        let s0 = sm.add(1);
+        ssm.insert(s0, 1);
+        assert_eq!(ssm.get(s0), Some(&1));
+        ssm.insert(s0, 2);
+        assert_eq!(ssm.get(s0), Some(&2));
+        ssm.remove(s0);
+        assert!(ssm.get(s0).is_none());
+    }
+}

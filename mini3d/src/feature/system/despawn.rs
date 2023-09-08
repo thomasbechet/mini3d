@@ -7,7 +7,7 @@ use crate::{
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
     registry::{
-        component::{ComponentData, StaticComponentType},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ExclusiveSystem,
     },
@@ -15,8 +15,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct DespawnEntities {
-    life_cycle: StaticComponentType<Lifecycle>,
-    hierarchy: StaticComponentType<Hierarchy>,
+    life_cycle: StaticComponent<Lifecycle>,
+    hierarchy: StaticComponent<Hierarchy>,
     query: Query,
 }
 

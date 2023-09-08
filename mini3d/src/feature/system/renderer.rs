@@ -10,7 +10,7 @@ use crate::{
         ui::canvas::Canvas,
     },
     registry::{
-        component::{ComponentData, StaticComponentType},
+        component::{ComponentData, StaticComponent},
         error::RegistryError,
         system::ExclusiveSystem,
     },
@@ -19,11 +19,11 @@ use crate::{
 #[derive(Default)]
 pub struct DespawnRendererEntities {
     // Components
-    viewport: StaticComponentType<Viewport>,
-    camera: StaticComponentType<Camera>,
-    canvas: StaticComponentType<Canvas>,
-    static_mesh: StaticComponentType<StaticMesh>,
-    local_to_world: StaticComponentType<LocalToWorld>,
+    viewport: StaticComponent<Viewport>,
+    camera: StaticComponent<Camera>,
+    canvas: StaticComponent<Canvas>,
+    static_mesh: StaticComponent<StaticMesh>,
+    local_to_world: StaticComponent<LocalToWorld>,
     // Queries
     added_viewport: FilterQuery,
     removed_viewport: FilterQuery,
