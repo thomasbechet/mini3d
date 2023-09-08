@@ -246,7 +246,7 @@ impl<V> IndexMut<SlotId> for SlotMap<V> {
 // }
 
 struct DenseSlotMapMeta {
-    slot_to_index: u32, // with version
+    slot_to_index: u32,
     index_to_slot: u32, // or free slot if unused
     version: SlotVersion,
 }
@@ -328,13 +328,19 @@ impl<V> DenseSlotMap<V> {
     }
 
     pub fn get(&self, slot: SlotId) -> Option<&V> {
-        let index = self.meta[slot.index()].slot_to_index as usize;
-        self.data.get(index)
+        let index = slot.index();
+        if index >= self.meta.len() || self.meta[index].version != slot.version() {
+            return None;
+        }
+        self.data.get(self.meta[index].slot_to_index as usize)
     }
 
     pub fn get_mut(&mut self, slot: SlotId) -> Option<&mut V> {
-        let index = self.meta[slot.index()].slot_to_index as usize;
-        self.data.get_mut(index)
+        let index = slot.index();
+        if index >= self.meta.len() || self.meta[index].version != slot.version() {
+            return None;
+        }
+        self.data.get_mut(self.meta[index].slot_to_index as usize)
     }
 
     pub fn contains(&self, slot: SlotId) -> bool {
@@ -404,7 +410,7 @@ impl<V> IndexMut<SlotId> for DenseSlotMap<V> {
 
 pub struct SecondaryMap<V> {
     map: SlotMap<V>,
-    indices: Vec<Option<SlotId>>,
+    indices: Vec<SlotId>,
 }
 
 impl<V> SecondaryMap<V> {
@@ -416,33 +422,42 @@ impl<V> SecondaryMap<V> {
     }
 
     pub fn insert(&mut self, key: SlotId, value: V) {
-        if key.index() >= self.indices.len() {
-            self.indices.resize(key.index() + 1, None);
+        let index = key.index();
+        assert!(!key.is_null());
+        if index >= self.indices.len() {
+            self.indices.resize(index + 1, SlotId::null());
         }
-        if let Some(index) = self.indices[key.index()] {
-            self.map.remove(index);
+        let slot = self.indices[index];
+        if !slot.is_null() {
+            self.map.remove(slot);
         }
-        self.indices[key.index()] = Some(self.map.add(value));
+        self.indices[index] = SlotId::new(self.map.add(value).index(), key.version());
     }
 
     pub fn remove(&mut self, key: SlotId) {
-        if let Some(index) = self.indices[key.index()] {
-            self.map.remove(index);
+        let index = key.index();
+        if index >= self.indices.len() || self.indices[index].version() != key.version() {
+            self.map.remove(self.indices[index]);
         }
-        self.indices[key.index()] = None;
+        self.indices[index] = SlotId::null();
     }
 
     pub fn get(&self, key: SlotId) -> Option<&V> {
-        self.indices
-            .get(key.index())
-            .and_then(|index| index.and_then(|slot| self.map.get(slot)))
+        self.indices.get(key.index()).and_then(|index| {
+            if index.version() != key.version() {
+                return None;
+            }
+            self.map.get(*index)
+        })
     }
 
     pub fn get_mut(&mut self, key: SlotId) -> Option<&mut V> {
-        if let Some(Some(slot)) = self.indices.get(key.index()) {
-            return self.map.get_mut(*slot);
-        }
-        None
+        self.indices.get(key.index()).and_then(|index| {
+            if index.version() != key.version() {
+                return None;
+            }
+            self.map.get_mut(*index)
+        })
     }
 
     pub fn contains(&self, key: SlotId) -> bool {
@@ -482,7 +497,7 @@ struct SparseSecondaryMapEntry<V> {
 
 pub struct SparseSecondaryMap<V> {
     data: Vec<SparseSecondaryMapEntry<V>>,
-    indices: Vec<Option<(SlotVersion, u32)>>,
+    indices: Vec<SlotId>,
 }
 
 impl<V> Default for SparseSecondaryMap<V> {
@@ -517,12 +532,15 @@ impl<V> SparseSecondaryMap<V> {
 
     pub fn insert(&mut self, slot: SlotId, value: V) {
         if slot.index() >= self.indices.len() {
-            self.indices.resize(slot.index() + 1, None);
+            self.indices.resize(slot.index() + 1, SlotId::null());
         }
-        if let Some(index) = self.indices[slot.index()] {
-            self.data[index as usize].value = value;
+        let index = slot.index();
+        if !self.indices[index].is_null() {
+            let i = self.indices[index].index();
+            self.data[i].value = value;
+            self.indices[index] = SlotId::new(i, slot.version());
         } else {
-            self.indices[slot.index()] = Some(self.data.len() as u32);
+            self.indices[index] = SlotId::new(self.data.len(), slot.version());
             self.data.push(SparseSecondaryMapEntry {
                 value,
                 index: slot.index() as u32,
@@ -531,17 +549,22 @@ impl<V> SparseSecondaryMap<V> {
     }
 
     pub fn remove(&mut self, slot: SlotId) -> Option<V> {
-        if let Some(index) = self.indices[slot.index()] {
-            let id_index = self.data[index as usize].index;
-            self.indices[id_index as usize] = None;
-            // Swap with last entry
-            if index != self.data.len() as u32 - 1 {
-                let last_index = self.data.len() as u32 - 1;
-                let last_id_index = self.data[last_index as usize].index;
-                self.data.swap(index as usize, last_index as usize);
-                self.indices[last_id_index as usize] = Some(index);
+        if let Some(meta) = self.indices.get(slot.index()).copied() {
+            if meta.is_null() || meta.version() != slot.version() {
+                return None;
+            } else {
+                let index = meta.index();
+                let id_index = self.data[index].index;
+                self.indices[id_index as usize] = SlotId::null();
+                // Swap with last entry
+                if index != self.data.len() - 1 {
+                    let last_index = self.data.len() as u32 - 1;
+                    let last_id_index = self.data[last_index as usize].index;
+                    self.data.swap(index as usize, last_index as usize);
+                    self.indices[last_id_index as usize] = meta;
+                }
+                return self.data.pop().map(|e| e.value);
             }
-            return self.data.pop().map(|e| e.value);
         }
         None
     }
@@ -549,18 +572,26 @@ impl<V> SparseSecondaryMap<V> {
     pub fn contains(&self, slot: SlotId) -> bool {
         self.indices
             .get(slot.index())
-            .map(|index| index.is_some())
+            .map(|index| !index.is_null() && index.version() == slot.version())
             .unwrap_or(false)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (SlotId, &V)> {
-        self.data.iter().map(|e| (SlotId::new(e.index), &e.value))
+        self.data.iter().map(|e| {
+            (
+                SlotId::new(e.index as usize, self.indices[e.index as usize].version()),
+                &e.value,
+            )
+        })
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (SlotId, &mut V)> {
-        self.data
-            .iter_mut()
-            .map(|e| (SlotId::new(e.index), &mut e.value))
+        self.data.iter_mut().map(|e| {
+            (
+                SlotId::new(e.index as usize, self.indices[e.index as usize].version()),
+                &mut e.value,
+            )
+        })
     }
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
@@ -572,19 +603,23 @@ impl<V> SparseSecondaryMap<V> {
     }
 
     pub fn get(&self, slot: SlotId) -> Option<&V> {
-        self.indices
-            .get(slot.index())
-            .and_then(|index| index.and_then(|slot| self.data.get(slot as usize).map(|e| &e.value)))
+        self.indices.get(slot.index()).and_then(|index| {
+            if index.is_null() || index.version() != slot.version() {
+                return None;
+            } else {
+                self.data.get(index.index()).map(|e| &e.value)
+            }
+        })
     }
 
     pub fn get_mut(&mut self, slot: SlotId) -> Option<&mut V> {
-        if let Some(Some(slot)) = self.indices.get(slot.index()) {
-            return self
-                .data
-                .get_mut(*slot as usize)
-                .map(|entry| &mut entry.value);
-        }
-        None
+        self.indices.get(slot.index()).and_then(|index| {
+            if index.is_null() || index.version() != slot.version() {
+                return None;
+            } else {
+                self.data.get_mut(index.index()).map(|e| &mut e.value)
+            }
+        })
     }
 }
 
