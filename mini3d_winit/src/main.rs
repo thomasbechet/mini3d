@@ -8,13 +8,18 @@ use std::{
 use gui::{WindowControl, WindowGUI};
 use mapper::InputMapper;
 use mini3d::{
-    engine::Engine,
+    engine::{Engine, EngineServers},
     feature::component::common::script::Script,
     glam::Vec2,
     input::event::InputEvent,
+    network::server::DummyNetworkServer,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
-    system::event::{AssetImportEntry, ImportAssetEvent},
+    storage::server::{DummyStorageserver, StorageServer},
+    system::{
+        event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
+        server::SystemServer,
+    },
 };
 use mini3d_derive::Serialize;
 use mini3d_os::system::bootstrap::OSBootstrap;
@@ -66,6 +71,47 @@ fn set_display_mode(window: &mut Window, gui: &mut WindowGUI, mode: DisplayMode)
     mode
 }
 
+struct WinitSystemServer {
+    imports: Vec<ImportAssetEvent>,
+    stop_event: bool,
+    running: bool,
+}
+
+impl Default for WinitSystemServer {
+    fn default() -> Self {
+        Self {
+            imports: Vec::default(),
+            stop_event: false,
+            running: true,
+        }
+    }
+}
+
+impl WinitSystemServer {
+    fn stop(&mut self) {
+        self.stop_event = true;
+    }
+}
+
+impl SystemServer for WinitSystemServer {
+    fn poll_imports(&mut self) -> Option<ImportAssetEvent> {
+        self.imports.pop()
+    }
+
+    fn pool_events(&mut self) -> Option<SystemEvent> {
+        if self.stop_event {
+            self.stop_event = false;
+            Some(SystemEvent::RequestStop)
+        } else {
+            None
+        }
+    }
+
+    fn request_stop(&mut self) {
+        self.running = false;
+    }
+}
+
 fn main_run() {
     // Window
     let event_loop = EventLoop::new();
@@ -78,6 +124,9 @@ fn main_run() {
 
     // Instantiate engine with virtual disk
     let mut disk = VirtualDisk::new();
+
+    // System
+    let mut system_server = WinitSystemServer::default();
 
     let mut engine = Engine::new(true);
     engine.register_bootstrap_system::<OSBootstrap>();
@@ -101,19 +150,18 @@ fn main_run() {
     let mut save_state = false;
     let mut load_state = false;
 
-    let mut imports = Vec::new();
     ImageImporter::new()
         .from_source(Path::new("assets/car.png"))
         .with_name("car")
         .import()
         .expect("Failed to import car texture.")
-        .push(&mut imports);
+        .push(&mut system_server.imports);
     ImageImporter::new()
         .from_source(Path::new("assets/GUI.png"))
         .with_name("GUI")
         .import()
         .expect("Failed to import GUI texture.")
-        .push(&mut imports);
+        .push(&mut system_server.imports);
 
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
@@ -121,30 +169,34 @@ fn main_run() {
         .with_name("car")
         .import()
         .expect("Failed to import car model.")
-        .push(&mut imports);
+        .push(&mut system_server.imports);
     ImageImporter::new()
         .from_source(Path::new("assets/alfred.png"))
         .with_name("alfred")
         .import()
         .expect("Failed to import alfred texture.")
-        .push(&mut imports);
+        .push(&mut system_server.imports);
     ModelImporter::new()
         .from_obj(Path::new("assets/alfred.obj"))
         .with_flat_normals(false)
         .with_name("alfred")
         .import()
         .expect("Failed to import alfred model.")
-        .push(&mut imports);
+        .push(&mut system_server.imports);
     let script = std::fs::read_to_string("assets/script_main.ms").expect("Failed to load.");
-    imports.push(ImportAssetEvent::Script(AssetImportEntry {
-        name: "main".to_string(),
-        data: Script { source: script },
-    }));
+    system_server
+        .imports
+        .push(ImportAssetEvent::Script(AssetImportEntry {
+            name: "main".to_string(),
+            data: Script { source: script },
+        }));
     let script = std::fs::read_to_string("assets/script_utils.ms").expect("Failed to load.");
-    imports.push(ImportAssetEvent::Script(AssetImportEntry {
-        name: "utils".to_string(),
-        data: Script { source: script },
-    }));
+    system_server
+        .imports
+        .push(ImportAssetEvent::Script(AssetImportEntry {
+            name: "utils".to_string(),
+            data: Script { source: script },
+        }));
 
     // Enter loop
     event_loop.run(move |event, _, control_flow| {
@@ -233,7 +285,7 @@ fn main_run() {
 
                             // Dispatch keyboard
                             if window.is_focus() {
-                                mapper.dispatch_keyboard(keycode, state, &mut system_events);
+                                mapper.dispatch_keyboard(keycode, state);
                             }
                         }
                         WindowEvent::MouseInput {
@@ -261,12 +313,11 @@ fn main_run() {
 
                             // Dispatch mouse
                             if window.is_focus() {
-                                mapper.dispatch_mouse_button(button, state, &mut system_events);
+                                mapper.dispatch_mouse_button(button, state);
                             }
                         }
                         WindowEvent::CloseRequested => {
-                            system_events.system.push(SystemEvent::Shutdown);
-                            *control_flow = ControlFlow::Exit;
+                            system_server.stop();
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                             renderer.resize(new_inner_size.width, new_inner_size.height);
@@ -277,10 +328,7 @@ fn main_run() {
                         }
                         WindowEvent::ReceivedCharacter(c) => {
                             if window.is_focus() {
-                                system_events.input.push(InputEvent::Text(InputTextEvent {
-                                    stream: "main".into(),
-                                    value: c.to_string(),
-                                }));
+                                mapper.dispatch_text(c.to_string());
                             }
                         }
                         WindowEvent::CursorMoved {
@@ -297,10 +345,7 @@ fn main_run() {
                                 let final_position = (relative_position
                                     / Vec2::new(viewport.z, viewport.w))
                                     * SCREEN_RESOLUTION.as_vec2();
-                                mapper.dispatch_mouse_cursor(
-                                    (final_position.x, final_position.y),
-                                    &mut system_events,
-                                );
+                                mapper.dispatch_mouse_cursor((final_position.x, final_position.y));
                             }
                         }
                         // WindowEvent::MouseWheel { device_id: _, delta, .. } => {
@@ -320,13 +365,13 @@ fn main_run() {
                     if mouse_motion.0 != last_mouse_motion.0
                         || mouse_motion.1 != last_mouse_motion.1
                     {
-                        mapper.dispatch_mouse_motion(mouse_motion, &mut system_events);
+                        mapper.dispatch_mouse_motion(mouse_motion);
                         last_mouse_motion = mouse_motion;
                     }
                     if wheel_motion.0 != last_wheel_motion.0
                         || wheel_motion.1 != last_wheel_motion.1
                     {
-                        mapper.dispatch_mouse_wheel(wheel_motion, &mut system_events);
+                        mapper.dispatch_mouse_wheel(wheel_motion);
                         last_wheel_motion = wheel_motion;
                     }
                 }
@@ -340,28 +385,13 @@ fn main_run() {
                     } else {
                         match event {
                             gilrs::EventType::ButtonPressed(button, _) => {
-                                mapper.dispatch_controller_button(
-                                    *id,
-                                    *button,
-                                    true,
-                                    &mut system_events,
-                                );
+                                mapper.dispatch_controller_button(*id, *button, true);
                             }
                             gilrs::EventType::ButtonReleased(button, _) => {
-                                mapper.dispatch_controller_button(
-                                    *id,
-                                    *button,
-                                    false,
-                                    &mut system_events,
-                                );
+                                mapper.dispatch_controller_button(*id, *button, false);
                             }
                             gilrs::EventType::AxisChanged(axis, value, _) => {
-                                mapper.dispatch_controller_axis(
-                                    *id,
-                                    *axis,
-                                    *value,
-                                    &mut system_events,
-                                );
+                                mapper.dispatch_controller_axis(*id, *axis, *value);
                             }
                             _ => {}
                         }
@@ -400,14 +430,17 @@ fn main_run() {
 
                 // Progress engine
                 engine
-                    .progress(&system_events, dt)
+                    .progress(
+                        EngineServers {
+                            input: &mut mapper,
+                            renderer: &mut renderer,
+                            storage: &mut DummyStorageserver::default(),
+                            network: &mut DummyNetworkServer::default(),
+                            system: &mut system_server,
+                        },
+                        dt,
+                    )
                     .expect("Failed to progress engine");
-                engine
-                    .synchronize_input(&mut mapper)
-                    .expect("Failed to synchronize input");
-                engine
-                    .synchronize_renderer(&mut renderer, false)
-                    .expect("Failed to synchronize renderer");
 
                 // Save/Load state
                 if save_state {
@@ -419,7 +452,8 @@ fn main_run() {
 
                     {
                         let mut file = File::create("assets/state.bin").unwrap();
-                        let bytes = engine.save().unwrap();
+                        let mut bytes = Vec::<u8>::default();
+                        engine.save(&mut bytes).unwrap();
                         let bytes = miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 10);
                         file.write_all(&bytes).unwrap();
                     }
@@ -457,7 +491,16 @@ fn main_run() {
                             .expect("Failed to decompress");
                         let mut decoder = SliceDecoder::new(&bytes);
                         engine
-                            .load_state(&mut decoder)
+                            .load(
+                                &mut decoder,
+                                EngineServers {
+                                    input: &mut mapper,
+                                    renderer: &mut renderer,
+                                    storage: &mut DummyStorageserver::default(),
+                                    network: &mut DummyNetworkServer::default(),
+                                    system: &mut system_server,
+                                },
+                            )
                             .expect("Failed to load state");
                     }
 
@@ -469,10 +512,6 @@ fn main_run() {
                     //     let mut deserializer = postcard::Deserializer::from_bytes(&bytes);
                     //     engine.load_state(&mut deserializer).expect("Failed to load state");
                     // }
-
-                    engine
-                        .synchronize_renderer(&mut renderer, true)
-                        .expect("Failed to reset renderer");
 
                     load_state = false;
                 }
@@ -486,13 +525,10 @@ fn main_run() {
                     .expect("Failed to render");
 
                 // Check shutdown
-                if !engine.is_running() {
+                if !system_server.running {
                     println!("Engine shutdown");
                     *control_flow = ControlFlow::Exit;
                 }
-
-                // Reset events
-                system_events.clear();
 
                 // Check exit
                 if *control_flow != ControlFlow::Exit {

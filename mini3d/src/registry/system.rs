@@ -143,6 +143,7 @@ pub struct SystemOrder;
 pub(crate) struct SystemRegistry {
     pub(crate) systems: SlotMap<SystemEntry>,
     pub(crate) stages: SlotMap<SystemStageEntry>,
+    pub(crate) updated: bool,
 }
 
 impl Default for SystemRegistry {
@@ -150,6 +151,7 @@ impl Default for SystemRegistry {
         let mut reg = Self {
             systems: Default::default(),
             stages: Default::default(),
+            updated: false,
         };
         for name in [
             SystemStage::UPDATE,
@@ -180,7 +182,7 @@ impl SystemRegistry {
         while let Some(id) = system {
             let entry = &self.systems[id.into()];
             if entry.next_in_stage.is_none() {
-                return Some(id.into());
+                return Some(id);
             }
             system = entry.next_in_stage;
         }

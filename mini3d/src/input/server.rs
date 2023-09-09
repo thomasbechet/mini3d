@@ -12,7 +12,7 @@ pub enum InputServerError {
 
 #[allow(unused_variables)]
 pub trait InputServer {
-    fn poll_event(&self) -> Option<InputEvent> {
+    fn poll_event(&mut self) -> Option<InputEvent> {
         None
     }
 

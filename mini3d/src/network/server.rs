@@ -14,3 +14,8 @@ pub trait NetworkServer {
         &[]
     }
 }
+
+#[derive(Default)]
+pub struct DummyNetworkServer;
+
+impl NetworkServer for DummyNetworkServer {}

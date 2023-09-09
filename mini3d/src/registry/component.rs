@@ -316,6 +316,7 @@ pub(crate) struct ComponentEntry {
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
     entries: SlotMap<ComponentEntry>,
+    updated: bool,
 }
 
 impl ComponentRegistry {

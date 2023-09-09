@@ -17,6 +17,7 @@ use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::storage::server::StorageServer;
 use crate::storage::StorageManager;
+use crate::system::event::SystemEvent;
 use crate::system::server::SystemServer;
 use crate::system::SystemManager;
 
@@ -31,11 +32,11 @@ pub enum ProgressError {
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 pub struct EngineServers<'a> {
-    input: &'a mut dyn InputServer,
-    renderer: &'a mut dyn RendererServer,
-    storage: &'a mut dyn StorageServer,
-    network: &'a mut dyn NetworkServer,
-    system: &'a mut dyn SystemServer,
+    pub input: &'a mut dyn InputServer,
+    pub renderer: &'a mut dyn RendererServer,
+    pub storage: &'a mut dyn StorageServer,
+    pub network: &'a mut dyn NetworkServer,
+    pub system: &'a mut dyn SystemServer,
 }
 
 pub struct Engine {
@@ -48,7 +49,6 @@ pub struct Engine {
     pub(crate) physics: PhysicsManager,
     pub(crate) system: SystemManager,
     global_time: f64,
-    running: bool,
 }
 
 impl Engine {
@@ -151,7 +151,6 @@ impl Engine {
             physics: Default::default(),
             system: Default::default(),
             global_time: 0.0,
-            running: true,
         };
         if core_features {
             engine
@@ -176,27 +175,25 @@ impl Engine {
         self.ecs.save_state(&self.registry.components, encoder)?;
         self.input.save_state(encoder)?;
         self.global_time.serialize(encoder)?;
-        self.running.serialize(encoder)?;
         Ok(())
     }
 
     pub fn load(
         &mut self,
         decoder: &mut impl Decoder,
-        servers: &mut EngineServers,
+        servers: EngineServers,
     ) -> Result<(), DecoderError> {
         self.asset.load_state(&self.registry.components, decoder)?;
         self.renderer.load_state(decoder, servers.renderer)?;
         self.ecs.load_state(&self.registry.components, decoder)?;
         self.input.load_state(decoder, servers.input)?;
         self.global_time = Serialize::deserialize(decoder, &Default::default())?;
-        self.running = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
     pub fn progress(
         &mut self,
-        servers: &mut EngineServers,
+        servers: EngineServers,
         mut delta_time: f64,
     ) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
@@ -219,8 +216,12 @@ impl Engine {
         self.input.dispatch_events(servers.input);
 
         // Dispatch system events
-        if servers.system.request_stop() {
-            self.running = false;
+        while let Some(event) = servers.system.pool_events() {
+            match event {
+                SystemEvent::RequestStop => {
+                    servers.system.request_stop();
+                }
+            }
         }
 
         // Dispatch renderer events

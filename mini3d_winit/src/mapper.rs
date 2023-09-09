@@ -3,7 +3,10 @@ use std::{collections::HashMap, fs::File};
 use gilrs::GamepadId;
 use mini3d::{
     feature::component::input::input_table::InputTable,
-    input::server::{InputServer, InputServerError},
+    input::{
+        event::{InputActionEvent, InputAxisEvent, InputEvent, InputTextEvent},
+        server::{InputServer, InputServerError},
+    },
     utils::uid::UID,
 };
 use mini3d_os::input::{CommonAction, CommonAxis};
@@ -138,6 +141,8 @@ pub(crate) struct InputMapper {
     pub(crate) profiles: HashMap<UID, InputProfile>,
     pub(crate) default_profile: UID,
     pub(crate) tables: HashMap<UID, InputTable>,
+
+    events: Vec<InputEvent>,
 
     key_to_action: HashMap<VirtualKeyCode, Vec<KeyToAction>>,
     key_to_axis: HashMap<VirtualKeyCode, Vec<KeyToAxis>>,
@@ -568,16 +573,18 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_keyboard(
-        &self,
-        keycode: VirtualKeyCode,
-        state: ElementState,
-        events: &mut Events,
-    ) {
+    pub(crate) fn dispatch_text(&mut self, value: String) {
+        self.events.push(InputEvent::Text(InputTextEvent {
+            stream: "main".into(),
+            value,
+        }));
+    }
+
+    pub(crate) fn dispatch_keyboard(&mut self, keycode: VirtualKeyCode, state: ElementState) {
         if let Some(actions) = self.key_to_action.get(&keycode) {
             let pressed = state == ElementState::Pressed;
             for action in actions {
-                events.input.push(InputEvent::Action(InputActionEvent {
+                self.events.push(InputEvent::Action(InputActionEvent {
                     action: action.uid,
                     pressed,
                 }));
@@ -589,7 +596,7 @@ impl InputMapper {
                     ElementState::Pressed => ax.value,
                     ElementState::Released => 0.0,
                 };
-                events.input.push(InputEvent::Axis(InputAxisEvent {
+                self.events.push(InputEvent::Axis(InputAxisEvent {
                     axis: ax.uid,
                     value,
                 }));
@@ -597,16 +604,11 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_mouse_button(
-        &self,
-        button: MouseButton,
-        state: ElementState,
-        events: &mut Events,
-    ) {
+    pub(crate) fn dispatch_mouse_button(&mut self, button: MouseButton, state: ElementState) {
         let pressed = state == ElementState::Pressed;
         if let Some(actions) = self.mouse_button_to_action.get(&button) {
             for action in actions {
-                events.input.push(InputEvent::Action(InputActionEvent {
+                self.events.push(InputEvent::Action(InputActionEvent {
                     action: action.uid,
                     pressed,
                 }));
@@ -614,7 +616,7 @@ impl InputMapper {
         }
         if let Some(axis) = self.mouse_button_to_axis.get(&button) {
             for ax in axis {
-                events.input.push(InputEvent::Axis(InputAxisEvent {
+                self.events.push(InputEvent::Axis(InputAxisEvent {
                     axis: ax.uid,
                     value: ax.value,
                 }));
@@ -622,45 +624,45 @@ impl InputMapper {
         }
     }
 
-    pub(crate) fn dispatch_mouse_motion(&self, delta: (f64, f64), events: &mut Events) {
+    pub(crate) fn dispatch_mouse_motion(&mut self, delta: (f64, f64)) {
         for axis in &self.mouse_motion_x_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent {
+            self.events.push(InputEvent::Axis(InputAxisEvent {
                 axis: axis.uid,
                 value: delta.0 as f32 * axis.scale,
             }));
         }
         for axis in &self.mouse_motion_y_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent {
+            self.events.push(InputEvent::Axis(InputAxisEvent {
                 axis: axis.uid,
                 value: delta.1 as f32 * axis.scale,
             }));
         }
     }
 
-    pub(crate) fn dispatch_mouse_cursor(&self, cursor: (f32, f32), events: &mut Events) {
+    pub(crate) fn dispatch_mouse_cursor(&mut self, cursor: (f32, f32)) {
         for axis in &self.mouse_position_x_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent {
+            self.events.push(InputEvent::Axis(InputAxisEvent {
                 axis: axis.uid,
                 value: cursor.0,
             }));
         }
         for axis in &self.mouse_position_y_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent {
+            self.events.push(InputEvent::Axis(InputAxisEvent {
                 axis: axis.uid,
                 value: cursor.1,
             }));
         }
     }
 
-    pub(crate) fn dispatch_mouse_wheel(&self, delta: (f32, f32), events: &mut Events) {
+    pub(crate) fn dispatch_mouse_wheel(&mut self, delta: (f32, f32)) {
         for axis in &self.mouse_wheel_x_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent {
+            self.events.push(InputEvent::Axis(InputAxisEvent {
                 axis: axis.uid,
                 value: delta.0 * axis.scale,
             }));
         }
         for axis in &self.mouse_wheel_y_to_axis {
-            events.input.push(InputEvent::Axis(InputAxisEvent {
+            self.events.push(InputEvent::Axis(InputAxisEvent {
                 axis: axis.uid,
                 value: delta.1 * axis.scale,
             }));
@@ -668,16 +670,15 @@ impl InputMapper {
     }
 
     pub(crate) fn dispatch_controller_button(
-        &self,
+        &mut self,
         id: GamepadId,
         button: gilrs::Button,
         pressed: bool,
-        events: &mut Events,
     ) {
         if let Some(buttons) = &self.controllers_button_to_action.get(&id) {
             if let Some(actions) = buttons.get(&button) {
                 for action in actions {
-                    events.input.push(InputEvent::Action(InputActionEvent {
+                    self.events.push(InputEvent::Action(InputActionEvent {
                         action: action.uid,
                         pressed,
                     }));
@@ -688,7 +689,7 @@ impl InputMapper {
             if let Some(a) = axis.get(&button) {
                 for ax in a {
                     let value = if pressed { ax.value } else { 0.0 };
-                    events.input.push(InputEvent::Axis(InputAxisEvent {
+                    self.events.push(InputEvent::Axis(InputAxisEvent {
                         axis: ax.uid,
                         value,
                     }));
@@ -698,11 +699,10 @@ impl InputMapper {
     }
 
     pub(crate) fn dispatch_controller_axis(
-        &self,
+        &mut self,
         id: GamepadId,
         controller_axis: gilrs::Axis,
         value: f32,
-        events: &mut Events,
     ) {
         // Compute value with deadzone
         let value = if f32::abs(value) <= 0.15 { 0.0 } else { value };
@@ -710,7 +710,7 @@ impl InputMapper {
         if let Some(axis) = &self.controllers_axis_to_axis.get(&id) {
             if let Some(ax) = axis.get(&controller_axis) {
                 for a in ax {
-                    events.input.push(InputEvent::Axis(InputAxisEvent {
+                    self.events.push(InputEvent::Axis(InputAxisEvent {
                         axis: a.uid,
                         value: value * a.scale,
                     }));
@@ -721,6 +721,10 @@ impl InputMapper {
 }
 
 impl InputServer for InputMapper {
+    fn poll_event(&mut self) -> Option<InputEvent> {
+        self.events.pop()
+    }
+
     fn update_table(
         &mut self,
         uid: UID,
