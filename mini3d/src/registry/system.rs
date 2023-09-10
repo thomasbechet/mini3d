@@ -6,9 +6,8 @@ use crate::{
         },
         instance::{
             AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
-            ParallelResolver, SystemResult,
+            ParallelResolver, StaticSystemInstance, SystemInstance, SystemResult,
         },
-        scheduler::{StaticSystemInstance, SystemInstance},
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -204,6 +203,7 @@ impl SystemRegistry {
         } else {
             self.stages[stage].first_system = Some(id.into());
         }
+        self.updated = true;
         Ok(id.into())
     }
 
@@ -219,6 +219,7 @@ impl SystemRegistry {
             self.stages.remove(stage);
         }
         self.systems.remove(system);
+        self.updated = true;
     }
 
     fn get_or_add_system_stage(&mut self, name: &str) -> SlotId {

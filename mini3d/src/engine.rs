@@ -1,6 +1,5 @@
-use mini3d_derive::Error;
-
 use crate::asset::AssetManager;
+use crate::ecs::instance::SystemError;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{component, system};
 use crate::input::server::InputServer;
@@ -21,12 +20,16 @@ use crate::system::event::SystemEvent;
 use crate::system::server::SystemServer;
 use crate::system::SystemManager;
 
-#[derive(Debug, Error)]
 pub enum ProgressError {
-    #[error("System error")]
-    SystemError,
-    #[error("ECS error")]
-    ECSError,
+    System(Box<dyn SystemError>),
+}
+
+impl core::fmt::Debug for ProgressError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            ProgressError::System(err) => write!(f, "System error: {}", err),
+        }
+    }
 }
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
@@ -140,6 +143,18 @@ impl Engine {
         Ok(())
     }
 
+    fn setup(&mut self, core_features: bool) {
+        // Register core features
+        if core_features {
+            self.register_core_features()
+                .expect("Failed to define core features");
+        }
+        // Setup managers
+        self.renderer
+            .reload_component_handles(&self.registry.components)
+            .expect("Failed to reload component handles");
+    }
+
     pub fn new(core_features: bool) -> Self {
         let mut engine = Self {
             registry: Default::default(),
@@ -152,11 +167,7 @@ impl Engine {
             system: Default::default(),
             global_time: 0.0,
         };
-        if core_features {
-            engine
-                .register_core_features()
-                .expect("Failed to define core features");
-        }
+        engine.setup(core_features);
         engine
     }
 
@@ -250,7 +261,7 @@ impl Engine {
                 delta_time,
                 global_time: self.global_time,
             })
-            .map_err(|_| ProgressError::ECSError)?;
+            .map_err(|err| ProgressError::System(err))?;
 
         // ================= POST-UPDATE STAGE ================== //
 

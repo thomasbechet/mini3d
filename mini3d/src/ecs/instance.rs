@@ -3,10 +3,12 @@ use core::fmt::Display;
 use std::ops::Index;
 
 use crate::{
+    feature::component::common::program::Program,
     registry::{
         component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,
         system::{System, SystemRegistry},
+        RegistryManager,
     },
     utils::{slotmap::SparseSecondaryMap, uid::UID},
 };
@@ -20,7 +22,6 @@ use super::{
     component::ComponentTable,
     entity::EntityTable,
     query::{FilterQuery, QueryBuilder, QueryTable},
-    scheduler::SystemInstance,
 };
 
 pub trait SystemError: Display {}
@@ -139,6 +140,76 @@ pub(crate) trait AnyStaticParallelSystemInstance {
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult;
 }
 
+pub(crate) enum StaticSystemInstance {
+    Exclusive(Box<dyn AnyStaticExclusiveSystemInstance>),
+    Parallel(Box<dyn AnyStaticParallelSystemInstance>),
+}
+
+pub(crate) struct ProgramSystemInstance {
+    program: Program,
+}
+
+pub(crate) enum SystemInstance {
+    Static(StaticSystemInstance),
+    Program(ProgramSystemInstance),
+}
+
+impl SystemInstance {
+    pub(crate) fn resolve_exclusive(
+        &mut self,
+        resolver: &mut ExclusiveResolver,
+    ) -> Result<(), RegistryError> {
+        match self {
+            Self::Static(instance) => match instance {
+                StaticSystemInstance::Exclusive(instance) => instance.resolve(resolver),
+                StaticSystemInstance::Parallel(_) => unreachable!(),
+            },
+            Self::Program(_) => Ok(()),
+        }
+    }
+
+    pub(crate) fn run_exclusive(
+        &self,
+        ecs: &mut ExclusiveECS,
+        api: &mut ExclusiveAPI,
+    ) -> SystemResult {
+        match self {
+            Self::Static(instance) => match instance {
+                StaticSystemInstance::Exclusive(instance) => instance.run(ecs, api),
+                StaticSystemInstance::Parallel(_) => unreachable!(),
+            },
+            Self::Program(_) => Ok(()),
+        }
+    }
+
+    pub(crate) fn resolve_parallel(
+        &mut self,
+        resolver: &mut ParallelResolver,
+    ) -> Result<(), RegistryError> {
+        match self {
+            Self::Static(instance) => match instance {
+                StaticSystemInstance::Parallel(instance) => instance.resolve(resolver),
+                StaticSystemInstance::Exclusive(_) => unreachable!(),
+            },
+            Self::Program(_) => Ok(()),
+        }
+    }
+
+    pub(crate) fn run_parallel(
+        &self,
+        ecs: &mut ParallelECS,
+        api: &mut ParallelAPI,
+    ) -> SystemResult {
+        match self {
+            Self::Static(instance) => match instance {
+                StaticSystemInstance::Parallel(instance) => instance.run(ecs, api),
+                StaticSystemInstance::Exclusive(_) => unreachable!(),
+            },
+            Self::Program(instance) => Ok(()),
+        }
+    }
+}
+
 pub(crate) struct SystemInstanceEntry {
     pub(crate) system: System,
     pub(crate) instance: SystemInstance,
@@ -170,9 +241,45 @@ pub(crate) struct SystemInstanceTable {
 }
 
 impl SystemInstanceTable {
-    pub(crate) fn insert(&mut self, system: System, registry: &SystemRegistry) {
-        self.instances
-            .insert(system.into(), SystemInstanceEntry::new(system, registry));
+    pub(crate) fn on_registry_update(
+        &mut self,
+        registry: &RegistryManager,
+    ) -> Result<(), RegistryError> {
+        for (id, entry) in registry.systems.systems.iter() {
+            // Create instance if missing
+            if !self.instances.contains(id) {
+                let instance = registry
+                    .systems
+                    .get(id.into())
+                    .expect("System not found")
+                    .reflection
+                    .create_instance();
+                let instance = SystemInstanceEntry {
+                    system: id.into(),
+                    instance,
+                    last_execution_cycle: 0,
+                    filter_queries: Vec::new(),
+                    active: entry.active_by_default,
+                };
+                self.instances.insert(id, instance);
+            }
+
+            // Resolve instance
+            self.instances[id]
+                .instance
+                .resolve_exclusive(&mut ExclusiveResolver {
+                    registry: &registry.components,
+                    system: id.into(),
+                    all: (),
+                    any: (),
+                    not: (),
+                    components: (),
+                    entities: (),
+                    archetypes: (),
+                    queries: (),
+                })?;
+        }
+        Ok(())
     }
 }
 

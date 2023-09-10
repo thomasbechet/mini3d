@@ -1,4 +1,13 @@
 use crate::{
+    ecs::api::{
+        asset::ParallelAssetAPI,
+        ecs::ParallelECS,
+        input::ParallelInputAPI,
+        registry::{ParallelComponentRegistryAPI, ParallelRegistryAPI, ParallelSystemRegistryAPI},
+        renderer::ParallelRendererAPI,
+        system::ParallelSystemAPI,
+        ParallelAPI,
+    },
     input::server::InputServer,
     network::server::NetworkServer,
     renderer::server::RendererServer,
@@ -16,8 +25,25 @@ use crate::{
 };
 
 use self::{
-    archetype::ArchetypeTable, component::ComponentTable, entity::EntityTable, error::ECSError,
-    instance::SystemInstanceTable, query::QueryTable, scheduler::Scheduler,
+    api::{
+        asset::ExclusiveAssetAPI,
+        ecs::ExclusiveECS,
+        input::ExclusiveInputAPI,
+        registry::{
+            ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
+        },
+        renderer::ExclusiveRendererAPI,
+        system::ExclusiveSystemAPI,
+        time::TimeAPI,
+        ExclusiveAPI,
+    },
+    archetype::ArchetypeTable,
+    component::ComponentTable,
+    entity::EntityTable,
+    error::ECSError,
+    instance::{SystemInstanceTable, SystemResult},
+    query::QueryTable,
+    scheduler::Scheduler,
 };
 
 pub mod api;
@@ -38,6 +64,7 @@ pub(crate) struct ECSManager {
     queries: QueryTable,
     instances: SystemInstanceTable,
     scheduler: Scheduler,
+    global_cycle: u32,
 }
 
 impl Default for ECSManager {
@@ -49,6 +76,7 @@ impl Default for ECSManager {
             queries: QueryTable::default(),
             instances: SystemInstanceTable::default(),
             scheduler: Scheduler::default(),
+            global_cycle: 0,
         }
     }
 }
@@ -94,16 +122,103 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn update(&mut self, mut context: ECSUpdateContext) -> Result<(), ECSError> {
+    pub(crate) fn update(&mut self, context: ECSUpdateContext) -> SystemResult {
+        // Begin frame
+        self.scheduler.begin_frame(context.delta_time);
+
         // Update cycle
-        self.scheduler.update(
-            &mut self.archetypes,
-            &mut self.components,
-            &mut self.entities,
-            &mut self.queries,
-            &self.instances,
-            &mut context,
-        )
+        // Run stages
+        // TODO: protect against infinite loops
+        while let Some(instances) = self.scheduler.next_node() {
+            if instances.len() == 1 {
+                // Exclusive
+                let instance = instances[0];
+                // Build node API
+                let api = &mut ExclusiveAPI {
+                    asset: ExclusiveAssetAPI {
+                        manager: context.asset,
+                    },
+                    input: ExclusiveInputAPI {
+                        manager: context.input,
+                        server: context.input_server,
+                    },
+                    registry: ExclusiveRegistryAPI {
+                        systems: ExclusiveSystemRegistryAPI {
+                            manager: &mut context.registry.systems,
+                        },
+                        components: ExclusiveComponentRegistryAPI {
+                            manager: &mut context.registry.components,
+                        },
+                    },
+                    renderer: ExclusiveRendererAPI {
+                        manager: context.renderer,
+                        server: context.renderer_server,
+                    },
+                    system: ExclusiveSystemAPI {
+                        server: context.system_server,
+                        manager: context.system,
+                    },
+                    time: TimeAPI {
+                        delta: context.delta_time,
+                        global: context.global_time,
+                    },
+                };
+                let ecs = &mut ExclusiveECS {
+                    archetypes: &mut self.archetypes,
+                    components: &mut self.components,
+                    entities: &mut self.entities,
+                    queries: &mut self.queries,
+                    scheduler: &mut self.scheduler,
+                    cycle: self.global_cycle,
+                };
+                self.instances[instance].run_exclusive(ecs, api)?;
+            } else {
+                // Parallel
+                // TODO: use thread pool
+                let api = &mut ParallelAPI {
+                    asset: ParallelAssetAPI {
+                        manager: context.asset,
+                    },
+                    input: ParallelInputAPI {
+                        manager: context.input,
+                    },
+                    registry: ParallelRegistryAPI {
+                        systems: ParallelSystemRegistryAPI {
+                            manager: &context.registry.systems,
+                        },
+                        components: ParallelComponentRegistryAPI {
+                            manager: &context.registry.components,
+                        },
+                    },
+                    renderer: ParallelRendererAPI {
+                        manager: context.renderer,
+                    },
+                    system: ParallelSystemAPI {
+                        server: context.system_server,
+                        manager: context.system,
+                    },
+                    time: TimeAPI {
+                        delta: context.delta_time,
+                        global: context.global_time,
+                    },
+                };
+                let ecs = &mut ParallelECS {
+                    components: &mut self.components,
+                    entities: &mut self.entities,
+                    queries: &mut self.queries,
+                    cycle: self.global_cycle,
+                };
+                todo!()
+            }
+
+            // Check for registry updates
+            if context.registry.components.updated {
+                self.instances.on_registry_update(&context.registry);
+            }
+        }
+
         // Synchronize with registry
+
+        Ok(())
     }
 }

@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 
 use crate::{
-    feature::component::common::program::Program,
     registry::system::{System, SystemRegistry, SystemStage},
     utils::{
         slotmap::{SlotId, SlotMap, SparseSecondaryMap},
@@ -9,31 +8,7 @@ use crate::{
     },
 };
 
-use super::{
-    api::{
-        asset::{ExclusiveAssetAPI, ParallelAssetAPI},
-        ecs::{ExclusiveECS, ParallelECS},
-        input::{ExclusiveInputAPI, ParallelInputAPI},
-        registry::{
-            ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
-            ParallelComponentRegistryAPI, ParallelRegistryAPI, ParallelSystemRegistryAPI,
-        },
-        renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
-        system::{ExclusiveSystemAPI, ParallelSystemAPI},
-        time::TimeAPI,
-        ExclusiveAPI, ParallelAPI,
-    },
-    archetype::ArchetypeTable,
-    component::ComponentTable,
-    entity::EntityTable,
-    error::ECSError,
-    instance::{
-        AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, SystemInstanceTable,
-        SystemResult,
-    },
-    query::QueryTable,
-    ECSUpdateContext,
-};
+use super::error::ECSError;
 
 pub enum Invocation {
     Immediate,
@@ -41,57 +16,28 @@ pub enum Invocation {
     NextFrame,
 }
 
-pub(crate) enum SystemPipelineNode {
-    Exclusive { instance: System, next: SlotId },
-    Parallel { first_item: SlotId, next: SlotId },
-    ParallelItem { instance: System, next: SlotId },
+enum SystemPipelineNode {
+    Exclusive {
+        instance: usize,
+        next: SlotId,
+    },
+    Parallel {
+        first_instance: usize,
+        count: usize,
+        next: SlotId,
+    },
 }
 
-pub(crate) enum StaticSystemInstance {
-    Exclusive(Box<dyn AnyStaticExclusiveSystemInstance>),
-    Parallel(Box<dyn AnyStaticParallelSystemInstance>),
+struct PeriodicStage {
+    stage: UID,
+    id: SlotId,
+    frequency: f64,
+    accumulator: f64,
 }
 
-pub(crate) struct ProgramSystemInstance {
-    program: Program,
-}
-
-pub(crate) enum SystemInstance {
-    Static(StaticSystemInstance),
-    Program(ProgramSystemInstance),
-}
-
-impl SystemInstance {
-    fn run_exclusive(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
-        match self {
-            Self::Static(instance) => match instance {
-                StaticSystemInstance::Exclusive(instance) => instance.run(ecs, api),
-                StaticSystemInstance::Parallel(_) => unreachable!(),
-            },
-            Self::Program(_) => Ok(()),
-        }
-    }
-    fn run_parallel(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
-        match self {
-            Self::Static(instance) => match instance {
-                StaticSystemInstance::Parallel(instance) => instance.run(ecs, api),
-                StaticSystemInstance::Exclusive(_) => unreachable!(),
-            },
-            Self::Program(instance) => Ok(()),
-        }
-    }
-}
-
-pub(crate) struct PeriodicStage {
-    pub(crate) stage: UID,
-    pub(crate) id: SlotId,
-    pub(crate) frequency: f64,
-    pub(crate) accumulator: f64,
-}
-
-pub(crate) struct StageEntry {
+struct StageEntry {
     first_node: SlotId,
-    pub(crate) uid: UID,
+    uid: UID,
 }
 
 #[derive(Default)]
@@ -102,20 +48,26 @@ pub(crate) struct Scheduler {
     stages: SparseSecondaryMap<StageEntry>,
     // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
+    // Instances
+    instances: Vec<System>,
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
-    // Runtime next stage
+    // Runtime next frame stage
     next_frame_stages: VecDeque<SlotId>,
-    // Incremental cycle
-    global_cycle: u32,
+    // Runtime stages
+    frame_stages: VecDeque<SlotId>,
+    // Runtime active node
+    next_node: SlotId,
 }
 
 impl Scheduler {
-    pub(crate) fn rebuild(&mut self, registry: &SystemRegistry) {
+    pub(crate) fn on_registry_update(&mut self, registry: &SystemRegistry) {
         // Reset baked resources
         self.stages.clear();
         self.nodes.clear();
+        self.instances.clear();
         self.update_stage = SlotId::null();
+        self.next_node = SlotId::null();
 
         // Reset periodic stages
         for stage in self.periodic_stages.iter_mut() {
@@ -129,26 +81,32 @@ impl Scheduler {
                 self.update_stage = id;
             }
 
-            // Build pipeline
+            // Build stage nodes
             let mut previous_node = None;
-            while let Some(system) = entry.first_system {
-                // TODO: generate parallel pipeline steps
-                let node_id = self.nodes.add(SystemPipelineNode::Exclusive {
-                    instance: system.into(),
+            let mut system = entry.first_system;
+            while let Some(instance) = system {
+                // TODO: detect parallel nodes
+
+                // Insert instance
+                self.instances.push(instance);
+
+                // Create node
+                let node = self.nodes.add(SystemPipelineNode::Exclusive {
+                    instance: self.instances.len() - 1,
                     next: SlotId::null(),
                 });
+
+                // Iter next system in stage
+                system = registry.systems[instance.into()].next_in_stage;
 
                 // Link previous node or create new stage
                 if let Some(previous_node) = previous_node {
                     match &mut self.nodes[previous_node] {
                         SystemPipelineNode::Exclusive { next, .. } => {
-                            *next = node_id;
+                            *next = node;
                         }
                         SystemPipelineNode::Parallel { next, .. } => {
-                            *next = node_id;
-                        }
-                        SystemPipelineNode::ParallelItem { next, .. } => {
-                            *next = node_id;
+                            *next = node;
                         }
                     }
                 } else {
@@ -156,146 +114,106 @@ impl Scheduler {
                     self.stages.insert(
                         id,
                         StageEntry {
-                            first_node: node_id,
+                            first_node: node,
                             uid: entry.uid,
                         },
                     );
                 }
 
                 // Next previous node
-                previous_node = Some(node_id);
+                previous_node = Some(node);
             }
         }
     }
 
-    pub(crate) fn update(
-        &mut self,
-        archetypes: &mut ArchetypeTable,
-        components: &mut ComponentTable,
-        entities: &mut EntityTable,
-        queries: &mut QueryTable,
-        instances: &SystemInstanceTable,
-        context: &mut ECSUpdateContext,
-    ) -> Result<(), ECSError> {
+    pub(crate) fn begin_frame(&mut self, delta_time: f64) {
         // Collect previous frame stages
-        let mut frame_stages = self.next_frame_stages.drain(..).collect::<VecDeque<_>>();
+        self.frame_stages.clear();
+        for stage in self.next_frame_stages.drain(..) {
+            self.frame_stages.push_back(stage);
+        }
 
         // Integrate fixed update stages
         for stage in self.periodic_stages.iter_mut() {
-            stage.accumulator += context.delta_time;
+            stage.accumulator += delta_time;
             let frequency = stage.frequency;
             let count = (stage.accumulator / frequency) as u32;
             stage.accumulator -= count as f64 * frequency;
             for _ in 0..count {
-                frame_stages.push_back(stage.id);
+                self.frame_stages.push_back(stage.id);
             }
         }
 
         // Append update stage
-        frame_stages.push_back(self.update_stage);
+        self.frame_stages.push_back(self.update_stage);
+    }
 
-        // Run stages
-        // TODO: protect against infinite loops
-        while let Some(stage) = frame_stages.pop_front() {
-            // Find stage entry
-            if let Some(stage) = self.stages.get(stage) {
-                // Iter nodes
-                let mut current = stage.first_node;
-                while !current.is_null() {
-                    match self.nodes[current] {
-                        SystemPipelineNode::Exclusive { instance, next } => {
-                            // Build node API
-                            let api = &mut ExclusiveAPI {
-                                asset: ExclusiveAssetAPI {
-                                    manager: context.asset,
-                                },
-                                input: ExclusiveInputAPI {
-                                    manager: context.input,
-                                    server: context.input_server,
-                                },
-                                registry: ExclusiveRegistryAPI {
-                                    systems: ExclusiveSystemRegistryAPI {
-                                        manager: &mut context.registry.systems,
-                                    },
-                                    components: ExclusiveComponentRegistryAPI {
-                                        manager: &mut context.registry.components,
-                                    },
-                                },
-                                renderer: ExclusiveRendererAPI {
-                                    manager: context.renderer,
-                                    server: context.renderer_server,
-                                },
-                                system: ExclusiveSystemAPI {
-                                    server: context.system_server,
-                                    manager: context.system,
-                                },
-                                time: TimeAPI {
-                                    delta: context.delta_time,
-                                    global: context.global_time,
-                                },
-                            };
-                            let ecs = &mut ExclusiveECS {
-                                archetypes,
-                                components,
-                                entities,
-                                queries,
-                                periodic_stages: &mut self.periodic_stages,
-                                stages: &self.stages,
-                                frame_stages: &mut frame_stages,
-                                next_frame_stages: &mut self.next_frame_stages,
-                                cycle: self.global_cycle,
-                            };
-                            instances[instance].run_exclusive(ecs, api);
-                            current = next;
-                        }
-                        SystemPipelineNode::Parallel { first_item, next } => {
-                            // TODO: use thread pool
-                            let api = &mut ParallelAPI {
-                                asset: ParallelAssetAPI {
-                                    manager: context.asset,
-                                },
-                                input: ParallelInputAPI {
-                                    manager: context.input,
-                                },
-                                registry: ParallelRegistryAPI {
-                                    systems: ParallelSystemRegistryAPI {
-                                        manager: &context.registry.systems,
-                                    },
-                                    components: ParallelComponentRegistryAPI {
-                                        manager: &context.registry.components,
-                                    },
-                                },
-                                renderer: ParallelRendererAPI {
-                                    manager: context.renderer,
-                                },
-                                system: ParallelSystemAPI {
-                                    server: context.system_server,
-                                    manager: context.system,
-                                },
-                                time: TimeAPI {
-                                    delta: context.delta_time,
-                                    global: context.global_time,
-                                },
-                            };
-                            let ecs = &mut ParallelECS {
-                                components,
-                                entities,
-                                queries,
-                                cycle: self.global_cycle,
-                            };
-                            // TODO:
-                            current = next;
-                        }
-                        _ => unreachable!(),
-                    }
-                }
+    pub(crate) fn next_node(&mut self) -> Option<&[System]> {
+        if self.next_node.is_null() {
+            return None;
+        }
+        // Find next node
+        match &self.nodes[self.next_node] {
+            SystemPipelineNode::Exclusive { instance, next } => {
+                self.next_node = *next;
+                Some(core::slice::from_ref(&self.instances[*instance]))
+            }
+            SystemPipelineNode::Parallel {
+                first_instance,
+                count,
+                next,
+            } => {
+                self.next_node = *next;
+                Some(&self.instances[*first_instance..*first_instance + *count])
             }
         }
+    }
 
+    pub(crate) fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {
+        let stage = self
+            .stages
+            .iter()
+            .find_map(
+                |(id, entry)| {
+                    if entry.uid == stage {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .ok_or(ECSError::SystemStageNotFound)?;
+        match invocation {
+            Invocation::Immediate => {
+                self.frame_stages.push_front(stage);
+            }
+            Invocation::EndFrame => {
+                self.frame_stages.push_back(stage);
+            }
+            Invocation::NextFrame => {
+                self.next_frame_stages.push_back(stage);
+            }
+        }
         Ok(())
     }
 
-    pub(crate) fn cycle(&self) -> u32 {
-        self.global_cycle
+    pub(crate) fn set_periodic_invoke(
+        &mut self,
+        stage: UID,
+        frequency: f64,
+    ) -> Result<(), ECSError> {
+        for periodic_stage in self.periodic_stages.iter_mut() {
+            if periodic_stage.stage == stage {
+                periodic_stage.frequency = frequency;
+                return Ok(());
+            }
+        }
+        self.periodic_stages.push(PeriodicStage {
+            stage,
+            id: SlotId::null(),
+            frequency,
+            accumulator: 0.0,
+        });
+        Ok(())
     }
 }

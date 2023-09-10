@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate::{
     ecs::{
         archetype::ArchetypeTable,
@@ -7,13 +5,10 @@ use crate::{
         entity::{Entity, EntityBuilder, EntityTable},
         error::ECSError,
         query::{FilterQuery, Query, QueryTable},
-        scheduler::{Invocation, PeriodicStage, StageEntry},
+        scheduler::{Invocation, Scheduler},
     },
     registry::component::ComponentHandle,
-    utils::{
-        slotmap::{SlotId, SparseSecondaryMap},
-        uid::UID,
-    },
+    utils::uid::UID,
 };
 
 pub struct ExclusiveECS<'a> {
@@ -21,10 +16,7 @@ pub struct ExclusiveECS<'a> {
     pub(crate) components: &'a mut ComponentTable,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
-    pub(crate) periodic_stages: &'a mut Vec<PeriodicStage>,
-    pub(crate) stages: &'a SparseSecondaryMap<StageEntry>,
-    pub(crate) frame_stages: &'a mut VecDeque<SlotId>,
-    pub(crate) next_frame_stages: &'a mut VecDeque<SlotId>,
+    pub(crate) scheduler: &'a mut Scheduler,
     pub(crate) cycle: u32,
 }
 
@@ -47,47 +39,11 @@ impl<'a> ExclusiveECS<'a> {
     }
 
     pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) -> Result<(), ECSError> {
-        for periodic_stage in self.periodic_stages.iter_mut() {
-            if periodic_stage.stage == stage {
-                periodic_stage.frequency = frequency;
-                return Ok(());
-            }
-        }
-        self.periodic_stages.push(PeriodicStage {
-            stage,
-            id: SlotId::null(),
-            frequency,
-            accumulator: 0.0,
-        });
-        Ok(())
+        self.scheduler.set_periodic_invoke(stage, frequency)
     }
 
     pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {
-        let stage = self
-            .stages
-            .iter()
-            .find_map(
-                |(id, entry)| {
-                    if entry.uid == stage {
-                        Some(id)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .ok_or(ECSError::SystemStageNotFound)?;
-        match invocation {
-            Invocation::Immediate => {
-                self.frame_stages.push_front(stage);
-            }
-            Invocation::EndFrame => {
-                self.frame_stages.push_back(stage);
-            }
-            Invocation::NextFrame => {
-                self.next_frame_stages.push_back(stage);
-            }
-        }
-        Ok(())
+        self.scheduler.invoke(stage, invocation)
     }
 
     pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {
