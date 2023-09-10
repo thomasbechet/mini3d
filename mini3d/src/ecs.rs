@@ -10,6 +10,7 @@ use crate::{
     },
     input::server::InputServer,
     network::server::NetworkServer,
+    registry::error::RegistryError,
     renderer::server::RendererServer,
     serialize::{Decoder, DecoderError, EncoderError},
     storage::server::StorageServer,
@@ -40,7 +41,6 @@ use self::{
     archetype::ArchetypeTable,
     component::ComponentTable,
     entity::EntityTable,
-    error::ECSError,
     instance::{SystemInstanceTable, SystemResult},
     query::QueryTable,
     scheduler::Scheduler,
@@ -122,6 +122,21 @@ impl ECSManager {
         Ok(())
     }
 
+    pub(crate) fn on_registry_update(
+        &mut self,
+        registry: &RegistryManager,
+    ) -> Result<(), RegistryError> {
+        self.instances.on_registry_update(
+            registry,
+            &mut self.components,
+            &mut self.entities,
+            &mut self.archetypes,
+            &mut self.queries,
+        )?;
+        self.components.on_registry_update(&registry.components);
+        Ok(())
+    }
+
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> SystemResult {
         // Begin frame
         self.scheduler.begin_frame(context.delta_time);
@@ -130,6 +145,24 @@ impl ECSManager {
         // Run stages
         // TODO: protect against infinite loops
         while let Some(instances) = self.scheduler.next_node() {
+            // Check component registry update
+            if context.registry.components.updated {
+                self.instances.on_registry_update(
+                    &context.registry,
+                    &mut self.components,
+                    &mut self.entities,
+                    &mut self.archetypes,
+                    &mut self.queries,
+                )?;
+                self.components
+                    .on_registry_update(&context.registry.components);
+                context.registry.components.updated = false;
+            }
+
+            // Check system registry update
+            if context.registry.systems.updated {}
+
+            // Execute node
             if instances.len() == 1 {
                 // Exclusive
                 let instance = instances[0];
@@ -210,14 +243,7 @@ impl ECSManager {
                 };
                 todo!()
             }
-
-            // Check for registry updates
-            if context.registry.components.updated {
-                self.instances.on_registry_update(&context.registry);
-            }
         }
-
-        // Synchronize with registry
 
         Ok(())
     }

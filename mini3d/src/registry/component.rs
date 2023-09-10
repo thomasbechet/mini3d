@@ -315,7 +315,7 @@ pub(crate) struct ComponentEntry {
 
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
-    entries: SlotMap<ComponentEntry>,
+    pub(crate) entries: SlotMap<ComponentEntry>,
     pub(crate) updated: bool,
 }
 

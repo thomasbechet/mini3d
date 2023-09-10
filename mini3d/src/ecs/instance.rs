@@ -54,7 +54,6 @@ impl<'a> ExclusiveResolver<'a> {
             .registry
             .find::<H>(component)
             .ok_or(RegistryError::ComponentDefinitionNotFound)?;
-        self.components.preallocate(handle, self.registry);
         Ok(handle)
     }
 
@@ -92,7 +91,6 @@ impl<'a> ParallelResolver<'a> {
             .registry
             .find(component)
             .ok_or(RegistryError::ComponentDefinitionNotFound)?;
-        self.components.preallocate(handle, self.registry);
         let id = handle.id();
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
@@ -105,7 +103,6 @@ impl<'a> ParallelResolver<'a> {
             .registry
             .find(component)
             .ok_or(RegistryError::ComponentDefinitionNotFound)?;
-        self.components.preallocate(handle, self.registry);
         let id = handle.id();
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);
@@ -244,6 +241,10 @@ impl SystemInstanceTable {
     pub(crate) fn on_registry_update(
         &mut self,
         registry: &RegistryManager,
+        components: &mut ComponentTable,
+        entities: &mut EntityTable,
+        archetypes: &mut ArchetypeTable,
+        queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {
         for (id, entry) in registry.systems.systems.iter() {
             // Create instance if missing
@@ -270,13 +271,13 @@ impl SystemInstanceTable {
                 .resolve_exclusive(&mut ExclusiveResolver {
                     registry: &registry.components,
                     system: id.into(),
-                    all: (),
-                    any: (),
-                    not: (),
-                    components: (),
-                    entities: (),
-                    archetypes: (),
-                    queries: (),
+                    all: &mut Default::default(),
+                    any: &mut Default::default(),
+                    not: &mut Default::default(),
+                    components,
+                    entities,
+                    archetypes,
+                    queries,
                 })?;
         }
         Ok(())

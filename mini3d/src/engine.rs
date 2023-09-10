@@ -150,7 +150,9 @@ impl Engine {
                 .expect("Failed to define core features");
         }
         // Setup managers
-        self.renderer
+        self.ecs
+            .self
+            .renderer
             .reload_component_handles(&self.registry.components)
             .expect("Failed to reload component handles");
     }

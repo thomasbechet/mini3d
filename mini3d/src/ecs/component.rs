@@ -304,19 +304,12 @@ pub(crate) struct ComponentTable {
 }
 
 impl ComponentTable {
-    pub(crate) fn preallocate<H: ComponentHandle>(
-        &mut self,
-        handle: H,
-        registry: &ComponentRegistry,
-    ) {
-        let id = handle.id();
-        if !self.containers.contains(id.into()) {
-            let container = registry
-                .definition(handle)
-                .unwrap()
-                .reflection
-                .create_scene_container();
-            self.containers.insert(id.into(), RefCell::new(container));
+    pub(crate) fn on_registry_update(&mut self, registry: &ComponentRegistry) {
+        for (id, entry) in registry.entries.iter() {
+            if !self.containers.contains(id) {
+                let container = entry.reflection.create_scene_container();
+                self.containers.insert(id, RefCell::new(container));
+            }
         }
     }
 
