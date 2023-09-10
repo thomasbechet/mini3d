@@ -6,7 +6,8 @@ use crate::{
         },
         instance::{
             AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
-            ParallelResolver, StaticSystemInstance, SystemInstance, SystemResult,
+            ExclusiveSystemInstance, ParallelResolver, ParallelSystemInstance, SystemInstance,
+            SystemResult,
         },
     },
     utils::{
@@ -61,7 +62,7 @@ impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection
                 self.system.run(ecs, api)
             }
         }
-        SystemInstance::Static(StaticSystemInstance::Exclusive(Box::new(InstanceHolder {
+        SystemInstance::Exclusive(ExclusiveSystemInstance::Static(Box::new(InstanceHolder {
             system: S::default(),
         })))
     }
@@ -87,7 +88,7 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
                 self.system.run(ecs, api)
             }
         }
-        SystemInstance::Static(StaticSystemInstance::Parallel(Box::new(InstanceHolder {
+        SystemInstance::Parallel(ParallelSystemInstance::Static(Box::new(InstanceHolder {
             system: S::default(),
         })))
     }

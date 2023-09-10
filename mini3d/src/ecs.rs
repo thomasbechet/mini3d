@@ -41,7 +41,7 @@ use self::{
     archetype::ArchetypeTable,
     container::ContainerTable,
     entity::EntityTable,
-    instance::{SystemInstanceTable, SystemResult},
+    instance::{SystemInstance, SystemInstanceTable, SystemResult},
     query::QueryTable,
     scheduler::Scheduler,
 };
@@ -219,44 +219,63 @@ impl ECSManager {
                     scheduler: &mut self.scheduler,
                     cycle: self.global_cycle,
                 };
-                self.instances[instance].run_exclusive(ecs, api)?;
+                match &self
+                    .instances
+                    .get(instance)
+                    .expect("System instance not found")
+                    .instance
+                {
+                    SystemInstance::Exclusive(instance) => instance.run(ecs, api)?,
+                    SystemInstance::Parallel(_) => unreachable!(),
+                }
             } else {
-                // Parallel
                 // TODO: use thread pool
-                let api = &mut ParallelAPI {
-                    asset: ParallelAssetAPI {
-                        manager: context.asset,
-                    },
-                    input: ParallelInputAPI {
-                        manager: context.input,
-                    },
-                    registry: ParallelRegistryAPI {
-                        systems: ParallelSystemRegistryAPI {
-                            manager: &context.registry.systems,
+                // Parallel
+                for i in 0..node.count {
+                    let instance = self.scheduler.instances[node.first + i];
+                    let api = &mut ParallelAPI {
+                        asset: ParallelAssetAPI {
+                            manager: context.asset,
                         },
-                        components: ParallelComponentRegistryAPI {
-                            manager: &context.registry.components,
+                        input: ParallelInputAPI {
+                            manager: context.input,
                         },
-                    },
-                    renderer: ParallelRendererAPI {
-                        manager: context.renderer,
-                    },
-                    system: ParallelSystemAPI {
-                        server: context.system_server,
-                        manager: context.system,
-                    },
-                    time: TimeAPI {
-                        delta: context.delta_time,
-                        global: context.global_time,
-                    },
-                };
-                let ecs = &mut ParallelECS {
-                    containers: &mut self.containers,
-                    entities: &mut self.entities,
-                    queries: &mut self.queries,
-                    cycle: self.global_cycle,
-                };
-                todo!()
+                        registry: ParallelRegistryAPI {
+                            systems: ParallelSystemRegistryAPI {
+                                manager: &context.registry.systems,
+                            },
+                            components: ParallelComponentRegistryAPI {
+                                manager: &context.registry.components,
+                            },
+                        },
+                        renderer: ParallelRendererAPI {
+                            manager: context.renderer,
+                        },
+                        system: ParallelSystemAPI {
+                            server: context.system_server,
+                            manager: context.system,
+                        },
+                        time: TimeAPI {
+                            delta: context.delta_time,
+                            global: context.global_time,
+                        },
+                    };
+                    let ecs = &mut ParallelECS {
+                        containers: &mut self.containers,
+                        entities: &mut self.entities,
+                        queries: &mut self.queries,
+                        cycle: self.global_cycle,
+                    };
+                    match &self
+                        .instances
+                        .get(instance)
+                        .expect("System instance not found")
+                        .instance
+                    {
+                        SystemInstance::Exclusive(_) => unreachable!(),
+                        SystemInstance::Parallel(instance) => instance.run(ecs, api)?,
+                    }
+                }
             }
         }
 

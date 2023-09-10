@@ -137,74 +137,54 @@ pub(crate) trait AnyStaticParallelSystemInstance {
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult;
 }
 
-pub(crate) enum StaticSystemInstance {
-    Exclusive(Box<dyn AnyStaticExclusiveSystemInstance>),
-    Parallel(Box<dyn AnyStaticParallelSystemInstance>),
+pub(crate) enum ExclusiveSystemInstance {
+    Static(Box<dyn AnyStaticExclusiveSystemInstance>),
+    Program(Program),
 }
 
-pub(crate) struct ProgramSystemInstance {
-    program: Program,
-}
-
-pub(crate) enum SystemInstance {
-    Static(StaticSystemInstance),
-    Program(ProgramSystemInstance),
-}
-
-impl SystemInstance {
-    pub(crate) fn resolve_exclusive(
+impl ExclusiveSystemInstance {
+    pub(crate) fn resolve(
         &mut self,
         resolver: &mut ExclusiveResolver,
     ) -> Result<(), RegistryError> {
         match self {
-            Self::Static(instance) => match instance {
-                StaticSystemInstance::Exclusive(instance) => instance.resolve(resolver),
-                StaticSystemInstance::Parallel(_) => unreachable!(),
-            },
+            Self::Static(instance) => instance.resolve(resolver),
             Self::Program(_) => Ok(()),
         }
     }
 
-    pub(crate) fn run_exclusive(
-        &self,
-        ecs: &mut ExclusiveECS,
-        api: &mut ExclusiveAPI,
-    ) -> SystemResult {
+    pub(crate) fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
         match self {
-            Self::Static(instance) => match instance {
-                StaticSystemInstance::Exclusive(instance) => instance.run(ecs, api),
-                StaticSystemInstance::Parallel(_) => unreachable!(),
-            },
-            Self::Program(_) => Ok(()),
-        }
-    }
-
-    pub(crate) fn resolve_parallel(
-        &mut self,
-        resolver: &mut ParallelResolver,
-    ) -> Result<(), RegistryError> {
-        match self {
-            Self::Static(instance) => match instance {
-                StaticSystemInstance::Parallel(instance) => instance.resolve(resolver),
-                StaticSystemInstance::Exclusive(_) => unreachable!(),
-            },
-            Self::Program(_) => Ok(()),
-        }
-    }
-
-    pub(crate) fn run_parallel(
-        &self,
-        ecs: &mut ParallelECS,
-        api: &mut ParallelAPI,
-    ) -> SystemResult {
-        match self {
-            Self::Static(instance) => match instance {
-                StaticSystemInstance::Parallel(instance) => instance.run(ecs, api),
-                StaticSystemInstance::Exclusive(_) => unreachable!(),
-            },
+            Self::Static(instance) => instance.run(ecs, api),
             Self::Program(instance) => Ok(()),
         }
     }
+}
+
+pub(crate) enum ParallelSystemInstance {
+    Static(Box<dyn AnyStaticParallelSystemInstance>),
+    Program(Program),
+}
+
+impl ParallelSystemInstance {
+    pub(crate) fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+        match self {
+            Self::Static(instance) => instance.resolve(resolver),
+            Self::Program(_) => Ok(()),
+        }
+    }
+
+    pub(crate) fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+        match self {
+            Self::Static(instance) => instance.run(ecs, api),
+            Self::Program(instance) => Ok(()),
+        }
+    }
+}
+
+pub(crate) enum SystemInstance {
+    Exclusive(ExclusiveSystemInstance),
+    Parallel(ParallelSystemInstance),
 }
 
 pub(crate) struct SystemInstanceEntry {
@@ -266,27 +246,41 @@ impl SystemInstanceTable {
             }
 
             // Resolve instance
-            self.instances[id]
-                .instance
-                .resolve_exclusive(&mut ExclusiveResolver {
-                    registry: &registry.components,
-                    system: id.into(),
-                    all: &mut Default::default(),
-                    any: &mut Default::default(),
-                    not: &mut Default::default(),
-                    containers,
-                    entities,
-                    archetypes,
-                    queries,
-                })?;
+            match self.instances[id].instance {
+                SystemInstance::Exclusive(ref mut instance) => {
+                    instance.resolve(&mut ExclusiveResolver {
+                        registry: &registry.components,
+                        system: id.into(),
+                        all: &mut Default::default(),
+                        any: &mut Default::default(),
+                        not: &mut Default::default(),
+                        containers,
+                        entities,
+                        archetypes,
+                        queries,
+                    })?;
+                }
+                SystemInstance::Parallel(ref mut instance) => {
+                    instance.resolve(&mut ParallelResolver {
+                        registry: &registry.components,
+                        system: id.into(),
+                        reads: Vec::new(),
+                        writes: Vec::new(),
+                        all: &mut Default::default(),
+                        any: &mut Default::default(),
+                        not: &mut Default::default(),
+                        containers,
+                        entities,
+                        archetypes,
+                        queries,
+                    })?;
+                }
+            }
         }
         Ok(())
     }
-}
 
-impl Index<System> for SystemInstanceTable {
-    type Output = SystemInstance;
-    fn index(&self, id: System) -> &Self::Output {
-        &self.instances[id.into()].instance
+    pub(crate) fn get(&self, system: System) -> Option<&SystemInstanceEntry> {
+        self.instances.get(system.into())
     }
 }

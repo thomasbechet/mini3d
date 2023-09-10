@@ -168,6 +168,7 @@ impl Engine {
             global_time: 0.0,
         };
         engine.setup(core_features);
+        engine.registry.log();
         engine
     }
 
