@@ -9,7 +9,7 @@ use crate::{
         handle::{Asset, AssetHandle, StaticAsset},
     },
     ecs::{
-        component::{AnyComponentContainer, ComponentTable, StaticComponentContainer},
+        container::{AnyComponentContainer, ContainerTable, StaticComponentContainer},
         entity::Entity,
         error::ECSError,
         view::{
@@ -42,8 +42,8 @@ impl From<ComponentId> for SlotId {
     }
 }
 
-pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ComponentTable);
-pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ComponentTable);
+pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
+pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
 
 pub trait ComponentHandle: Copy {
     type ViewRef<'a>;
@@ -316,7 +316,6 @@ pub(crate) struct ComponentEntry {
 #[derive(Default)]
 pub(crate) struct ComponentRegistry {
     pub(crate) entries: SlotMap<ComponentEntry>,
-    pub(crate) updated: bool,
 }
 
 impl ComponentRegistry {
@@ -337,7 +336,6 @@ impl ComponentRegistry {
             kind,
             reflection,
         });
-        self.updated = true;
         Ok(())
     }
 

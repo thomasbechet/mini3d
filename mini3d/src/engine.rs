@@ -150,9 +150,7 @@ impl Engine {
                 .expect("Failed to define core features");
         }
         // Setup managers
-        self.ecs
-            .self
-            .renderer
+        self.renderer
             .reload_component_handles(&self.registry.components)
             .expect("Failed to reload component handles");
     }
@@ -266,9 +264,8 @@ impl Engine {
             .map_err(|err| ProgressError::System(err))?;
 
         // ================= POST-UPDATE STAGE ================== //
-
         self.renderer
-            .submit_graphics(&mut self.asset, &self.ecs.components, servers.renderer);
+            .submit_graphics(&mut self.asset, &self.ecs.containers, servers.renderer);
 
         Ok(())
     }

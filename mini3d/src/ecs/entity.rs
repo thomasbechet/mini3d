@@ -6,7 +6,7 @@ use crate::{
 
 use super::{
     archetype::{ArchetypeId, ArchetypeTable},
-    component::ComponentTable,
+    container::ContainerTable,
     query::{FilterKind, FilterQuery},
     sparse::PagedVector,
 };
@@ -113,7 +113,7 @@ impl EntityTable {
         &mut self,
         entity: Entity,
         archetypes: &mut ArchetypeTable,
-        components: &mut ComponentTable,
+        containers: &mut ContainerTable,
     ) {
         let info = self.entities.get_mut(entity.key()).unwrap();
         let group = &mut self.groups[info.group];
@@ -144,7 +144,7 @@ impl EntityTable {
                 .components(archetype)
                 .iter()
                 .for_each(|component| {
-                    components.remove(entity, *component);
+                    containers.remove(entity, *component);
                 });
         }
     }
@@ -199,7 +199,7 @@ pub struct EntityBuilder<'a> {
     archetype: ArchetypeId,
     archetypes: &'a mut ArchetypeTable,
     entities: &'a mut EntityTable,
-    components: &'a mut ComponentTable,
+    containers: &'a mut ContainerTable,
     cycle: u32,
 }
 
@@ -207,7 +207,7 @@ impl<'a> EntityBuilder<'a> {
     pub(crate) fn new(
         archetypes: &'a mut ArchetypeTable,
         entities: &'a mut EntityTable,
-        components: &'a mut ComponentTable,
+        containers: &'a mut ContainerTable,
         cycle: u32,
     ) -> Self {
         // Find next entity
@@ -217,7 +217,7 @@ impl<'a> EntityBuilder<'a> {
             archetype: archetypes.empty,
             archetypes,
             entities,
-            components,
+            containers,
             cycle,
         }
     }
@@ -229,7 +229,7 @@ impl<'a> EntityBuilder<'a> {
     pub fn with<H: ComponentHandle>(mut self, component: H, data: H::Data) -> Self {
         self.update_archetype(component.id());
         component.insert_container(
-            PrivateComponentTableMut(self.components),
+            PrivateComponentTableMut(self.containers),
             self.entity,
             data,
             self.cycle,

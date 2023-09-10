@@ -22,6 +22,7 @@ pub struct ParallelRegistryAPI<'a> {
 
 pub struct ExclusiveSystemRegistryAPI<'a> {
     pub(crate) manager: &'a mut SystemRegistry,
+    pub(crate) updated: &'a mut bool,
 }
 
 impl<'a> ExclusiveSystemRegistryAPI<'a> {
@@ -31,7 +32,9 @@ impl<'a> ExclusiveSystemRegistryAPI<'a> {
         stage: &str,
         order: SystemOrder,
     ) -> Result<System, RegistryError> {
-        self.manager.add_static_exclusive::<S>(name, stage, order)
+        let system = self.manager.add_static_exclusive::<S>(name, stage, order)?;
+        *self.updated = true;
+        Ok(system)
     }
 
     pub fn add_static_parallel<S: ParallelSystem>(
@@ -40,11 +43,14 @@ impl<'a> ExclusiveSystemRegistryAPI<'a> {
         stage: &str,
         order: SystemOrder,
     ) -> Result<System, RegistryError> {
-        self.manager.add_static_parallel::<S>(name, stage, order)
+        let system = self.manager.add_static_parallel::<S>(name, stage, order)?;
+        *self.updated = true;
+        Ok(system)
     }
 
     pub fn remove(&mut self, system: System) {
-        self.manager.remove(system)
+        self.manager.remove(system);
+        *self.updated = true;
     }
 
     pub fn find(&self, uid: UID) -> Option<System> {
@@ -54,11 +60,14 @@ impl<'a> ExclusiveSystemRegistryAPI<'a> {
 
 pub struct ExclusiveComponentRegistryAPI<'a> {
     pub(crate) manager: &'a mut ComponentRegistry,
+    pub(crate) updated: &'a mut bool,
 }
 
 impl<'a> ExclusiveComponentRegistryAPI<'a> {
     pub fn add_static<C: ComponentData>(&mut self, name: &str) -> Result<(), RegistryError> {
-        self.manager.add_static::<C>(name)
+        self.manager.add_static::<C>(name)?;
+        *self.updated = true;
+        Ok(())
     }
 
     pub fn find<H: ComponentHandle>(&self, component: UID) -> Option<H> {

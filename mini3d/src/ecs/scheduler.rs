@@ -16,16 +16,11 @@ pub enum Invocation {
     NextFrame,
 }
 
-enum SystemPipelineNode {
-    Exclusive {
-        instance: usize,
-        next: SlotId,
-    },
-    Parallel {
-        first_instance: usize,
-        count: usize,
-        next: SlotId,
-    },
+#[derive(Clone, Copy)]
+pub(crate) struct SystemPipelineNode {
+    pub(crate) first: usize,
+    pub(crate) count: usize,
+    next: SlotId,
 }
 
 struct PeriodicStage {
@@ -49,7 +44,7 @@ pub(crate) struct Scheduler {
     // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
     // Instances
-    instances: Vec<System>,
+    pub(crate) instances: Vec<System>,
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next frame stage
@@ -91,8 +86,9 @@ impl Scheduler {
                 self.instances.push(instance);
 
                 // Create node
-                let node = self.nodes.add(SystemPipelineNode::Exclusive {
-                    instance: self.instances.len() - 1,
+                let node = self.nodes.add(SystemPipelineNode {
+                    first: self.instances.len() - 1,
+                    count: 1,
                     next: SlotId::null(),
                 });
 
@@ -101,14 +97,7 @@ impl Scheduler {
 
                 // Link previous node or create new stage
                 if let Some(previous_node) = previous_node {
-                    match &mut self.nodes[previous_node] {
-                        SystemPipelineNode::Exclusive { next, .. } => {
-                            *next = node;
-                        }
-                        SystemPipelineNode::Parallel { next, .. } => {
-                            *next = node;
-                        }
-                    }
+                    self.nodes[previous_node].next = node;
                 } else {
                     // Record baked stage
                     self.stages.insert(
@@ -148,25 +137,14 @@ impl Scheduler {
         self.frame_stages.push_back(self.update_stage);
     }
 
-    pub(crate) fn next_node(&mut self) -> Option<&[System]> {
+    pub(crate) fn next_node(&mut self) -> Option<SystemPipelineNode> {
         if self.next_node.is_null() {
             return None;
         }
         // Find next node
-        match &self.nodes[self.next_node] {
-            SystemPipelineNode::Exclusive { instance, next } => {
-                self.next_node = *next;
-                Some(core::slice::from_ref(&self.instances[*instance]))
-            }
-            SystemPipelineNode::Parallel {
-                first_instance,
-                count,
-                next,
-            } => {
-                self.next_node = *next;
-                Some(&self.instances[*first_instance..*first_instance + *count])
-            }
-        }
+        let node = self.nodes[self.next_node];
+        self.next_node = node.next;
+        Some(node)
     }
 
     pub(crate) fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {

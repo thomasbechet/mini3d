@@ -1,7 +1,7 @@
 use crate::{
     ecs::{
         archetype::ArchetypeTable,
-        component::ComponentTable,
+        container::ContainerTable,
         entity::{Entity, EntityBuilder, EntityTable},
         error::ECSError,
         query::{FilterQuery, Query, QueryTable},
@@ -13,7 +13,7 @@ use crate::{
 
 pub struct ExclusiveECS<'a> {
     pub(crate) archetypes: &'a mut ArchetypeTable,
-    pub(crate) components: &'a mut ComponentTable,
+    pub(crate) containers: &'a mut ContainerTable,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
     pub(crate) scheduler: &'a mut Scheduler,
@@ -22,20 +22,20 @@ pub struct ExclusiveECS<'a> {
 
 impl<'a> ExclusiveECS<'a> {
     pub fn add(&mut self) -> EntityBuilder<'_> {
-        EntityBuilder::new(self.archetypes, self.entities, self.components, self.cycle)
+        EntityBuilder::new(self.archetypes, self.entities, self.containers, self.cycle)
     }
 
     pub fn remove(&mut self, entity: Entity) {
         self.entities
-            .remove(entity, self.archetypes, self.components)
+            .remove(entity, self.archetypes, self.containers)
     }
 
     pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, ECSError> {
-        self.components.view(component)
+        self.containers.view(component)
     }
 
     pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, ECSError> {
-        self.components.view_mut(component, self.cycle)
+        self.containers.view_mut(component, self.cycle)
     }
 
     pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) -> Result<(), ECSError> {
@@ -59,7 +59,7 @@ impl<'a> ExclusiveECS<'a> {
 }
 
 pub struct ParallelECS<'a> {
-    pub(crate) components: &'a ComponentTable,
+    pub(crate) containers: &'a ContainerTable,
     pub(crate) entities: &'a EntityTable,
     pub(crate) queries: &'a QueryTable,
     pub(crate) cycle: u32,
@@ -67,11 +67,11 @@ pub struct ParallelECS<'a> {
 
 impl<'a> ParallelECS<'a> {
     pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, ECSError> {
-        self.components.view(component)
+        self.containers.view(component)
     }
 
     pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, ECSError> {
-        self.components.view_mut(component, self.cycle)
+        self.containers.view_mut(component, self.cycle)
     }
 
     pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {

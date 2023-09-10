@@ -6,7 +6,7 @@ use std::{
 use crate::registry::component::ComponentData;
 
 use super::{
-    component::{AnyComponentContainer, StaticComponentContainer},
+    container::{AnyComponentContainer, StaticComponentContainer},
     entity::Entity,
 };
 

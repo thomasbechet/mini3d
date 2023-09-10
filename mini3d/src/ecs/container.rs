@@ -299,11 +299,11 @@ impl AnyComponentContainer for DynamicComponentContainer {
 }
 
 #[derive(Default)]
-pub(crate) struct ComponentTable {
+pub(crate) struct ContainerTable {
     pub(crate) containers: SparseSecondaryMap<RefCell<Box<dyn AnyComponentContainer>>>,
 }
 
-impl ComponentTable {
+impl ContainerTable {
     pub(crate) fn on_registry_update(&mut self, registry: &ComponentRegistry) {
         for (id, entry) in registry.entries.iter() {
             if !self.containers.contains(id) {

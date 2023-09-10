@@ -1,7 +1,7 @@
 use std::collections::{hash_map, HashMap};
 
 use crate::asset::handle::{Asset, StaticAsset};
-use crate::ecs::component::ComponentTable;
+use crate::ecs::container::ContainerTable;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;
@@ -308,11 +308,11 @@ impl RendererManager {
     pub(crate) fn submit_graphics(
         &mut self,
         asset: &mut AssetManager,
-        components: &ComponentTable,
+        containers: &ContainerTable,
         server: &mut dyn RendererServer,
     ) {
         // Acquire active scene
-        let viewports = components
+        let viewports = containers
             .view(self.viewport)
             .expect("Failed to acquire viewport view");
         // Render main screen

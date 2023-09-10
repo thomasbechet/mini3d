@@ -10,7 +10,7 @@ use crate::{
     },
     input::server::InputServer,
     network::server::NetworkServer,
-    registry::error::RegistryError,
+    registry::{error::RegistryError, system::SystemRegistry},
     renderer::server::RendererServer,
     serialize::{Decoder, DecoderError, EncoderError},
     storage::server::StorageServer,
@@ -39,7 +39,7 @@ use self::{
         ExclusiveAPI,
     },
     archetype::ArchetypeTable,
-    component::ComponentTable,
+    container::ContainerTable,
     entity::EntityTable,
     instance::{SystemInstanceTable, SystemResult},
     query::QueryTable,
@@ -48,7 +48,7 @@ use self::{
 
 pub mod api;
 pub mod archetype;
-pub mod component;
+pub mod container;
 pub mod entity;
 pub mod error;
 pub mod instance;
@@ -58,24 +58,30 @@ pub mod sparse;
 pub mod view;
 
 pub(crate) struct ECSManager {
-    pub(crate) components: ComponentTable,
+    pub(crate) containers: ContainerTable,
     archetypes: ArchetypeTable,
     entities: EntityTable,
     queries: QueryTable,
     instances: SystemInstanceTable,
     scheduler: Scheduler,
+    update_scheduler: bool,
+    update_containers: bool,
+    update_instances: bool,
     global_cycle: u32,
 }
 
 impl Default for ECSManager {
     fn default() -> Self {
         Self {
-            components: ComponentTable::default(),
+            containers: ContainerTable::default(),
             archetypes: ArchetypeTable::new(),
             entities: EntityTable::default(),
             queries: QueryTable::default(),
             instances: SystemInstanceTable::default(),
             scheduler: Scheduler::default(),
+            update_scheduler: true,
+            update_containers: true,
+            update_instances: true,
             global_cycle: 0,
         }
     }
@@ -122,50 +128,57 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn on_registry_update(
-        &mut self,
-        registry: &RegistryManager,
-    ) -> Result<(), RegistryError> {
-        self.instances.on_registry_update(
-            registry,
-            &mut self.components,
-            &mut self.entities,
-            &mut self.archetypes,
-            &mut self.queries,
-        )?;
-        self.components.on_registry_update(&registry.components);
+    pub(crate) fn on_registry_update(&mut self) {
+        self.update_scheduler = true;
+        self.update_containers = true;
+        self.update_instances = true;
+    }
+
+    fn check_scheduler_update(&mut self, registry: &SystemRegistry) -> Result<(), RegistryError> {
+        if self.update_scheduler {
+            self.scheduler.on_registry_update(registry);
+            self.update_scheduler = false;
+        }
+        Ok(())
+    }
+
+    fn check_registry_update(&mut self, registry: &RegistryManager) -> Result<(), RegistryError> {
+        if self.update_containers {
+            self.containers.on_registry_update(&registry.components);
+            self.update_containers = false;
+        }
+        if self.update_instances {
+            self.instances.on_registry_update(
+                registry,
+                &mut self.containers,
+                &mut self.entities,
+                &mut self.archetypes,
+                &mut self.queries,
+            )?;
+            self.update_instances = false;
+        }
         Ok(())
     }
 
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> SystemResult {
+        // Check scheduler update
+        self.check_scheduler_update(&context.registry.systems)?;
+        self.check_registry_update(context.registry)?;
+
         // Begin frame
         self.scheduler.begin_frame(context.delta_time);
 
         // Update cycle
         // Run stages
         // TODO: protect against infinite loops
-        while let Some(instances) = self.scheduler.next_node() {
-            // Check component registry update
-            if context.registry.components.updated {
-                self.instances.on_registry_update(
-                    &context.registry,
-                    &mut self.components,
-                    &mut self.entities,
-                    &mut self.archetypes,
-                    &mut self.queries,
-                )?;
-                self.components
-                    .on_registry_update(&context.registry.components);
-                context.registry.components.updated = false;
-            }
-
-            // Check system registry update
-            if context.registry.systems.updated {}
+        while let Some(node) = self.scheduler.next_node() {
+            // Check registry update
+            self.check_registry_update(context.registry)?;
 
             // Execute node
-            if instances.len() == 1 {
+            if node.count == 1 {
                 // Exclusive
-                let instance = instances[0];
+                let instance = self.scheduler.instances[node.first];
                 // Build node API
                 let api = &mut ExclusiveAPI {
                     asset: ExclusiveAssetAPI {
@@ -178,9 +191,11 @@ impl ECSManager {
                     registry: ExclusiveRegistryAPI {
                         systems: ExclusiveSystemRegistryAPI {
                             manager: &mut context.registry.systems,
+                            updated: &mut self.update_instances,
                         },
                         components: ExclusiveComponentRegistryAPI {
                             manager: &mut context.registry.components,
+                            updated: &mut self.update_containers,
                         },
                     },
                     renderer: ExclusiveRendererAPI {
@@ -198,7 +213,7 @@ impl ECSManager {
                 };
                 let ecs = &mut ExclusiveECS {
                     archetypes: &mut self.archetypes,
-                    components: &mut self.components,
+                    containers: &mut self.containers,
                     entities: &mut self.entities,
                     queries: &mut self.queries,
                     scheduler: &mut self.scheduler,
@@ -236,7 +251,7 @@ impl ECSManager {
                     },
                 };
                 let ecs = &mut ParallelECS {
-                    components: &mut self.components,
+                    containers: &mut self.containers,
                     entities: &mut self.entities,
                     queries: &mut self.queries,
                     cycle: self.global_cycle,
