@@ -63,7 +63,7 @@ pub(crate) struct ECSManager {
     entities: EntityTable,
     queries: QueryTable,
     instances: SystemInstanceTable,
-    scheduler: Scheduler,
+    pub(crate) scheduler: Scheduler,
     update_scheduler: bool,
     update_containers: bool,
     update_instances: bool,

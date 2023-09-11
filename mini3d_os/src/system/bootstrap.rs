@@ -16,6 +16,7 @@ impl ExclusiveSystem for OSBootstrap {
 
     fn run(&self, _ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
         api.registry.components.add_static::<OS>("os")?;
+        println!("OS component added");
         Ok(())
     }
 }

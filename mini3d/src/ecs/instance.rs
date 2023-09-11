@@ -1,7 +1,5 @@
 use core::fmt::Display;
 
-use std::ops::Index;
-
 use crate::{
     feature::component::common::program::Program,
     registry::{

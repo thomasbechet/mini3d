@@ -76,6 +76,17 @@ impl Scheduler {
                 self.update_stage = id;
             }
 
+            // Add the stage if missing
+            if !self.stages.contains(id) {
+                self.stages.insert(
+                    id,
+                    StageEntry {
+                        first_node: SlotId::null(),
+                        uid: entry.uid,
+                    },
+                );
+            }
+
             // Build stage nodes
             let mut previous_node = None;
             let mut system = entry.first_system;
@@ -99,14 +110,8 @@ impl Scheduler {
                 if let Some(previous_node) = previous_node {
                     self.nodes[previous_node].next = node;
                 } else {
-                    // Record baked stage
-                    self.stages.insert(
-                        id,
-                        StageEntry {
-                            first_node: node,
-                            uid: entry.uid,
-                        },
-                    );
+                    // Update stage first node
+                    self.stages[id].first_node = node;
                 }
 
                 // Next previous node
@@ -139,7 +144,11 @@ impl Scheduler {
 
     pub(crate) fn next_node(&mut self) -> Option<SystemPipelineNode> {
         if self.next_node.is_null() {
-            return None;
+            if let Some(stage) = self.frame_stages.pop_front() {
+                self.next_node = self.stages[stage].first_node;
+            } else {
+                return None;
+            }
         }
         // Find next node
         let node = self.nodes[self.next_node];

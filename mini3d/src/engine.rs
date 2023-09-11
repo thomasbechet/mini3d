@@ -1,5 +1,6 @@
 use crate::asset::AssetManager;
 use crate::ecs::instance::SystemError;
+use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{component, system};
 use crate::input::server::InputServer;
@@ -149,6 +150,14 @@ impl Engine {
             self.register_core_features()
                 .expect("Failed to define core features");
         }
+        // Bootstrap engine
+        self.ecs
+            .scheduler
+            .on_registry_update(&self.registry.systems);
+        self.ecs
+            .scheduler
+            .invoke(SystemStage::BOOTSTRAP.into(), Invocation::NextFrame)
+            .unwrap();
         // Setup managers
         self.renderer
             .reload_component_handles(&self.registry.components)
@@ -168,13 +177,12 @@ impl Engine {
             global_time: 0.0,
         };
         engine.setup(core_features);
-        engine.registry.log();
         engine
     }
 
     pub fn register_bootstrap_system<S: ExclusiveSystem>(&mut self) -> Result<(), RegistryError> {
         self.registry.systems.add_static_exclusive::<S>(
-            "bootstrap",
+            S::NAME,
             SystemStage::BOOTSTRAP,
             SystemOrder::default(),
         )?;
