@@ -131,8 +131,9 @@ fn main_run() {
     let mut system_server = WinitSystemServer::default();
 
     let mut sim = Simulation::new(true);
-    sim.register_system::<OSBootstrap>("os_bootstrap").unwrap();
-    sim.invoke("os_bootstrap".into(), Invocation::NextFrame)
+    sim.register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
+        .unwrap();
+    sim.invoke(OSBootstrap::NAME.into(), Invocation::NextFrame)
         .unwrap();
 
     let mut last_click: Option<SystemTime> = None;

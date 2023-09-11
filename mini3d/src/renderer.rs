@@ -12,7 +12,7 @@ use crate::feature::component::renderer::texture::Texture;
 use crate::feature::component::renderer::viewport::Viewport;
 use crate::feature::component::scene::local_to_world::LocalToWorld;
 use crate::feature::component::ui::canvas::Canvas;
-use crate::registry::component::{ComponentData, ComponentRegistry, StaticComponent};
+use crate::registry::component::{ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::uid::UID;
@@ -256,22 +256,22 @@ impl RendererManager {
         registry: &ComponentRegistry,
     ) -> Result<(), RegistryError> {
         self.camera = registry
-            .find(Camera::UID)
+            .find(Camera::NAME.into())
             .ok_or(RegistryError::ComponentNotFound)?;
         self.static_mesh = registry
-            .find(StaticMesh::UID)
+            .find(StaticMesh::NAME.into())
             .ok_or(RegistryError::ComponentNotFound)?;
         self.canvas = registry
-            .find(Canvas::UID)
+            .find(Canvas::NAME.into())
             .ok_or(RegistryError::ComponentNotFound)?;
         self.local_to_world = registry
-            .find(LocalToWorld::UID)
+            .find(LocalToWorld::NAME.into())
             .ok_or(RegistryError::ComponentNotFound)?;
         self.viewport = registry
-            .find(Viewport::UID)
+            .find(Viewport::NAME.into())
             .ok_or(RegistryError::ComponentNotFound)?;
         self.model = registry
-            .find(Model::UID)
+            .find(Model::NAME.into())
             .ok_or(RegistryError::ComponentNotFound)?;
         Ok(())
     }

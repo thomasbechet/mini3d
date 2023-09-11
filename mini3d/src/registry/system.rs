@@ -20,8 +20,6 @@ use crate::{
 use super::error::RegistryError;
 
 pub trait ExclusiveSystem: 'static + Default {
-    const NAME: &'static str;
-    const UID: UID = UID::new(Self::NAME);
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         Ok(())
     }
@@ -31,8 +29,6 @@ pub trait ExclusiveSystem: 'static + Default {
 }
 
 pub trait ParallelSystem: 'static + Default {
-    const NAME: &'static str;
-    const UID: UID = UID::new(Self::NAME);
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         Ok(())
     }
@@ -238,7 +234,7 @@ impl SystemRegistry {
         let stage = self.get_or_add_system_stage(stage);
         self.add_system(SystemEntry {
             name: name.into(),
-            uid: S::UID,
+            uid: name.into(),
             reflection: Box::new(StaticExclusiveSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
             }),
@@ -258,7 +254,7 @@ impl SystemRegistry {
         let stage = self.get_or_add_system_stage(stage);
         self.add_system(SystemEntry {
             name: name.into(),
-            uid: S::UID,
+            uid: name.into(),
             reflection: Box::new(StaticParallelSystemReflection::<S> {
                 _phantom: std::marker::PhantomData,
             }),

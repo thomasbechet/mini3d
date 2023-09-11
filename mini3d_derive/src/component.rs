@@ -119,8 +119,10 @@ fn derive_struct(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::component::ComponentData for #ident #ty_generics #where_clause {
-            const NAME: &'static str = #component_name;
+        impl mini3d::registry::component::ComponentData for #ident #ty_generics #where_clause {}
+
+        impl #ident #ty_generics #where_clause {
+            pub const NAME: &'static str = #component_name;
         }
     };
     Ok(q)
@@ -145,8 +147,10 @@ pub(crate) fn derive_tuple(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {
-            const NAME: &'static str = #component_name;
+        impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {}
+
+        impl #ident #ty_generics #where_clause {
+            pub const NAME: &'static str = #component_name;
         }
     };
     Ok(q)
@@ -171,8 +175,10 @@ fn derive_enum(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::component::ComponentData for #ident #ty_generics #where_clause {
-            const NAME: &'static str = #component_name;
+        impl mini3d::registry::component::ComponentData for #ident #ty_generics #where_clause {}
+
+        impl #ident #ty_generics #where_clause {
+            pub const NAME: &'static str = #component_name;
         }
     };
     Ok(q)

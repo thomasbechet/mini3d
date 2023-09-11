@@ -7,11 +7,7 @@ use crate::{
         query::Query,
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ParallelSystem,
-    },
+    registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 
 #[derive(Default)]
@@ -21,15 +17,17 @@ pub struct RotatorSystem {
     query: Query,
 }
 
-impl ParallelSystem for RotatorSystem {
+impl RotatorSystem {
     const NAME: &'static str = "rotator_system";
+}
 
+impl ParallelSystem for RotatorSystem {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.transform = resolver.write(Transform::UID)?;
-        self.rotator = resolver.read(Rotator::UID)?;
+        self.transform = resolver.write(Transform::NAME.into())?;
+        self.rotator = resolver.read(Rotator::NAME.into())?;
         self.query = resolver
             .query()
-            .all(&[Transform::UID, Rotator::UID])?
+            .all(&[Transform::NAME.into(), Rotator::NAME.into()])?
             .build();
         Ok(())
     }

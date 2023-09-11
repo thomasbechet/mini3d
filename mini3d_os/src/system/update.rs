@@ -6,11 +6,7 @@ use mini3d::{
     },
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ExclusiveSystem,
-    },
+    registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
     renderer::{color::Color, SCREEN_CENTER},
 };
 
@@ -24,14 +20,16 @@ pub struct UpdateOS {
     query: Query,
 }
 
-impl ExclusiveSystem for UpdateOS {
-    const NAME: &'static str = "update_os";
+impl UpdateOS {
+    pub const NAME: &'static str = "update_os";
+}
 
+impl ExclusiveSystem for UpdateOS {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.os = resolver.find(OS::UID)?;
-        self.free_fly = resolver.find(FreeFly::UID)?;
-        self.ui = resolver.find(UI::UID)?;
-        self.query = resolver.query().all(&[FreeFly::UID])?.build();
+        self.os = resolver.find(OS::NAME.into())?;
+        self.free_fly = resolver.find(FreeFly::NAME.into())?;
+        self.ui = resolver.find(UI::NAME.into())?;
+        self.query = resolver.query().all(&[FreeFly::NAME.into()])?.build();
         Ok(())
     }
 

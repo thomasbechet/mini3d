@@ -1,3 +1,3 @@
 pub mod bootstrap;
-pub mod init;
+pub mod initialize;
 pub mod update;

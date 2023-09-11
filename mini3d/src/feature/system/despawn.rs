@@ -6,11 +6,7 @@ use crate::{
         query::Query,
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ExclusiveSystem,
-    },
+    registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
 };
 
 #[derive(Default)]
@@ -20,15 +16,17 @@ pub struct DespawnEntities {
     query: Query,
 }
 
-impl ExclusiveSystem for DespawnEntities {
+impl DespawnEntities {
     const NAME: &'static str = "despawn_entities";
+}
 
+impl ExclusiveSystem for DespawnEntities {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.life_cycle = resolver.find(Lifecycle::UID)?;
-        self.hierarchy = resolver.find(Hierarchy::UID)?;
+        self.life_cycle = resolver.find(Lifecycle::NAME.into())?;
+        self.hierarchy = resolver.find(Hierarchy::NAME.into())?;
         self.query = resolver
             .query()
-            .all(&[Lifecycle::UID, Hierarchy::UID])?
+            .all(&[Lifecycle::NAME.into(), Hierarchy::NAME.into()])?
             .build();
         Ok(())
     }

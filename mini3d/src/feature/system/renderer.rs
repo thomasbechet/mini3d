@@ -9,11 +9,7 @@ use crate::{
         scene::local_to_world::LocalToWorld,
         ui::canvas::Canvas,
     },
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ExclusiveSystem,
-    },
+    registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
 };
 
 #[derive(Default)]
@@ -38,46 +34,48 @@ pub struct DespawnRendererEntities {
     scene_canvas_query: Query,
 }
 
-impl ExclusiveSystem for DespawnRendererEntities {
+impl DespawnRendererEntities {
     const NAME: &'static str = "despawn_renderer_entities";
+}
 
+impl ExclusiveSystem for DespawnRendererEntities {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.viewport = resolver.find(Viewport::UID)?;
-        self.camera = resolver.find(Camera::UID)?;
-        self.canvas = resolver.find(Canvas::UID)?;
-        self.static_mesh = resolver.find(StaticMesh::UID)?;
-        self.local_to_world = resolver.find(LocalToWorld::UID)?;
-        self.added_viewport = resolver.query().all(&[Viewport::UID])?.added();
-        self.removed_viewport = resolver.query().all(&[Viewport::UID])?.removed();
+        self.viewport = resolver.find(Viewport::NAME.into())?;
+        self.camera = resolver.find(Camera::NAME.into())?;
+        self.canvas = resolver.find(Canvas::NAME.into())?;
+        self.static_mesh = resolver.find(StaticMesh::NAME.into())?;
+        self.local_to_world = resolver.find(LocalToWorld::NAME.into())?;
+        self.added_viewport = resolver.query().all(&[Viewport::NAME.into()])?.added();
+        self.removed_viewport = resolver.query().all(&[Viewport::NAME.into()])?.removed();
         self.added_camera = resolver
             .query()
-            .all(&[LocalToWorld::UID, Camera::UID])?
+            .all(&[LocalToWorld::NAME.into(), Camera::NAME.into()])?
             .added();
         self.removed_camera = resolver
             .query()
-            .all(&[LocalToWorld::UID, Camera::UID])?
+            .all(&[LocalToWorld::NAME.into(), Camera::NAME.into()])?
             .removed();
         self.camera_query = resolver
             .query()
-            .all(&[LocalToWorld::UID, Camera::UID])?
+            .all(&[LocalToWorld::NAME.into(), Camera::NAME.into()])?
             .build();
         self.added_model = resolver
             .query()
-            .all(&[LocalToWorld::UID, StaticMesh::UID])?
+            .all(&[LocalToWorld::NAME.into(), StaticMesh::NAME.into()])?
             .added();
         self.removed_model = resolver
             .query()
-            .all(&[LocalToWorld::UID, StaticMesh::UID])?
+            .all(&[LocalToWorld::NAME.into(), StaticMesh::NAME.into()])?
             .removed();
         self.model_query = resolver
             .query()
-            .all(&[LocalToWorld::UID, StaticMesh::UID])?
+            .all(&[LocalToWorld::NAME.into(), StaticMesh::NAME.into()])?
             .build();
-        self.added_canvas = resolver.query().all(&[Canvas::UID])?.added();
-        self.removed_canvas = resolver.query().all(&[Canvas::UID])?.removed();
+        self.added_canvas = resolver.query().all(&[Canvas::NAME.into()])?.added();
+        self.removed_canvas = resolver.query().all(&[Canvas::NAME.into()])?.removed();
         self.scene_canvas_query = resolver
             .query()
-            .all(&[LocalToWorld::UID, Canvas::UID])?
+            .all(&[LocalToWorld::NAME.into(), Canvas::NAME.into()])?
             .build();
         Ok(())
     }

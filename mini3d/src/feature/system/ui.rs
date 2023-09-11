@@ -12,7 +12,7 @@ use crate::{
         ui::{UIRenderTarget, UI},
     },
     registry::{
-        component::{ComponentData, StaticComponent},
+        component::StaticComponent,
         error::RegistryError,
         system::{ExclusiveSystem, ParallelSystem},
     },
@@ -24,12 +24,14 @@ pub struct UpdateUI {
     query: Query,
 }
 
-impl ParallelSystem for UpdateUI {
-    const NAME: &'static str = "update_ui";
+impl UpdateUI {
+    pub const NAME: &'static str = "update_ui";
+}
 
+impl ParallelSystem for UpdateUI {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.ui = resolver.write(UI::UID)?;
-        self.query = resolver.query().all(&[UI::UID])?.build();
+        self.ui = resolver.write(UI::NAME.into())?;
+        self.query = resolver.query().all(&[UI::NAME.into()])?.build();
         Ok(())
     }
 
@@ -54,16 +56,18 @@ pub struct RenderUI {
     query: Query,
 }
 
-impl ExclusiveSystem for RenderUI {
-    const NAME: &'static str = "render_ui";
+impl RenderUI {
+    pub const NAME: &'static str = "render_ui";
+}
 
+impl ExclusiveSystem for RenderUI {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.canvas = resolver.find(Canvas::UID)?;
-        self.ui = resolver.find(UI::UID)?;
-        self.target = resolver.find(UIRenderTarget::UID)?;
+        self.canvas = resolver.find(Canvas::NAME.into())?;
+        self.ui = resolver.find(UI::NAME.into())?;
+        self.target = resolver.find(UIRenderTarget::NAME.into())?;
         self.query = resolver
             .query()
-            .all(&[UI::UID, UIRenderTarget::UID])?
+            .all(&[UI::NAME.into(), UIRenderTarget::NAME.into()])?
             .build();
         Ok(())
     }

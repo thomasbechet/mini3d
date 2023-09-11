@@ -8,7 +8,6 @@ use crate::input::InputManager;
 use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
 use crate::recorder::SimulationRecorder;
-use crate::registry::component::ComponentData;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
@@ -179,11 +178,12 @@ impl Simulation {
 
     pub fn register_system<S: ExclusiveSystem>(
         &mut self,
+        name: &str,
         stage: &str,
     ) -> Result<(), RegistryError> {
         self.registry
             .systems
-            .add_static_exclusive::<S>(S::NAME, stage, SystemOrder::default())?;
+            .add_static_exclusive::<S>(name, stage, SystemOrder::default())?;
         self.ecs.on_registry_update(&self.registry)?;
         Ok(())
     }

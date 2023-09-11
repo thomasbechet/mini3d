@@ -11,11 +11,7 @@ use crate::{
     feature::component::scene::{
         hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform,
     },
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ParallelSystem,
-    },
+    registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 
 fn recursive_propagate(
@@ -55,14 +51,16 @@ pub struct PropagateTransforms {
     query: Query,
 }
 
-impl ParallelSystem for PropagateTransforms {
-    const NAME: &'static str = "propagate_transforms";
+impl PropagateTransforms {
+    pub const NAME: &'static str = "propagate_transforms";
+}
 
+impl ParallelSystem for PropagateTransforms {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.transform = resolver.read(Transform::UID)?;
-        self.hierarchy = resolver.read(Hierarchy::UID)?;
-        self.local_to_world = resolver.write(LocalToWorld::UID)?;
-        self.query = resolver.query().all(&[LocalToWorld::UID])?.build();
+        self.transform = resolver.read(Transform::NAME.into())?;
+        self.hierarchy = resolver.read(Hierarchy::NAME.into())?;
+        self.local_to_world = resolver.write(LocalToWorld::NAME.into())?;
+        self.query = resolver.query().all(&[LocalToWorld::NAME.into()])?.build();
         Ok(())
     }
 

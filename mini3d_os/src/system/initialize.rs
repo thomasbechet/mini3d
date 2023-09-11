@@ -46,7 +46,7 @@ use crate::{
 };
 
 #[derive(Default)]
-struct OSInitialize {
+pub(crate) struct OSInitialize {
     font: StaticComponent<Font>,
     material: StaticComponent<Material>,
     texture: StaticComponent<Texture>,
@@ -65,6 +65,10 @@ struct OSInitialize {
     ui_render_target: StaticComponent<UIRenderTarget>,
     script: StaticComponent<Script>,
     os: StaticComponent<OS>,
+}
+
+impl OSInitialize {
+    pub const NAME: &'static str = "os_initialize";
 }
 
 impl OSInitialize {
@@ -622,8 +626,6 @@ impl OSInitialize {
 }
 
 impl ExclusiveSystem for OSInitialize {
-    const NAME: &'static str = "os_initialize";
-
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
         self.setup_assets(api)?;
         self.setup_scene(ecs, api)?;

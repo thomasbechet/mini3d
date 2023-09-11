@@ -7,11 +7,7 @@ use crate::{
         query::Query,
     },
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
-    registry::{
-        component::{ComponentData, StaticComponent},
-        error::RegistryError,
-        system::ParallelSystem,
-    },
+    registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 
 #[derive(Default)]
@@ -21,15 +17,17 @@ pub struct FreeFlySystem {
     query: Query,
 }
 
-impl ParallelSystem for FreeFlySystem {
+impl FreeFlySystem {
     const NAME: &'static str = "free_fly_system";
+}
 
+impl ParallelSystem for FreeFlySystem {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.free_fly = resolver.read(FreeFly::UID)?;
-        self.transform = resolver.write(Transform::UID)?;
+        self.free_fly = resolver.read(FreeFly::NAME.into())?;
+        self.transform = resolver.write(Transform::NAME.into())?;
         self.query = resolver
             .query()
-            .all(&[FreeFly::UID, Transform::UID])?
+            .all(&[FreeFly::NAME.into(), Transform::NAME.into()])?
             .build();
         Ok(())
     }

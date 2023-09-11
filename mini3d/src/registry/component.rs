@@ -257,8 +257,6 @@ impl EntityResolver {
     }
 }
 pub trait ComponentData: Default + Serialize + Reflect + 'static {
-    const NAME: &'static str;
-    const UID: UID = UID::new(Self::NAME);
     fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
         let _ = resolver;
         Ok(())
