@@ -1,14 +1,15 @@
 use std::collections::VecDeque;
 
 use crate::{
-    registry::system::{System, SystemRegistry, SystemStage},
+    registry::{
+        error::RegistryError,
+        system::{System, SystemRegistry, SystemStage},
+    },
     utils::{
         slotmap::{SlotId, SlotMap, SparseSecondaryMap},
         uid::UID,
     },
 };
-
-use super::error::ECSError;
 
 pub enum Invocation {
     Immediate,
@@ -37,7 +38,7 @@ struct StageEntry {
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
-    // Specific update stage (build by engine)
+    // Specific update stage (build by core)
     update_stage: SlotId,
     // Mapping between stage and first node
     stages: SparseSecondaryMap<StageEntry>,
@@ -156,7 +157,11 @@ impl Scheduler {
         Some(node)
     }
 
-    pub(crate) fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {
+    pub(crate) fn invoke(
+        &mut self,
+        stage: UID,
+        invocation: Invocation,
+    ) -> Result<(), RegistryError> {
         let stage = self
             .stages
             .iter()
@@ -169,7 +174,7 @@ impl Scheduler {
                     }
                 },
             )
-            .ok_or(ECSError::SystemStageNotFound)?;
+            .ok_or(RegistryError::SystemStageNotFound)?;
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);
@@ -184,15 +189,11 @@ impl Scheduler {
         Ok(())
     }
 
-    pub(crate) fn set_periodic_invoke(
-        &mut self,
-        stage: UID,
-        frequency: f64,
-    ) -> Result<(), ECSError> {
+    pub(crate) fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) {
         for periodic_stage in self.periodic_stages.iter_mut() {
             if periodic_stage.stage == stage {
                 periodic_stage.frequency = frequency;
-                return Ok(());
+                return;
             }
         }
         self.periodic_stages.push(PeriodicStage {
@@ -201,6 +202,5 @@ impl Scheduler {
             frequency,
             accumulator: 0.0,
         });
-        Ok(())
     }
 }

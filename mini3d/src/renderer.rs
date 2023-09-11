@@ -257,22 +257,22 @@ impl RendererManager {
     ) -> Result<(), RegistryError> {
         self.camera = registry
             .find(Camera::UID)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         self.static_mesh = registry
             .find(StaticMesh::UID)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         self.canvas = registry
             .find(Canvas::UID)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         self.local_to_world = registry
             .find(LocalToWorld::UID)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         self.viewport = registry
             .find(Viewport::UID)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         self.model = registry
             .find(Model::UID)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         Ok(())
     }
 

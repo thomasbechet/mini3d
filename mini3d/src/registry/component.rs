@@ -327,7 +327,7 @@ impl ComponentRegistry {
     ) -> Result<(), RegistryError> {
         let uid: UID = name.into();
         if self.find_id(uid).is_some() {
-            return Err(RegistryError::DuplicatedComponentDefinition {
+            return Err(RegistryError::DuplicatedComponent {
                 name: name.to_string(),
             });
         }
@@ -360,7 +360,7 @@ impl ComponentRegistry {
     ) -> Result<&ComponentEntry, RegistryError> {
         self.entries
             .get(handle.id().into())
-            .ok_or(RegistryError::AssetDefinitionNotFound)
+            .ok_or(RegistryError::ComponentNotFound)
     }
 
     pub(crate) fn find_id(&self, component: UID) -> Option<ComponentId> {

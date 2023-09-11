@@ -8,13 +8,15 @@ use std::{
 use gui::{WindowControl, WindowGUI};
 use mapper::InputMapper;
 use mini3d::{
-    engine::{Engine, EngineServers},
+    ecs::scheduler::Invocation,
     feature::component::common::script::Script,
     glam::Vec2,
     input::event::InputEvent,
     network::server::DummyNetworkServer,
+    registry::system::SystemStage,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
+    simulation::{ProgressContext, Simulation},
     storage::server::{DummyStorageserver, StorageServer},
     system::{
         event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
@@ -128,8 +130,10 @@ fn main_run() {
     // System
     let mut system_server = WinitSystemServer::default();
 
-    let mut engine = Engine::new(true);
-    engine.register_bootstrap_system::<OSBootstrap>();
+    let mut sim = Simulation::new(true);
+    sim.register_system::<OSBootstrap>("os_bootstrap").unwrap();
+    sim.invoke("os_bootstrap".into(), Invocation::NextFrame)
+        .unwrap();
 
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
@@ -428,32 +432,31 @@ fn main_run() {
                     set_display_mode(&mut window, &mut gui, display_mode);
                 }
 
-                // Progress engine
-                engine
-                    .progress(
-                        EngineServers {
-                            input: &mut mapper,
-                            renderer: &mut renderer,
-                            storage: &mut DummyStorageserver::default(),
-                            network: &mut DummyNetworkServer::default(),
-                            system: &mut system_server,
-                        },
-                        dt,
-                    )
-                    .expect("Failed to progress engine");
+                // Progress simulation
+                sim.progress(
+                    ProgressContext {
+                        input: &mut mapper,
+                        renderer: &mut renderer,
+                        storage: &mut DummyStorageserver::default(),
+                        network: &mut DummyNetworkServer::default(),
+                        system: &mut system_server,
+                    },
+                    dt,
+                )
+                .expect("Failed to progress simulation");
 
                 // Save/Load state
                 if save_state {
                     // {
                     //     let file = File::create("assets/state.json").expect("Failed to create file");
                     //     let mut serializer = serde_json::Serializer::new(file);
-                    //     engine.save_state(&mut serializer).expect("Failed to serialize");
+                    //     sim.save_state(&mut serializer).expect("Failed to serialize");
                     // }
 
                     {
                         let mut file = File::create("assets/state.bin").unwrap();
                         let mut bytes = Vec::<u8>::default();
-                        engine.save(&mut bytes).unwrap();
+                        sim.save(&mut bytes).unwrap();
                         let bytes = miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 10);
                         file.write_all(&bytes).unwrap();
                     }
@@ -490,18 +493,17 @@ fn main_run() {
                         let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
                             .expect("Failed to decompress");
                         let mut decoder = SliceDecoder::new(&bytes);
-                        engine
-                            .load(
-                                &mut decoder,
-                                EngineServers {
-                                    input: &mut mapper,
-                                    renderer: &mut renderer,
-                                    storage: &mut DummyStorageserver::default(),
-                                    network: &mut DummyNetworkServer::default(),
-                                    system: &mut system_server,
-                                },
-                            )
-                            .expect("Failed to load state");
+                        sim.load(
+                            &mut decoder,
+                            ProgressContext {
+                                input: &mut mapper,
+                                renderer: &mut renderer,
+                                storage: &mut DummyStorageserver::default(),
+                                network: &mut DummyNetworkServer::default(),
+                                system: &mut system_server,
+                            },
+                        )
+                        .expect("Failed to load state");
                     }
 
                     // {
@@ -526,7 +528,7 @@ fn main_run() {
 
                 // Check shutdown
                 if !system_server.running {
-                    println!("Engine shutdown");
+                    println!("Simulation shutdown");
                     *control_flow = ControlFlow::Exit;
                 }
 

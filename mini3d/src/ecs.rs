@@ -10,7 +10,7 @@ use crate::{
     },
     input::server::InputServer,
     network::server::NetworkServer,
-    registry::{error::RegistryError, system::SystemRegistry},
+    registry::error::RegistryError,
     renderer::server::RendererServer,
     serialize::{Decoder, DecoderError, EncoderError},
     storage::server::StorageServer,
@@ -64,9 +64,6 @@ pub(crate) struct ECSManager {
     queries: QueryTable,
     instances: SystemInstanceTable,
     pub(crate) scheduler: Scheduler,
-    update_scheduler: bool,
-    update_containers: bool,
-    update_instances: bool,
     global_cycle: u32,
 }
 
@@ -79,9 +76,6 @@ impl Default for ECSManager {
             queries: QueryTable::default(),
             instances: SystemInstanceTable::default(),
             scheduler: Scheduler::default(),
-            update_scheduler: true,
-            update_containers: true,
-            update_instances: true,
             global_cycle: 0,
         }
     }
@@ -128,42 +122,25 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn on_registry_update(&mut self) {
-        self.update_scheduler = true;
-        self.update_containers = true;
-        self.update_instances = true;
-    }
-
-    fn check_scheduler_update(&mut self, registry: &SystemRegistry) -> Result<(), RegistryError> {
-        if self.update_scheduler {
-            self.scheduler.on_registry_update(registry);
-            self.update_scheduler = false;
-        }
-        Ok(())
-    }
-
-    fn check_registry_update(&mut self, registry: &RegistryManager) -> Result<(), RegistryError> {
-        if self.update_containers {
-            self.containers.on_registry_update(&registry.components);
-            self.update_containers = false;
-        }
-        if self.update_instances {
-            self.instances.on_registry_update(
-                registry,
-                &mut self.containers,
-                &mut self.entities,
-                &mut self.archetypes,
-                &mut self.queries,
-            )?;
-            self.update_instances = false;
-        }
+    pub(crate) fn on_registry_update(
+        &mut self,
+        registry: &RegistryManager,
+    ) -> Result<(), RegistryError> {
+        self.scheduler.on_registry_update(&registry.systems);
+        self.containers.on_registry_update(&registry.components);
+        self.instances.on_registry_update(
+            registry,
+            &mut self.containers,
+            &mut self.entities,
+            &mut self.archetypes,
+            &mut self.queries,
+        )?;
         Ok(())
     }
 
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> SystemResult {
-        // Check scheduler update
-        self.check_scheduler_update(&context.registry.systems)?;
-        self.check_registry_update(context.registry)?;
+        let mut system_registry_update = false;
+        let mut component_registry_update = false;
 
         // Begin frame
         self.scheduler.begin_frame(context.delta_time);
@@ -171,111 +148,111 @@ impl ECSManager {
         // Update cycle
         // Run stages
         // TODO: protect against infinite loops
-        while let Some(node) = self.scheduler.next_node() {
+        loop {
             // Check registry update
-            self.check_registry_update(context.registry)?;
+            if system_registry_update || component_registry_update {
+                system_registry_update = false;
+                component_registry_update = false;
+                self.on_registry_update(context.registry)?;
+            }
+
+            // Acquire next node
+            let node = self.scheduler.next_node();
+            if node.is_none() {
+                break;
+            }
+            let node = node.unwrap();
 
             // Execute node
             if node.count == 1 {
-                // Exclusive
                 let instance = self.scheduler.instances[node.first];
-                // Build node API
-                let api = &mut ExclusiveAPI {
-                    asset: ExclusiveAssetAPI {
-                        manager: context.asset,
-                    },
-                    input: ExclusiveInputAPI {
-                        manager: context.input,
-                        server: context.input_server,
-                    },
-                    registry: ExclusiveRegistryAPI {
-                        systems: ExclusiveSystemRegistryAPI {
-                            manager: &mut context.registry.systems,
-                            updated: &mut self.update_instances,
-                        },
-                        components: ExclusiveComponentRegistryAPI {
-                            manager: &mut context.registry.components,
-                            updated: &mut self.update_containers,
-                        },
-                    },
-                    renderer: ExclusiveRendererAPI {
-                        manager: context.renderer,
-                        server: context.renderer_server,
-                    },
-                    system: ExclusiveSystemAPI {
-                        server: context.system_server,
-                        manager: context.system,
-                    },
-                    time: TimeAPI {
-                        delta: context.delta_time,
-                        global: context.global_time,
-                    },
-                };
-                let ecs = &mut ExclusiveECS {
-                    archetypes: &mut self.archetypes,
-                    containers: &mut self.containers,
-                    entities: &mut self.entities,
-                    queries: &mut self.queries,
-                    scheduler: &mut self.scheduler,
-                    cycle: self.global_cycle,
-                };
                 match &self
                     .instances
                     .get(instance)
                     .expect("System instance not found")
                     .instance
                 {
-                    SystemInstance::Exclusive(instance) => instance.run(ecs, api)?,
-                    SystemInstance::Parallel(_) => unreachable!(),
+                    SystemInstance::Exclusive(instance) => {
+                        let api = &mut ExclusiveAPI {
+                            asset: ExclusiveAssetAPI {
+                                manager: context.asset,
+                            },
+                            input: ExclusiveInputAPI {
+                                manager: context.input,
+                                server: context.input_server,
+                            },
+                            registry: ExclusiveRegistryAPI {
+                                systems: ExclusiveSystemRegistryAPI {
+                                    manager: &mut context.registry.systems,
+                                    updated: &mut system_registry_update,
+                                },
+                                components: ExclusiveComponentRegistryAPI {
+                                    manager: &mut context.registry.components,
+                                    updated: &mut component_registry_update,
+                                },
+                            },
+                            renderer: ExclusiveRendererAPI {
+                                manager: context.renderer,
+                                server: context.renderer_server,
+                            },
+                            system: ExclusiveSystemAPI {
+                                server: context.system_server,
+                                manager: context.system,
+                            },
+                            time: TimeAPI {
+                                delta: context.delta_time,
+                                global: context.global_time,
+                            },
+                        };
+                        let ecs = &mut ExclusiveECS {
+                            archetypes: &mut self.archetypes,
+                            containers: &mut self.containers,
+                            entities: &mut self.entities,
+                            queries: &mut self.queries,
+                            scheduler: &mut self.scheduler,
+                            cycle: self.global_cycle,
+                        };
+                        instance.run(ecs, api)?;
+                    }
+                    SystemInstance::Parallel(instance) => {
+                        let api = &mut ParallelAPI {
+                            asset: ParallelAssetAPI {
+                                manager: context.asset,
+                            },
+                            input: ParallelInputAPI {
+                                manager: context.input,
+                            },
+                            registry: ParallelRegistryAPI {
+                                systems: ParallelSystemRegistryAPI {
+                                    manager: &context.registry.systems,
+                                },
+                                components: ParallelComponentRegistryAPI {
+                                    manager: &context.registry.components,
+                                },
+                            },
+                            renderer: ParallelRendererAPI {
+                                manager: context.renderer,
+                            },
+                            system: ParallelSystemAPI {
+                                server: context.system_server,
+                                manager: context.system,
+                            },
+                            time: TimeAPI {
+                                delta: context.delta_time,
+                                global: context.global_time,
+                            },
+                        };
+                        let ecs = &mut ParallelECS {
+                            containers: &mut self.containers,
+                            entities: &mut self.entities,
+                            queries: &mut self.queries,
+                            cycle: self.global_cycle,
+                        };
+                        instance.run(ecs, api)?;
+                    }
                 }
             } else {
                 // TODO: use thread pool
-                // Parallel
-                for i in 0..node.count {
-                    let instance = self.scheduler.instances[node.first + i];
-                    let api = &mut ParallelAPI {
-                        asset: ParallelAssetAPI {
-                            manager: context.asset,
-                        },
-                        input: ParallelInputAPI {
-                            manager: context.input,
-                        },
-                        registry: ParallelRegistryAPI {
-                            systems: ParallelSystemRegistryAPI {
-                                manager: &context.registry.systems,
-                            },
-                            components: ParallelComponentRegistryAPI {
-                                manager: &context.registry.components,
-                            },
-                        },
-                        renderer: ParallelRendererAPI {
-                            manager: context.renderer,
-                        },
-                        system: ParallelSystemAPI {
-                            server: context.system_server,
-                            manager: context.system,
-                        },
-                        time: TimeAPI {
-                            delta: context.delta_time,
-                            global: context.global_time,
-                        },
-                    };
-                    let ecs = &mut ParallelECS {
-                        containers: &mut self.containers,
-                        entities: &mut self.entities,
-                        queries: &mut self.queries,
-                        cycle: self.global_cycle,
-                    };
-                    match &self
-                        .instances
-                        .get(instance)
-                        .expect("System instance not found")
-                        .instance
-                    {
-                        SystemInstance::Exclusive(_) => unreachable!(),
-                        SystemInstance::Parallel(instance) => instance.run(ecs, api)?,
-                    }
-                }
             }
         }
 

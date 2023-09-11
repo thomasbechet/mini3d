@@ -1,6 +1,5 @@
 pub mod asset;
 pub mod ecs;
-pub mod engine;
 pub mod feature;
 pub mod input;
 pub mod io;
@@ -12,6 +11,7 @@ pub mod registry;
 pub mod renderer;
 pub mod script;
 pub mod serialize;
+pub mod simulation;
 pub mod storage;
 pub mod system;
 pub mod ui;

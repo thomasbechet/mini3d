@@ -114,7 +114,6 @@ pub struct SystemStage;
 impl SystemStage {
     pub const UPDATE: &'static str = "update";
     pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
-    pub const BOOTSTRAP: &'static str = "bootstrap";
 }
 
 pub const MAX_SYSTEM_NAME_LEN: usize = 64;
@@ -124,7 +123,7 @@ pub(crate) struct SystemStageEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,
     pub(crate) uid: UID,
     pub(crate) first_system: Option<System>,
-    keep_alive: bool, // Ensure this stage is not removed
+    core_stage: bool, // Ensure this stage is not removed
 }
 
 pub(crate) struct SystemEntry {
@@ -151,16 +150,12 @@ impl Default for SystemRegistry {
             systems: Default::default(),
             stages: Default::default(),
         };
-        for name in [
-            SystemStage::UPDATE,
-            SystemStage::FIXED_UPDATE_60HZ,
-            SystemStage::BOOTSTRAP,
-        ] {
+        for name in [SystemStage::UPDATE, SystemStage::FIXED_UPDATE_60HZ] {
             reg.stages.add(SystemStageEntry {
                 name: AsciiArray::from(name),
                 uid: UID::new(name),
                 first_system: None,
-                keep_alive: true,
+                core_stage: true,
             });
         }
         reg
@@ -189,7 +184,7 @@ impl SystemRegistry {
 
     fn add_system(&mut self, entry: SystemEntry) -> Result<System, RegistryError> {
         if self.find(entry.uid).is_some() {
-            return Err(RegistryError::DuplicatedSystemDefinition {
+            return Err(RegistryError::DuplicatedSystem {
                 name: entry.name.to_string(),
             });
         }
@@ -213,7 +208,7 @@ impl SystemRegistry {
         } else {
             self.stages[stage].first_system = self.systems[system].next_in_stage;
         }
-        if self.stages[stage].first_system.is_none() && !self.stages[stage].keep_alive {
+        if self.stages[stage].first_system.is_none() && !self.stages[stage].core_stage {
             self.stages.remove(stage);
         }
         self.systems.remove(system);
@@ -230,7 +225,7 @@ impl SystemRegistry {
             name: AsciiArray::from(name),
             uid,
             first_system: None,
-            keep_alive: false,
+            core_stage: false,
         })
     }
 

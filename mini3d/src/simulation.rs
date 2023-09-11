@@ -7,7 +7,7 @@ use crate::input::server::InputServer;
 use crate::input::InputManager;
 use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
-use crate::recorder::EngineRecorder;
+use crate::recorder::SimulationRecorder;
 use crate::registry::component::ComponentData;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
@@ -20,6 +20,7 @@ use crate::storage::StorageManager;
 use crate::system::event::SystemEvent;
 use crate::system::server::SystemServer;
 use crate::system::SystemManager;
+use crate::utils::uid::UID;
 
 pub enum ProgressError {
     System(Box<dyn SystemError>),
@@ -35,7 +36,7 @@ impl core::fmt::Debug for ProgressError {
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
-pub struct EngineServers<'a> {
+pub struct ProgressContext<'a> {
     pub input: &'a mut dyn InputServer,
     pub renderer: &'a mut dyn RendererServer,
     pub storage: &'a mut dyn StorageServer,
@@ -43,7 +44,7 @@ pub struct EngineServers<'a> {
     pub system: &'a mut dyn SystemServer,
 }
 
-pub struct Engine {
+pub struct Simulation {
     pub(crate) registry: RegistryManager,
     pub(crate) storage: StorageManager,
     pub(crate) asset: AssetManager,
@@ -55,7 +56,7 @@ pub struct Engine {
     global_time: f64,
 }
 
-impl Engine {
+impl Simulation {
     fn register_core_features(&mut self) -> Result<(), RegistryError> {
         macro_rules! define_component {
             ($component: ty) => {
@@ -150,14 +151,10 @@ impl Engine {
             self.register_core_features()
                 .expect("Failed to define core features");
         }
-        // Bootstrap engine
+        // Update ECS
         self.ecs
             .scheduler
             .on_registry_update(&self.registry.systems);
-        self.ecs
-            .scheduler
-            .invoke(SystemStage::BOOTSTRAP.into(), Invocation::NextFrame)
-            .unwrap();
         // Setup managers
         self.renderer
             .reload_component_handles(&self.registry.components)
@@ -165,7 +162,7 @@ impl Engine {
     }
 
     pub fn new(core_features: bool) -> Self {
-        let mut engine = Self {
+        let mut sim = Self {
             registry: Default::default(),
             storage: Default::default(),
             asset: Default::default(),
@@ -176,17 +173,23 @@ impl Engine {
             system: Default::default(),
             global_time: 0.0,
         };
-        engine.setup(core_features);
-        engine
+        sim.setup(core_features);
+        sim
     }
 
-    pub fn register_bootstrap_system<S: ExclusiveSystem>(&mut self) -> Result<(), RegistryError> {
-        self.registry.systems.add_static_exclusive::<S>(
-            S::NAME,
-            SystemStage::BOOTSTRAP,
-            SystemOrder::default(),
-        )?;
+    pub fn register_system<S: ExclusiveSystem>(
+        &mut self,
+        stage: &str,
+    ) -> Result<(), RegistryError> {
+        self.registry
+            .systems
+            .add_static_exclusive::<S>(S::NAME, stage, SystemOrder::default())?;
+        self.ecs.on_registry_update(&self.registry)?;
         Ok(())
+    }
+
+    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), RegistryError> {
+        self.ecs.scheduler.invoke(stage, invocation)
     }
 
     pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -201,7 +204,7 @@ impl Engine {
     pub fn load(
         &mut self,
         decoder: &mut impl Decoder,
-        servers: EngineServers,
+        servers: ProgressContext,
     ) -> Result<(), DecoderError> {
         self.asset.load_state(&self.registry.components, decoder)?;
         self.renderer.load_state(decoder, servers.renderer)?;
@@ -213,7 +216,7 @@ impl Engine {
 
     pub fn progress(
         &mut self,
-        servers: EngineServers,
+        servers: ProgressContext,
         mut delta_time: f64,
     ) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
@@ -281,8 +284,8 @@ impl Engine {
 
     pub fn progress_and_record(
         &mut self,
-        servers: &mut EngineServers,
-        recorder: &mut EngineRecorder,
+        servers: &mut ProgressContext,
+        recorder: &mut SimulationRecorder,
         mut delta_time: f64,
     ) -> Result<(), ProgressError> {
         Ok(())

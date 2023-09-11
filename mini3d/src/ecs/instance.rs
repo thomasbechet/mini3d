@@ -51,7 +51,7 @@ impl<'a> ExclusiveResolver<'a> {
         let handle = self
             .registry
             .find::<H>(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         Ok(handle)
     }
 
@@ -88,7 +88,7 @@ impl<'a> ParallelResolver<'a> {
         let handle: H = self
             .registry
             .find(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         let id = handle.id();
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
@@ -100,7 +100,7 @@ impl<'a> ParallelResolver<'a> {
         let handle: H = self
             .registry
             .find(component)
-            .ok_or(RegistryError::ComponentDefinitionNotFound)?;
+            .ok_or(RegistryError::ComponentNotFound)?;
         let id = handle.id();
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);

@@ -7,7 +7,7 @@ use crate::{
         query::{FilterQuery, Query, QueryTable},
         scheduler::{Invocation, Scheduler},
     },
-    registry::component::ComponentHandle,
+    registry::{component::ComponentHandle, error::RegistryError},
     utils::uid::UID,
 };
 
@@ -38,11 +38,11 @@ impl<'a> ExclusiveECS<'a> {
         self.containers.view_mut(component, self.cycle)
     }
 
-    pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) -> Result<(), ECSError> {
-        self.scheduler.set_periodic_invoke(stage, frequency)
+    pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) {
+        self.scheduler.set_periodic_invoke(stage, frequency);
     }
 
-    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), ECSError> {
+    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), RegistryError> {
         self.scheduler.invoke(stage, invocation)
     }
 
