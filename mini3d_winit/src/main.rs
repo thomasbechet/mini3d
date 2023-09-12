@@ -115,6 +115,8 @@ impl SystemServer for WinitSystemServer {
 }
 
 fn main_run() {
+    std::env::set_var("RUST_BACKTRACE", "full");
+
     // Window
     let event_loop = EventLoop::new();
     let mut window = Window::new(&event_loop);

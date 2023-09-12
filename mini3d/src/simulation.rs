@@ -28,7 +28,7 @@ pub enum ProgressError {
 impl core::fmt::Debug for ProgressError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ProgressError::System(err) => write!(f, "System error: {}", err),
+            ProgressError::System(err) => err.fmt(f),
         }
     }
 }
