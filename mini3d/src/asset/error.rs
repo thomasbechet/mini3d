@@ -6,10 +6,6 @@ use crate::utils::uid::UID;
 pub enum AssetError {
     #[error("Duplicated asset entry")]
     DuplicatedAssetEntry,
-    #[error("Duplicated asset type: {uid}")]
-    DuplicatedAssetType { uid: UID },
-    #[error("Invalid asset type cast")]
-    InvalidAssetTypeCast,
     #[error("Asset not found")]
     AssetNotFound,
     #[error("Asset type not found")]

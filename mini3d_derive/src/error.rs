@@ -70,8 +70,6 @@ pub(crate) fn derive_enum(
             }
         }
 
-        impl mini3d::ecs::instance::SystemError for #ident #ty_generics #where_clause {}
-
         impl From<#ident #ty_generics> for Box<dyn mini3d::ecs::instance::SystemError> #ty_generics #where_clause {
             fn from(error: #ident #ty_generics) -> Self {
                 Box::new(error)
