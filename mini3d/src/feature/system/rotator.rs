@@ -3,7 +3,7 @@ use glam::{Quat, Vec3};
 use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
-        instance::{ParallelResolver, SystemResult},
+        instance::ParallelResolver,
         query::Query,
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
@@ -32,7 +32,7 @@ impl ParallelSystem for RotatorSystem {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let mut transforms = ecs.view_mut(self.transform)?;
         let rotators = ecs.view(self.rotator)?;
         for e in ecs.query(self.query) {

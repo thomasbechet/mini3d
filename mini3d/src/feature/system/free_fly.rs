@@ -3,7 +3,7 @@ use glam::{Quat, Vec3};
 use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
-        instance::{ParallelResolver, SystemResult},
+        instance::ParallelResolver,
         query::Query,
     },
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
@@ -32,7 +32,7 @@ impl ParallelSystem for FreeFlySystem {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let mut transforms = ecs.view_mut(self.transform)?;
         let mut free_flies = ecs.view_mut(self.free_fly)?;
 

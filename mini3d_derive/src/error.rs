@@ -61,18 +61,11 @@ pub(crate) fn derive_enum(
         }
     }
     Ok(quote! {
-
         impl core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
                     #(#formats),*
                 }
-            }
-        }
-
-        impl From<#ident #ty_generics> for Box<dyn mini3d::ecs::instance::SystemError> #ty_generics #where_clause {
-            fn from(error: #ident #ty_generics) -> Self {
-                Box::new(error)
             }
         }
     })

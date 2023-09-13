@@ -2,7 +2,7 @@ use crate::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
         entity::Entity,
-        instance::{ExclusiveResolver, SystemResult},
+        instance::ExclusiveResolver,
         query::Query,
     },
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
@@ -31,13 +31,13 @@ impl ExclusiveSystem for DespawnEntities {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         let mut despawn_entities: Vec<Entity> = Vec::new();
         let mut detach_entities = Vec::new();
 
         {
-            let mut hierarchies = ecs.view_mut(self.hierarchy)?;
-            let lifecycles = ecs.view(self.life_cycle)?;
+            let mut hierarchies = ecs.view_mut(self.hierarchy);
+            let lifecycles = ecs.view(self.life_cycle);
 
             // Collect despawned entities
             for e in ecs.query(self.query) {
@@ -64,7 +64,5 @@ impl ExclusiveSystem for DespawnEntities {
         for entity in despawn_entities {
             ecs.remove(entity);
         }
-
-        Ok(())
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     ecs::{
         api::{ecs::ParallelECS, ParallelAPI},
         entity::Entity,
-        instance::{ParallelResolver, SystemResult},
+        instance::ParallelResolver,
         query::Query,
         view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
     },
@@ -64,7 +64,7 @@ impl ParallelSystem for PropagateTransforms {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let transforms = ecs.view(self.transform)?;
         let hierarchies = ecs.view(self.hierarchy)?;
         let mut local_to_worlds = ecs.view_mut(self.local_to_world)?;

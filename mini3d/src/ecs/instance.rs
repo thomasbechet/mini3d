@@ -1,5 +1,3 @@
-use core::fmt::Display;
-
 use crate::{
     feature::component::common::program::Program,
     registry::{
@@ -114,12 +112,12 @@ impl<'a> ParallelResolver<'a> {
 
 pub(crate) trait AnyStaticExclusiveSystemInstance {
     fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> Result<(), ;
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI);
 }
 
 pub(crate) trait AnyStaticParallelSystemInstance {
     fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult;
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI);
 }
 
 pub(crate) enum ExclusiveSystemInstance {
@@ -138,10 +136,10 @@ impl ExclusiveSystemInstance {
         }
     }
 
-    pub(crate) fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+    pub(crate) fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         match self {
             Self::Static(instance) => instance.run(ecs, api),
-            Self::Program(instance) => Ok(()),
+            Self::Program(instance) => {}
         }
     }
 }
@@ -159,10 +157,10 @@ impl ParallelSystemInstance {
         }
     }
 
-    pub(crate) fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+    pub(crate) fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         match self {
             Self::Static(instance) => instance.run(ecs, api),
-            Self::Program(instance) => Ok(()),
+            Self::Program(instance) => {}
         }
     }
 }

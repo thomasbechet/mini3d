@@ -1,5 +1,6 @@
+use mini3d_derive::Error;
+
 use crate::asset::AssetManager;
-use crate::ecs::instance::SystemError;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{component, system};
@@ -7,7 +8,6 @@ use crate::input::server::InputServer;
 use crate::input::InputManager;
 use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
-use crate::recorder::SimulationRecorder;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
@@ -21,16 +21,12 @@ use crate::system::server::SystemServer;
 use crate::system::SystemManager;
 use crate::utils::uid::UID;
 
+#[derive(Error)]
 pub enum ProgressError {
-    System(Box<dyn SystemError>),
-}
-
-impl core::fmt::Debug for ProgressError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            ProgressError::System(err) => err.fmt(f),
-        }
-    }
+    #[error("Core error")]
+    Core,
+    #[error("ECS system error")]
+    System,
 }
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
@@ -273,21 +269,12 @@ impl Simulation {
                 delta_time,
                 global_time: self.global_time,
             })
-            .map_err(|err| ProgressError::System(err))?;
+            .map_err(|err| ProgressError::System)?;
 
         // ================= POST-UPDATE STAGE ================== //
         self.renderer
             .submit_graphics(&mut self.asset, &self.ecs.containers, servers.renderer);
 
-        Ok(())
-    }
-
-    pub fn progress_and_record(
-        &mut self,
-        servers: &mut ProgressContext,
-        recorder: &mut SimulationRecorder,
-        mut delta_time: f64,
-    ) -> Result<(), ProgressError> {
         Ok(())
     }
 }

@@ -9,7 +9,6 @@ use self::{
 
 pub mod asset;
 pub mod ecs;
-pub mod error;
 pub mod input;
 pub mod registry;
 pub mod renderer;

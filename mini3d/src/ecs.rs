@@ -41,7 +41,7 @@ use self::{
     archetype::ArchetypeTable,
     container::ContainerTable,
     entity::EntityTable,
-    instance::{SystemInstance, SystemInstanceTable, SystemResult},
+    instance::{SystemInstance, SystemInstanceTable},
     query::QueryTable,
     scheduler::Scheduler,
 };
@@ -138,7 +138,7 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn update(&mut self, context: ECSUpdateContext) -> SystemResult {
+    pub(crate) fn update(&mut self, context: ECSUpdateContext) -> Result<(), RegistryError> {
         let mut system_registry_update = false;
         let mut component_registry_update = false;
 
@@ -212,7 +212,8 @@ impl ECSManager {
                             scheduler: &mut self.scheduler,
                             cycle: self.global_cycle,
                         };
-                        instance.run(ecs, api)?;
+                        // TODO: catch unwind
+                        instance.run(ecs, api);
                     }
                     SystemInstance::Parallel(instance) => {
                         let api = &mut ParallelAPI {
@@ -248,7 +249,8 @@ impl ECSManager {
                             queries: &mut self.queries,
                             cycle: self.global_cycle,
                         };
-                        instance.run(ecs, api)?;
+                        // TODO: catch unwind
+                        instance.run(ecs, api);
                     }
                 }
             } else {

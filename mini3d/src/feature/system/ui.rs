@@ -4,7 +4,7 @@ use crate::{
             ecs::{ExclusiveECS, ParallelECS},
             ExclusiveAPI, ParallelAPI,
         },
-        instance::{ExclusiveResolver, ParallelResolver, SystemResult},
+        instance::{ExclusiveResolver, ParallelResolver},
         query::Query,
     },
     feature::component::ui::{
@@ -35,7 +35,7 @@ impl ParallelSystem for UpdateUI {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let mut uis = ecs.view_mut(self.ui)?;
         for e in ecs.query(self.query) {
             let ui = &mut uis[e];
@@ -72,7 +72,7 @@ impl ExclusiveSystem for RenderUI {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         let mut canvases = ecs.view_mut(self.canvas)?;
         let uis = ecs.view(self.ui)?;
         let targets = ecs.view(self.target)?;

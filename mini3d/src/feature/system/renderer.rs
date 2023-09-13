@@ -1,7 +1,7 @@
 use crate::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        instance::{ExclusiveResolver, SystemResult},
+        instance::ExclusiveResolver,
         query::{FilterQuery, Query},
     },
     feature::component::{
@@ -80,7 +80,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         let mut viewports = ecs.view_mut(self.viewport)?;
         let mut cameras = ecs.view_mut(self.camera)?;
         let mut static_meshes = ecs.view_mut(self.static_mesh)?;
