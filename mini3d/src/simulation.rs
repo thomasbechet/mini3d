@@ -6,6 +6,7 @@ use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{component, system};
 use crate::input::server::InputServer;
 use crate::input::InputManager;
+use crate::logger::server::LoggerServer;
 use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
 use crate::registry::error::RegistryError;
@@ -37,6 +38,7 @@ pub struct ProgressContext<'a> {
     pub storage: &'a mut dyn StorageServer,
     pub network: &'a mut dyn NetworkServer,
     pub system: &'a mut dyn SystemServer,
+    pub logger: &'a mut dyn LoggerServer,
 }
 
 pub struct Simulation {

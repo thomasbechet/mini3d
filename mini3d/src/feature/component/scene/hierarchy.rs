@@ -38,16 +38,16 @@ impl Hierarchy {
     pub fn collect_childs<V: StaticComponentView<Hierarchy>>(
         entity: Entity,
         view: &V,
-    ) -> Result<Vec<Entity>, HierarchyError> {
+    ) -> Vec<Entity> {
         if let Some(first_child) = view.get(entity).unwrap().first_child {
             let mut childs = Vec::new();
             childs.push(first_child);
             while let Some(next) = view.get(*childs.last().unwrap()).unwrap().next_sibling {
                 childs.push(next);
             }
-            Ok(childs)
+            childs
         } else {
-            Ok(Vec::new())
+            Vec::new()
         }
     }
 

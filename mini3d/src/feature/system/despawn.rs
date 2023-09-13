@@ -5,7 +5,9 @@ use crate::{
         instance::ExclusiveResolver,
         query::Query,
     },
+    expect,
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
+    info,
     registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
 };
 
@@ -35,6 +37,8 @@ impl ExclusiveSystem for DespawnEntities {
         let mut despawn_entities: Vec<Entity> = Vec::new();
         let mut detach_entities = Vec::new();
 
+        info!(api, "Free fly mode: {}", "Test");
+
         {
             let mut hierarchies = ecs.view_mut(self.hierarchy);
             let lifecycles = ecs.view(self.life_cycle);
@@ -53,10 +57,10 @@ impl ExclusiveSystem for DespawnEntities {
 
             // Detach entities
             for (parent, entity) in detach_entities {
-                for child in Hierarchy::collect_childs(entity, &hierarchies)? {
-                    Hierarchy::detach(entity, child, &mut hierarchies)?;
+                for child in Hierarchy::collect_childs(entity, &hierarchies) {
+                    expect!(api, Hierarchy::detach(entity, child, &mut hierarchies));
                 }
-                Hierarchy::detach(parent, entity, &mut hierarchies)?;
+                expect!(api, Hierarchy::detach(parent, entity, &mut hierarchies));
             }
         }
 

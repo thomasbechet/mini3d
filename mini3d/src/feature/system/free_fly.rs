@@ -6,6 +6,7 @@ use crate::{
         instance::ParallelResolver,
         query::Query,
     },
+    expect,
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
@@ -33,8 +34,8 @@ impl ParallelSystem for FreeFlySystem {
     }
 
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
-        let mut transforms = ecs.view_mut(self.transform)?;
-        let mut free_flies = ecs.view_mut(self.free_fly)?;
+        let mut transforms = ecs.view_mut(self.transform);
+        let mut free_flies = ecs.view_mut(self.free_fly);
 
         for e in ecs.query(self.query) {
             let transform = transforms.get_mut(e).unwrap();
@@ -46,31 +47,35 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Update view mod
-            if api.input.action(free_fly.switch_mode)?.is_just_pressed() {
+            if expect!(api, api.input.action(free_fly.switch_mode)).is_just_pressed() {
                 free_fly.free_mode = !free_fly.free_mode;
             }
 
             // Compute camera translation
             let mut direction = Vec3::ZERO;
-            direction += transform.forward() * api.input.axis(free_fly.move_forward)?.value;
-            direction += transform.backward() * api.input.axis(free_fly.move_backward)?.value;
-            direction += transform.left() * api.input.axis(free_fly.move_left)?.value;
-            direction += transform.right() * api.input.axis(free_fly.move_right)?.value;
+            direction +=
+                transform.forward() * expect!(api, api.input.axis(free_fly.move_forward)).value;
+            direction +=
+                transform.backward() * expect!(api, api.input.axis(free_fly.move_backward)).value;
+            direction += transform.left() * expect!(api, api.input.axis(free_fly.move_left)).value;
+            direction +=
+                transform.right() * expect!(api, api.input.axis(free_fly.move_right)).value;
             if free_fly.free_mode {
-                direction += transform.up() * api.input.axis(free_fly.move_up)?.value;
-                direction += transform.down() * api.input.axis(free_fly.move_down)?.value;
+                direction += transform.up() * expect!(api, api.input.axis(free_fly.move_up)).value;
+                direction +=
+                    transform.down() * expect!(api, api.input.axis(free_fly.move_down)).value;
             } else {
-                direction += Vec3::Y * api.input.axis(free_fly.move_up)?.value;
-                direction += Vec3::NEG_Y * api.input.axis(free_fly.move_down)?.value;
+                direction += Vec3::Y * expect!(api, api.input.axis(free_fly.move_up)).value;
+                direction += Vec3::NEG_Y * expect!(api, api.input.axis(free_fly.move_down)).value;
             }
             let direction_length = direction.length();
             direction = direction.normalize_or_zero();
 
             // Camera speed
             let mut speed = FreeFly::NORMAL_SPEED;
-            if api.input.action(free_fly.move_fast)?.is_pressed() {
+            if expect!(api, api.input.action(free_fly.move_fast)).is_pressed() {
                 speed = FreeFly::FAST_SPEED;
-            } else if api.input.action(free_fly.move_slow)?.is_pressed() {
+            } else if expect!(api, api.input.action(free_fly.move_slow)).is_pressed() {
                 speed = FreeFly::SLOW_SPEED;
             }
 
@@ -78,8 +83,8 @@ impl ParallelSystem for FreeFlySystem {
             transform.translation += direction * direction_length * api.time.delta() as f32 * speed;
 
             // Apply rotation
-            let motion_x = api.input.axis(free_fly.view_x)?.value;
-            let motion_y = api.input.axis(free_fly.view_y)?.value;
+            let motion_x = expect!(api, api.input.axis(free_fly.view_x)).value;
+            let motion_y = expect!(api, api.input.axis(free_fly.view_y)).value;
             if free_fly.free_mode {
                 if motion_x != 0.0 {
                     transform.rotation *= Quat::from_axis_angle(
@@ -97,13 +102,13 @@ impl ParallelSystem for FreeFlySystem {
                             * api.time.delta() as f32,
                     );
                 }
-                if api.input.action(free_fly.roll_left)?.is_pressed() {
+                if expect!(api, api.input.action(free_fly.roll_left)).is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
                         -f32::to_radians(FreeFly::ROLL_SPEED) * api.time.delta() as f32,
                     );
                 }
-                if api.input.action(free_fly.roll_right)?.is_pressed() {
+                if expect!(api, api.input.action(free_fly.roll_right)).is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
                         f32::to_radians(FreeFly::ROLL_SPEED) * api.time.delta() as f32,
@@ -131,7 +136,5 @@ impl ParallelSystem for FreeFlySystem {
                 transform.rotation = rotation;
             }
         }
-
-        Ok(())
     }
 }

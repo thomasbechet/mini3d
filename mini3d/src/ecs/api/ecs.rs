@@ -70,12 +70,16 @@ pub struct ParallelECS<'a> {
 }
 
 impl<'a> ParallelECS<'a> {
-    pub fn view<H: ComponentHandle>(&self, component: H) -> Result<H::ViewRef<'_>, ECSError> {
-        self.containers.view(component)
+    pub fn view<H: ComponentHandle>(&self, component: H) -> H::ViewRef<'_> {
+        self.containers
+            .view(component)
+            .expect(&ECSError::ContainerBorrowMut.to_string())
     }
 
-    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> Result<H::ViewMut<'_>, ECSError> {
-        self.containers.view_mut(component, self.cycle)
+    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> H::ViewMut<'_> {
+        self.containers
+            .view_mut(component, self.cycle)
+            .expect(&ECSError::ContainerBorrowMut.to_string())
     }
 
     pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {

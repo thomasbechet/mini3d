@@ -81,11 +81,11 @@ impl ExclusiveSystem for DespawnRendererEntities {
     }
 
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        let mut viewports = ecs.view_mut(self.viewport)?;
-        let mut cameras = ecs.view_mut(self.camera)?;
-        let mut static_meshes = ecs.view_mut(self.static_mesh)?;
-        let mut canvases = ecs.view_mut(self.canvas)?;
-        let mut local_to_worlds = ecs.view_mut(self.local_to_world)?;
+        let mut viewports = ecs.view_mut(self.viewport);
+        let mut cameras = ecs.view_mut(self.camera);
+        let mut static_meshes = ecs.view_mut(self.static_mesh);
+        let mut canvases = ecs.view_mut(self.canvas);
+        let mut local_to_worlds = ecs.view_mut(self.local_to_world);
 
         // Camera
         for e in ecs.filter_query(self.removed_camera) {

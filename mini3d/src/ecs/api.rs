@@ -1,6 +1,7 @@
 use self::{
     asset::{ExclusiveAssetAPI, ParallelAssetAPI},
     input::{ExclusiveInputAPI, ParallelInputAPI},
+    logger::ExclusiveLoggerAPI,
     registry::{ExclusiveRegistryAPI, ParallelRegistryAPI},
     renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
     system::{ExclusiveSystemAPI, ParallelSystemAPI},
@@ -10,6 +11,7 @@ use self::{
 pub mod asset;
 pub mod ecs;
 pub mod input;
+pub mod logger;
 pub mod registry;
 pub mod renderer;
 pub mod system;
@@ -21,6 +23,7 @@ pub struct ExclusiveAPI<'a> {
     pub registry: ExclusiveRegistryAPI<'a>,
     pub renderer: ExclusiveRendererAPI<'a>,
     pub system: ExclusiveSystemAPI<'a>,
+    pub logger: ExclusiveLoggerAPI<'a>,
     pub time: TimeAPI,
 }
 

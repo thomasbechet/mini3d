@@ -3,6 +3,7 @@ pub mod ecs;
 pub mod feature;
 pub mod input;
 pub mod io;
+pub mod logger;
 pub mod math;
 pub mod network;
 pub mod physics;
