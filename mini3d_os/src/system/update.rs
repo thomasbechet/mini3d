@@ -1,9 +1,10 @@
 use mini3d::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        instance::{ExclusiveResolver, SystemResult},
+        instance::ExclusiveResolver,
         query::Query,
     },
+    expect,
     feature::component::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,
     registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
@@ -33,17 +34,18 @@ impl ExclusiveSystem for UpdateOS {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
-        let mut os = ecs.view_mut(self.os)?.singleton().unwrap();
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+        let mut os = expect!(api, ecs.view_mut(self.os).singleton());
 
         // Toggle control mode
-        if api
-            .input
-            .action(CommonAction::CHANGE_CONTROL_MODE.into())?
-            .is_just_pressed()
+        if expect!(
+            api,
+            api.input.action(CommonAction::CHANGE_CONTROL_MODE.into())
+        )
+        .is_just_pressed()
         {
             os.layout_active = !os.layout_active;
-            let mut view = ecs.view_mut(self.free_fly)?;
+            let mut view = ecs.view_mut(self.free_fly);
             for e in ecs.query(self.query) {
                 let free_fly = &mut view[e];
                 free_fly.active = !os.layout_active;
@@ -57,18 +59,16 @@ impl ExclusiveSystem for UpdateOS {
         //     }
         // }
 
-        let mut uis = ecs.view_mut(self.ui)?;
+        let mut uis = ecs.view_mut(self.ui);
         let ui = uis.iter_mut().next().unwrap();
-        let user = ui.user("main".into())?;
+        let user = ui.user("main".into()).unwrap();
 
-        os.controller.update(&api.input, user)?;
+        expect!(api, os.controller.update(&api.input, user));
 
         // Render center cross
         api.renderer.graphics().fill_rect(
             IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2),
             Color::WHITE,
         );
-
-        Ok(())
     }
 }

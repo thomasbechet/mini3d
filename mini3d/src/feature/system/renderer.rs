@@ -4,6 +4,7 @@ use crate::{
         instance::ExclusiveResolver,
         query::{FilterQuery, Query},
     },
+    expect,
     feature::component::{
         renderer::{camera::Camera, static_mesh::StaticMesh, viewport::Viewport},
         scene::local_to_world::LocalToWorld,
@@ -89,103 +90,138 @@ impl ExclusiveSystem for DespawnRendererEntities {
 
         // Camera
         for e in ecs.filter_query(self.removed_camera) {
-            api.renderer.server.scene_camera_remove(cameras[e].handle)?;
+            expect!(
+                api,
+                api.renderer.server.scene_camera_remove(cameras[e].handle)
+            );
         }
         for e in ecs.filter_query(self.added_camera) {
             let camera = &mut cameras[e];
-            camera.handle = api.renderer.server.scene_camera_add()?;
+            camera.handle = expect!(api, api.renderer.server.scene_camera_add());
             let local_to_world = &local_to_worlds[e];
-            api.renderer.server.scene_camera_update(
-                camera.handle,
-                local_to_world.translation(),
-                local_to_world.forward(),
-                local_to_world.up(),
-                camera.fov,
-            )?;
+            expect!(
+                api,
+                api.renderer.server.scene_camera_update(
+                    camera.handle,
+                    local_to_world.translation(),
+                    local_to_world.forward(),
+                    local_to_world.up(),
+                    camera.fov,
+                )
+            );
         }
         for e in ecs.query(self.camera_query) {
             let camera = &mut cameras[e];
-            camera.handle = api.renderer.server.scene_camera_add()?;
+            camera.handle = expect!(api, api.renderer.server.scene_camera_add());
             let local_to_world = &local_to_worlds[e];
-            api.renderer.server.scene_camera_update(
-                camera.handle,
-                local_to_world.translation(),
-                local_to_world.forward(),
-                local_to_world.up(),
-                camera.fov,
-            )?;
+            expect!(
+                api,
+                api.renderer.server.scene_camera_update(
+                    camera.handle,
+                    local_to_world.translation(),
+                    local_to_world.forward(),
+                    local_to_world.up(),
+                    camera.fov,
+                )
+            );
         }
         // Model
         for e in ecs.filter_query(self.removed_model) {
-            api.renderer
-                .server
-                .scene_model_remove(static_meshes[e].handle)?;
+            expect!(
+                api,
+                api.renderer
+                    .server
+                    .scene_model_remove(static_meshes[e].handle)
+            );
         }
         for e in ecs.filter_query(self.added_model) {
             let s = &mut static_meshes[e];
             let t = &mut local_to_worlds[e];
-            let model = api.asset.read(s.model)?;
+            let model = expect!(api, api.asset.read(s.model));
             // Load mesh
-            let mesh_handle = api
-                .renderer
-                .manager
-                .resources
-                .request_mesh(model.mesh, api.renderer.server, api.asset.manager)?
-                .handle;
-            let handle = api.renderer.server.scene_model_add(mesh_handle)?;
+            let mesh_handle = expect!(
+                api,
+                api.renderer.manager.resources.request_mesh(
+                    model.mesh,
+                    api.renderer.server,
+                    api.asset.manager
+                )
+            )
+            .handle;
+            let handle = expect!(api, api.renderer.server.scene_model_add(mesh_handle));
             // Load material
             for (index, material) in model.materials.iter().enumerate() {
-                let material_handle = api
-                    .renderer
-                    .manager
-                    .resources
-                    .request_material(*material, api.renderer.server, api.asset.manager)?
-                    .handle;
-                api.renderer
-                    .server
-                    .scene_model_set_material(handle, index, material_handle)?;
+                let material_handle = expect!(
+                    api,
+                    api.renderer.manager.resources.request_material(
+                        *material,
+                        api.renderer.server,
+                        api.asset.manager
+                    )
+                )
+                .handle;
+                expect!(
+                    api,
+                    api.renderer
+                        .server
+                        .scene_model_set_material(handle, index, material_handle)
+                );
             }
             s.handle = handle;
         }
         for e in ecs.query(self.model_query) {
             let s = &static_meshes[e];
             let t = &local_to_worlds[e];
-            api.renderer
-                .server
-                .scene_model_transfer_matrix(s.handle, t.matrix)?;
+            expect!(
+                api,
+                api.renderer
+                    .server
+                    .scene_model_transfer_matrix(s.handle, t.matrix)
+            );
         }
         // Canvas
         for e in ecs.filter_query(self.removed_canvas) {
-            api.renderer
-                .server
-                .scene_canvas_remove(canvases[e].handle)?;
+            expect!(
+                api,
+                api.renderer.server.scene_canvas_remove(canvases[e].handle)
+            );
         }
         for e in ecs.filter_query(self.added_canvas) {
             let c = &mut canvases[e];
             let t = &local_to_worlds[e];
-            api.renderer.server.scene_canvas_add(c.resolution)?;
+            expect!(api, api.renderer.server.scene_canvas_add(c.resolution));
         }
         for e in ecs.query(self.scene_canvas_query) {
             let c = &canvases[e];
             let t = &local_to_worlds[e];
-            api.renderer
-                .server
-                .scene_canvas_transfer_matrix(c.handle, t.matrix)?;
+            expect!(
+                api,
+                api.renderer
+                    .server
+                    .scene_canvas_transfer_matrix(c.handle, t.matrix)
+            );
         }
         // Viewport
         for e in ecs.filter_query(self.removed_viewport) {
-            api.renderer.server.viewport_remove(viewports[e].handle)?;
+            expect!(
+                api,
+                api.renderer.server.viewport_remove(viewports[e].handle)
+            );
         }
         for e in ecs.filter_query(self.added_viewport) {
             let v = &mut viewports[e];
-            v.handle = api.renderer.server.viewport_add(v.resolution)?;
+            v.handle = expect!(api, api.renderer.server.viewport_add(v.resolution));
             let camera = v.camera.map(|e| cameras[e].handle);
-            api.renderer.server.viewport_set_camera(v.handle, camera)?;
-            api.renderer
-                .server
-                .viewport_set_resolution(v.handle, v.resolution)?;
+            expect!(
+                api,
+                api.renderer.server.viewport_set_camera(v.handle, camera)
+            );
+            expect!(
+                api,
+                api.renderer
+                    .server
+                    .viewport_set_resolution(v.handle, v.resolution)
+            );
         }
-
-        Ok(())
     }
 }

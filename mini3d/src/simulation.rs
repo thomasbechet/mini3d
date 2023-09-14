@@ -7,6 +7,7 @@ use crate::feature::{component, system};
 use crate::input::server::InputServer;
 use crate::input::InputManager;
 use crate::logger::server::LoggerServer;
+use crate::logger::LoggerManager;
 use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
 use crate::registry::error::RegistryError;
@@ -22,7 +23,7 @@ use crate::system::server::SystemServer;
 use crate::system::SystemManager;
 use crate::utils::uid::UID;
 
-#[derive(Error)]
+#[derive(Error, Debug)]
 pub enum ProgressError {
     #[error("Core error")]
     Core,
@@ -50,6 +51,7 @@ pub struct Simulation {
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
     pub(crate) system: SystemManager,
+    pub(crate) logger: LoggerManager,
     global_time: f64,
 }
 
@@ -168,6 +170,7 @@ impl Simulation {
             renderer: Default::default(),
             physics: Default::default(),
             system: Default::default(),
+            logger: Default::default(),
             global_time: 0.0,
         };
         sim.setup(core_features);
@@ -268,6 +271,8 @@ impl Simulation {
                 network_server: servers.network,
                 system: &mut self.system,
                 system_server: servers.system,
+                logger: &mut self.logger,
+                logger_server: servers.logger,
                 delta_time,
                 global_time: self.global_time,
             })

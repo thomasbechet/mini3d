@@ -12,6 +12,7 @@ use mini3d::{
     feature::component::common::script::Script,
     glam::Vec2,
     input::event::InputEvent,
+    logger::server::DummyLoggerServer,
     network::server::DummyNetworkServer,
     registry::system::SystemStage,
     renderer::SCREEN_RESOLUTION,
@@ -443,6 +444,7 @@ fn main_run() {
                         storage: &mut DummyStorageserver::default(),
                         network: &mut DummyNetworkServer::default(),
                         system: &mut system_server,
+                        logger: &mut DummyLoggerServer::default(),
                     },
                     dt,
                 )
@@ -504,6 +506,7 @@ fn main_run() {
                                 storage: &mut DummyStorageserver::default(),
                                 network: &mut DummyNetworkServer::default(),
                                 system: &mut system_server,
+                                logger: &mut DummyLoggerServer::default(),
                             },
                         )
                         .expect("Failed to load state");

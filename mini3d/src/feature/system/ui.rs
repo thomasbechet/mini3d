@@ -7,6 +7,7 @@ use crate::{
         instance::{ExclusiveResolver, ParallelResolver},
         query::Query,
     },
+    expect,
     feature::component::ui::{
         canvas::Canvas,
         ui::{UIRenderTarget, UI},
@@ -36,15 +37,14 @@ impl ParallelSystem for UpdateUI {
     }
 
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
-        let mut uis = ecs.view_mut(self.ui)?;
+        let mut uis = ecs.view_mut(self.ui);
         for e in ecs.query(self.query) {
             let ui = &mut uis[e];
-            ui.update(api.time.global())?;
+            expect!(api, ui.update(api.time.global()));
             for event in ui.events() {
                 println!("{:?}", event);
             }
         }
-        Ok(())
     }
 }
 
@@ -73,20 +73,26 @@ impl ExclusiveSystem for RenderUI {
     }
 
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        let mut canvases = ecs.view_mut(self.canvas)?;
-        let uis = ecs.view(self.ui)?;
-        let targets = ecs.view(self.target)?;
+        let mut canvases = ecs.view_mut(self.canvas);
+        let uis = ecs.view(self.ui);
+        let targets = ecs.view(self.target);
 
         for e in ecs.query(self.query) {
             let ui = &uis[e];
             let target = &targets[e];
             match *target {
                 UIRenderTarget::Screen { offset } => {
-                    ui.render(api.renderer.graphics(), offset, api.time.global())?;
+                    expect!(
+                        api,
+                        ui.render(api.renderer.graphics(), offset, api.time.global())
+                    );
                 }
                 UIRenderTarget::Canvas { offset, canvas } => {
-                    let canvas = canvases.get_mut(canvas).ok_or("Canvas entity not found")?;
-                    ui.render(&mut canvas.graphics, offset, api.time.global())?;
+                    let canvas = expect!(api, canvases.get_mut(canvas), "Canvas entity not found");
+                    expect!(
+                        api,
+                        ui.render(&mut canvas.graphics, offset, api.time.global())
+                    );
                 }
                 UIRenderTarget::Texture {
                     offset: _,
@@ -94,7 +100,5 @@ impl ExclusiveSystem for RenderUI {
                 } => {}
             }
         }
-
-        Ok(())
     }
 }

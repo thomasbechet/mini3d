@@ -65,9 +65,9 @@ impl ParallelSystem for PropagateTransforms {
     }
 
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
-        let transforms = ecs.view(self.transform)?;
-        let hierarchies = ecs.view(self.hierarchy)?;
-        let mut local_to_worlds = ecs.view_mut(self.local_to_world)?;
+        let transforms = ecs.view(self.transform);
+        let hierarchies = ecs.view(self.hierarchy);
+        let mut local_to_worlds = ecs.view_mut(self.local_to_world);
 
         // Reset all flags
         let mut entities = Vec::new();
@@ -98,7 +98,5 @@ impl ParallelSystem for PropagateTransforms {
                 local_to_worlds[e] = local_to_world;
             }
         }
-
-        Ok(())
     }
 }

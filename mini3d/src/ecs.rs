@@ -9,6 +9,7 @@ use crate::{
         ParallelAPI,
     },
     input::server::InputServer,
+    logger::{server::LoggerServer, LoggerManager},
     network::server::NetworkServer,
     registry::error::RegistryError,
     renderer::server::RendererServer,
@@ -30,6 +31,7 @@ use self::{
         asset::ExclusiveAssetAPI,
         ecs::ExclusiveECS,
         input::ExclusiveInputAPI,
+        logger::{ExclusiveLoggerAPI, ParallelLoggerAPI},
         registry::{
             ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
         },
@@ -92,6 +94,8 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) network_server: &'a mut dyn NetworkServer,
     pub(crate) system: &'a mut SystemManager,
     pub(crate) system_server: &'a mut dyn SystemServer,
+    pub(crate) logger: &'a mut LoggerManager,
+    pub(crate) logger_server: &'a mut dyn LoggerServer,
     pub(crate) delta_time: f64,
     pub(crate) global_time: f64,
 }
@@ -199,6 +203,10 @@ impl ECSManager {
                                 server: context.system_server,
                                 manager: context.system,
                             },
+                            logger: ExclusiveLoggerAPI {
+                                server: context.logger_server,
+                                manager: context.logger,
+                            },
                             time: TimeAPI {
                                 delta: context.delta_time,
                                 global: context.global_time,
@@ -237,6 +245,9 @@ impl ECSManager {
                             system: ParallelSystemAPI {
                                 server: context.system_server,
                                 manager: context.system,
+                            },
+                            logger: ParallelLoggerAPI {
+                                manager: context.logger,
                             },
                             time: TimeAPI {
                                 delta: context.delta_time,

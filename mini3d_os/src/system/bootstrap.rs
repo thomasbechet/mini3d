@@ -1,9 +1,9 @@
 use mini3d::{
     ecs::{
         api::{ecs::ExclusiveECS, ExclusiveAPI},
-        instance::SystemResult,
         scheduler::Invocation,
     },
+    expect,
     registry::system::ExclusiveSystem,
 };
 
@@ -17,14 +17,19 @@ impl OSBootstrap {
 }
 
 impl ExclusiveSystem for OSBootstrap {
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) -> SystemResult {
-        api.registry.components.add_static::<OS>("os")?;
-        api.registry.systems.add_static_exclusive::<OSInitialize>(
-            OSInitialize::NAME,
-            OSInitialize::NAME,
-            Default::default(),
-        )?;
-        ecs.invoke(OSInitialize::NAME.into(), Invocation::Immediate)?;
-        Ok(())
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+        expect!(api, api.registry.components.add_static::<OS>("os"));
+        expect!(
+            api,
+            api.registry.systems.add_static_exclusive::<OSInitialize>(
+                OSInitialize::NAME,
+                OSInitialize::NAME,
+                Default::default(),
+            )
+        );
+        expect!(
+            api,
+            ecs.invoke(OSInitialize::NAME.into(), Invocation::Immediate)
+        );
     }
 }

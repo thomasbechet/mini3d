@@ -1,7 +1,7 @@
 use self::{
     asset::{ExclusiveAssetAPI, ParallelAssetAPI},
     input::{ExclusiveInputAPI, ParallelInputAPI},
-    logger::ExclusiveLoggerAPI,
+    logger::{ExclusiveLoggerAPI, ParallelLoggerAPI},
     registry::{ExclusiveRegistryAPI, ParallelRegistryAPI},
     renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
     system::{ExclusiveSystemAPI, ParallelSystemAPI},
@@ -33,5 +33,6 @@ pub struct ParallelAPI<'a> {
     pub registry: ParallelRegistryAPI<'a>,
     pub renderer: ParallelRendererAPI<'a>,
     pub system: ParallelSystemAPI<'a>,
+    pub logger: ParallelLoggerAPI<'a>,
     pub time: TimeAPI,
 }
