@@ -6,6 +6,7 @@ use std::{
 };
 
 use gui::{WindowControl, WindowGUI};
+use logger::ConsoleLogger;
 use mapper::InputMapper;
 use mini3d::{
     ecs::scheduler::Invocation,
@@ -41,6 +42,7 @@ use winit::{
 };
 
 pub mod gui;
+pub mod logger;
 pub mod mapper;
 pub mod utils;
 pub mod virtual_disk;
@@ -444,7 +446,7 @@ fn main_run() {
                         storage: &mut DummyStorageserver::default(),
                         network: &mut DummyNetworkServer::default(),
                         system: &mut system_server,
-                        logger: &mut DummyLoggerServer::default(),
+                        logger: &mut ConsoleLogger,
                     },
                     dt,
                 )

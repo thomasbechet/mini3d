@@ -15,7 +15,7 @@ pub(crate) fn derive_enum(
     generics: &Generics,
     data: &DataEnum,
 ) -> Result<TokenStream> {
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut formats = Vec::new();
 
@@ -61,7 +61,7 @@ pub(crate) fn derive_enum(
         }
     }
     Ok(quote! {
-        impl core::fmt::Display for #ident #ty_generics #where_clause {
+        impl #impl_generics core::fmt::Display for #ident #ty_generics #where_clause {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
                     #(#formats),*

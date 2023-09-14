@@ -21,3 +21,5 @@ mini3d_derive = { path = "../mini3d_derive" }
 mini3d_os = { path = "../mini3d_os" }
 mini3d_wgpu = { path = "../mini3d_wgpu" }
 mini3d_utils = { path = "../mini3d_utils" }
+colored = "2.0.4"
+chrono = "0.4.30"

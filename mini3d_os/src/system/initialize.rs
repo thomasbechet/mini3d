@@ -1,5 +1,5 @@
 use mini3d::{
-    asset::handle::StaticAsset,
+    asset::handle::{AssetBundle, StaticAsset},
     ecs::api::{ecs::ExclusiveECS, ExclusiveAPI},
     expect,
     feature::component::{
@@ -38,7 +38,6 @@ use mini3d::{
 };
 
 use crate::{
-    asset::DefaultAsset,
     component::os::OS,
     input::{CommonAction, CommonAxis},
 };
@@ -71,9 +70,10 @@ impl OSInitialize {
 
 impl OSInitialize {
     fn setup_assets(&self, api: &mut ExclusiveAPI) {
-        let default_bundle = api.asset.add_bundle(DefaultAsset::BUNDLE).unwrap();
+        let default_bundle = expect!(api, api.asset.find_bundle(AssetBundle::DEFAULT));
 
         // Register default font
+        let font: StaticComponent<Font> = api.registry.components.find(Font::NAME.into()).unwrap();
         expect!(
             api,
             api.asset

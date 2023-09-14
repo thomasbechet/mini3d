@@ -325,9 +325,7 @@ impl ComponentRegistry {
     ) -> Result<(), RegistryError> {
         let uid: UID = name.into();
         if self.find_id(uid).is_some() {
-            return Err(RegistryError::DuplicatedComponent {
-                name: name.to_string(),
-            });
+            return Err(RegistryError::DuplicatedComponent);
         }
         let id = self.entries.add(ComponentEntry {
             name: name.into(),

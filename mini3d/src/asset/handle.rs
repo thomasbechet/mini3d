@@ -7,16 +7,10 @@ use crate::{
 use super::container::{AnyAssetContainer, StaticAssetContainer};
 
 #[derive(Default, Clone, Copy)]
-pub struct AssetBundleId(SlotId);
+pub struct AssetBundle(pub(crate) SlotId);
 
-impl AssetBundleId {
-    pub(crate) fn new(id: SlotId) -> Self {
-        Self(id)
-    }
-
-    pub(crate) fn id(&self) -> SlotId {
-        self.0
-    }
+impl AssetBundle {
+    pub const DEFAULT: &'static str = "default";
 }
 
 pub struct PrivateAnyAssetContainerRef<'a>(pub(crate) &'a dyn AnyAssetContainer);

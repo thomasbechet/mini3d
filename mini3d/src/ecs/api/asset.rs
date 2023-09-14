@@ -3,7 +3,7 @@ use std::ops::Deref;
 use crate::{
     asset::{
         error::AssetError,
-        handle::{AssetBundleId, AssetHandle},
+        handle::{AssetBundle, AssetHandle},
         AssetManager, AssetSource,
     },
     registry::component::ComponentHandle,
@@ -14,15 +14,23 @@ pub struct ExclusiveAssetAPI<'a> {
 }
 
 impl<'a> ExclusiveAssetAPI<'a> {
-    pub fn add_bundle(&mut self, name: &str) -> Result<AssetBundleId, AssetError> {
+    pub fn add_bundle(&mut self, name: &str) -> Result<AssetBundle, AssetError> {
         self.manager.add_bundle(name)
+    }
+
+    pub fn remove_bundle(&mut self, bundle: AssetBundle) -> Result<(), AssetError> {
+        self.manager.remove_bundle(bundle)
+    }
+
+    pub fn find_bundle(&self, name: &str) -> Option<AssetBundle> {
+        self.manager.find_bundle(name)
     }
 
     pub fn add<C: ComponentHandle>(
         &mut self,
         handle: C,
         name: &str,
-        bundle: AssetBundleId,
+        bundle: AssetBundle,
         data: <C::AssetHandle as AssetHandle>::Data,
     ) -> Result<C::AssetHandle, AssetError> {
         self.manager

@@ -174,11 +174,6 @@ impl SystemRegistry {
     }
 
     fn add_system(&mut self, entry: SystemEntry) -> Result<System, RegistryError> {
-        if self.find(entry.uid).is_some() {
-            return Err(RegistryError::DuplicatedSystem {
-                name: entry.name.to_string(),
-            });
-        }
         let stage = entry.stage;
         let id = self.systems.add(entry);
         if let Some(last) = self.find_last_system_in_stage(stage) {

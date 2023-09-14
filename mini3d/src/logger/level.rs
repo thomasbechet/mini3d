@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LogLevel {
     #[default]

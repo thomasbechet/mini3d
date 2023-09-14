@@ -6,7 +6,7 @@ use crate::{
         system::{System, SystemRegistry, SystemStage},
     },
     utils::{
-        slotmap::{SlotId, SlotMap, SparseSecondaryMap},
+        slotmap::{SlotId, SlotMap},
         uid::UID,
     },
 };
@@ -26,7 +26,6 @@ pub(crate) struct SystemPipelineNode {
 
 struct PeriodicStage {
     stage: UID,
-    id: SlotId,
     frequency: f64,
     accumulator: f64,
 }
@@ -38,10 +37,8 @@ struct StageEntry {
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
-    // Specific update stage (build by core)
-    update_stage: SlotId,
     // Mapping between stage and first node
-    stages: SparseSecondaryMap<StageEntry>,
+    stages: Vec<StageEntry>,
     // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
     // Instances
@@ -49,9 +46,9 @@ pub(crate) struct Scheduler {
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next frame stage
-    next_frame_stages: VecDeque<SlotId>,
+    next_frame_stages: VecDeque<UID>,
     // Runtime stages
-    frame_stages: VecDeque<SlotId>,
+    frame_stages: VecDeque<UID>,
     // Runtime active node
     next_node: SlotId,
 }
@@ -62,31 +59,20 @@ impl Scheduler {
         self.stages.clear();
         self.nodes.clear();
         self.instances.clear();
-        self.update_stage = SlotId::null();
         self.next_node = SlotId::null();
 
-        // Reset periodic stages
-        for stage in self.periodic_stages.iter_mut() {
-            stage.id = SlotId::null();
-        }
-
         // Build nodes from registry stages
-        for (id, entry) in registry.stages.iter() {
-            // Keep a reference to the update stage
-            if entry.uid == SystemStage::UPDATE.into() {
-                self.update_stage = id;
+        for entry in registry.stages.values() {
+            // Find stage index
+            let mut stage_index = self.stages.iter().position(|e| e.uid == entry.uid);
+            if stage_index.is_none() {
+                self.stages.push(StageEntry {
+                    first_node: SlotId::null(),
+                    uid: entry.uid,
+                });
+                stage_index = Some(self.stages.len() - 1);
             }
-
-            // Add the stage if missing
-            if !self.stages.contains(id) {
-                self.stages.insert(
-                    id,
-                    StageEntry {
-                        first_node: SlotId::null(),
-                        uid: entry.uid,
-                    },
-                );
-            }
+            let stage_index = stage_index.unwrap();
 
             // Build stage nodes
             let mut previous_node = None;
@@ -112,7 +98,7 @@ impl Scheduler {
                     self.nodes[previous_node].next = node;
                 } else {
                     // Update stage first node
-                    self.stages[id].first_node = node;
+                    self.stages[stage_index].first_node = node;
                 }
 
                 // Next previous node
@@ -135,19 +121,25 @@ impl Scheduler {
             let count = (stage.accumulator / frequency) as u32;
             stage.accumulator -= count as f64 * frequency;
             for _ in 0..count {
-                self.frame_stages.push_back(stage.id);
+                self.frame_stages.push_back(stage.stage);
             }
         }
 
         // Append update stage
-        self.frame_stages.push_back(self.update_stage);
+        self.frame_stages.push_back(SystemStage::UPDATE.into());
     }
 
     pub(crate) fn next_node(&mut self) -> Option<SystemPipelineNode> {
-        if self.next_node.is_null() {
+        // Detect end of current stage
+        while self.next_node.is_null() {
+            // Find next stage
             if let Some(stage) = self.frame_stages.pop_front() {
-                self.next_node = self.stages[stage].first_node;
+                // If the stage exists, find first node
+                if let Some(index) = self.stages.iter().position(|e| e.uid == stage) {
+                    self.next_node = self.stages[index].first_node;
+                }
             } else {
+                // No more stages
                 return None;
             }
         }
@@ -162,19 +154,6 @@ impl Scheduler {
         stage: UID,
         invocation: Invocation,
     ) -> Result<(), RegistryError> {
-        let stage = self
-            .stages
-            .iter()
-            .find_map(
-                |(id, entry)| {
-                    if entry.uid == stage {
-                        Some(id)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .ok_or(RegistryError::SystemStageNotFound)?;
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);
@@ -198,7 +177,6 @@ impl Scheduler {
         }
         self.periodic_stages.push(PeriodicStage {
             stage,
-            id: SlotId::null(),
             frequency,
             accumulator: 0.0,
         });

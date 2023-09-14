@@ -8,7 +8,7 @@ use crate::utils::string::AsciiArray;
 use self::container::AnyAssetContainer;
 use self::error::AssetError;
 use self::handle::{
-    AssetBundleId, AssetHandle, PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef,
+    AssetBundle, AssetHandle, PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef,
 };
 
 pub mod container;
@@ -33,15 +33,9 @@ struct AssetEntry {
     component: ComponentId,
     slot: SlotId, // Null if not loaded
     source: AssetSource,
-    bundle: AssetBundleId,
+    bundle: AssetBundle,
     next_in_bundle: AssetEntryId,
     prev_in_bundle: AssetEntryId,
-}
-
-pub struct AssetBundle;
-
-impl AssetBundle {
-    pub const DEFAULT: &'static str = "default";
 }
 
 pub(crate) const MAX_ASSET_BUNDLE_NAME_LEN: usize = 64;
@@ -143,10 +137,10 @@ impl AssetManager {
         &mut self,
         name: &str,
         component: ComponentId,
-        bundle: AssetBundleId,
+        bundle: AssetBundle,
         source: AssetSource,
     ) -> Result<SlotId, AssetError> {
-        let id = bundle.id();
+        let id = bundle.0;
         if let Some(bundle_entry) = self.bundles.get_mut(id) {
             let slot = self.entries.add(AssetEntry {
                 name: name.into(),
@@ -175,7 +169,7 @@ impl AssetManager {
         let next = self.entries[slot].next_in_bundle;
         let prev = self.entries[slot].prev_in_bundle;
         if prev.is_null() {
-            self.bundles[bundle.id()].first_entry = next;
+            self.bundles[bundle.0].first_entry = next;
         } else {
             self.entries[prev].next_in_bundle = next;
         }
@@ -190,7 +184,7 @@ impl AssetManager {
         &mut self,
         handle: C,
         name: &str,
-        bundle: AssetBundleId,
+        bundle: AssetBundle,
         source: AssetSource,
         data: <C::AssetHandle as AssetHandle>::Data,
     ) -> Result<C::AssetHandle, AssetError> {
@@ -271,7 +265,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn add_bundle(&mut self, name: &str) -> Result<AssetBundleId, AssetError> {
+    pub(crate) fn add_bundle(&mut self, name: &str) -> Result<AssetBundle, AssetError> {
         if self
             .bundles
             .values()
@@ -283,11 +277,11 @@ impl AssetManager {
             name: name.into(),
             first_entry: SlotId::null(),
         });
-        Ok(AssetBundleId::new(slot))
+        Ok(AssetBundle(slot))
     }
 
-    pub(crate) fn remove_bundle(&mut self, bundle: AssetBundleId) -> Result<(), AssetError> {
-        let id = bundle.id();
+    pub(crate) fn remove_bundle(&mut self, bundle: AssetBundle) -> Result<(), AssetError> {
+        let id = bundle.0;
         if !self.bundles.contains(id) {
             return Err(AssetError::BundleNotFound);
         }
@@ -298,5 +292,12 @@ impl AssetManager {
         // Remove bundle
         self.bundles.remove(id);
         Ok(())
+    }
+
+    pub(crate) fn find_bundle(&self, name: &str) -> Option<AssetBundle> {
+        self.bundles
+            .iter()
+            .find(|(_, entry)| entry.name.as_str() == name)
+            .map(|(id, _)| AssetBundle(id))
     }
 }
