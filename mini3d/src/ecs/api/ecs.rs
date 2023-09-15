@@ -7,9 +7,14 @@ use crate::{
         query::{FilterQuery, Query, QueryTable},
         scheduler::{Invocation, Scheduler},
     },
-    registry::{component::ComponentHandle, error::RegistryError},
+    registry::{
+        component::{ComponentHandle, ComponentRegistry},
+        error::RegistryError,
+    },
     utils::uid::UID,
 };
+
+use super::registry::ExclusiveComponentRegistryAPI;
 
 pub struct ExclusiveECS<'a> {
     pub(crate) archetypes: &'a mut ArchetypeTable,
@@ -59,6 +64,10 @@ impl<'a> ExclusiveECS<'a> {
 
     pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
         self.queries.filter_query(query).iter().copied()
+    }
+
+    pub fn update_registry(&mut self, registry: &ExclusiveComponentRegistryAPI) {
+        self.containers.on_registry_update(registry.manager);
     }
 }
 
