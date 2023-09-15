@@ -8,6 +8,7 @@ use crate::{
     },
     expect,
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
+    info,
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 

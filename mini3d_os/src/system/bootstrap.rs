@@ -16,6 +16,7 @@ use mini3d::{
         },
     },
     glam::{IVec2, Quat, Vec3},
+    info,
     math::rect::IRect,
     registry::{component::StaticComponent, system::ExclusiveSystem},
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
@@ -279,58 +280,6 @@ impl OSBootstrap {
         let script: StaticComponent<Script> =
             expect!(api, api.registry.components.find(Script::NAME.into()));
 
-        // Non default assets
-        let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
-        let alfred_mesh = expect!(api, api.asset.find("alfred_mesh"));
-        let car_texture = expect!(api, api.asset.find("car_tex"));
-        let car_mesh = expect!(api, api.asset.find("car_mesh"));
-        let alfred_material = expect!(
-            api,
-            api.asset.add(
-                material,
-                "alfred",
-                default_bundle,
-                Material {
-                    diffuse: alfred_texture,
-                },
-            )
-        );
-        let car_material = expect!(
-            api,
-            api.asset.add(
-                material,
-                "car",
-                default_bundle,
-                Material {
-                    diffuse: car_texture,
-                },
-            )
-        );
-        expect!(
-            api,
-            api.asset.add(
-                model,
-                "car",
-                default_bundle,
-                Model {
-                    mesh: car_mesh,
-                    materials: Vec::from([car_material]),
-                },
-            )
-        );
-        expect!(
-            api,
-            api.asset.add(
-                model,
-                "alfred",
-                default_bundle,
-                Model {
-                    mesh: alfred_mesh,
-                    materials: Vec::from([alfred_material, alfred_material, alfred_material]),
-                },
-            )
-        );
-
         // Import assets
         while let Some(import) = api.system.poll_import() {
             match import {
@@ -342,6 +291,7 @@ impl OSBootstrap {
                     );
                 }
                 ImportAssetEvent::Mesh(entry) => {
+                    info!(api, "Importing mesh: {}", entry.name);
                     expect!(
                         api,
                         api.asset
@@ -372,6 +322,58 @@ impl OSBootstrap {
                 _ => {}
             }
         }
+
+        // Non default assets
+        let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
+        let alfred_mesh = expect!(api, api.asset.find("alfred_mesh"));
+        let car_texture = expect!(api, api.asset.find("car_tex"));
+        let car_mesh = expect!(api, api.asset.find("car_mesh"));
+        let alfred_material = expect!(
+            api,
+            api.asset.add(
+                material,
+                "alfred_mat",
+                default_bundle,
+                Material {
+                    diffuse: alfred_texture,
+                },
+            )
+        );
+        let car_material = expect!(
+            api,
+            api.asset.add(
+                material,
+                "car_mat",
+                default_bundle,
+                Material {
+                    diffuse: car_texture,
+                },
+            )
+        );
+        expect!(
+            api,
+            api.asset.add(
+                model,
+                "car_model",
+                default_bundle,
+                Model {
+                    mesh: car_mesh,
+                    materials: Vec::from([car_material]),
+                },
+            )
+        );
+        expect!(
+            api,
+            api.asset.add(
+                model,
+                "alfred_model",
+                default_bundle,
+                Model {
+                    mesh: alfred_mesh,
+                    materials: Vec::from([alfred_material, alfred_material, alfred_material]),
+                },
+            )
+        );
     }
 
     fn setup_scene(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
@@ -401,9 +403,9 @@ impl OSBootstrap {
             expect!(api, api.registry.components.find(FreeFly::NAME.into()));
         let os: StaticComponent<OS> = expect!(api, api.registry.components.find(OS::NAME.into()));
 
-        let alfred_model = expect!(api, api.asset.find("alfred"));
+        let alfred_model = expect!(api, api.asset.find("alfred_model"));
         let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
-        let car_model = expect!(api, api.asset.find("car"));
+        let car_model = expect!(api, api.asset.find("car_model"));
         let gui_texture = expect!(api, api.asset.find("GUI"));
         let font = expect!(api, api.asset.find("default"));
         {
@@ -699,17 +701,22 @@ impl ExclusiveSystem for OSBootstrap {
         // Setup scene
         self.setup_scene(ecs, api);
 
-        let main_script: StaticAsset<Script> =
-            api.asset.find("main").expect("Script 'main' not found");
-        let utils_script: StaticAsset<Script> =
-            api.asset.find("utils").expect("Script 'utils' not found");
+        let main_script: StaticAsset<Script> = api
+            .asset
+            .find("main_script")
+            .expect("Script 'main' not found");
+        let utils_script: StaticAsset<Script> = api
+            .asset
+            .find("utils_script")
+            .expect("Script 'utils' not found");
         let script = expect!(api, api.asset.read(main_script));
 
         println!("Script: {:?}", script.source);
         let mut compiler = Compiler::default();
-        let entry = compiler.add_module("main".into(), Module::Source { asset: main_script });
+        let entry =
+            compiler.add_module("main_script".into(), Module::Source { asset: main_script });
         compiler.add_module(
-            "utils".into(),
+            "utils_script".into(),
             Module::Source {
                 asset: utils_script,
             },

@@ -157,7 +157,12 @@ impl ECSManager {
             if system_registry_update || component_registry_update {
                 system_registry_update = false;
                 component_registry_update = false;
+                // Update ECS
                 self.on_registry_update(context.registry)?;
+                // Update assets
+                context
+                    .asset
+                    .on_registry_update(&context.registry.components);
             }
 
             // Acquire next node

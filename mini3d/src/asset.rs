@@ -117,19 +117,12 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn preallocate<H: ComponentHandle>(
-        &mut self,
-        handle: H,
-        registry: &ComponentRegistry,
-    ) {
-        let id = handle.id();
-        if !self.containers.contains(id.into()) {
-            let container = registry
-                .definition(handle)
-                .unwrap()
-                .reflection
-                .create_asset_container();
-            self.containers.insert(id.into(), container);
+    pub(crate) fn on_registry_update(&mut self, registry: &ComponentRegistry) {
+        for (id, entry) in registry.entries.iter() {
+            if !self.containers.contains(id) {
+                let container = entry.reflection.create_asset_container();
+                self.containers.insert(id, container);
+            }
         }
     }
 
@@ -234,7 +227,7 @@ impl AssetManager {
                         .as_ref(),
                 ))
             })
-            .map(|(id, _)| H::new(id))
+            .map(|(_, entry)| H::new(entry.slot))
     }
 
     pub(crate) fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {

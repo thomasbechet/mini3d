@@ -150,10 +150,11 @@ impl Simulation {
             self.register_core_features()
                 .expect("Failed to define core features");
         }
-        // Update ECS
+        // Update ECS and assets
         self.ecs
             .scheduler
             .on_registry_update(&self.registry.systems);
+        self.asset.on_registry_update(&self.registry.components);
         // Setup managers
         self.renderer
             .reload_component_handles(&self.registry.components)

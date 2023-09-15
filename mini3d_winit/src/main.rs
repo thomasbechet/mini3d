@@ -162,7 +162,7 @@ fn main_run() {
 
     ImageImporter::new()
         .from_source(Path::new("assets/car.png"))
-        .with_name("car")
+        .with_name("car_tex")
         .import()
         .expect("Failed to import car texture.")
         .push(&mut system_server.imports);
@@ -176,20 +176,20 @@ fn main_run() {
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
         .with_flat_normals(false)
-        .with_name("car")
+        .with_name("car_mesh")
         .import()
         .expect("Failed to import car model.")
         .push(&mut system_server.imports);
     ImageImporter::new()
         .from_source(Path::new("assets/alfred.png"))
-        .with_name("alfred")
+        .with_name("alfred_tex")
         .import()
         .expect("Failed to import alfred texture.")
         .push(&mut system_server.imports);
     ModelImporter::new()
         .from_obj(Path::new("assets/alfred.obj"))
         .with_flat_normals(false)
-        .with_name("alfred")
+        .with_name("alfred_mesh")
         .import()
         .expect("Failed to import alfred model.")
         .push(&mut system_server.imports);
@@ -197,14 +197,14 @@ fn main_run() {
     system_server
         .imports
         .push(ImportAssetEvent::Script(AssetImportEntry {
-            name: "main".to_string(),
+            name: "main_script".to_string(),
             data: Script { source: script },
         }));
     let script = std::fs::read_to_string("assets/script_utils.ms").expect("Failed to load.");
     system_server
         .imports
         .push(ImportAssetEvent::Script(AssetImportEntry {
-            name: "utils".to_string(),
+            name: "utils_script".to_string(),
             data: Script { source: script },
         }));
 

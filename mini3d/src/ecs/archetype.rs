@@ -24,7 +24,7 @@ impl Archetype {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     fn empty() -> Self {
@@ -146,7 +146,8 @@ impl ArchetypeTable {
         let archetype = self.entries.get(archetype).unwrap();
         let component_count = archetype.component_count + 1;
         let component_start = self.components.len();
-        for i in component_start..(component_start + archetype.component_count) {
+        for i in archetype.component_start..(archetype.component_start + archetype.component_count)
+        {
             self.components.push(self.components[i]);
         }
         self.components.push(component);

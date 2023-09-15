@@ -37,8 +37,6 @@ impl ExclusiveSystem for DespawnEntities {
         let mut despawn_entities: Vec<Entity> = Vec::new();
         let mut detach_entities = Vec::new();
 
-        info!(api, "Free fly mode: {}", "Test");
-
         {
             let mut hierarchies = ecs.view_mut(self.hierarchy);
             let lifecycles = ecs.view(self.life_cycle);
