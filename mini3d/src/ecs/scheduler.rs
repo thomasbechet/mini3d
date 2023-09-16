@@ -80,6 +80,8 @@ impl Scheduler {
             while let Some(instance) = system {
                 // TODO: detect parallel nodes
 
+                println!("ADD instance: {:?}", instance);
+
                 // Insert instance
                 self.instances.push(instance);
 

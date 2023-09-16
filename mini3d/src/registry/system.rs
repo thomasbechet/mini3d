@@ -154,6 +154,17 @@ impl Default for SystemRegistry {
 }
 
 impl SystemRegistry {
+    pub(crate) fn log(&self) {
+        println!("=== SYSTEMS ===");
+        for (id, entry) in self.systems.iter() {
+            println!("- {} {:?}", entry.name.as_str(), id);
+        }
+        println!("=== STAGES ===");
+        for (_, entry) in self.stages.iter() {
+            println!("- {}", entry.name.as_str());
+        }
+    }
+
     fn find_stage(&self, stage: UID) -> Option<SlotId> {
         self.stages
             .iter()
