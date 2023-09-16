@@ -36,8 +36,8 @@ impl ParallelSystem for RotatorSystem {
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let mut transforms = ecs.view_mut(self.transform);
         let rotators = ecs.view(self.rotator);
-        info!(api, "rotating");
         for e in ecs.query(self.query) {
+            println!("OK");
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
                 api.time.delta() as f32 * f32::to_radians(rotators[e].speed),

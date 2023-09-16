@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::{
+    logger::server::LoggerServer,
     registry::{
         error::RegistryError,
         system::{System, SystemRegistry, SystemStage},
@@ -54,6 +55,23 @@ pub(crate) struct Scheduler {
 }
 
 impl Scheduler {
+    pub(crate) fn log(&self, registry: &SystemRegistry) {
+        println!("Scheduler:");
+        for stage in self.stages.iter() {
+            println!("  Stage: {}", stage.uid);
+            let mut next = stage.first_node;
+            while !next.is_null() {
+                let node = self.nodes[next];
+                println!("    Node: {} instances", node.count);
+                for i in node.first..node.first + node.count {
+                    let name = registry.get(self.instances[i]).unwrap().name.as_str();
+                    println!("    Instance: {}", name);
+                }
+                next = node.next;
+            }
+        }
+    }
+
     pub(crate) fn on_registry_update(&mut self, registry: &SystemRegistry) {
         // Reset baked resources
         self.stages.clear();
@@ -79,8 +97,6 @@ impl Scheduler {
             let mut system = entry.first_system;
             while let Some(instance) = system {
                 // TODO: detect parallel nodes
-
-                println!("ADD instance: {:?}", instance);
 
                 // Insert instance
                 self.instances.push(instance);
