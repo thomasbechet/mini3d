@@ -8,7 +8,7 @@ use crate::{
     },
     utils::{
         slotmap::{SlotId, SlotMap},
-        uid::UID,
+        uid::{ToUID, UID},
     },
 };
 
@@ -197,11 +197,11 @@ pub struct QueryBuilder<'a> {
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn all(self, components: &[UID]) -> Result<Self, RegistryError> {
+    pub fn all(self, components: &[impl ToUID]) -> Result<Self, RegistryError> {
         for component in components {
             let component = self
                 .registry
-                .find_id(*component)
+                .find_id(component.to_uid())
                 .ok_or(RegistryError::ComponentNotFound)?;
             if self.all.iter().all(|c| *c != component) {
                 self.all.push(component);
@@ -210,11 +210,11 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn any(self, components: &[UID]) -> Result<Self, RegistryError> {
+    pub fn any(self, components: &[impl ToUID]) -> Result<Self, RegistryError> {
         for component in components {
             let component = self
                 .registry
-                .find_id(*component)
+                .find_id(component.to_uid())
                 .ok_or(RegistryError::ComponentNotFound)?;
             if self.any.iter().all(|c| *c != component) {
                 self.any.push(component);
@@ -223,11 +223,11 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn not(self, components: &[UID]) -> Result<Self, RegistryError> {
+    pub fn not(self, components: &[impl ToUID]) -> Result<Self, RegistryError> {
         for component in components {
             let component = self
                 .registry
-                .find_id(*component)
+                .find_id(component.to_uid())
                 .ok_or(RegistryError::ComponentNotFound)?;
             if self.not.iter().all(|c| *c != component) {
                 self.not.push(component);

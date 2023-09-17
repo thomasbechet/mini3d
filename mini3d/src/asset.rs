@@ -173,18 +173,17 @@ impl AssetManager {
         self.entries.remove(slot);
     }
 
-    pub(crate) fn add<C: ComponentHandle>(
+    pub fn add<C: ComponentHandle>(
         &mut self,
         handle: C,
         name: &str,
         bundle: AssetBundle,
-        source: AssetSource,
         data: <C::AssetHandle as AssetHandle>::Data,
     ) -> Result<C::AssetHandle, AssetError> {
         if self.find::<C::AssetHandle>(name).is_some() {
             return Err(AssetError::DuplicatedAssetEntry);
         }
-        let id = self.add_entry(name, handle.id(), bundle, source)?;
+        let id = self.add_entry(name, handle.id(), bundle, AssetSource::IO)?;
         // TODO: preload asset in container ? wait for read ? define proper strategy
         if let Some(container) = self.containers.get_mut(handle.id().into()) {
             self.entries[id].slot = <C::AssetHandle as AssetHandle>::insert_container(
@@ -198,7 +197,7 @@ impl AssetManager {
         }
     }
 
-    pub(crate) fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {
+    pub fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {
         let id = handle.id();
         if !self.entries.contains(id) {
             return Err(AssetError::AssetNotFound);
@@ -215,7 +214,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
+    pub fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.name.as_str() == name)
@@ -230,7 +229,7 @@ impl AssetManager {
             .map(|(_, entry)| H::new(entry.slot))
     }
 
-    pub(crate) fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
+    pub fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
         let id = handle.id();
         self.entries
             .get(id)
@@ -238,7 +237,7 @@ impl AssetManager {
             .ok_or(AssetError::AssetNotFound)
     }
 
-    pub(crate) fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
+    pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
         let slot = handle.id();
         let entry = self.entries.get(slot).ok_or(AssetError::AssetNotFound)?;
         if !entry.slot.is_null() {
@@ -250,7 +249,7 @@ impl AssetManager {
         }
     }
 
-    pub(crate) fn write<H: AssetHandle>(
+    pub fn write<H: AssetHandle>(
         &self,
         handle: H,
         asset: H::AssetRef<'_>,
@@ -258,7 +257,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn add_bundle(&mut self, name: &str) -> Result<AssetBundle, AssetError> {
+    pub fn add_bundle(&mut self, name: &str) -> Result<AssetBundle, AssetError> {
         if self
             .bundles
             .values()
@@ -273,7 +272,7 @@ impl AssetManager {
         Ok(AssetBundle(slot))
     }
 
-    pub(crate) fn remove_bundle(&mut self, bundle: AssetBundle) -> Result<(), AssetError> {
+    pub fn remove_bundle(&mut self, bundle: AssetBundle) -> Result<(), AssetError> {
         let id = bundle.0;
         if !self.bundles.contains(id) {
             return Err(AssetError::BundleNotFound);
@@ -287,7 +286,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn find_bundle(&self, name: &str) -> Option<AssetBundle> {
+    pub fn find_bundle(&self, name: &str) -> Option<AssetBundle> {
         self.bundles
             .iter()
             .find(|(_, entry)| entry.name.as_str() == name)

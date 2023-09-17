@@ -14,8 +14,6 @@ use crate::{
     utils::uid::UID,
 };
 
-use super::registry::ExclusiveComponentRegistryAPI;
-
 pub struct ExclusiveECS<'a> {
     pub(crate) archetypes: &'a mut ArchetypeTable,
     pub(crate) containers: &'a mut ContainerTable,
@@ -66,8 +64,8 @@ impl<'a> ExclusiveECS<'a> {
         self.queries.filter_query(query).iter().copied()
     }
 
-    pub fn update_registry(&mut self, registry: &ExclusiveComponentRegistryAPI) {
-        self.containers.on_registry_update(registry.manager);
+    pub fn update_registry(&mut self, registry: &ComponentRegistry) {
+        self.containers.on_registry_update(registry);
     }
 }
 

@@ -5,7 +5,7 @@ use mini3d::{
     feature::component::input::input_table::InputTable,
     input::{
         event::{InputActionEvent, InputAxisEvent, InputEvent, InputTextEvent},
-        server::{InputServer, InputServerError},
+        provider::{InputProvider, InputProviderError},
     },
     utils::uid::UID,
 };
@@ -720,8 +720,11 @@ impl InputMapper {
     }
 }
 
-impl InputServer for InputMapper {
-    fn poll_event(&mut self) -> Option<InputEvent> {
+impl InputProvider for InputMapper {
+    fn on_connect(&mut self) {}
+    fn on_disconnect(&mut self) {}
+
+    fn next_event(&mut self) -> Option<InputEvent> {
         self.events.pop()
     }
 
@@ -729,7 +732,7 @@ impl InputServer for InputMapper {
         &mut self,
         uid: UID,
         table: Option<&InputTable>,
-    ) -> Result<(), InputServerError> {
+    ) -> Result<(), InputProviderError> {
         if let Some(table) = table {
             self.tables.insert(uid, table.clone());
         } else {

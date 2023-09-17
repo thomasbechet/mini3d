@@ -55,7 +55,7 @@ impl OSBootstrap {
         let default_bundle = expect!(api, api.asset.find_bundle(AssetBundle::DEFAULT));
 
         // Register default font
-        let font: StaticComponent<Font> = api.registry.components.find(Font::NAME.into()).unwrap();
+        let font: StaticComponent<Font> = api.registry.components.find(Font::NAME).unwrap();
         expect!(
             api,
             api.asset
@@ -270,18 +270,16 @@ impl OSBootstrap {
         );
 
         let texture: StaticComponent<Texture> =
-            expect!(api, api.registry.components.find(Texture::NAME.into()));
-        let mesh: StaticComponent<Mesh> =
-            expect!(api, api.registry.components.find(Mesh::NAME.into()));
-        let model: StaticComponent<Model> =
-            expect!(api, api.registry.components.find(Model::NAME.into()));
+            expect!(api, api.registry.components.find(Texture::NAME));
+        let mesh: StaticComponent<Mesh> = expect!(api, api.registry.components.find(Mesh::NAME));
+        let model: StaticComponent<Model> = expect!(api, api.registry.components.find(Model::NAME));
         let material: StaticComponent<Material> =
-            expect!(api, api.registry.components.find(Material::NAME.into()));
+            expect!(api, api.registry.components.find(Material::NAME));
         let script: StaticComponent<Script> =
-            expect!(api, api.registry.components.find(Script::NAME.into()));
+            expect!(api, api.registry.components.find(Script::NAME));
 
         // Import assets
-        while let Some(import) = api.system.poll_import() {
+        while let Some(import) = api.system.next_import() {
             match import {
                 ImportAssetEvent::Material(entry) => {
                     expect!(
@@ -379,29 +377,27 @@ impl OSBootstrap {
     fn setup_scene(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         // Find components
         let lifecycle: StaticComponent<Lifecycle> =
-            expect!(api, api.registry.components.find(Lifecycle::NAME.into()));
+            expect!(api, api.registry.components.find(Lifecycle::NAME));
         let transform: StaticComponent<Transform> =
-            expect!(api, api.registry.components.find(Transform::NAME.into()));
+            expect!(api, api.registry.components.find(Transform::NAME));
         let rotator: StaticComponent<Rotator> =
-            expect!(api, api.registry.components.find(Rotator::NAME.into()));
+            expect!(api, api.registry.components.find(Rotator::NAME));
         let static_mesh: StaticComponent<StaticMesh> =
-            expect!(api, api.registry.components.find(StaticMesh::NAME.into()));
+            expect!(api, api.registry.components.find(StaticMesh::NAME));
         let local_to_world: StaticComponent<LocalToWorld> =
-            expect!(api, api.registry.components.find(LocalToWorld::NAME.into()));
+            expect!(api, api.registry.components.find(LocalToWorld::NAME));
         let hierarchy: StaticComponent<Hierarchy> =
-            expect!(api, api.registry.components.find(Hierarchy::NAME.into()));
+            expect!(api, api.registry.components.find(Hierarchy::NAME));
         let camera: StaticComponent<Camera> =
-            expect!(api, api.registry.components.find(Camera::NAME.into()));
+            expect!(api, api.registry.components.find(Camera::NAME));
         let viewport: StaticComponent<Viewport> =
-            expect!(api, api.registry.components.find(Viewport::NAME.into()));
-        let ui: StaticComponent<UI> = expect!(api, api.registry.components.find(UI::NAME.into()));
-        let ui_render_target: StaticComponent<UIRenderTarget> = expect!(
-            api,
-            api.registry.components.find(UIRenderTarget::NAME.into())
-        );
+            expect!(api, api.registry.components.find(Viewport::NAME));
+        let ui: StaticComponent<UI> = expect!(api, api.registry.components.find(UI::NAME));
+        let ui_render_target: StaticComponent<UIRenderTarget> =
+            expect!(api, api.registry.components.find(UIRenderTarget::NAME));
         let free_fly: StaticComponent<FreeFly> =
-            expect!(api, api.registry.components.find(FreeFly::NAME.into()));
-        let os: StaticComponent<OS> = expect!(api, api.registry.components.find(OS::NAME.into()));
+            expect!(api, api.registry.components.find(FreeFly::NAME));
+        let os: StaticComponent<OS> = expect!(api, api.registry.components.find(OS::NAME));
 
         let alfred_model = expect!(api, api.asset.find("alfred_model"));
         let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
@@ -662,18 +658,15 @@ impl OSBootstrap {
         }
 
         let controller = UIController::new()
-            .with_primary(CommonAction::CLICK.into())
-            .with_cancel(CommonAction::BACK.into())
-            .with_cursor_motion(
-                CommonAxis::CURSOR_MOTION_X.into(),
-                CommonAxis::CURSOR_MOTION_Y.into(),
-            )
-            .with_cursor_position(CommonAxis::CURSOR_X.into(), CommonAxis::CURSOR_Y.into())
+            .with_primary(CommonAction::CLICK)
+            .with_cancel(CommonAction::BACK)
+            .with_cursor_motion(CommonAxis::CURSOR_MOTION_X, CommonAxis::CURSOR_MOTION_Y)
+            .with_cursor_position(CommonAxis::CURSOR_X, CommonAxis::CURSOR_Y)
             .with_selection_move(
-                CommonAction::UP.into(),
-                CommonAction::DOWN.into(),
-                CommonAction::LEFT.into(),
-                CommonAction::RIGHT.into(),
+                CommonAction::UP,
+                CommonAction::DOWN,
+                CommonAction::LEFT,
+                CommonAction::RIGHT,
             );
 
         // Setup singleton
@@ -713,10 +706,9 @@ impl ExclusiveSystem for OSBootstrap {
 
         println!("Script: {:?}", script.source);
         let mut compiler = Compiler::default();
-        let entry =
-            compiler.add_module("main_script".into(), Module::Source { asset: main_script });
+        let entry = compiler.add_module("main_script", Module::Source { asset: main_script });
         compiler.add_module(
-            "utils_script".into(),
+            "utils_script",
             Module::Source {
                 asset: utils_script,
             },

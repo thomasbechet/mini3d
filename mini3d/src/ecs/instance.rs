@@ -6,7 +6,7 @@ use crate::{
         system::{System, SystemRegistry},
         RegistryManager,
     },
-    utils::{slotmap::SparseSecondaryMap, uid::UID},
+    utils::{slotmap::SparseSecondaryMap, uid::ToUID},
 };
 
 use super::{
@@ -32,7 +32,7 @@ pub struct ExclusiveResolver<'a> {
 }
 
 impl<'a> ExclusiveResolver<'a> {
-    pub fn find<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
+    pub fn find<H: ComponentHandle>(&mut self, component: impl ToUID) -> Result<H, RegistryError> {
         let handle = self
             .registry
             .find::<H>(component)
@@ -69,7 +69,7 @@ pub struct ParallelResolver<'a> {
 }
 
 impl<'a> ParallelResolver<'a> {
-    pub fn read<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
+    pub fn read<H: ComponentHandle>(&mut self, component: impl ToUID) -> Result<H, RegistryError> {
         let handle: H = self
             .registry
             .find(component)
@@ -81,7 +81,7 @@ impl<'a> ParallelResolver<'a> {
         Ok(H::new(id))
     }
 
-    pub fn write<H: ComponentHandle>(&mut self, component: UID) -> Result<H, RegistryError> {
+    pub fn write<H: ComponentHandle>(&mut self, component: impl ToUID) -> Result<H, RegistryError> {
         let handle: H = self
             .registry
             .find(component)

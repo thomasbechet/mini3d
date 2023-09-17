@@ -13,7 +13,7 @@ use crate::{
 
 use super::{
     color::Color,
-    server::{RendererServer, RendererServerError, SceneCanvasHandle},
+    provider::{RendererProvider, RendererProviderError, SceneCanvasHandle},
     RendererResourceManager,
 };
 
@@ -93,8 +93,8 @@ impl Graphics {
         resources: &mut RendererResourceManager,
         asset: &mut AssetManager,
         viewports: &StaticComponentViewRef<Viewport>,
-        server: &mut dyn RendererServer,
-    ) -> Result<(), RendererServerError> {
+        server: &mut dyn RendererProvider,
+    ) -> Result<(), RendererProviderError> {
         if let Some(canvas) = canvas {
             server.scene_canvas_begin(canvas, clear_color)?;
         } else {

@@ -1,4 +1,4 @@
-use crate::{asset::AssetManager, utils::uid::UID};
+use crate::{asset::AssetManager, utils::uid::ToUID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -49,21 +49,21 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub fn add_module(&mut self, uid: UID, module: Module) -> ModuleId {
-        let module = self.modules.add(uid, module);
+    pub fn add_module(&mut self, name: impl ToUID, module: Module) -> ModuleId {
+        let module = self.modules.add(name.to_uid(), module);
         self.mirs.add(module);
         module
     }
 
     fn fetch_modules(&mut self, assets: &AssetManager) -> Result<(), CompileError> {
         // Insert builtin modules
-        self.modules.add("scene".into(), Module::Builtin);
-        self.modules.add("asset".into(), Module::Builtin);
-        self.modules.add("input".into(), Module::Builtin);
-        self.modules.add("renderer".into(), Module::Builtin);
-        self.modules.add("physics".into(), Module::Builtin);
-        self.modules.add("registry".into(), Module::Builtin);
-        self.modules.add("math".into(), Module::Builtin);
+        self.modules.add("scene", Module::Builtin);
+        self.modules.add("asset", Module::Builtin);
+        self.modules.add("input", Module::Builtin);
+        self.modules.add("renderer", Module::Builtin);
+        self.modules.add("physics", Module::Builtin);
+        self.modules.add("registry", Module::Builtin);
+        self.modules.add("math", Module::Builtin);
         Ok(())
     }
 

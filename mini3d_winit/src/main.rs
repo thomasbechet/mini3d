@@ -1,7 +1,9 @@
 use std::{
+    cell::RefCell,
     fs::File,
     io::{Read, Write},
     path::Path,
+    rc::Rc,
     time::{Instant, SystemTime},
 };
 
@@ -13,22 +15,26 @@ use mini3d::{
     feature::component::common::script::Script,
     glam::Vec2,
     input::event::InputEvent,
-    logger::server::DummyLoggerServer,
-    network::server::DummyNetworkServer,
+    logger::provider::PassiveLoggerProvider,
+    network::provider::PassiveNetworkProvider,
     registry::system::SystemStage,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
-    simulation::{ProgressContext, Simulation},
-    storage::server::{DummyStorageserver, StorageServer},
+    simulation::Simulation,
+    storage::provider::{PassiveStorageProvider, StorageProvider},
     system::{
         event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
-        server::SystemServer,
+        provider::SystemProvider,
     },
 };
 use mini3d_derive::Serialize;
 use mini3d_os::system::bootstrap::OSBootstrap;
 use mini3d_utils::{image::ImageImporter, model::ModelImporter};
 use mini3d_wgpu::WGPURenderer;
+use provider::{
+    input::WinitInputProvider, renderer::WinitRendererProvider, storage::WinitStorageProvider,
+    system::WinitSystemProvider,
+};
 // use serde::Serialize;
 use utils::{compute_fixed_viewport, ViewportMode};
 use virtual_disk::VirtualDisk;
@@ -44,6 +50,7 @@ use winit::{
 pub mod gui;
 pub mod logger;
 pub mod mapper;
+pub mod provider;
 pub mod utils;
 pub mod virtual_disk;
 pub mod window;
@@ -76,13 +83,13 @@ fn set_display_mode(window: &mut Window, gui: &mut WindowGUI, mode: DisplayMode)
     mode
 }
 
-struct WinitSystemServer {
+struct WinitSystemStatus {
     imports: Vec<ImportAssetEvent>,
     stop_event: bool,
     running: bool,
 }
 
-impl Default for WinitSystemServer {
+impl Default for WinitSystemStatus {
     fn default() -> Self {
         Self {
             imports: Vec::default(),
@@ -92,18 +99,21 @@ impl Default for WinitSystemServer {
     }
 }
 
-impl WinitSystemServer {
+impl WinitSystemStatus {
     fn stop(&mut self) {
         self.stop_event = true;
     }
 }
 
-impl SystemServer for WinitSystemServer {
-    fn poll_imports(&mut self) -> Option<ImportAssetEvent> {
+impl SystemProvider for WinitSystemStatus {
+    fn on_connect(&mut self) {}
+    fn on_disconnect(&mut self) {}
+
+    fn next_import(&mut self) -> Option<ImportAssetEvent> {
         self.imports.pop()
     }
 
-    fn pool_events(&mut self) -> Option<SystemEvent> {
+    fn next_event(&mut self) -> Option<SystemEvent> {
         if self.stop_event {
             self.stop_event = false;
             Some(SystemEvent::RequestStop)
@@ -123,22 +133,33 @@ fn main_run() {
     // Window
     let event_loop = EventLoop::new();
     let mut window = Window::new(&event_loop);
-    let mut mapper = InputMapper::new();
+
+    // Input
+    let mapper = Rc::new(RefCell::new(InputMapper::new()));
 
     // Renderer
-    let mut renderer = WGPURenderer::new(&window.handle);
-    let mut gui = WindowGUI::new(renderer.context(), &window.handle, &event_loop, &mapper);
+    let renderer = Rc::new(RefCell::new(WGPURenderer::new(&window.handle)));
+    let mut gui = WindowGUI::new(
+        renderer.borrow_mut().context(),
+        &window.handle,
+        &event_loop,
+        &mapper.borrow(),
+    );
 
-    // Instantiate engine with virtual disk
-    let mut disk = VirtualDisk::new();
+    // Disk
+    let disk = Rc::new(RefCell::new(VirtualDisk::new()));
 
     // System
-    let mut system_server = WinitSystemServer::default();
+    let system_status = Rc::new(RefCell::new(WinitSystemStatus::default()));
 
     let mut sim = Simulation::new(true);
+    sim.set_input_provider(WinitInputProvider::new(mapper.clone()));
+    sim.set_storage_provider(WinitStorageProvider::new(disk));
+    sim.set_system_provider(WinitSystemProvider::new(system_status.clone()));
+    sim.set_renderer_provider(WinitRendererProvider::new(renderer.clone()));
     sim.register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
         .unwrap();
-    sim.invoke(OSBootstrap::NAME.into(), Invocation::NextFrame)
+    sim.invoke(OSBootstrap::NAME, Invocation::NextFrame)
         .unwrap();
 
     let mut last_click: Option<SystemTime> = None;
@@ -165,13 +186,13 @@ fn main_run() {
         .with_name("car_tex")
         .import()
         .expect("Failed to import car texture.")
-        .push(&mut system_server.imports);
+        .push(&mut system_status.borrow_mut().imports);
     ImageImporter::new()
         .from_source(Path::new("assets/GUI.png"))
         .with_name("GUI")
         .import()
         .expect("Failed to import GUI texture.")
-        .push(&mut system_server.imports);
+        .push(&mut system_status.borrow_mut().imports);
 
     ModelImporter::new()
         .from_obj(Path::new("assets/car.obj"))
@@ -179,29 +200,31 @@ fn main_run() {
         .with_name("car_mesh")
         .import()
         .expect("Failed to import car model.")
-        .push(&mut system_server.imports);
+        .push(&mut system_status.borrow_mut().imports);
     ImageImporter::new()
         .from_source(Path::new("assets/alfred.png"))
         .with_name("alfred_tex")
         .import()
         .expect("Failed to import alfred texture.")
-        .push(&mut system_server.imports);
+        .push(&mut system_status.borrow_mut().imports);
     ModelImporter::new()
         .from_obj(Path::new("assets/alfred.obj"))
         .with_flat_normals(false)
         .with_name("alfred_mesh")
         .import()
         .expect("Failed to import alfred model.")
-        .push(&mut system_server.imports);
+        .push(&mut system_status.borrow_mut().imports);
     let script = std::fs::read_to_string("assets/script_main.ms").expect("Failed to load.");
-    system_server
+    system_status
+        .borrow_mut()
         .imports
         .push(ImportAssetEvent::Script(AssetImportEntry {
             name: "main_script".to_string(),
             data: Script { source: script },
         }));
     let script = std::fs::read_to_string("assets/script_utils.ms").expect("Failed to load.");
-    system_server
+    system_status
+        .borrow_mut()
         .imports
         .push(ImportAssetEvent::Script(AssetImportEntry {
             name: "utils_script".to_string(),
@@ -212,7 +235,7 @@ fn main_run() {
     event_loop.run(move |event, _, control_flow| {
         // Update gui
         if display_mode == DisplayMode::WindowedUnfocus {
-            gui.handle_event(&event, &mut mapper, &mut window);
+            gui.handle_event(&event, &mut mapper.borrow_mut(), &mut window);
         }
 
         // Match window events
@@ -295,7 +318,7 @@ fn main_run() {
 
                             // Dispatch keyboard
                             if window.is_focus() {
-                                mapper.dispatch_keyboard(keycode, state);
+                                mapper.borrow_mut().dispatch_keyboard(keycode, state);
                             }
                         }
                         WindowEvent::MouseInput {
@@ -323,22 +346,26 @@ fn main_run() {
 
                             // Dispatch mouse
                             if window.is_focus() {
-                                mapper.dispatch_mouse_button(button, state);
+                                mapper.borrow_mut().dispatch_mouse_button(button, state);
                             }
                         }
                         WindowEvent::CloseRequested => {
-                            system_server.stop();
+                            system_status.borrow_mut().stop();
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            renderer.resize(new_inner_size.width, new_inner_size.height);
+                            renderer
+                                .borrow_mut()
+                                .resize(new_inner_size.width, new_inner_size.height);
                         }
                         WindowEvent::Resized(_) => {
                             let inner_size = window.handle.inner_size();
-                            renderer.resize(inner_size.width, inner_size.height);
+                            renderer
+                                .borrow_mut()
+                                .resize(inner_size.width, inner_size.height);
                         }
                         WindowEvent::ReceivedCharacter(c) => {
                             if window.is_focus() {
-                                mapper.dispatch_text(c.to_string());
+                                mapper.borrow_mut().dispatch_text(c.to_string());
                             }
                         }
                         WindowEvent::CursorMoved {
@@ -355,7 +382,9 @@ fn main_run() {
                                 let final_position = (relative_position
                                     / Vec2::new(viewport.z, viewport.w))
                                     * SCREEN_RESOLUTION.as_vec2();
-                                mapper.dispatch_mouse_cursor((final_position.x, final_position.y));
+                                mapper
+                                    .borrow_mut()
+                                    .dispatch_mouse_cursor((final_position.x, final_position.y));
                             }
                         }
                         // WindowEvent::MouseWheel { device_id: _, delta, .. } => {
@@ -375,13 +404,13 @@ fn main_run() {
                     if mouse_motion.0 != last_mouse_motion.0
                         || mouse_motion.1 != last_mouse_motion.1
                     {
-                        mapper.dispatch_mouse_motion(mouse_motion);
+                        mapper.borrow_mut().dispatch_mouse_motion(mouse_motion);
                         last_mouse_motion = mouse_motion;
                     }
                     if wheel_motion.0 != last_wheel_motion.0
                         || wheel_motion.1 != last_wheel_motion.1
                     {
-                        mapper.dispatch_mouse_wheel(wheel_motion);
+                        mapper.borrow_mut().dispatch_mouse_wheel(wheel_motion);
                         last_wheel_motion = wheel_motion;
                     }
                 }
@@ -391,17 +420,28 @@ fn main_run() {
                 // Dispatch controller events
                 while let Some(gilrs::Event { id, event, .. }) = &gilrs.next_event() {
                     if display_mode == DisplayMode::WindowedUnfocus {
-                        gui.handle_controller_event(event, *id, &mut mapper, &mut window);
+                        gui.handle_controller_event(
+                            event,
+                            *id,
+                            &mut mapper.borrow_mut(),
+                            &mut window,
+                        );
                     } else {
                         match event {
                             gilrs::EventType::ButtonPressed(button, _) => {
-                                mapper.dispatch_controller_button(*id, *button, true);
+                                mapper
+                                    .borrow_mut()
+                                    .dispatch_controller_button(*id, *button, true);
                             }
                             gilrs::EventType::ButtonReleased(button, _) => {
-                                mapper.dispatch_controller_button(*id, *button, false);
+                                mapper
+                                    .borrow_mut()
+                                    .dispatch_controller_button(*id, *button, false);
                             }
                             gilrs::EventType::AxisChanged(axis, value, _) => {
-                                mapper.dispatch_controller_axis(*id, *axis, *value);
+                                mapper
+                                    .borrow_mut()
+                                    .dispatch_controller_axis(*id, *axis, *value);
                             }
                             _ => {}
                         }
@@ -424,7 +464,7 @@ fn main_run() {
                 let last_display_mode = display_mode;
                 gui.ui(
                     &mut window,
-                    &mut mapper,
+                    &mut mapper.borrow_mut(),
                     &mut WindowControl {
                         control_flow,
                         display_mode: &mut display_mode,
@@ -439,18 +479,7 @@ fn main_run() {
                 }
 
                 // Progress simulation
-                sim.progress(
-                    ProgressContext {
-                        input: &mut mapper,
-                        renderer: &mut renderer,
-                        storage: &mut DummyStorageserver::default(),
-                        network: &mut DummyNetworkServer::default(),
-                        system: &mut system_server,
-                        logger: &mut ConsoleLogger,
-                    },
-                    dt,
-                )
-                .expect("Failed to progress simulation");
+                sim.progress(dt).expect("Failed to progress simulation");
 
                 // Save/Load state
                 if save_state {
@@ -500,18 +529,7 @@ fn main_run() {
                         let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
                             .expect("Failed to decompress");
                         let mut decoder = SliceDecoder::new(&bytes);
-                        sim.load(
-                            &mut decoder,
-                            ProgressContext {
-                                input: &mut mapper,
-                                renderer: &mut renderer,
-                                storage: &mut DummyStorageserver::default(),
-                                network: &mut DummyNetworkServer::default(),
-                                system: &mut system_server,
-                                logger: &mut DummyLoggerServer::default(),
-                            },
-                        )
-                        .expect("Failed to load state");
+                        sim.load(&mut decoder).expect("Failed to load state");
                     }
 
                     // {
@@ -529,13 +547,14 @@ fn main_run() {
                 // Invoke WGPU Renderer
                 let viewport = compute_fixed_viewport(gui.central_viewport(), viewport_mode);
                 renderer
+                    .borrow_mut()
                     .render(viewport, |device, queue, encoder, output| {
                         gui.render(&window.handle, device, queue, encoder, output);
                     })
                     .expect("Failed to render");
 
                 // Check shutdown
-                if !system_server.running {
+                if !system_status.borrow_mut().running {
                     println!("Simulation shutdown");
                     *control_flow = ControlFlow::Exit;
                 }

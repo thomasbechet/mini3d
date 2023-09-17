@@ -41,42 +41,42 @@ impl DespawnRendererEntities {
 
 impl ExclusiveSystem for DespawnRendererEntities {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.viewport = resolver.find(Viewport::NAME.into())?;
-        self.camera = resolver.find(Camera::NAME.into())?;
-        self.canvas = resolver.find(Canvas::NAME.into())?;
-        self.static_mesh = resolver.find(StaticMesh::NAME.into())?;
-        self.local_to_world = resolver.find(LocalToWorld::NAME.into())?;
-        self.added_viewport = resolver.query().all(&[Viewport::NAME.into()])?.added();
-        self.removed_viewport = resolver.query().all(&[Viewport::NAME.into()])?.removed();
+        self.viewport = resolver.find(Viewport::NAME)?;
+        self.camera = resolver.find(Camera::NAME)?;
+        self.canvas = resolver.find(Canvas::NAME)?;
+        self.static_mesh = resolver.find(StaticMesh::NAME)?;
+        self.local_to_world = resolver.find(LocalToWorld::NAME)?;
+        self.added_viewport = resolver.query().all(&[Viewport::NAME])?.added();
+        self.removed_viewport = resolver.query().all(&[Viewport::NAME])?.removed();
         self.added_camera = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), Camera::NAME.into()])?
+            .all(&[LocalToWorld::NAME, Camera::NAME])?
             .added();
         self.removed_camera = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), Camera::NAME.into()])?
+            .all(&[LocalToWorld::NAME, Camera::NAME])?
             .removed();
         self.camera_query = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), Camera::NAME.into()])?
+            .all(&[LocalToWorld::NAME, Camera::NAME])?
             .build();
         self.added_model = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), StaticMesh::NAME.into()])?
+            .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
             .added();
         self.removed_model = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), StaticMesh::NAME.into()])?
+            .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
             .removed();
         self.model_query = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), StaticMesh::NAME.into()])?
+            .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
             .build();
-        self.added_canvas = resolver.query().all(&[Canvas::NAME.into()])?.added();
-        self.removed_canvas = resolver.query().all(&[Canvas::NAME.into()])?.removed();
+        self.added_canvas = resolver.query().all(&[Canvas::NAME])?.added();
+        self.removed_canvas = resolver.query().all(&[Canvas::NAME])?.removed();
         self.scene_canvas_query = resolver
             .query()
-            .all(&[LocalToWorld::NAME.into(), Canvas::NAME.into()])?
+            .all(&[LocalToWorld::NAME, Canvas::NAME])?
             .build();
         Ok(())
     }
@@ -92,16 +92,16 @@ impl ExclusiveSystem for DespawnRendererEntities {
         for e in ecs.filter_query(self.removed_camera) {
             expect!(
                 api,
-                api.renderer.server.scene_camera_remove(cameras[e].handle)
+                api.renderer.provider.scene_camera_remove(cameras[e].handle)
             );
         }
         for e in ecs.filter_query(self.added_camera) {
             let camera = &mut cameras[e];
-            camera.handle = expect!(api, api.renderer.server.scene_camera_add());
+            camera.handle = expect!(api, api.renderer.provider.scene_camera_add());
             let local_to_world = &local_to_worlds[e];
             expect!(
                 api,
-                api.renderer.server.scene_camera_update(
+                api.renderer.provider.scene_camera_update(
                     camera.handle,
                     local_to_world.translation(),
                     local_to_world.forward(),
@@ -112,11 +112,11 @@ impl ExclusiveSystem for DespawnRendererEntities {
         }
         for e in ecs.query(self.camera_query) {
             let camera = &mut cameras[e];
-            camera.handle = expect!(api, api.renderer.server.scene_camera_add());
+            camera.handle = expect!(api, api.renderer.provider.scene_camera_add());
             let local_to_world = &local_to_worlds[e];
             expect!(
                 api,
-                api.renderer.server.scene_camera_update(
+                api.renderer.provider.scene_camera_update(
                     camera.handle,
                     local_to_world.translation(),
                     local_to_world.forward(),
@@ -130,7 +130,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
             expect!(
                 api,
                 api.renderer
-                    .server
+                    .provider
                     .scene_model_remove(static_meshes[e].handle)
             );
         }
@@ -141,29 +141,29 @@ impl ExclusiveSystem for DespawnRendererEntities {
             // Load mesh
             let mesh_handle = expect!(
                 api,
-                api.renderer.manager.resources.request_mesh(
+                api.renderer.resources.request_mesh(
                     model.mesh,
-                    api.renderer.server,
-                    api.asset.manager
+                    api.renderer.provider.as_mut(),
+                    api.asset
                 )
             )
             .handle;
-            let handle = expect!(api, api.renderer.server.scene_model_add(mesh_handle));
+            let handle = expect!(api, api.renderer.provider.scene_model_add(mesh_handle));
             // Load material
             for (index, material) in model.materials.iter().enumerate() {
                 let material_handle = expect!(
                     api,
-                    api.renderer.manager.resources.request_material(
+                    api.renderer.resources.request_material(
                         *material,
-                        api.renderer.server,
-                        api.asset.manager
+                        api.renderer.provider.as_mut(),
+                        api.asset
                     )
                 )
                 .handle;
                 expect!(
                     api,
                     api.renderer
-                        .server
+                        .provider
                         .scene_model_set_material(handle, index, material_handle)
                 );
             }
@@ -175,7 +175,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
             expect!(
                 api,
                 api.renderer
-                    .server
+                    .provider
                     .scene_model_transfer_matrix(s.handle, t.matrix)
             );
         }
@@ -183,13 +183,15 @@ impl ExclusiveSystem for DespawnRendererEntities {
         for e in ecs.filter_query(self.removed_canvas) {
             expect!(
                 api,
-                api.renderer.server.scene_canvas_remove(canvases[e].handle)
+                api.renderer
+                    .provider
+                    .scene_canvas_remove(canvases[e].handle)
             );
         }
         for e in ecs.filter_query(self.added_canvas) {
             let c = &mut canvases[e];
             let t = &local_to_worlds[e];
-            expect!(api, api.renderer.server.scene_canvas_add(c.resolution));
+            expect!(api, api.renderer.provider.scene_canvas_add(c.resolution));
         }
         for e in ecs.query(self.scene_canvas_query) {
             let c = &canvases[e];
@@ -197,7 +199,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
             expect!(
                 api,
                 api.renderer
-                    .server
+                    .provider
                     .scene_canvas_transfer_matrix(c.handle, t.matrix)
             );
         }
@@ -205,21 +207,21 @@ impl ExclusiveSystem for DespawnRendererEntities {
         for e in ecs.filter_query(self.removed_viewport) {
             expect!(
                 api,
-                api.renderer.server.viewport_remove(viewports[e].handle)
+                api.renderer.provider.viewport_remove(viewports[e].handle)
             );
         }
         for e in ecs.filter_query(self.added_viewport) {
             let v = &mut viewports[e];
-            v.handle = expect!(api, api.renderer.server.viewport_add(v.resolution));
+            v.handle = expect!(api, api.renderer.provider.viewport_add(v.resolution));
             let camera = v.camera.map(|e| cameras[e].handle);
             expect!(
                 api,
-                api.renderer.server.viewport_set_camera(v.handle, camera)
+                api.renderer.provider.viewport_set_camera(v.handle, camera)
             );
             expect!(
                 api,
                 api.renderer
-                    .server
+                    .provider
                     .viewport_set_resolution(v.handle, v.resolution)
             );
         }

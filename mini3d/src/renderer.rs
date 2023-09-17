@@ -1,7 +1,9 @@
 use std::collections::{hash_map, HashMap};
 
 use crate::asset::handle::{Asset, StaticAsset};
+use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
+use crate::ecs::ECSManager;
 use crate::feature::component::renderer::camera::Camera;
 use crate::feature::component::renderer::font::{Font, FontAtlas};
 use crate::feature::component::renderer::material::Material;
@@ -17,8 +19,6 @@ use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::uid::UID;
 use crate::{
-    asset::AssetManager,
-    ecs::ECSManager,
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
 };
@@ -29,17 +29,17 @@ use self::event::RendererEvent;
 use self::{
     color::Color,
     graphics::Graphics,
-    server::{
-        MaterialHandle, MeshHandle, RendererServer, RendererServerError, ServerMaterialDescriptor,
-        TextureHandle,
+    provider::{
+        MaterialHandle, MeshHandle, ProviderMaterialDescriptor, RendererProvider,
+        RendererProviderError, TextureHandle,
     },
 };
 
 pub mod color;
 pub mod event;
 pub mod graphics;
+pub mod provider;
 pub mod rasterizer;
-pub mod server;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -108,45 +108,45 @@ pub(crate) struct RendererResourceManager {
 
 fn load_font(
     handle: StaticAsset<Font>,
-    server: &mut dyn RendererServer,
+    provider: &mut dyn RendererProvider,
     asset: &AssetManager,
-) -> Result<RendererFont, RendererServerError> {
+) -> Result<RendererFont, RendererProviderError> {
     let font = asset.read(handle).unwrap();
     let atlas = FontAtlas::new(font);
-    let handle = server.texture_add(&atlas.texture)?;
+    let handle = provider.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(
     handle: StaticAsset<Mesh>,
-    server: &mut dyn RendererServer,
+    provider: &mut dyn RendererProvider,
     asset: &AssetManager,
-) -> Result<RendererMesh, RendererServerError> {
+) -> Result<RendererMesh, RendererProviderError> {
     let mesh = asset.read(handle).unwrap();
-    let handle = server.mesh_add(mesh)?;
+    let handle = provider.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(
     handle: StaticAsset<Texture>,
-    server: &mut dyn RendererServer,
+    provider: &mut dyn RendererProvider,
     asset: &AssetManager,
-) -> Result<RendererTexture, RendererServerError> {
+) -> Result<RendererTexture, RendererProviderError> {
     let texture = asset.read(handle).unwrap();
-    let handle = server.texture_add(texture)?;
+    let handle = provider.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(
     handle: StaticAsset<Material>,
     textures: &HashMap<Asset, RendererTexture>,
-    server: &mut dyn RendererServer,
+    provider: &mut dyn RendererProvider,
     asset: &AssetManager,
-) -> Result<RendererMaterial, RendererServerError> {
+) -> Result<RendererMaterial, RendererProviderError> {
     let material = asset.read(handle).unwrap();
     let info = asset.info(handle).unwrap();
     let diffuse = textures.get(&material.diffuse.into()).unwrap().handle;
-    let handle = server.material_add(ServerMaterialDescriptor {
+    let handle = provider.material_add(ProviderMaterialDescriptor {
         diffuse,
         name: info.name,
     })?;
@@ -164,13 +164,13 @@ impl RendererResourceManager {
     pub(crate) fn request_font<'a>(
         &'a mut self,
         handle: StaticAsset<Font>,
-        server: &mut dyn RendererServer,
+        provider: &mut dyn RendererProvider,
         asset: &AssetManager,
-    ) -> Result<&'a RendererFont, RendererServerError> {
+    ) -> Result<&'a RendererFont, RendererProviderError> {
         match self.fonts.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let font = load_font(handle, server, asset)?;
+                let font = load_font(handle, provider, asset)?;
                 Ok(e.insert(font))
             }
         }
@@ -179,13 +179,13 @@ impl RendererResourceManager {
     pub(crate) fn request_mesh(
         &mut self,
         handle: StaticAsset<Mesh>,
-        server: &mut dyn RendererServer,
+        provider: &mut dyn RendererProvider,
         asset: &AssetManager,
-    ) -> Result<&RendererMesh, RendererServerError> {
+    ) -> Result<&RendererMesh, RendererProviderError> {
         match self.meshes.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let mesh = load_mesh(handle, server, asset)?;
+                let mesh = load_mesh(handle, provider, asset)?;
                 Ok(e.insert(mesh))
             }
         }
@@ -194,13 +194,13 @@ impl RendererResourceManager {
     pub(crate) fn request_texture(
         &mut self,
         handle: StaticAsset<Texture>,
-        server: &mut dyn RendererServer,
+        provider: &mut dyn RendererProvider,
         asset: &AssetManager,
-    ) -> Result<&RendererTexture, RendererServerError> {
+    ) -> Result<&RendererTexture, RendererProviderError> {
         match self.textures.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
-                let texture = load_texture(handle, server, asset)?;
+                let texture = load_texture(handle, provider, asset)?;
                 Ok(e.insert(texture))
             }
         }
@@ -209,18 +209,18 @@ impl RendererResourceManager {
     pub(crate) fn request_material(
         &mut self,
         handle: StaticAsset<Material>,
-        server: &mut dyn RendererServer,
+        provider: &mut dyn RendererProvider,
         asset: &AssetManager,
-    ) -> Result<&RendererMaterial, RendererServerError> {
+    ) -> Result<&RendererMaterial, RendererProviderError> {
         match self.materials.entry(handle.into()) {
             hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
             hash_map::Entry::Vacant(e) => {
                 let material = asset.read(handle).unwrap();
                 if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse.into()) {
-                    let diffuse = load_texture(material.diffuse, server, asset)?;
+                    let diffuse = load_texture(material.diffuse, provider, asset)?;
                     e.insert(diffuse);
                 }
-                let material = load_material(handle, &self.textures, server, asset)?;
+                let material = load_material(handle, &self.textures, provider, asset)?;
                 Ok(e.insert(material))
             }
         }
@@ -229,6 +229,8 @@ impl RendererResourceManager {
 
 #[derive(Default)]
 pub struct RendererManager {
+    pub(crate) provider: Box<dyn RendererProvider>,
+
     // Resources
     pub(crate) resources: RendererResourceManager,
 
@@ -247,7 +249,13 @@ pub struct RendererManager {
 }
 
 impl RendererManager {
-    pub(crate) fn reset(&mut self, ecs: &mut ECSManager, server: &mut dyn RendererServer) {
+    pub(crate) fn set_provider(&mut self, provider: Box<dyn RendererProvider>) {
+        self.provider.on_disconnect();
+        self.provider = provider;
+        self.provider.on_connect();
+    }
+
+    pub(crate) fn reset(&mut self, ecs: &mut ECSManager) {
         self.resources.reset();
     }
 
@@ -256,30 +264,30 @@ impl RendererManager {
         registry: &ComponentRegistry,
     ) -> Result<(), RegistryError> {
         self.camera = registry
-            .find(Camera::NAME.into())
+            .find(Camera::NAME)
             .ok_or(RegistryError::ComponentNotFound)?;
         self.static_mesh = registry
-            .find(StaticMesh::NAME.into())
+            .find(StaticMesh::NAME)
             .ok_or(RegistryError::ComponentNotFound)?;
         self.canvas = registry
-            .find(Canvas::NAME.into())
+            .find(Canvas::NAME)
             .ok_or(RegistryError::ComponentNotFound)?;
         self.local_to_world = registry
-            .find(LocalToWorld::NAME.into())
+            .find(LocalToWorld::NAME)
             .ok_or(RegistryError::ComponentNotFound)?;
         self.viewport = registry
-            .find(Viewport::NAME.into())
+            .find(Viewport::NAME)
             .ok_or(RegistryError::ComponentNotFound)?;
         self.model = registry
-            .find(Model::NAME.into())
+            .find(Model::NAME)
             .ok_or(RegistryError::ComponentNotFound)?;
         Ok(())
     }
 
-    pub(crate) fn dispatch_events(&mut self, server: &mut dyn RendererServer) {
-        for event in server.events() {
+    pub(crate) fn dispatch_events(&mut self) {
+        while let Some(event) = self.provider.next_event() {
             match event {
-                RendererEvent::Statistics(stats) => self.statistics = *stats,
+                RendererEvent::Statistics(statistics) => self.statistics = statistics,
             }
         }
     }
@@ -293,13 +301,7 @@ impl RendererManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(
-        &mut self,
-        decoder: &mut impl Decoder,
-        server: &mut dyn RendererServer,
-    ) -> Result<(), DecoderError> {
-        // Reset all previous resources
-        server.reset();
+    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         // TODO: reset ECS resources
         self.graphics = Graphics::deserialize(decoder, &Default::default())?;
         Ok(())
@@ -309,7 +311,6 @@ impl RendererManager {
         &mut self,
         asset: &mut AssetManager,
         containers: &ContainerTable,
-        server: &mut dyn RendererServer,
     ) {
         // Acquire active scene
         let viewports = containers
@@ -322,7 +323,7 @@ impl RendererManager {
             &mut self.resources,
             asset,
             &viewports,
-            server,
+            self.provider.as_mut(),
         );
     }
 

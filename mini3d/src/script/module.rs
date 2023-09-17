@@ -1,5 +1,7 @@
 use crate::{
-    asset::handle::StaticAsset, feature::component::common::script::Script, utils::uid::UID,
+    asset::handle::StaticAsset,
+    feature::component::common::script::Script,
+    utils::uid::{ToUID, UID},
 };
 
 use super::{interface::InterfaceId, mir::primitive::PrimitiveType};
@@ -57,7 +59,8 @@ pub(crate) struct ModuleTable {
 }
 
 impl ModuleTable {
-    pub(crate) fn add(&mut self, uid: UID, module: Module) -> ModuleId {
+    pub(crate) fn add(&mut self, name: impl ToUID, module: Module) -> ModuleId {
+        let uid = name.to_uid();
         if let Some(id) = self.find(uid) {
             return id;
         }
@@ -66,7 +69,8 @@ impl ModuleTable {
         id
     }
 
-    pub(crate) fn find(&self, uid: UID) -> Option<ModuleId> {
+    pub(crate) fn find(&self, name: impl ToUID) -> Option<ModuleId> {
+        let uid = name.to_uid();
         for (i, entry) in self.modules.iter().enumerate() {
             if entry.uid == uid {
                 return Some(ModuleId(i as u32));

@@ -1,6 +1,6 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{asset::handle::StaticAsset, renderer::server::SceneModelHandle};
+use crate::{asset::handle::StaticAsset, renderer::provider::SceneModelHandle};
 
 use super::model::Model;
 

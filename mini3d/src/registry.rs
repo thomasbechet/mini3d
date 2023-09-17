@@ -6,8 +6,8 @@ pub mod system;
 
 #[derive(Default)]
 pub struct RegistryManager {
-    pub(crate) systems: SystemRegistry,
-    pub(crate) components: ComponentRegistry,
+    pub systems: SystemRegistry,
+    pub components: ComponentRegistry,
 }
 
 impl RegistryManager {

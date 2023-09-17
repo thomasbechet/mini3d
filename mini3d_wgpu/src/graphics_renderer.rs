@@ -1,6 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
-use mini3d::renderer::server::{TextureHandle, ViewportHandle};
+use mini3d::renderer::provider::{TextureHandle, ViewportHandle};
 use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::{

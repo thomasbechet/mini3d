@@ -1,8 +1,13 @@
-use glam::{Vec2, IVec2};
-use serde::{Serialize, Deserialize};
+use glam::{IVec2, Vec2};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{math::rect::IRect, renderer::{SCREEN_VIEWPORT, SCREEN_CENTER, graphics::Graphics, color::Color}, uid::UID, context::input::InputContext};
+use crate::{
+    context::input::InputContext,
+    math::rect::IRect,
+    renderer::{color::Color, graphics::Graphics, SCREEN_CENTER, SCREEN_VIEWPORT},
+    uid::UID,
+};
 
 #[derive(Clone, Copy)]
 enum Direction {
@@ -31,7 +36,11 @@ struct VisualSelection {
 
 impl VisualSelection {
     fn new(extent: IRect) -> Self {
-        Self { source_extent: extent, target_extent: extent, source_time: 0.0 }
+        Self {
+            source_extent: extent,
+            target_extent: extent,
+            source_time: 0.0,
+        }
     }
 }
 
@@ -43,7 +52,6 @@ enum InteractionMode {
 
 #[derive(Serialize, Deserialize)]
 pub struct InteractionInputs {
-
     // Control inputs
     pub click: UID,
     pub scroll: UID,
@@ -106,19 +114,18 @@ pub(crate) enum InteractionEvent {
 }
 
 impl InteractionLayout {
-
     fn render_selection(extent: IRect, gfx: &mut Graphics, time: f64) {
         let offset = i32::from((time % 1.0) > 0.5);
         let length = 2;
 
         let tl = extent.tl() + IVec2::new(-offset, -offset);
-        let tr = extent.tr() + IVec2::new(offset, -offset); 
-        let bl = extent.bl() + IVec2::new(-offset, offset); 
-        let br = extent.br() + IVec2::new(offset, offset); 
+        let tr = extent.tr() + IVec2::new(offset, -offset);
+        let bl = extent.bl() + IVec2::new(-offset, offset);
+        let br = extent.br() + IVec2::new(offset, offset);
 
         gfx.draw_hline(tl.y, tl.x, tl.x + length, Color::WHITE);
         gfx.draw_vline(tl.x, tl.y, tl.y + length, Color::WHITE);
-        
+
         gfx.draw_hline(tr.y, tr.x - length, tr.x, Color::WHITE);
         gfx.draw_vline(tr.x, tr.y, tr.y + length, Color::WHITE);
 
@@ -135,7 +142,6 @@ impl InteractionLayout {
     }
 
     fn compute_directions(&mut self) {
-
         for uid in self.areas.keys().copied().collect::<Vec<_>>() {
             let area = self.areas.get(&uid).unwrap();
             let tl = area.extent.tl();
@@ -144,9 +150,10 @@ impl InteractionLayout {
             let mut current = [Option::<UID>::default(); Direction::COUNT];
 
             for (n_id, n_area) in self.areas.iter() {
-
                 // Ignore itself or inactive
-                if *n_id == uid || !n_area.active { continue };
+                if *n_id == uid || !n_area.active {
+                    continue;
+                };
 
                 let ntl = n_area.extent.tl();
                 let nbr = n_area.extent.br();
@@ -164,9 +171,11 @@ impl InteractionLayout {
                 ];
 
                 if v[0] && h[0] { // Top-Left
-
-                } else if v[0] && h[1] { // Top
-                    if let Some(concurrent) = current[Direction::Up as usize].and_then(|uid| self.areas.get(&uid)) {
+                } else if v[0] && h[1] {
+                    // Top
+                    if let Some(concurrent) =
+                        current[Direction::Up as usize].and_then(|uid| self.areas.get(&uid))
+                    {
                         if n_area.extent.br().y > concurrent.extent.br().y {
                             current[Direction::Up as usize] = Some(*n_id);
                         }
@@ -174,17 +183,22 @@ impl InteractionLayout {
                         current[Direction::Up as usize] = Some(*n_id);
                     }
                 } else if v[0] && h[2] { // Top-Right
-
-                } else if v[1] && h[0] { // Left
-                    if let Some(concurrent) = current[Direction::Left as usize].and_then(|uid| self.areas.get(&uid)) {
+                } else if v[1] && h[0] {
+                    // Left
+                    if let Some(concurrent) =
+                        current[Direction::Left as usize].and_then(|uid| self.areas.get(&uid))
+                    {
                         if n_area.extent.br().x > concurrent.extent.br().x {
                             current[Direction::Left as usize] = Some(*n_id);
                         }
                     } else {
                         current[Direction::Left as usize] = Some(*n_id);
                     }
-                } else if v[1] && h[2] { // Right
-                    if let Some(concurrent) = current[Direction::Right as usize].and_then(|uid| self.areas.get(&uid)) {
+                } else if v[1] && h[2] {
+                    // Right
+                    if let Some(concurrent) =
+                        current[Direction::Right as usize].and_then(|uid| self.areas.get(&uid))
+                    {
                         if n_area.extent.tl().x < concurrent.extent.tl().x {
                             current[Direction::Right as usize] = Some(*n_id);
                         }
@@ -192,9 +206,11 @@ impl InteractionLayout {
                         current[Direction::Right as usize] = Some(*n_id);
                     }
                 } else if v[2] && h[0] { // Bottom-Left
-
-                } else if v[2] && h[1] { // Bottom                    
-                    if let Some(concurrent) = current[Direction::Down as usize].and_then(|uid| self.areas.get(&uid)) {
+                } else if v[2] && h[1] {
+                    // Bottom
+                    if let Some(concurrent) =
+                        current[Direction::Down as usize].and_then(|uid| self.areas.get(&uid))
+                    {
                         if n_area.extent.tl().y < concurrent.extent.tl().y {
                             current[Direction::Down as usize] = Some(*n_id);
                         }
@@ -202,7 +218,6 @@ impl InteractionLayout {
                         current[Direction::Down as usize] = Some(*n_id);
                     }
                 } else if v[2] && h[2] { // Bottom-Right
-
                 } else {
                     panic!("Invalid extent position.")
                 }
@@ -214,9 +229,18 @@ impl InteractionLayout {
         }
     }
 
-    pub fn add_area(&mut self, uid: UID, extent: IRect) -> Result<()> {
-        if self.areas.contains_key(&uid) { return Err(anyhow!("Area name already exists")); }
-        self.areas.insert(uid, Area { active: true, extent, directions: Default::default() });
+    pub fn add_area(&mut self, uid: impl AsUID, extent: IRect) -> Result<()> {
+        if self.areas.contains_key(&uid) {
+            return Err(anyhow!("Area name already exists"));
+        }
+        self.areas.insert(
+            uid,
+            Area {
+                active: true,
+                extent,
+                directions: Default::default(),
+            },
+        );
         self.compute_directions();
         if self.default_area.is_none() {
             self.default_area = Some(uid);
@@ -226,29 +250,42 @@ impl InteractionLayout {
 
     pub fn add_profile(&mut self, name: &str, inputs: InteractionInputs) -> Result<UID> {
         let uid = UID::new(name);
-        if self.profiles.contains_key(&uid) { return Err(anyhow!("Profile name already exists")); }
-        self.profiles.insert(uid, Profile {
-            name: name.to_string(),
-            mode: InteractionMode::Selection { visual: VisualSelection::new(SCREEN_VIEWPORT) },
-            inputs,
-            previous_cursor_position: Default::default(),
-            target: None,
-        });
+        if self.profiles.contains_key(&uid) {
+            return Err(anyhow!("Profile name already exists"));
+        }
+        self.profiles.insert(
+            uid,
+            Profile {
+                name: name.to_string(),
+                mode: InteractionMode::Selection {
+                    visual: VisualSelection::new(SCREEN_VIEWPORT),
+                },
+                inputs,
+                previous_cursor_position: Default::default(),
+                target: None,
+            },
+        );
         Ok(uid)
     }
 
     pub fn set_profile_target(&mut self, profile: UID, area: Option<UID>) -> Result<()> {
-        let profile = self.profiles.get_mut(&profile).with_context(|| "Profile not found")?;
+        let profile = self
+            .profiles
+            .get_mut(&profile)
+            .with_context(|| "Profile not found")?;
         profile.target = area;
         Ok(())
     }
 
-    pub fn profile_target(&self, profile: UID) -> Result<Option<UID>> {
-        let profile = self.profiles.get(&profile).with_context(|| "Profile not found")?;
+    pub fn profile_target(&self, profile: impl AsUID) -> Result<Option<UID>> {
+        let profile = self
+            .profiles
+            .get(&profile)
+            .with_context(|| "Profile not found")?;
         Ok(profile.target)
     }
 
-    pub fn set_area_active(&mut self, uid: UID, active: bool) -> Result<()> {
+    pub fn set_area_active(&mut self, uid: impl AsUID, active: bool) -> Result<()> {
         let area = self.areas.get_mut(&uid).with_context(|| "Area not found")?;
         area.active = active;
         if !area.active {
@@ -261,24 +298,25 @@ impl InteractionLayout {
         Ok(())
     }
 
-    pub fn set_area_extent(&mut self, area: UID, extent: IRect) -> Result<()> {
-        let area = self.areas.get_mut(&area).with_context(|| "Area not found")?;
+    pub fn set_area_extent(&mut self, area: impl AsUID, extent: IRect) -> Result<()> {
+        let area = self
+            .areas
+            .get_mut(&area)
+            .with_context(|| "Area not found")?;
         area.extent = extent;
         self.compute_directions();
         Ok(())
     }
 
     pub(crate) fn update(
-        &mut self, 
+        &mut self,
         input: &InputContext<'_>,
-        extent: IRect, 
+        extent: IRect,
         time: f64,
-        events: &mut Vec<InteractionEvent>
+        events: &mut Vec<InteractionEvent>,
     ) -> Result<()> {
-
         // Update per profile
         for (profile_uid, profile) in self.profiles.iter_mut() {
-
             // Keep previous target to detect enter / leaving areas
             let previous_target = profile.target;
 
@@ -296,7 +334,7 @@ impl InteractionLayout {
                     None
                 }
             };
-            
+
             // Cursor inputs
             let cursor_x = input.axis(profile.inputs.cursor_x)?.value;
             let cursor_y = input.axis(profile.inputs.cursor_y)?.value;
@@ -305,7 +343,8 @@ impl InteractionLayout {
 
             // Update detection
             let motion_update = motion_x != 0.0 || motion_y != 0.0;
-            let cursor_update = cursor_x != profile.previous_cursor_position.x || cursor_y != profile.previous_cursor_position.y;
+            let cursor_update = cursor_x != profile.previous_cursor_position.x
+                || cursor_y != profile.previous_cursor_position.y;
 
             // Update last cursor
             profile.previous_cursor_position = Vec2::new(cursor_x, cursor_y);
@@ -316,17 +355,26 @@ impl InteractionLayout {
                     if let Some(target) = profile.target {
                         if motion_update || cursor_update {
                             let area = self.areas.get(&target).unwrap();
-                            profile.mode = InteractionMode::Cursor { position: area.extent.center().as_vec2() };
+                            profile.mode = InteractionMode::Cursor {
+                                position: area.extent.center().as_vec2(),
+                            };
                             profile.target = Some(target);
                         } else if let Some(direction) = direction {
-                            if let Some(next) = self.areas.get(&target).unwrap().directions[direction as usize] {
+                            if let Some(next) =
+                                self.areas.get(&target).unwrap().directions[direction as usize]
+                            {
                                 let area = self.areas.get(&next).unwrap();
                                 let intermediate_visual = VisualSelection {
-                                    source_extent: visual.source_extent.lerp(&visual.target_extent, alpha(visual.source_time, time) as f32),
+                                    source_extent: visual.source_extent.lerp(
+                                        &visual.target_extent,
+                                        alpha(visual.source_time, time) as f32,
+                                    ),
                                     target_extent: area.extent,
                                     source_time: time,
                                 };
-                                profile.mode = InteractionMode::Selection { visual: intermediate_visual };
+                                profile.mode = InteractionMode::Selection {
+                                    visual: intermediate_visual,
+                                };
                                 profile.target = Some(next);
                             }
                         }
@@ -334,64 +382,108 @@ impl InteractionLayout {
                         if cursor_update {
                             let position = Vec2::new(cursor_x, cursor_y);
                             profile.mode = InteractionMode::Cursor { position };
-                            profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
+                            profile.target = self
+                                .areas
+                                .iter()
+                                .find(|(_, area)| area.extent.contains(position.as_ivec2()))
+                                .map(|(uid, _)| *uid);
                         } else {
                             let position = SCREEN_CENTER.as_vec2();
                             profile.mode = InteractionMode::Cursor { position };
-                            profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
+                            profile.target = self
+                                .areas
+                                .iter()
+                                .find(|(_, area)| area.extent.contains(position.as_ivec2()))
+                                .map(|(uid, _)| *uid);
                         }
                     } else if direction.is_some() {
                         if let Some(default) = self.default_area {
                             let area = self.areas.get(&default).unwrap();
-                            profile.mode = InteractionMode::Selection { visual: VisualSelection::new(area.extent) };
+                            profile.mode = InteractionMode::Selection {
+                                visual: VisualSelection::new(area.extent),
+                            };
                             profile.target = Some(default);
                         }
                     }
-                },
+                }
                 InteractionMode::Cursor { position } => {
                     if let Some(target) = profile.target {
                         if motion_update || cursor_update {
                             if cursor_update {
-                                let position = Vec2::new(cursor_x, cursor_y).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
+                                let position = Vec2::new(cursor_x, cursor_y)
+                                    .clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                                 profile.mode = InteractionMode::Cursor { position };
-                                profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
+                                profile.target = self
+                                    .areas
+                                    .iter()
+                                    .find(|(_, area)| area.extent.contains(position.as_ivec2()))
+                                    .map(|(uid, _)| *uid);
                             } else {
-                                let position = (*position + Vec2::new(motion_x, motion_y)).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
+                                let position = (*position + Vec2::new(motion_x, motion_y))
+                                    .clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                                 profile.mode = InteractionMode::Cursor { position };
-                                profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
+                                profile.target = self
+                                    .areas
+                                    .iter()
+                                    .find(|(_, area)| area.extent.contains(position.as_ivec2()))
+                                    .map(|(uid, _)| *uid);
                             }
                         } else if direction.is_some() {
                             let area = self.areas.get(&target).unwrap();
-                            profile.mode = InteractionMode::Selection { visual: VisualSelection::new(area.extent) };
+                            profile.mode = InteractionMode::Selection {
+                                visual: VisualSelection::new(area.extent),
+                            };
                             profile.target = Some(target);
                         }
                     } else if motion_update || cursor_update {
                         if cursor_update {
-                            let position = Vec2::new(cursor_x, cursor_y).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
+                            let position = Vec2::new(cursor_x, cursor_y)
+                                .clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                             profile.mode = InteractionMode::Cursor { position };
-                            profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
+                            profile.target = self
+                                .areas
+                                .iter()
+                                .find(|(_, area)| area.extent.contains(position.as_ivec2()))
+                                .map(|(uid, _)| *uid);
                         } else {
-                            let position = (*position + Vec2::new(motion_x, motion_y)).clamp(extent.tl().as_vec2(), extent.br().as_vec2());
+                            let position = (*position + Vec2::new(motion_x, motion_y))
+                                .clamp(extent.tl().as_vec2(), extent.br().as_vec2());
                             profile.mode = InteractionMode::Cursor { position };
-                            profile.target = self.areas.iter().find(|(_, area)| area.extent.contains(position.as_ivec2())).map(|(uid, _)| *uid);
+                            profile.target = self
+                                .areas
+                                .iter()
+                                .find(|(_, area)| area.extent.contains(position.as_ivec2()))
+                                .map(|(uid, _)| *uid);
                         }
                     } else if direction.is_some() {
                         if let Some(default) = self.default_area {
                             let area = self.areas.get(&default).unwrap();
-                            profile.mode = InteractionMode::Selection { visual: VisualSelection::new(area.extent) };
+                            profile.mode = InteractionMode::Selection {
+                                visual: VisualSelection::new(area.extent),
+                            };
                             profile.target = Some(default);
                         }
                     }
-                },
+                }
             }
 
             // Enter / Leave events
             if previous_target != profile.target {
                 if let Some(previous) = previous_target {
-                    events.push(InteractionEvent::Area { area: previous, event: AreaEvent::Leave { profile: *profile_uid } });
+                    events.push(InteractionEvent::Area {
+                        area: previous,
+                        event: AreaEvent::Leave {
+                            profile: *profile_uid,
+                        },
+                    });
                 }
                 if let Some(new) = profile.target {
-                    events.push(InteractionEvent::Area { area: new, event: AreaEvent::Enter { profile: *profile_uid } });
+                    events.push(InteractionEvent::Area {
+                        area: new,
+                        event: AreaEvent::Enter {
+                            profile: *profile_uid,
+                        },
+                    });
                 }
             }
 
@@ -399,7 +491,13 @@ impl InteractionLayout {
             if let Some(target) = profile.target {
                 let delta = input.axis(profile.inputs.scroll)?.value;
                 if delta != 0.0 {
-                    events.push(InteractionEvent::Area { area: target, event: AreaEvent::Scroll { profile: *profile_uid, value: delta }});
+                    events.push(InteractionEvent::Area {
+                        area: target,
+                        event: AreaEvent::Scroll {
+                            profile: *profile_uid,
+                            value: delta,
+                        },
+                    });
                 }
             }
 
@@ -407,9 +505,19 @@ impl InteractionLayout {
             if let Some(target) = profile.target {
                 let action = input.action(profile.inputs.click)?;
                 if action.is_just_pressed() {
-                    events.push(InteractionEvent::Area { area: target, event: AreaEvent::Pressed { profile: *profile_uid }});
+                    events.push(InteractionEvent::Area {
+                        area: target,
+                        event: AreaEvent::Pressed {
+                            profile: *profile_uid,
+                        },
+                    });
                 } else if action.is_just_released() {
-                    events.push(InteractionEvent::Area { area: target, event: AreaEvent::Released { profile: *profile_uid }});
+                    events.push(InteractionEvent::Area {
+                        area: target,
+                        event: AreaEvent::Released {
+                            profile: *profile_uid,
+                        },
+                    });
                 }
             }
         }
@@ -417,7 +525,6 @@ impl InteractionLayout {
     }
 
     pub fn render(&self, gfx: &mut Graphics, time: f64) {
-        
         // Render profiles
         for (_, (_, profile)) in self.profiles.iter().enumerate() {
             // Display selection box or cursor
@@ -426,13 +533,16 @@ impl InteractionLayout {
             match &profile.mode {
                 InteractionMode::Selection { visual } => {
                     if profile.target.is_some() {
-                        let extent = visual.source_extent.lerp(&visual.target_extent, alpha(visual.source_time, time) as f32);
+                        let extent = visual.source_extent.lerp(
+                            &visual.target_extent,
+                            alpha(visual.source_time, time) as f32,
+                        );
                         InteractionLayout::render_selection(extent, gfx, time);
                     }
-                },
+                }
                 InteractionMode::Cursor { position } => {
                     InteractionLayout::render_cursor(position.as_ivec2(), gfx, time);
-                },
+                }
             }
         }
     }

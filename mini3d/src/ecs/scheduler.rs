@@ -1,14 +1,13 @@
 use std::collections::VecDeque;
 
 use crate::{
-    logger::server::LoggerServer,
     registry::{
         error::RegistryError,
         system::{System, SystemRegistry, SystemStage},
     },
     utils::{
         slotmap::{SlotId, SlotMap},
-        uid::UID,
+        uid::{ToUID, UID},
     },
 };
 
@@ -169,24 +168,25 @@ impl Scheduler {
 
     pub(crate) fn invoke(
         &mut self,
-        stage: UID,
+        stage: impl ToUID,
         invocation: Invocation,
     ) -> Result<(), RegistryError> {
         match invocation {
             Invocation::Immediate => {
-                self.frame_stages.push_front(stage);
+                self.frame_stages.push_front(stage.to_uid());
             }
             Invocation::EndFrame => {
-                self.frame_stages.push_back(stage);
+                self.frame_stages.push_back(stage.to_uid());
             }
             Invocation::NextFrame => {
-                self.next_frame_stages.push_back(stage);
+                self.next_frame_stages.push_back(stage.to_uid());
             }
         }
         Ok(())
     }
 
-    pub(crate) fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) {
+    pub(crate) fn set_periodic_invoke(&mut self, stage: impl ToUID, frequency: f64) {
+        let stage = stage.to_uid();
         for periodic_stage in self.periodic_stages.iter_mut() {
             if periodic_stage.stage == stage {
                 periodic_stage.frequency = frequency;

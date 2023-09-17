@@ -56,9 +56,25 @@ impl UID {
     }
 }
 
+pub trait ToUID {
+    fn to_uid(&self) -> UID;
+}
+
+impl ToUID for UID {
+    fn to_uid(&self) -> UID {
+        *self
+    }
+}
+
 impl From<&str> for UID {
     fn from(s: &str) -> Self {
         Self::new(s)
+    }
+}
+
+impl ToUID for &str {
+    fn to_uid(&self) -> UID {
+        UID::new(self)
     }
 }
 

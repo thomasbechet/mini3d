@@ -7,7 +7,6 @@ use crate::{
         query::Query,
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
-    info,
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 
@@ -24,11 +23,11 @@ impl RotatorSystem {
 
 impl ParallelSystem for RotatorSystem {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.transform = resolver.write(Transform::NAME.into())?;
-        self.rotator = resolver.read(Rotator::NAME.into())?;
+        self.transform = resolver.write(Transform::NAME)?;
+        self.rotator = resolver.read(Rotator::NAME)?;
         self.query = resolver
             .query()
-            .all(&[Transform::NAME.into(), Rotator::NAME.into()])?
+            .all(&[Transform::NAME, Rotator::NAME])?
             .build();
         Ok(())
     }

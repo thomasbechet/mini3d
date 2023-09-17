@@ -12,7 +12,7 @@ use crate::{
     utils::{
         slotmap::{SlotId, SlotMap},
         string::AsciiArray,
-        uid::UID,
+        uid::{ToUID, UID},
     },
 };
 
@@ -130,7 +130,7 @@ pub(crate) struct SystemEntry {
 #[derive(Default)]
 pub struct SystemOrder;
 
-pub(crate) struct SystemRegistry {
+pub struct SystemRegistry {
     pub(crate) systems: SlotMap<SystemEntry>,
     pub(crate) stages: SlotMap<SystemStageEntry>,
 }
@@ -197,7 +197,7 @@ impl SystemRegistry {
         Ok(id.into())
     }
 
-    pub(crate) fn remove(&mut self, system: System) {
+    pub fn remove(&mut self, system: System) {
         let system = system.into();
         let stage = self.systems[system].stage;
         if let Some(prev) = self.systems[system].prev_in_stage {
@@ -226,7 +226,7 @@ impl SystemRegistry {
         })
     }
 
-    pub(crate) fn add_static_exclusive<S: ExclusiveSystem>(
+    pub fn add_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
         stage: &str,
@@ -246,7 +246,7 @@ impl SystemRegistry {
         })
     }
 
-    pub(crate) fn add_static_parallel<S: ParallelSystem>(
+    pub fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
         stage: &str,
@@ -266,7 +266,8 @@ impl SystemRegistry {
         })
     }
 
-    pub(crate) fn find(&self, uid: UID) -> Option<System> {
+    pub fn find(&self, system: impl ToUID) -> Option<System> {
+        let uid = system.to_uid();
         self.systems
             .iter()
             .find(|(_, def)| def.uid == uid)

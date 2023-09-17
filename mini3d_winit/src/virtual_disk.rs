@@ -1,5 +1,3 @@
-use mini3d::storage::server::StorageServer;
-
 pub struct VirtualDisk {
     data: Vec<u8>,
 }
@@ -9,5 +7,3 @@ impl VirtualDisk {
         Self { data: Vec::new() }
     }
 }
-
-impl StorageServer for VirtualDisk {}

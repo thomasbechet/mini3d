@@ -1,38 +1,30 @@
-use self::{
-    asset::{ExclusiveAssetAPI, ParallelAssetAPI},
-    input::{ExclusiveInputAPI, ParallelInputAPI},
-    logger::{ExclusiveLoggerAPI, ParallelLoggerAPI},
-    registry::{ExclusiveRegistryAPI, ParallelRegistryAPI},
-    renderer::{ExclusiveRendererAPI, ParallelRendererAPI},
-    system::{ExclusiveSystemAPI, ParallelSystemAPI},
-    time::TimeAPI,
+use crate::{
+    asset::AssetManager, input::InputManager, logger::LoggerManager, registry::RegistryManager,
+    renderer::RendererManager, system::SystemManager,
 };
 
-pub mod asset;
+use self::time::TimeAPI;
+
 pub mod ecs;
-pub mod input;
 pub mod logger;
-pub mod registry;
-pub mod renderer;
-pub mod system;
 pub mod time;
 
 pub struct ExclusiveAPI<'a> {
-    pub asset: ExclusiveAssetAPI<'a>,
-    pub input: ExclusiveInputAPI<'a>,
-    pub registry: ExclusiveRegistryAPI<'a>,
-    pub renderer: ExclusiveRendererAPI<'a>,
-    pub system: ExclusiveSystemAPI<'a>,
-    pub logger: ExclusiveLoggerAPI<'a>,
+    pub asset: &'a mut AssetManager,
+    pub input: &'a mut InputManager,
+    pub registry: &'a mut RegistryManager,
+    pub renderer: &'a mut RendererManager,
+    pub system: &'a mut SystemManager,
+    pub logger: &'a mut LoggerManager,
     pub time: TimeAPI,
 }
 
 pub struct ParallelAPI<'a> {
-    pub asset: ParallelAssetAPI<'a>,
-    pub input: ParallelInputAPI<'a>,
-    pub registry: ParallelRegistryAPI<'a>,
-    pub renderer: ParallelRendererAPI<'a>,
-    pub system: ParallelSystemAPI<'a>,
-    pub logger: ParallelLoggerAPI<'a>,
+    pub asset: &'a AssetManager,
+    pub input: &'a InputManager,
+    pub registry: &'a RegistryManager,
+    pub renderer: &'a RendererManager,
+    pub system: &'a SystemManager,
+    pub logger: &'a LoggerManager,
     pub time: TimeAPI,
 }

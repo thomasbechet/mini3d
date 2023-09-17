@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use mini3d::{
     renderer::{
-        server::{MaterialHandle, SceneCameraHandle, ViewportHandle},
+        provider::{MaterialHandle, SceneCameraHandle, ViewportHandle},
         RendererStatistics,
     },
     utils::uid::UID,

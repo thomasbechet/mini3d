@@ -1,6 +1,6 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::utils::uid::UID;
+use crate::utils::uid::{ToUID, UID};
 
 #[derive(Debug, Default, Serialize, Reflect, Component, Clone)]
 pub struct SystemGraphEntry {
@@ -15,10 +15,10 @@ pub struct SystemGraph {
 }
 
 impl SystemGraph {
-    pub fn single(system: UID, group: Option<String>) -> Self {
+    pub fn single(system: impl ToUID, group: Option<String>) -> Self {
         Self {
             entries: vec![SystemGraphEntry {
-                system,
+                system: system.to_uid(),
                 group,
                 dependencies: Vec::new(),
             }],

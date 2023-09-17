@@ -75,9 +75,9 @@ pub struct ProfilerProcess {
 }
 
 impl ProfilerProcess {
-    pub fn new(toggle_action: UID) -> Self {
+    pub fn new(toggle_action: impl AsUID) -> Self {
         Self {
-            toggle_action,
+            toggle_action: toggle_action.into(),
             active: false,
             dt_record: Vec::new(),
             last_dt: 0.0,

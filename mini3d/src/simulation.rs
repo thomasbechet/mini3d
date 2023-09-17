@@ -4,24 +4,22 @@ use crate::asset::AssetManager;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{component, system};
-use crate::input::server::InputServer;
+use crate::input::provider::InputProvider;
 use crate::input::InputManager;
-use crate::logger::server::LoggerServer;
+use crate::logger::provider::LoggerProvider;
 use crate::logger::LoggerManager;
-use crate::network::server::NetworkServer;
 use crate::physics::PhysicsManager;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
-use crate::renderer::server::RendererServer;
+use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::storage::server::StorageServer;
+use crate::storage::provider::StorageProvider;
 use crate::storage::StorageManager;
-use crate::system::event::SystemEvent;
-use crate::system::server::SystemServer;
+use crate::system::provider::SystemProvider;
 use crate::system::SystemManager;
-use crate::utils::uid::UID;
+use crate::utils::uid::ToUID;
 
 #[derive(Error, Debug)]
 pub enum ProgressError {
@@ -32,15 +30,6 @@ pub enum ProgressError {
 }
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
-
-pub struct ProgressContext<'a> {
-    pub input: &'a mut dyn InputServer,
-    pub renderer: &'a mut dyn RendererServer,
-    pub storage: &'a mut dyn StorageServer,
-    pub network: &'a mut dyn NetworkServer,
-    pub system: &'a mut dyn SystemServer,
-    pub logger: &'a mut dyn LoggerServer,
-}
 
 pub struct Simulation {
     pub(crate) registry: RegistryManager,
@@ -178,6 +167,26 @@ impl Simulation {
         sim
     }
 
+    pub fn set_renderer_provider(&mut self, provider: impl RendererProvider + 'static) {
+        self.renderer.set_provider(Box::new(provider));
+    }
+
+    pub fn set_input_provider(&mut self, provider: impl InputProvider + 'static) {
+        self.input.set_provider(Box::new(provider));
+    }
+
+    pub fn set_system_provider(&mut self, provider: impl SystemProvider + 'static) {
+        self.system.set_provider(Box::new(provider));
+    }
+
+    pub fn set_storage_provider(&mut self, provider: impl StorageProvider + 'static) {
+        self.storage.set_provider(Box::new(provider));
+    }
+
+    pub fn set_logger_provider(&mut self, provider: impl LoggerProvider + 'static) {
+        self.logger.set_provider(Box::new(provider));
+    }
+
     pub fn register_system<S: ExclusiveSystem>(
         &mut self,
         name: &str,
@@ -190,8 +199,12 @@ impl Simulation {
         Ok(())
     }
 
-    pub fn invoke(&mut self, stage: UID, invocation: Invocation) -> Result<(), RegistryError> {
-        self.ecs.scheduler.invoke(stage, invocation)
+    pub fn invoke(
+        &mut self,
+        stage: impl ToUID,
+        invocation: Invocation,
+    ) -> Result<(), RegistryError> {
+        self.ecs.scheduler.invoke(stage.to_uid(), invocation)
     }
 
     pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -203,24 +216,16 @@ impl Simulation {
         Ok(())
     }
 
-    pub fn load(
-        &mut self,
-        decoder: &mut impl Decoder,
-        servers: ProgressContext,
-    ) -> Result<(), DecoderError> {
+    pub fn load(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         self.asset.load_state(&self.registry.components, decoder)?;
-        self.renderer.load_state(decoder, servers.renderer)?;
+        self.renderer.load_state(decoder)?;
         self.ecs.load_state(&self.registry.components, decoder)?;
-        self.input.load_state(decoder, servers.input)?;
+        self.input.load_state(decoder)?;
         self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
-    pub fn progress(
-        &mut self,
-        servers: ProgressContext,
-        mut delta_time: f64,
-    ) -> Result<(), ProgressError> {
+    pub fn progress(&mut self, mut delta_time: f64) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
 
         // Reset graphics state
@@ -238,19 +243,11 @@ impl Simulation {
         // Prepare input manager
         self.input.prepare_dispatch();
         // Dispatch input events
-        self.input.dispatch_events(servers.input);
-
+        self.input.dispatch_events();
         // Dispatch system events
-        while let Some(event) = servers.system.pool_events() {
-            match event {
-                SystemEvent::RequestStop => {
-                    servers.system.request_stop();
-                }
-            }
-        }
-
+        self.system.dispatch_events();
         // Dispatch renderer events
-        self.renderer.dispatch_events(servers.renderer);
+        self.renderer.dispatch_events();
 
         // Dispatch network events
 
@@ -265,15 +262,9 @@ impl Simulation {
                 registry: &mut self.registry,
                 asset: &mut self.asset,
                 input: &mut self.input,
-                input_server: servers.input,
                 renderer: &mut self.renderer,
-                renderer_server: servers.renderer,
-                storage_server: servers.storage,
-                network_server: servers.network,
                 system: &mut self.system,
-                system_server: servers.system,
                 logger: &mut self.logger,
-                logger_server: servers.logger,
                 delta_time,
                 global_time: self.global_time,
             })
@@ -281,7 +272,7 @@ impl Simulation {
 
         // ================= POST-UPDATE STAGE ================== //
         self.renderer
-            .submit_graphics(&mut self.asset, &self.ecs.containers, servers.renderer);
+            .submit_graphics(&mut self.asset, &self.ecs.containers);
 
         Ok(())
     }

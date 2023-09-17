@@ -21,7 +21,7 @@ use crate::{
     utils::{
         slotmap::{SlotId, SlotMap},
         string::AsciiArray,
-        uid::UID,
+        uid::{ToUID, UID},
     },
 };
 
@@ -312,7 +312,7 @@ pub(crate) struct ComponentEntry {
 }
 
 #[derive(Default)]
-pub(crate) struct ComponentRegistry {
+pub struct ComponentRegistry {
     pub(crate) entries: SlotMap<ComponentEntry>,
 }
 
@@ -335,18 +335,18 @@ impl ComponentRegistry {
         Ok(())
     }
 
-    pub(crate) fn add_static<C: ComponentData>(&mut self, name: &str) -> Result<(), RegistryError> {
+    pub fn add_static<C: ComponentData>(&mut self, name: &str) -> Result<(), RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
         self.add(name, ComponentKind::Static, Box::new(reflection))
     }
 
-    pub(crate) fn add_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+    pub fn add_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
         unimplemented!()
     }
 
-    pub(crate) fn add_tag(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+    pub fn add_tag(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
         unimplemented!()
     }
 
@@ -359,14 +359,15 @@ impl ComponentRegistry {
             .ok_or(RegistryError::ComponentNotFound)
     }
 
-    pub(crate) fn find_id(&self, component: UID) -> Option<ComponentId> {
+    pub(crate) fn find_id(&self, component: impl ToUID) -> Option<ComponentId> {
+        let component = component.to_uid();
         self.entries
             .iter()
             .find(|(_, def)| UID::new(&def.name) == component)
             .map(|(id, _)| id.into())
     }
 
-    pub fn find<H: ComponentHandle>(&self, component: UID) -> Option<H> {
+    pub fn find<H: ComponentHandle>(&self, component: impl ToUID) -> Option<H> {
         if let Some(id) = self.find_id(component) {
             if !H::check_type_id(self.entries[id.into()].reflection.type_id()) {
                 None

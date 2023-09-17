@@ -606,12 +606,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         match path_token.value {
             TokenValue::Literal(Literal::String(path)) => {
                 let path = self.parser.strings.get(path);
-                let module = self
-                    .modules
-                    .find(path.into())
-                    .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
+                let module = self.modules.find(path).ok_or(CompileError::Semantic(
+                    SemanticError::ModuleNotFound {
                         span: path_token.span,
-                    }))?;
+                    },
+                ))?;
                 if module == self.module {
                     return Err(SemanticError::ImportSelf {
                         span: path_token.span,
@@ -644,12 +643,11 @@ impl<'a, S: Iterator<Item = (char, Location)>> ASTParser<'a, S> {
         match path_token.value {
             TokenValue::Literal(Literal::String(path)) => {
                 let path = self.parser.strings.get(path);
-                let module = self
-                    .modules
-                    .find(path.into())
-                    .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
+                let module = self.modules.find(path).ok_or(CompileError::Semantic(
+                    SemanticError::ModuleNotFound {
                         span: path_token.span,
-                    }))?;
+                    },
+                ))?;
                 self.parser.expect(TokenKind::Import)?;
                 if let Some(multiply) = self.parser.accept(TokenKind::Multiply)? {
                     // Import all symbols
@@ -763,12 +761,9 @@ impl<'a, S: Iterator<Item = (char, Location)>> ImportExportParser<'a, S> {
                 match self.parser.expect(TokenKind::Literal)?.value {
                     TokenValue::Literal(Literal::String(path)) => {
                         let path = self.parser.strings.get(path);
-                        let module =
-                            self.modules
-                                .find(path.into())
-                                .ok_or(CompileError::Semantic(SemanticError::ModuleNotFound {
-                                    span: token.span,
-                                }))?;
+                        let module = self.modules.find(path).ok_or(CompileError::Semantic(
+                            SemanticError::ModuleNotFound { span: token.span },
+                        ))?;
                         if module == self.module {
                             return Err(SemanticError::ImportSelf { span: token.span }.into());
                         }

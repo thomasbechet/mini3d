@@ -27,10 +27,10 @@ impl UpdateOS {
 
 impl ExclusiveSystem for UpdateOS {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.os = resolver.find(OS::NAME.into())?;
-        self.free_fly = resolver.find(FreeFly::NAME.into())?;
-        self.ui = resolver.find(UI::NAME.into())?;
-        self.query = resolver.query().all(&[FreeFly::NAME.into()])?.build();
+        self.os = resolver.find(OS::NAME)?;
+        self.free_fly = resolver.find(FreeFly::NAME)?;
+        self.ui = resolver.find(UI::NAME)?;
+        self.query = resolver.query().all(&[FreeFly::NAME])?.build();
         Ok(())
     }
 
@@ -38,12 +38,7 @@ impl ExclusiveSystem for UpdateOS {
         let mut os = expect!(api, ecs.view_mut(self.os).singleton());
 
         // Toggle control mode
-        if expect!(
-            api,
-            api.input.action(CommonAction::CHANGE_CONTROL_MODE.into())
-        )
-        .is_just_pressed()
-        {
+        if expect!(api, api.input.action(CommonAction::CHANGE_CONTROL_MODE)).is_just_pressed() {
             os.layout_active = !os.layout_active;
             let mut view = ecs.view_mut(self.free_fly);
             for e in ecs.query(self.query) {

@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use crate::feature::component::input::input_table::{InputAxisRange, InputTable};
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::serialize::{Encoder, EncoderError};
-use crate::utils::uid::UID;
+use crate::utils::uid::{ToUID, UID};
 
 use self::event::InputEvent;
-use self::server::InputServer;
+use self::provider::InputProvider;
 
 pub mod event;
-pub mod server;
+pub mod provider;
 
 #[derive(Debug, Error)]
 pub enum InputError {
@@ -80,6 +80,7 @@ pub struct InputTextState {
 
 #[derive(Default)]
 pub struct InputManager {
+    provider: Box<dyn InputProvider>,
     tables: HashMap<UID, InputTable>,
     actions: HashMap<UID, InputActionState>,
     axis: HashMap<UID, InputAxisState>,
@@ -87,6 +88,12 @@ pub struct InputManager {
 }
 
 impl InputManager {
+    pub(crate) fn set_provider(&mut self, provider: Box<dyn InputProvider>) {
+        self.provider.on_disconnect();
+        self.provider = provider;
+        self.provider.on_connect();
+    }
+
     /// Reset action states and mouse motion
     pub(crate) fn prepare_dispatch(&mut self) {
         // Save the previous action state
@@ -101,8 +108,8 @@ impl InputManager {
     }
 
     /// Process input events
-    pub(crate) fn dispatch_events(&mut self, server: &mut dyn InputServer) {
-        while let Some(event) = server.poll_event() {
+    pub(crate) fn dispatch_events(&mut self) {
+        while let Some(event) = self.provider.next_event() {
             match event {
                 InputEvent::Action(event) => {
                     if let Some(action) = self.actions.get_mut(&event.action) {
@@ -130,22 +137,14 @@ impl InputManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(
-        &mut self,
-        decoder: &mut impl Decoder,
-        server: &mut dyn InputServer,
-    ) -> Result<(), DecoderError> {
+    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         self.tables = HashMap::deserialize(decoder, &Default::default())?;
         self.actions = HashMap::deserialize(decoder, &Default::default())?;
         self.axis = HashMap::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
-    pub(crate) fn add_table(
-        &mut self,
-        server: &mut dyn InputServer,
-        table: &InputTable,
-    ) -> Result<(), InputError> {
+    pub fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
         // Check table validity
         table
             .validate()
@@ -192,21 +191,24 @@ impl InputManager {
         }
         self.tables.insert(table.uid(), table.clone());
         // Notify input mapping
-        server.update_table(table.uid(), Some(table));
+        self.provider.update_table(table.uid(), Some(table));
         Ok(())
     }
 
-    pub(crate) fn action(&self, uid: UID) -> Result<&InputActionState, InputError> {
+    pub fn action(&self, uid: impl ToUID) -> Result<&InputActionState, InputError> {
+        let uid = uid.to_uid();
         self.actions
             .get(&uid)
             .ok_or(InputError::ActionNotFound { uid })
     }
 
-    pub(crate) fn axis(&self, uid: UID) -> Result<&InputAxisState, InputError> {
+    pub fn axis(&self, uid: impl ToUID) -> Result<&InputAxisState, InputError> {
+        let uid = uid.to_uid();
         self.axis.get(&uid).ok_or(InputError::AxisNotFound { uid })
     }
 
-    pub(crate) fn text(&self, uid: UID) -> Result<&InputTextState, InputError> {
+    pub fn text(&self, uid: impl ToUID) -> Result<&InputTextState, InputError> {
+        let uid = uid.to_uid();
         self.texts.get(&uid).ok_or(InputError::TextNotFound { uid })
     }
 }

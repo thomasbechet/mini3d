@@ -8,7 +8,6 @@ use crate::{
     },
     expect,
     feature::component::{common::free_fly::FreeFly, scene::transform::Transform},
-    info,
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 
@@ -25,11 +24,11 @@ impl FreeFlySystem {
 
 impl ParallelSystem for FreeFlySystem {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.free_fly = resolver.read(FreeFly::NAME.into())?;
-        self.transform = resolver.write(Transform::NAME.into())?;
+        self.free_fly = resolver.read(FreeFly::NAME)?;
+        self.transform = resolver.write(Transform::NAME)?;
         self.query = resolver
             .query()
-            .all(&[FreeFly::NAME.into(), Transform::NAME.into()])?
+            .all(&[FreeFly::NAME, Transform::NAME])?
             .build();
         Ok(())
     }

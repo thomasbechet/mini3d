@@ -57,10 +57,10 @@ impl PropagateTransforms {
 
 impl ParallelSystem for PropagateTransforms {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.transform = resolver.read(Transform::NAME.into())?;
-        self.hierarchy = resolver.read(Hierarchy::NAME.into())?;
-        self.local_to_world = resolver.write(LocalToWorld::NAME.into())?;
-        self.query = resolver.query().all(&[LocalToWorld::NAME.into()])?.build();
+        self.transform = resolver.read(Transform::NAME)?;
+        self.hierarchy = resolver.read(Hierarchy::NAME)?;
+        self.local_to_world = resolver.write(LocalToWorld::NAME)?;
+        self.query = resolver.query().all(&[LocalToWorld::NAME])?.build();
         Ok(())
     }
 

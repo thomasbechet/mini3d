@@ -31,8 +31,8 @@ impl UpdateUI {
 
 impl ParallelSystem for UpdateUI {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        self.ui = resolver.write(UI::NAME.into())?;
-        self.query = resolver.query().all(&[UI::NAME.into()])?.build();
+        self.ui = resolver.write(UI::NAME)?;
+        self.query = resolver.query().all(&[UI::NAME])?.build();
         Ok(())
     }
 
@@ -62,12 +62,12 @@ impl RenderUI {
 
 impl ExclusiveSystem for RenderUI {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.canvas = resolver.find(Canvas::NAME.into())?;
-        self.ui = resolver.find(UI::NAME.into())?;
-        self.target = resolver.find(UIRenderTarget::NAME.into())?;
+        self.canvas = resolver.find(Canvas::NAME)?;
+        self.ui = resolver.find(UI::NAME)?;
+        self.target = resolver.find(UIRenderTarget::NAME)?;
         self.query = resolver
             .query()
-            .all(&[UI::NAME.into(), UIRenderTarget::NAME.into()])?
+            .all(&[UI::NAME, UIRenderTarget::NAME])?
             .build();
         Ok(())
     }

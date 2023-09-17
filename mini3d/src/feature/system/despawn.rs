@@ -7,7 +7,6 @@ use crate::{
     },
     expect,
     feature::component::{common::lifecycle::Lifecycle, scene::hierarchy::Hierarchy},
-    info,
     registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
 };
 
@@ -24,11 +23,11 @@ impl DespawnEntities {
 
 impl ExclusiveSystem for DespawnEntities {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.life_cycle = resolver.find(Lifecycle::NAME.into())?;
-        self.hierarchy = resolver.find(Hierarchy::NAME.into())?;
+        self.life_cycle = resolver.find(Lifecycle::NAME)?;
+        self.hierarchy = resolver.find(Hierarchy::NAME)?;
         self.query = resolver
             .query()
-            .all(&[Lifecycle::NAME.into(), Hierarchy::NAME.into()])?
+            .all(&[Lifecycle::NAME, Hierarchy::NAME])?
             .build();
         Ok(())
     }

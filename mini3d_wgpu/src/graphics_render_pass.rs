@@ -4,8 +4,8 @@ use mini3d::{
     renderer::{
         color::Color,
         graphics::TextureWrapMode,
+        provider::{TextureHandle, ViewportHandle},
         rasterizer,
-        server::{TextureHandle, ViewportHandle},
     },
 };
 

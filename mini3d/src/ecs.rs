@@ -1,25 +1,13 @@
 use crate::{
-    ecs::api::{
-        asset::ParallelAssetAPI,
-        ecs::ParallelECS,
-        input::ParallelInputAPI,
-        registry::{ParallelComponentRegistryAPI, ParallelRegistryAPI, ParallelSystemRegistryAPI},
-        renderer::ParallelRendererAPI,
-        system::ParallelSystemAPI,
-        ParallelAPI,
-    },
-    input::server::InputServer,
-    logger::{server::LoggerServer, LoggerManager},
-    network::server::NetworkServer,
+    asset::AssetManager,
+    ecs::api::{ecs::ParallelECS, ParallelAPI},
+    logger::LoggerManager,
     registry::error::RegistryError,
-    renderer::server::RendererServer,
     serialize::{Decoder, DecoderError, EncoderError},
-    storage::server::StorageServer,
-    system::{server::SystemServer, SystemManager},
+    system::SystemManager,
 };
 
 use crate::{
-    asset::AssetManager,
     input::InputManager,
     registry::{component::ComponentRegistry, RegistryManager},
     renderer::RendererManager,
@@ -27,19 +15,7 @@ use crate::{
 };
 
 use self::{
-    api::{
-        asset::ExclusiveAssetAPI,
-        ecs::ExclusiveECS,
-        input::ExclusiveInputAPI,
-        logger::{ExclusiveLoggerAPI, ParallelLoggerAPI},
-        registry::{
-            ExclusiveComponentRegistryAPI, ExclusiveRegistryAPI, ExclusiveSystemRegistryAPI,
-        },
-        renderer::ExclusiveRendererAPI,
-        system::ExclusiveSystemAPI,
-        time::TimeAPI,
-        ExclusiveAPI,
-    },
+    api::{ecs::ExclusiveECS, time::TimeAPI, ExclusiveAPI},
     archetype::ArchetypeTable,
     container::ContainerTable,
     entity::EntityTable,
@@ -87,15 +63,9 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) registry: &'a mut RegistryManager,
     pub(crate) asset: &'a mut AssetManager,
     pub(crate) input: &'a mut InputManager,
-    pub(crate) input_server: &'a mut dyn InputServer,
     pub(crate) renderer: &'a mut RendererManager,
-    pub(crate) renderer_server: &'a mut dyn RendererServer,
-    pub(crate) storage_server: &'a mut dyn StorageServer,
-    pub(crate) network_server: &'a mut dyn NetworkServer,
     pub(crate) system: &'a mut SystemManager,
-    pub(crate) system_server: &'a mut dyn SystemServer,
     pub(crate) logger: &'a mut LoggerManager,
-    pub(crate) logger_server: &'a mut dyn LoggerServer,
     pub(crate) delta_time: f64,
     pub(crate) global_time: f64,
 }
@@ -183,35 +153,12 @@ impl ECSManager {
                 {
                     SystemInstance::Exclusive(instance) => {
                         let api = &mut ExclusiveAPI {
-                            asset: ExclusiveAssetAPI {
-                                manager: context.asset,
-                            },
-                            input: ExclusiveInputAPI {
-                                manager: context.input,
-                                server: context.input_server,
-                            },
-                            registry: ExclusiveRegistryAPI {
-                                systems: ExclusiveSystemRegistryAPI {
-                                    manager: &mut context.registry.systems,
-                                    updated: &mut system_registry_update,
-                                },
-                                components: ExclusiveComponentRegistryAPI {
-                                    manager: &mut context.registry.components,
-                                    updated: &mut component_registry_update,
-                                },
-                            },
-                            renderer: ExclusiveRendererAPI {
-                                manager: context.renderer,
-                                server: context.renderer_server,
-                            },
-                            system: ExclusiveSystemAPI {
-                                server: context.system_server,
-                                manager: context.system,
-                            },
-                            logger: ExclusiveLoggerAPI {
-                                server: context.logger_server,
-                                manager: context.logger,
-                            },
+                            asset: context.asset,
+                            input: context.input,
+                            registry: context.registry,
+                            renderer: context.renderer,
+                            system: context.system,
+                            logger: context.logger,
                             time: TimeAPI {
                                 delta: context.delta_time,
                                 global: context.global_time,
@@ -230,30 +177,12 @@ impl ECSManager {
                     }
                     SystemInstance::Parallel(instance) => {
                         let api = &mut ParallelAPI {
-                            asset: ParallelAssetAPI {
-                                manager: context.asset,
-                            },
-                            input: ParallelInputAPI {
-                                manager: context.input,
-                            },
-                            registry: ParallelRegistryAPI {
-                                systems: ParallelSystemRegistryAPI {
-                                    manager: &context.registry.systems,
-                                },
-                                components: ParallelComponentRegistryAPI {
-                                    manager: &context.registry.components,
-                                },
-                            },
-                            renderer: ParallelRendererAPI {
-                                manager: context.renderer,
-                            },
-                            system: ParallelSystemAPI {
-                                server: context.system_server,
-                                manager: context.system,
-                            },
-                            logger: ParallelLoggerAPI {
-                                manager: context.logger,
-                            },
+                            asset: context.asset,
+                            input: context.input,
+                            registry: context.registry,
+                            renderer: context.renderer,
+                            system: context.system,
+                            logger: context.logger,
                             time: TimeAPI {
                                 delta: context.delta_time,
                                 global: context.global_time,
