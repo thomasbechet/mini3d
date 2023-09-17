@@ -8,20 +8,14 @@ use std::{
 };
 
 use gui::{WindowControl, WindowGUI};
-use logger::ConsoleLogger;
 use mapper::InputMapper;
 use mini3d::{
     ecs::scheduler::Invocation,
     feature::component::common::script::Script,
     glam::Vec2,
-    input::event::InputEvent,
-    logger::provider::PassiveLoggerProvider,
-    network::provider::PassiveNetworkProvider,
-    registry::system::SystemStage,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
     simulation::Simulation,
-    storage::provider::{PassiveStorageProvider, StorageProvider},
     system::{
         event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
         provider::SystemProvider,
@@ -29,7 +23,7 @@ use mini3d::{
 };
 use mini3d_derive::Serialize;
 use mini3d_os::system::bootstrap::OSBootstrap;
-use mini3d_utils::{image::ImageImporter, model::ModelImporter};
+use mini3d_utils::{image::ImageImporter, model::ModelImporter, stdout::StdoutLogger};
 use mini3d_wgpu::WGPURenderer;
 use provider::{
     input::WinitInputProvider, renderer::WinitRendererProvider, storage::WinitStorageProvider,
@@ -48,7 +42,6 @@ use winit::{
 };
 
 pub mod gui;
-pub mod logger;
 pub mod mapper;
 pub mod provider;
 pub mod utils;
@@ -157,6 +150,7 @@ fn main_run() {
     sim.set_storage_provider(WinitStorageProvider::new(disk));
     sim.set_system_provider(WinitSystemProvider::new(system_status.clone()));
     sim.set_renderer_provider(WinitRendererProvider::new(renderer.clone()));
+    sim.set_logger_provider(StdoutLogger);
     sim.register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
         .unwrap();
     sim.invoke(OSBootstrap::NAME, Invocation::NextFrame)

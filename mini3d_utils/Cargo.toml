@@ -8,3 +8,5 @@ edition = "2021"
 mini3d = { path = "../mini3d" }
 wavefront_obj = "10.0.0"
 image = "0.24.3"
+colored = "2.0.4"
+chrono = "0.4.30"

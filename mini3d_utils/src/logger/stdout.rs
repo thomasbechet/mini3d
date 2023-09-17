@@ -4,11 +4,18 @@ use chrono::{SecondsFormat, Utc};
 use colored::Colorize;
 use mini3d::logger::{level::LogLevel, provider::LoggerProvider};
 
-pub(crate) struct ConsoleLogger;
+#[derive(Default)]
+pub struct StdoutLogger;
 
-impl LoggerProvider for ConsoleLogger {
-    fn on_connect(&mut self) {}
-    fn on_disconnect(&mut self) {}
+impl LoggerProvider for StdoutLogger {
+    fn on_connect(&mut self) {
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true).cyan();
+        println!("[{}] {}", now, "Stdout Logger connected".green());
+    }
+    fn on_disconnect(&mut self) {
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true).cyan();
+        println!("[{}] {}", now, "Stdout Logger disconnected".green());
+    }
 
     fn log(&mut self, args: Arguments<'_>, level: LogLevel, source: Option<(&'static str, u32)>) {
         let (file, line) = match source {

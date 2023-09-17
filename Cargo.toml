@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "mini3d",
+    "mini3d_cli",
     "mini3d_derive",
     "mini3d_os",
     "mini3d_utils",
@@ -8,4 +9,5 @@ members = [
     "mini3d_ffi",
     "mini3d_winit",
 ]
+default-members = ["mini3d_cli"]
 resolver = "2"
