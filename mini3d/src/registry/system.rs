@@ -133,6 +133,7 @@ pub struct SystemOrder;
 pub struct SystemRegistry {
     pub(crate) systems: SlotMap<SystemEntry>,
     pub(crate) stages: SlotMap<SystemStageEntry>,
+    pub(crate) changed: bool,
 }
 
 impl Default for SystemRegistry {
@@ -140,6 +141,7 @@ impl Default for SystemRegistry {
         let mut reg = Self {
             systems: Default::default(),
             stages: Default::default(),
+            changed: true,
         };
         for name in [SystemStage::UPDATE, SystemStage::FIXED_UPDATE_60HZ] {
             reg.stages.add(SystemStageEntry {
@@ -194,6 +196,7 @@ impl SystemRegistry {
         } else {
             self.stages[stage].first_system = Some(id.into());
         }
+        self.changed = true;
         Ok(id.into())
     }
 
@@ -209,6 +212,7 @@ impl SystemRegistry {
             self.stages.remove(stage);
         }
         self.systems.remove(system);
+        self.changed = true;
     }
 
     fn get_or_add_system_stage(&mut self, name: &str) -> SlotId {

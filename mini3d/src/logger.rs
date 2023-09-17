@@ -12,9 +12,9 @@ pub struct LoggerManager {
 }
 
 impl LoggerManager {
-    pub(crate) fn set_provider(&mut self, server: Box<dyn LoggerProvider>) {
+    pub(crate) fn set_provider(&mut self, provider: Box<dyn LoggerProvider>) {
         self.provider.get_mut().on_disconnect();
-        self.provider = RefCell::new(server);
+        self.provider = RefCell::new(provider);
         self.provider.get_mut().on_connect();
     }
 

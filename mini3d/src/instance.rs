@@ -31,7 +31,7 @@ pub enum ProgressError {
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
-pub struct Simulation {
+pub struct Instance {
     pub(crate) registry: RegistryManager,
     pub(crate) storage: StorageManager,
     pub(crate) asset: AssetManager,
@@ -44,7 +44,7 @@ pub struct Simulation {
     global_time: f64,
 }
 
-impl Simulation {
+impl Instance {
     fn register_core_features(&mut self) -> Result<(), RegistryError> {
         macro_rules! define_component {
             ($component: ty) => {
@@ -139,6 +139,10 @@ impl Simulation {
             self.register_core_features()
                 .expect("Failed to define core features");
         }
+        // Setup ECS
+        self.ecs
+            .scheduler
+            .set_periodic_invoke(SystemStage::FIXED_UPDATE_60HZ, 1.0 / 60.0);
         // Update ECS and assets
         self.ecs
             .scheduler
@@ -151,7 +155,7 @@ impl Simulation {
     }
 
     pub fn new(core_features: bool) -> Self {
-        let mut sim = Self {
+        let mut instance = Self {
             registry: Default::default(),
             storage: Default::default(),
             asset: Default::default(),
@@ -163,8 +167,8 @@ impl Simulation {
             logger: Default::default(),
             global_time: 0.0,
         };
-        sim.setup(core_features);
-        sim
+        instance.setup(core_features);
+        instance
     }
 
     pub fn set_renderer_provider(&mut self, provider: impl RendererProvider + 'static) {

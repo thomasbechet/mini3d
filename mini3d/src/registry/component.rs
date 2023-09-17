@@ -314,6 +314,7 @@ pub(crate) struct ComponentEntry {
 #[derive(Default)]
 pub struct ComponentRegistry {
     pub(crate) entries: SlotMap<ComponentEntry>,
+    pub(crate) changed: bool,
 }
 
 impl ComponentRegistry {
@@ -327,6 +328,7 @@ impl ComponentRegistry {
         if self.find_id(uid).is_some() {
             return Err(RegistryError::DuplicatedComponent);
         }
+        self.changed = true;
         let id = self.entries.add(ComponentEntry {
             name: name.into(),
             kind,

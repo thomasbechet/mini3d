@@ -13,9 +13,9 @@ use mini3d::{
     ecs::scheduler::Invocation,
     feature::component::common::script::Script,
     glam::Vec2,
+    instance::Instance,
     renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
-    simulation::Simulation,
     system::{
         event::{AssetImportEntry, ImportAssetEvent, SystemEvent},
         provider::SystemProvider,
@@ -145,15 +145,17 @@ fn main_run() {
     // System
     let system_status = Rc::new(RefCell::new(WinitSystemStatus::default()));
 
-    let mut sim = Simulation::new(true);
-    sim.set_input_provider(WinitInputProvider::new(mapper.clone()));
-    sim.set_storage_provider(WinitStorageProvider::new(disk));
-    sim.set_system_provider(WinitSystemProvider::new(system_status.clone()));
-    sim.set_renderer_provider(WinitRendererProvider::new(renderer.clone()));
-    sim.set_logger_provider(StdoutLogger);
-    sim.register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
+    let mut instance = Instance::new(true);
+    instance.set_input_provider(WinitInputProvider::new(mapper.clone()));
+    instance.set_storage_provider(WinitStorageProvider::new(disk));
+    instance.set_system_provider(WinitSystemProvider::new(system_status.clone()));
+    instance.set_renderer_provider(WinitRendererProvider::new(renderer.clone()));
+    instance.set_logger_provider(StdoutLogger);
+    instance
+        .register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
         .unwrap();
-    sim.invoke(OSBootstrap::NAME, Invocation::NextFrame)
+    instance
+        .invoke(OSBootstrap::NAME, Invocation::NextFrame)
         .unwrap();
 
     let mut last_click: Option<SystemTime> = None;
@@ -472,8 +474,8 @@ fn main_run() {
                     set_display_mode(&mut window, &mut gui, display_mode);
                 }
 
-                // Progress simulation
-                sim.progress(dt).expect("Failed to progress simulation");
+                // Progress instance
+                instance.progress(dt).expect("Failed to progress instance");
 
                 // Save/Load state
                 if save_state {
@@ -486,7 +488,7 @@ fn main_run() {
                     {
                         let mut file = File::create("assets/state.bin").unwrap();
                         let mut bytes = Vec::<u8>::default();
-                        sim.save(&mut bytes).unwrap();
+                        instance.save(&mut bytes).unwrap();
                         let bytes = miniz_oxide::deflate::compress_to_vec_zlib(&bytes, 10);
                         file.write_all(&bytes).unwrap();
                     }
@@ -523,7 +525,7 @@ fn main_run() {
                         let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes)
                             .expect("Failed to decompress");
                         let mut decoder = SliceDecoder::new(&bytes);
-                        sim.load(&mut decoder).expect("Failed to load state");
+                        instance.load(&mut decoder).expect("Failed to load state");
                     }
 
                     // {
@@ -549,7 +551,7 @@ fn main_run() {
 
                 // Check shutdown
                 if !system_status.borrow_mut().running {
-                    println!("Simulation shutdown");
+                    println!("Instance shutdown");
                     *control_flow = ControlFlow::Exit;
                 }
 

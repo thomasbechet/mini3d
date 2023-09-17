@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! define_server_handle {
+macro_rules! define_provider_handle {
     ($name:ident) => {
         #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(u64);

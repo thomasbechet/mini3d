@@ -1,7 +1,7 @@
 use mini3d_derive::Error;
 
 use crate::{
-    define_server_handle,
+    define_provider_handle,
     serialize::{Decoder, Encoder},
 };
 
@@ -11,8 +11,8 @@ pub enum StorageProviderError {
     Unknown,
 }
 
-define_server_handle!(StorageFileHandle);
-define_server_handle!(StorageMountHandle);
+define_provider_handle!(StorageFileHandle);
+define_provider_handle!(StorageMountHandle);
 
 pub enum DiskFileKind {
     File,

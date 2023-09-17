@@ -113,9 +113,6 @@ impl ECSManager {
     }
 
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> Result<(), RegistryError> {
-        let mut system_registry_update = false;
-        let mut component_registry_update = false;
-
         // Begin frame
         self.scheduler.begin_frame(context.delta_time);
 
@@ -124,15 +121,15 @@ impl ECSManager {
         // TODO: protect against infinite loops
         loop {
             // Check registry update
-            if system_registry_update || component_registry_update {
-                system_registry_update = false;
-                component_registry_update = false;
+            if context.registry.systems.changed || context.registry.components.changed {
                 // Update ECS
                 self.on_registry_update(context.registry)?;
                 // Update assets
                 context
                     .asset
                     .on_registry_update(&context.registry.components);
+                context.registry.systems.changed = false;
+                context.registry.components.changed = false;
             }
 
             // Acquire next node

@@ -2,7 +2,7 @@ use glam::{IVec2, Mat4, UVec2, Vec3};
 use mini3d_derive::Error;
 
 use crate::{
-    define_server_handle,
+    define_provider_handle,
     feature::component::renderer::{mesh::Mesh, texture::Texture},
     math::rect::IRect,
 };
@@ -19,18 +19,18 @@ pub enum RendererProviderError {
     MaxResourcesReached,
 }
 
-define_server_handle!(CommandBufferHandle);
+define_provider_handle!(CommandBufferHandle);
 
-define_server_handle!(MeshHandle);
-define_server_handle!(TextureHandle);
-define_server_handle!(MaterialHandle);
+define_provider_handle!(MeshHandle);
+define_provider_handle!(TextureHandle);
+define_provider_handle!(MaterialHandle);
 
-define_server_handle!(ViewportHandle);
+define_provider_handle!(ViewportHandle);
 
-define_server_handle!(SceneHandle);
-define_server_handle!(SceneCameraHandle);
-define_server_handle!(SceneModelHandle);
-define_server_handle!(SceneCanvasHandle);
+define_provider_handle!(SceneHandle);
+define_provider_handle!(SceneCameraHandle);
+define_provider_handle!(SceneModelHandle);
+define_provider_handle!(SceneCanvasHandle);
 
 pub struct ProviderMaterialDescriptor<'a> {
     pub diffuse: TextureHandle,

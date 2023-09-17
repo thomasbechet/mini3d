@@ -1,1 +1,1 @@
-pub struct SimulationRecorder {}
+pub struct InstanceRecorder {}

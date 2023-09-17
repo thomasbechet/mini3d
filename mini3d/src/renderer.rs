@@ -317,7 +317,7 @@ impl RendererManager {
             .view(self.viewport)
             .expect("Failed to acquire viewport view");
         // Render main screen
-        self.graphics.submit_server(
+        self.graphics.submit_provider(
             None,
             Color::TRANSPARENT,
             &mut self.resources,
