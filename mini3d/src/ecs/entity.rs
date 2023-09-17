@@ -96,6 +96,7 @@ impl EntityTable {
     }
 
     fn add_to_group(&mut self, entity: Entity, archetype: ArchetypeId) {
+        println!("ADDED {:?} to group {:?}", entity, archetype);
         let group = self.get_or_create_group(archetype);
         let group_index = group.entities.len() as u32;
         group.entities.push(entity);
