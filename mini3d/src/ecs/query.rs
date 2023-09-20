@@ -8,7 +8,7 @@ use crate::{
     },
     utils::{
         slotmap::{SlotId, SlotMap},
-        uid::{ToUID, UID},
+        uid::ToUID,
     },
 };
 
@@ -66,6 +66,7 @@ impl QueryTable {
         let any = &self.group_filters[query.any.clone()];
         let not = &self.group_filters[query.not.clone()];
         // All check
+        println!("all: {:?}", all);
         if !all.is_empty() {
             for c in all {
                 if !components.contains(c) {

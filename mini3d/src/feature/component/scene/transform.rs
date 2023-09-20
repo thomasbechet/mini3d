@@ -1,7 +1,7 @@
 use glam::{Mat4, Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
-#[derive(Default, Component, Serialize, Reflect, Clone)]
+#[derive(Default, Debug, Component, Serialize, Reflect, Clone)]
 pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
