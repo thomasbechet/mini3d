@@ -102,13 +102,7 @@ impl ECSManager {
     ) -> Result<(), RegistryError> {
         self.scheduler.on_registry_update(&registry.systems);
         self.containers.on_registry_update(&registry.components);
-        self.instances.on_registry_update(
-            registry,
-            &mut self.containers,
-            &mut self.entities,
-            &mut self.archetypes,
-            &mut self.queries,
-        )?;
+        self.instances.on_registry_update(registry)?;
         Ok(())
     }
 
@@ -142,12 +136,23 @@ impl ECSManager {
             // Execute node
             if node.count == 1 {
                 let instance = self.scheduler.instances[node.first];
-                match &self
+
+                // Lazy setup
+                let instance = self
                     .instances
-                    .get(instance)
-                    .expect("System instance not found")
-                    .instance
-                {
+                    .get_mut(instance)
+                    .expect("System instance not found");
+                if instance.dirty {
+                    instance.setup(
+                        &context.registry.components,
+                        &mut self.entities,
+                        &mut self.archetypes,
+                        &mut self.queries,
+                    )?;
+                }
+
+                // Run the system
+                match &instance.system {
                     SystemInstance::Exclusive(instance) => {
                         let api = &mut ExclusiveAPI {
                             asset: context.asset,

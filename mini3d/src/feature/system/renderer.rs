@@ -36,7 +36,7 @@ pub struct DespawnRendererEntities {
 }
 
 impl DespawnRendererEntities {
-    const NAME: &'static str = "despawn_renderer_entities";
+    pub const NAME: &'static str = "despawn_renderer_entities";
 }
 
 impl ExclusiveSystem for DespawnRendererEntities {

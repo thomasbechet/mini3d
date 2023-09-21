@@ -18,7 +18,7 @@ pub struct DespawnEntities {
 }
 
 impl DespawnEntities {
-    const NAME: &'static str = "despawn_entities";
+    pub const NAME: &'static str = "despawn_entities";
 }
 
 impl ExclusiveSystem for DespawnEntities {

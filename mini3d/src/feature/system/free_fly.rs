@@ -19,7 +19,7 @@ pub struct FreeFlySystem {
 }
 
 impl FreeFlySystem {
-    const NAME: &'static str = "free_fly_system";
+    pub const NAME: &'static str = "free_fly_system";
 }
 
 impl ParallelSystem for FreeFlySystem {

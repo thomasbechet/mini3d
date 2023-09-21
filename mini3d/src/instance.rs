@@ -31,6 +31,37 @@ pub enum ProgressError {
 
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
+#[derive(Clone)]
+pub struct InstanceFeatures {
+    renderer: bool,
+    ui: bool,
+    common: bool,
+}
+
+impl InstanceFeatures {
+    pub fn all() -> Self {
+        Self {
+            renderer: true,
+            ui: true,
+            common: true,
+        }
+    }
+
+    pub fn none() -> Self {
+        Self {
+            renderer: false,
+            ui: false,
+            common: false,
+        }
+    }
+}
+
+impl Default for InstanceFeatures {
+    fn default() -> Self {
+        Self::all()
+    }
+}
+
 pub struct Instance {
     pub(crate) registry: RegistryManager,
     pub(crate) storage: StorageManager,
@@ -45,7 +76,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    fn register_core_features(&mut self) -> Result<(), RegistryError> {
+    fn register_core_features(&mut self, features: &InstanceFeatures) -> Result<(), RegistryError> {
         macro_rules! define_component {
             ($component: ty) => {
                 self.registry
@@ -55,9 +86,9 @@ impl Instance {
         }
 
         macro_rules! define_system_exclusive {
-            ($name: literal, $system: ty, $stage: expr) => {
+            ($system: ty, $stage: expr) => {
                 self.registry.systems.add_static_exclusive::<$system>(
-                    $name,
+                    <$system>::NAME,
                     $stage,
                     SystemOrder::default(),
                 )?;
@@ -65,80 +96,69 @@ impl Instance {
         }
 
         macro_rules! define_system_parallel {
-            ($name: literal, $system: ty, $stage: expr) => {
+            ($system: ty, $stage: expr) => {
                 self.registry.systems.add_static_parallel::<$system>(
-                    $name,
+                    <$system>::NAME,
                     $stage,
                     SystemOrder::default(),
                 )?;
             };
         }
 
-        // Define components
-        define_component!(component::common::free_fly::FreeFly);
-        define_component!(component::common::lifecycle::Lifecycle);
-        define_component!(component::common::prefab::Prefab);
-        define_component!(component::common::rotator::Rotator);
-        define_component!(component::common::script::Script);
-        define_component!(component::input::input_table::InputTable);
-        define_component!(component::physics::rigid_body::RigidBody);
-        define_component!(component::renderer::camera::Camera);
-        define_component!(component::renderer::font::Font);
-        define_component!(component::renderer::material::Material);
-        define_component!(component::renderer::mesh::Mesh);
-        define_component!(component::renderer::model::Model);
-        define_component!(component::renderer::static_mesh::StaticMesh);
-        define_component!(component::renderer::texture::Texture);
-        define_component!(component::renderer::tilemap::Tilemap);
-        define_component!(component::renderer::tileset::Tileset);
-        define_component!(component::renderer::viewport::Viewport);
-        define_component!(component::ui::canvas::Canvas);
-        define_component!(component::ui::ui_stylesheet::UIStyleSheet);
-        define_component!(component::ui::ui_template::UITemplate);
-        define_component!(component::ui::ui::UI);
-        define_component!(component::ui::ui::UIRenderTarget);
-        define_component!(component::scene::hierarchy::Hierarchy);
-        define_component!(component::scene::local_to_world::LocalToWorld);
-        define_component!(component::scene::transform::Transform);
+        // Define renderer features
+        if features.common {
+            define_component!(component::renderer::camera::Camera);
+            define_component!(component::renderer::font::Font);
+            define_component!(component::renderer::material::Material);
+            define_component!(component::renderer::mesh::Mesh);
+            define_component!(component::renderer::model::Model);
+            define_component!(component::renderer::static_mesh::StaticMesh);
+            define_component!(component::renderer::texture::Texture);
+            define_component!(component::renderer::tilemap::Tilemap);
+            define_component!(component::renderer::tileset::Tileset);
+            define_component!(component::renderer::viewport::Viewport);
+        }
 
-        // Define systems
-        define_system_exclusive!(
-            "despawn_entities",
-            system::despawn::DespawnEntities,
-            SystemStage::UPDATE
-        );
-        define_system_exclusive!(
-            "renderer",
-            system::renderer::DespawnRendererEntities,
-            SystemStage::UPDATE
-        );
-        define_system_parallel!(
-            "free_fly",
-            system::free_fly::FreeFlySystem,
-            SystemStage::UPDATE
-        );
-        define_system_parallel!(
-            "rotator",
-            system::rotator::RotatorSystem,
-            SystemStage::UPDATE
-        );
-        define_system_parallel!(
-            "transform_propagate",
-            system::transform::PropagateTransforms,
-            SystemStage::UPDATE
-        );
-        define_system_parallel!("ui_update", system::ui::UpdateUI, SystemStage::UPDATE);
-        define_system_exclusive!("ui_render", system::ui::RenderUI, SystemStage::UPDATE);
+        // Define UI features
+        if features.ui {
+            define_component!(component::ui::canvas::Canvas);
+            define_component!(component::ui::ui_stylesheet::UIStyleSheet);
+            define_component!(component::ui::ui_template::UITemplate);
+            define_component!(component::ui::ui::UI);
+            define_component!(component::ui::ui::UIRenderTarget);
+            define_system_parallel!(system::ui::UpdateUI, SystemStage::UPDATE);
+            define_system_exclusive!(system::ui::RenderUI, SystemStage::UPDATE);
+        }
+
+        // Define components
+        if features.common {
+            define_component!(component::common::free_fly::FreeFly);
+            define_component!(component::common::lifecycle::Lifecycle);
+            define_component!(component::common::prefab::Prefab);
+            define_component!(component::common::rotator::Rotator);
+            define_component!(component::common::script::Script);
+            define_component!(component::input::input_table::InputTable);
+            define_component!(component::physics::rigid_body::RigidBody);
+            define_component!(component::scene::hierarchy::Hierarchy);
+            define_component!(component::scene::local_to_world::LocalToWorld);
+            define_component!(component::scene::transform::Transform);
+            define_system_exclusive!(system::despawn::DespawnEntities, SystemStage::UPDATE);
+            define_system_exclusive!(
+                system::renderer::DespawnRendererEntities,
+                SystemStage::UPDATE
+            );
+            define_system_parallel!(system::free_fly::FreeFlySystem, SystemStage::UPDATE);
+            define_system_parallel!(system::rotator::RotatorSystem, SystemStage::UPDATE);
+            define_system_parallel!(system::transform::PropagateTransforms, SystemStage::UPDATE);
+        }
 
         Ok(())
     }
 
-    fn setup(&mut self, core_features: bool) {
+    fn setup(&mut self, features: &InstanceFeatures) {
         // Register core features
-        if core_features {
-            self.register_core_features()
-                .expect("Failed to define core features");
-        }
+        self.register_core_features(features)
+            .expect("Failed to define core features");
         // Setup ECS
         self.ecs
             .scheduler
@@ -148,15 +168,13 @@ impl Instance {
             .scheduler
             .on_registry_update(&self.registry.systems);
         self.asset.on_registry_update(&self.registry.components);
-        if core_features {
-            // Setup managers
-            self.renderer
-                .reload_component_handles(&self.registry.components)
-                .expect("Failed to reload component handles");
-        }
+        // Setup managers
+        self.renderer
+            .reload_ecs_components(&self.registry.components)
+            .expect("Failed to reload component handles");
     }
 
-    pub fn new(core_features: bool) -> Self {
+    pub fn new(features: InstanceFeatures) -> Self {
         let mut instance = Self {
             registry: Default::default(),
             storage: Default::default(),
@@ -169,7 +187,7 @@ impl Instance {
             logger: Default::default(),
             global_time: 0.0,
         };
-        instance.setup(core_features);
+        instance.setup(&features);
         instance
     }
 
@@ -277,8 +295,8 @@ impl Instance {
             .map_err(|err| ProgressError::System)?;
 
         // ================= POST-UPDATE STAGE ================== //
-        self.renderer
-            .submit_graphics(&mut self.asset, &self.ecs.containers);
+        // self.renderer
+        //     .submit_graphics(&mut self.asset, &self.ecs.containers);
 
         Ok(())
     }

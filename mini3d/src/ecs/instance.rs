@@ -15,7 +15,6 @@ use super::{
         ExclusiveAPI, ParallelAPI,
     },
     archetype::ArchetypeTable,
-    container::ContainerTable,
     entity::EntityTable,
     query::{FilterQuery, QueryBuilder, QueryTable},
 };
@@ -62,7 +61,6 @@ pub struct ParallelResolver<'a> {
     all: &'a mut Vec<ComponentId>,
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
-    containers: &'a mut ContainerTable,
     entities: &'a mut EntityTable,
     archetypes: &'a mut ArchetypeTable,
     queries: &'a mut QueryTable,
@@ -171,10 +169,11 @@ pub(crate) enum SystemInstance {
 }
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) system: System,
-    pub(crate) instance: SystemInstance,
+    pub(crate) handle: System,
+    pub(crate) system: SystemInstance,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQuery>,
+    pub(crate) dirty: bool,
     pub(crate) active: bool,
 }
 
@@ -186,12 +185,52 @@ impl SystemInstanceEntry {
             .reflection
             .create_instance();
         Self {
-            system,
-            instance,
+            handle: system,
+            system: instance,
             last_execution_cycle: 0,
             filter_queries: Vec::new(),
+            dirty: true,
             active: true,
         }
+    }
+
+    pub(crate) fn setup(
+        &mut self,
+        registry: &ComponentRegistry,
+        entities: &mut EntityTable,
+        archetypes: &mut ArchetypeTable,
+        queries: &mut QueryTable,
+    ) -> Result<(), RegistryError> {
+        match self.system {
+            SystemInstance::Exclusive(ref mut instance) => {
+                instance.resolve(&mut ExclusiveResolver {
+                    registry,
+                    system: self.handle,
+                    all: &mut Default::default(),
+                    any: &mut Default::default(),
+                    not: &mut Default::default(),
+                    entities,
+                    archetypes,
+                    queries,
+                })?;
+            }
+            SystemInstance::Parallel(ref mut instance) => {
+                instance.resolve(&mut ParallelResolver {
+                    registry,
+                    system: self.handle,
+                    reads: Vec::new(),
+                    writes: Vec::new(),
+                    all: &mut Default::default(),
+                    any: &mut Default::default(),
+                    not: &mut Default::default(),
+                    entities,
+                    archetypes,
+                    queries,
+                })?;
+            }
+        }
+        self.dirty = false;
+        Ok(())
     }
 }
 
@@ -204,65 +243,22 @@ impl SystemInstanceTable {
     pub(crate) fn on_registry_update(
         &mut self,
         registry: &RegistryManager,
-        containers: &mut ContainerTable,
-        entities: &mut EntityTable,
-        archetypes: &mut ArchetypeTable,
-        queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {
         for (id, entry) in registry.systems.systems.iter() {
             // Create instance if missing
             if !self.instances.contains(id) {
-                let instance = registry
-                    .systems
-                    .get(id.into())
-                    .expect("System not found")
-                    .reflection
-                    .create_instance();
-                let instance = SystemInstanceEntry {
-                    system: id.into(),
-                    instance,
-                    last_execution_cycle: 0,
-                    filter_queries: Vec::new(),
-                    active: entry.active_by_default,
-                };
-                self.instances.insert(id, instance);
+                self.instances
+                    .insert(id, SystemInstanceEntry::new(id.into(), &registry.systems));
             }
 
-            // Resolve instance
-            match self.instances[id].instance {
-                SystemInstance::Exclusive(ref mut instance) => {
-                    instance.resolve(&mut ExclusiveResolver {
-                        registry: &registry.components,
-                        system: id.into(),
-                        all: &mut Default::default(),
-                        any: &mut Default::default(),
-                        not: &mut Default::default(),
-                        entities,
-                        archetypes,
-                        queries,
-                    })?;
-                }
-                SystemInstance::Parallel(ref mut instance) => {
-                    instance.resolve(&mut ParallelResolver {
-                        registry: &registry.components,
-                        system: id.into(),
-                        reads: Vec::new(),
-                        writes: Vec::new(),
-                        all: &mut Default::default(),
-                        any: &mut Default::default(),
-                        not: &mut Default::default(),
-                        containers,
-                        entities,
-                        archetypes,
-                        queries,
-                    })?;
-                }
-            }
+            // Invalidate instances
+            // TODO: check if system must be changed
+            self.instances[id].dirty = true;
         }
         Ok(())
     }
 
-    pub(crate) fn get(&self, system: System) -> Option<&SystemInstanceEntry> {
-        self.instances.get(system.into())
+    pub(crate) fn get_mut(&mut self, system: System) -> Option<&mut SystemInstanceEntry> {
+        self.instances.get_mut(system.into())
     }
 }

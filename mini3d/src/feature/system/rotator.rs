@@ -19,7 +19,7 @@ pub struct RotatorSystem {
 }
 
 impl RotatorSystem {
-    const NAME: &'static str = "rotator_system";
+    pub const NAME: &'static str = "rotator_system";
 }
 
 impl ParallelSystem for RotatorSystem {

@@ -259,28 +259,16 @@ impl RendererManager {
         self.resources.reset();
     }
 
-    pub(crate) fn reload_component_handles(
+    pub(crate) fn reload_ecs_components(
         &mut self,
         registry: &ComponentRegistry,
     ) -> Result<(), RegistryError> {
-        self.camera = registry
-            .find(Camera::NAME)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        self.static_mesh = registry
-            .find(StaticMesh::NAME)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        self.canvas = registry
-            .find(Canvas::NAME)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        self.local_to_world = registry
-            .find(LocalToWorld::NAME)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        self.viewport = registry
-            .find(Viewport::NAME)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        self.model = registry
-            .find(Model::NAME)
-            .ok_or(RegistryError::ComponentNotFound)?;
+        self.camera = registry.find(Camera::NAME).unwrap_or_default();
+        self.static_mesh = registry.find(StaticMesh::NAME).unwrap_or_default();
+        self.canvas = registry.find(Canvas::NAME).unwrap_or_default();
+        self.local_to_world = registry.find(LocalToWorld::NAME).unwrap_or_default();
+        self.viewport = registry.find(Viewport::NAME).unwrap_or_default();
+        self.model = registry.find(Model::NAME).unwrap_or_default();
         Ok(())
     }
 
@@ -311,7 +299,7 @@ impl RendererManager {
         &mut self,
         asset: &mut AssetManager,
         containers: &ContainerTable,
-    ) {
+    ) -> Result<(), RendererProviderError> {
         // Acquire active scene
         let viewports = containers
             .view(self.viewport)
@@ -324,7 +312,7 @@ impl RendererManager {
             asset,
             &viewports,
             self.provider.as_mut(),
-        );
+        )
     }
 
     pub fn graphics(&mut self) -> &mut Graphics {

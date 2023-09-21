@@ -7,7 +7,7 @@ use mini3d::{
     },
     feature::component::scene::transform::Transform,
     info,
-    instance::Instance,
+    instance::{Instance, InstanceFeatures},
     registry::{
         component::StaticComponent,
         error::RegistryError,
@@ -21,11 +21,14 @@ struct SpawnSystem;
 
 impl ExclusiveSystem for SpawnSystem {
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        let transforms = api
-            .registry
-            .components
-            .add_static::<Transform>(Transform::NAME)
-            .unwrap();
+        // let transforms = api
+        //     .registry
+        //     .components
+        //     .add_static::<Transform>(Transform::NAME)
+        //     .unwrap();
+        let transforms: StaticComponent<Transform> =
+            api.registry.components.find(Transform::NAME).unwrap();
+        ecs.update_registry(&api.registry.components);
         let entity = ecs
             .add()
             .with(
@@ -52,19 +55,19 @@ impl ExclusiveSystem for TestSystem {
 
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         let transforms = ecs.view(self.transforms);
-        for transform in transforms.iter() {
-            info!(api, "{:?}", transform);
-        }
-        for e in ecs.query(self.transform_query) {
+        // for transform in transforms.iter() {
+        //     info!(api, "{:?}", transform);
+        // }
+        for (i, e) in ecs.query(self.transform_query).enumerate() {
             let transform = &transforms[e];
-            info!(api, "{:?}", transform);
+            info!(api, "{} {:?}", i, transform);
         }
         info!(api, "{:.3} {:.3}", api.time.global(), api.time.delta());
     }
 }
 
 fn main() {
-    let mut instance = Instance::new(false);
+    let mut instance = Instance::new(InstanceFeatures::all());
     instance.set_logger_provider(StdoutLogger);
     instance
         .register_system::<TestSystem>("test_system", SystemStage::FIXED_UPDATE_60HZ)
