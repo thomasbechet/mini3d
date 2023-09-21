@@ -21,8 +21,11 @@ struct SpawnSystem;
 
 impl ExclusiveSystem for SpawnSystem {
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        let transforms: StaticComponent<Transform> =
-            api.registry.components.find(Transform::NAME).unwrap();
+        let transforms = api
+            .registry
+            .components
+            .add_static::<Transform>(Transform::NAME)
+            .unwrap();
         let entity = ecs
             .add()
             .with(
@@ -43,7 +46,6 @@ struct TestSystem {
 impl ExclusiveSystem for TestSystem {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         self.transforms = resolver.find(Transform::NAME)?;
-        println!("RESOLVE QUERY");
         self.transform_query = resolver.query().all(&[Transform::NAME])?.build();
         Ok(())
     }
@@ -62,7 +64,7 @@ impl ExclusiveSystem for TestSystem {
 }
 
 fn main() {
-    let mut instance = Instance::new(true);
+    let mut instance = Instance::new(false);
     instance.set_logger_provider(StdoutLogger);
     instance
         .register_system::<TestSystem>("test_system", SystemStage::FIXED_UPDATE_60HZ)

@@ -66,7 +66,6 @@ impl QueryTable {
         let any = &self.group_filters[query.any.clone()];
         let not = &self.group_filters[query.not.clone()];
         // All check
-        println!("all: {:?}", all);
         if !all.is_empty() {
             for c in all {
                 if !components.contains(c) {
@@ -149,6 +148,7 @@ impl QueryTable {
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
         let id = Query(self.queries.add(query));
         for archetype in archetypes.iter() {
+            println!("Query match: {:?} for {:?}", archetype, id.0);
             if self.query_match(id, archetype, archetypes) {
                 self.queries[id.0].archetypes.push(archetype);
             }

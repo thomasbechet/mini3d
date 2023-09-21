@@ -323,25 +323,31 @@ impl ComponentRegistry {
         name: &str,
         kind: ComponentKind,
         reflection: Box<dyn AnyComponentReflection>,
-    ) -> Result<(), RegistryError> {
+    ) -> Result<SlotId, RegistryError> {
         let uid: UID = name.into();
         if self.find_id(uid).is_some() {
             return Err(RegistryError::DuplicatedComponent);
         }
         self.changed = true;
-        let id = self.entries.add(ComponentEntry {
+        Ok(self.entries.add(ComponentEntry {
             name: name.into(),
             kind,
             reflection,
-        });
-        Ok(())
+        }))
     }
 
-    pub fn add_static<C: ComponentData>(&mut self, name: &str) -> Result<(), RegistryError> {
+    pub fn add_static<C: ComponentData>(
+        &mut self,
+        name: &str,
+    ) -> Result<StaticComponent<C>, RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
-        self.add(name, ComponentKind::Static, Box::new(reflection))
+        let id = self.add(name, ComponentKind::Static, Box::new(reflection))?;
+        Ok(StaticComponent {
+            _marker: std::marker::PhantomData,
+            id: id.into(),
+        })
     }
 
     pub fn add_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {

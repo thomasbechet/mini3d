@@ -148,10 +148,12 @@ impl Instance {
             .scheduler
             .on_registry_update(&self.registry.systems);
         self.asset.on_registry_update(&self.registry.components);
-        // Setup managers
-        self.renderer
-            .reload_component_handles(&self.registry.components)
-            .expect("Failed to reload component handles");
+        if core_features {
+            // Setup managers
+            self.renderer
+                .reload_component_handles(&self.registry.components)
+                .expect("Failed to reload component handles");
+        }
     }
 
     pub fn new(core_features: bool) -> Self {
