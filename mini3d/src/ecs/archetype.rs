@@ -38,6 +38,7 @@ impl Archetype {
 
 type ArchetypeEdgeId = usize;
 
+#[derive(Debug)]
 struct ArchetypeEdge {
     component: ComponentId,
     add: Option<ArchetypeId>,
@@ -253,5 +254,24 @@ impl Index<ArchetypeId> for ArchetypeTable {
 impl IndexMut<ArchetypeId> for ArchetypeTable {
     fn index_mut(&mut self, id: ArchetypeId) -> &mut Self::Output {
         self.entries.get_mut(id).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_archetype_table() {
+        use super::*;
+        let mut archetypes = ArchetypeTable::new();
+        assert!(!archetypes.empty.is_null());
+        let mut components = SlotMap::default();
+        let a = ComponentId::from(components.add(()));
+        let b = ComponentId::from(components.add(()));
+        let c = ComponentId::from(components.add(()));
+        let archa = archetypes.find(&[a, b]);
+        println!("{:?}", archetypes.components);
+        for edge in archetypes.edges {
+            println!("{:?}", edge);
+        }
     }
 }

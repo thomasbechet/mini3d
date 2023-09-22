@@ -33,25 +33,25 @@ const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 #[derive(Clone)]
 pub struct InstanceFeatures {
-    renderer: bool,
-    ui: bool,
-    common: bool,
+    renderer_ecs: bool,
+    ui_ecs: bool,
+    common_ecs: bool,
 }
 
 impl InstanceFeatures {
     pub fn all() -> Self {
         Self {
-            renderer: true,
-            ui: true,
-            common: true,
+            renderer_ecs: true,
+            ui_ecs: true,
+            common_ecs: true,
         }
     }
 
     pub fn none() -> Self {
         Self {
-            renderer: false,
-            ui: false,
-            common: false,
+            renderer_ecs: false,
+            ui_ecs: false,
+            common_ecs: false,
         }
     }
 }
@@ -106,7 +106,7 @@ impl Instance {
         }
 
         // Define renderer features
-        if features.common {
+        if features.common_ecs {
             define_component!(component::renderer::camera::Camera);
             define_component!(component::renderer::font::Font);
             define_component!(component::renderer::material::Material);
@@ -120,7 +120,7 @@ impl Instance {
         }
 
         // Define UI features
-        if features.ui {
+        if features.ui_ecs {
             define_component!(component::ui::canvas::Canvas);
             define_component!(component::ui::ui_stylesheet::UIStyleSheet);
             define_component!(component::ui::ui_template::UITemplate);
@@ -131,7 +131,7 @@ impl Instance {
         }
 
         // Define components
-        if features.common {
+        if features.common_ecs {
             define_component!(component::common::free_fly::FreeFly);
             define_component!(component::common::lifecycle::Lifecycle);
             define_component!(component::common::prefab::Prefab);
