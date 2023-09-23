@@ -7,7 +7,6 @@ use crate::{
         query::Query,
     },
     feature::component::{common::rotator::Rotator, scene::transform::Transform},
-    info,
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
 
@@ -36,9 +35,7 @@ impl ParallelSystem for RotatorSystem {
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let mut transforms = ecs.view_mut(self.transform);
         let rotators = ecs.view(self.rotator);
-        // info!(api, "RotatorSystem");
         for e in ecs.query(self.query) {
-            info!(api, "RotatorSystem");
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
                 api.time.delta() as f32 * f32::to_radians(rotators[e].speed),

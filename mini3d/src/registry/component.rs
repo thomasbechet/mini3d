@@ -73,7 +73,7 @@ pub trait ComponentHandle: Copy {
 
 pub struct StaticComponent<C: ComponentData> {
     _marker: std::marker::PhantomData<C>,
-    id: ComponentId,
+    pub(crate) id: ComponentId,
 }
 
 impl<C: ComponentData> Clone for StaticComponent<C> {

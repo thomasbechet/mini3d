@@ -16,7 +16,6 @@ use crate::{
 
 use self::{
     api::{ecs::ExclusiveECS, time::TimeAPI, ExclusiveAPI},
-    archetype::ArchetypeTable,
     container::ContainerTable,
     entity::EntityTable,
     instance::{SystemInstance, SystemInstanceTable},
@@ -37,7 +36,6 @@ pub mod view;
 
 pub(crate) struct ECSManager {
     pub(crate) containers: ContainerTable,
-    archetypes: ArchetypeTable,
     entities: EntityTable,
     queries: QueryTable,
     instances: SystemInstanceTable,
@@ -49,7 +47,6 @@ impl Default for ECSManager {
     fn default() -> Self {
         Self {
             containers: ContainerTable::default(),
-            archetypes: ArchetypeTable::new(),
             entities: EntityTable::default(),
             queries: QueryTable::default(),
             instances: SystemInstanceTable::default(),
@@ -146,7 +143,6 @@ impl ECSManager {
                     instance.setup(
                         &context.registry.components,
                         &mut self.entities,
-                        &mut self.archetypes,
                         &mut self.queries,
                     )?;
                 }
@@ -167,7 +163,6 @@ impl ECSManager {
                             },
                         };
                         let ecs = &mut ExclusiveECS {
-                            archetypes: &mut self.archetypes,
                             containers: &mut self.containers,
                             entities: &mut self.entities,
                             queries: &mut self.queries,

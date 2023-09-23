@@ -713,7 +713,7 @@ impl ExclusiveSystem for OSBootstrap {
                 asset: utils_script,
             },
         );
-        if let Result::Err(e) = compiler.compile(entry, &api.asset) {
+        if let Result::Err(e) = compiler.compile(entry, api.asset) {
             println!("Error: {:?}", e);
         } else {
             println!("SUCCESS");

@@ -15,7 +15,6 @@ use crate::{
 };
 
 pub struct ExclusiveECS<'a> {
-    pub(crate) archetypes: &'a mut ArchetypeTable,
     pub(crate) containers: &'a mut ContainerTable,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
@@ -25,12 +24,11 @@ pub struct ExclusiveECS<'a> {
 
 impl<'a> ExclusiveECS<'a> {
     pub fn add(&mut self) -> EntityBuilder<'_> {
-        EntityBuilder::new(self.archetypes, self.entities, self.containers, self.cycle)
+        EntityBuilder::new(self.entities, self.containers, self.cycle)
     }
 
     pub fn remove(&mut self, entity: Entity) {
-        self.entities
-            .remove(entity, self.archetypes, self.containers)
+        self.entities.remove(entity, self.containers)
     }
 
     pub fn view<H: ComponentHandle>(&self, component: H) -> H::ViewRef<'_> {
@@ -57,7 +55,7 @@ impl<'a> ExclusiveECS<'a> {
         self.queries
             .query_archetypes(query)
             .iter()
-            .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
+            .flat_map(|archetype| self.entities.iter_pool_entities(*archetype))
     }
 
     pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
@@ -93,7 +91,7 @@ impl<'a> ParallelECS<'a> {
         self.queries
             .query_archetypes(query)
             .iter()
-            .flat_map(|archetype| self.entities.iter_group_entities(*archetype))
+            .flat_map(|archetype| self.entities.iter_pool_entities(*archetype))
     }
 
     pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {

@@ -1,7 +1,6 @@
 use crate::{
-    registry::component::{ComponentHandle, ComponentId, PrivateComponentTableMut},
+    registry::component::{ComponentHandle, PrivateComponentTableMut},
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::slotmap::SecondaryMap,
 };
 
 use super::{
@@ -58,24 +57,17 @@ impl Serialize for Entity {
 }
 
 #[derive(Default, Clone, Copy)]
-pub(crate) struct EntityInfo {
-    pub(crate) group: ArchetypeId,
-    pub(crate) group_index: u32,
+pub(crate) struct EntityEntry {
+    pub(crate) archetype: ArchetypeId,
+    pub(crate) pool_index: u32,
     pub(crate) pending_remove_counter: u16,
 }
 
-#[derive(Default)]
-pub(crate) struct EntityGroup {
-    entities: Vec<Entity>,
-    added_filter_queries: Vec<FilterQuery>,
-    removed_filter_queries: Vec<FilterQuery>,
-}
-
 pub(crate) struct EntityTable {
-    entities: PagedVector<EntityInfo>, // EntityKey -> EntityInfo
+    pub(crate) archetypes: ArchetypeTable,
+    entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
     free_entities: Vec<Entity>,
     next_entity: Entity,
-    groups: SecondaryMap<EntityGroup>, // ArchetypeId -> EntityGroup
 }
 
 impl EntityTable {
@@ -88,93 +80,67 @@ impl EntityTable {
         entity
     }
 
-    fn get_or_create_group(&mut self, group: ArchetypeId) -> &mut EntityGroup {
-        if !self.groups.contains(group) {
-            self.groups.insert(group, EntityGroup::default());
+    pub(crate) fn remove(&mut self, entity: Entity, containers: &mut ContainerTable) {
+        let info = self.entries.get_mut(entity.key()).unwrap();
+        // Check if entity is already pending removal
+        if info.pending_remove_counter > 0 {
+            return;
         }
-        &mut self.groups[group]
-    }
-
-    fn add_to_group(&mut self, entity: Entity, archetype: ArchetypeId) {
-        let group = self.get_or_create_group(archetype);
-        let group_index = group.entities.len() as u32;
-        group.entities.push(entity);
-        self.entities.set(
-            entity.key(),
-            EntityInfo {
-                group: archetype,
-                group_index,
-                pending_remove_counter: 0,
-            },
-        );
-    }
-
-    pub(crate) fn remove(
-        &mut self,
-        entity: Entity,
-        archetypes: &mut ArchetypeTable,
-        containers: &mut ContainerTable,
-    ) {
-        let info = self.entities.get_mut(entity.key()).unwrap();
-        let group = &mut self.groups[info.group];
-        // Check if the group is watched by any filter queries
-        if !group.removed_filter_queries.is_empty() {
+        // Check if the archetype is watched by any filter queries
+        let archetype = self.archetypes.get(info.archetype).unwrap();
+        if !archetype.removed_filter_queries.is_empty() {
             // Entity must be removed manually by the filter query
-            info.pending_remove_counter = group.removed_filter_queries.len() as u16;
+            info.pending_remove_counter = archetype.removed_filter_queries.len() as u16;
         } else {
-            // We can safely reuse the entity
+            // We can safely destroy the entity
             self.free_entities
                 .push(Entity::new(entity.key(), entity.version() + 1));
-        }
-        // Remove entity from group (not required for filter queries)
-        let last_entity = group.entities.last().copied();
-        group.entities.swap_remove(info.group_index as usize);
-        if let Some(last_entity) = last_entity {
-            // Remap last entity
-            self.entities
-                .get_mut(last_entity.key())
-                .unwrap()
-                .group_index = info.group_index;
-        }
-        // Check if the group is watched by any filter queries
-        if group.removed_filter_queries.is_empty() {
-            let archetype = self.archetype(entity);
-            // Remove components
-            archetypes
-                .components(archetype)
+            // Remove components from containers
+            self.archetypes
+                .components(info.archetype)
                 .iter()
                 .for_each(|component| {
                     containers.remove(entity, *component);
                 });
         }
+        // In all cases, we want to remove the entity from the pool
+        // Filtered queries are not affected as they keep their own list of entities
+        let archetype = self.archetypes.get_mut(info.archetype);
+        let last_entity = archetype.pool.last().copied();
+        archetype.pool.swap_remove(info.pool_index as usize);
+        if let Some(last_entity) = last_entity {
+            // Remap last entity
+            self.entries.get_mut(last_entity.key()).unwrap().pool_index = info.pool_index;
+        }
     }
 
-    pub(crate) fn archetype(&self, entitiy: Entity) -> ArchetypeId {
-        self.entities.get(entitiy.key()).unwrap().group
-    }
-
-    pub(crate) fn iter_group_entities(
+    pub(crate) fn iter_pool_entities(
         &self,
         archetype: ArchetypeId,
     ) -> impl Iterator<Item = Entity> + '_ {
-        let group = self.groups.get(archetype).unwrap();
-        group.entities.iter().copied()
+        if let Some(archetype) = self.archetypes.get(archetype) {
+            archetype.pool.iter().copied()
+        } else {
+            [].iter().copied()
+        }
     }
 
     pub(crate) fn register_filter_query(
         &mut self,
-        group: ArchetypeId,
+        archetype: ArchetypeId,
         query: FilterQuery,
         kind: FilterKind,
     ) {
         match kind {
             FilterKind::Added => {
-                self.get_or_create_group(group)
+                self.archetypes
+                    .get_mut(archetype)
                     .added_filter_queries
                     .push(query);
             }
             FilterKind::Removed => {
-                self.get_or_create_group(group)
+                self.archetypes
+                    .get_mut(archetype)
                     .removed_filter_queries
                     .push(query);
             }
@@ -186,10 +152,10 @@ impl EntityTable {
 impl Default for EntityTable {
     fn default() -> Self {
         Self {
-            entities: PagedVector::new(),
+            archetypes: ArchetypeTable::new(),
+            entries: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
-            groups: SecondaryMap::default(),
         }
     }
 }
@@ -197,7 +163,6 @@ impl Default for EntityTable {
 pub struct EntityBuilder<'a> {
     entity: Entity,
     archetype: ArchetypeId,
-    archetypes: &'a mut ArchetypeTable,
     entities: &'a mut EntityTable,
     containers: &'a mut ContainerTable,
     cycle: u32,
@@ -205,7 +170,6 @@ pub struct EntityBuilder<'a> {
 
 impl<'a> EntityBuilder<'a> {
     pub(crate) fn new(
-        archetypes: &'a mut ArchetypeTable,
         entities: &'a mut EntityTable,
         containers: &'a mut ContainerTable,
         cycle: u32,
@@ -214,20 +178,18 @@ impl<'a> EntityBuilder<'a> {
         let entity = entities.next_entity();
         Self {
             entity,
-            archetype: archetypes.empty,
-            archetypes,
+            archetype: entities.archetypes.empty,
             entities,
             containers,
             cycle,
         }
     }
 
-    fn update_archetype(&mut self, component: ComponentId) {
-        self.archetype = self.archetypes.find_add(self.archetype, component);
-    }
-
     pub fn with<H: ComponentHandle>(mut self, component: H, data: H::Data) -> Self {
-        self.update_archetype(component.id());
+        self.archetype = self
+            .entities
+            .archetypes
+            .find_add(self.archetype, component.id());
         component.insert_container(
             PrivateComponentTableMut(self.containers),
             self.entity,
@@ -248,6 +210,18 @@ impl<'a> EntityBuilder<'a> {
 
 impl<'a> Drop for EntityBuilder<'a> {
     fn drop(&mut self) {
-        self.entities.add_to_group(self.entity, self.archetype);
+        // Add to pool
+        let archetype = self.entities.archetypes.get_mut(self.archetype);
+        let pool_index = archetype.pool.len();
+        archetype.pool.push(self.entity);
+        // Update entity info
+        self.entities.entries.set(
+            self.entity.key(),
+            EntityEntry {
+                archetype: self.archetype,
+                pool_index: pool_index as u32,
+                pending_remove_counter: 0,
+            },
+        );
     }
 }

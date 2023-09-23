@@ -20,7 +20,7 @@ use super::{
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub struct Query(SlotId);
 
-#[derive(Default, PartialEq, Eq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct FilterQuery(SlotId);
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -48,7 +48,7 @@ pub(crate) struct FilterQueryEntry {
 
 #[derive(Default)]
 pub(crate) struct QueryTable {
-    group_filters: Vec<ComponentId>,
+    components: Vec<ComponentId>,
     queries: SlotMap<QueryEntry>,
     pub(crate) filter_queries: SlotMap<FilterQueryEntry>,
 }
@@ -62,9 +62,9 @@ impl QueryTable {
     ) -> bool {
         let components = archetypes.components(archetype);
         let query = self.queries.get(query.0).unwrap();
-        let all = &self.group_filters[query.all.clone()];
-        let any = &self.group_filters[query.any.clone()];
-        let not = &self.group_filters[query.not.clone()];
+        let all = &self.components[query.all.clone()];
+        let any = &self.components[query.any.clone()];
+        let not = &self.components[query.not.clone()];
         // All check
         if !all.is_empty() {
             for c in all {
@@ -113,9 +113,9 @@ impl QueryTable {
             if query.not.len() != not.len() {
                 continue;
             }
-            let all2 = &self.group_filters[query.all.clone()];
-            let any2 = &self.group_filters[query.any.clone()];
-            let not2 = &self.group_filters[query.not.clone()];
+            let all2 = &self.components[query.all.clone()];
+            let any2 = &self.components[query.any.clone()];
+            let not2 = &self.components[query.not.clone()];
             if all.iter().any(|c| !all2.contains(c)) {
                 continue;
             }
@@ -133,23 +133,21 @@ impl QueryTable {
     fn add_query(
         &mut self,
         entities: &mut EntityTable,
-        archetypes: &mut ArchetypeTable,
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
     ) -> Query {
         let mut query = QueryEntry::default();
-        let start = self.group_filters.len();
-        self.group_filters.extend_from_slice(all);
-        self.group_filters.extend_from_slice(any);
-        self.group_filters.extend_from_slice(not);
+        let start = self.components.len();
+        self.components.extend_from_slice(all);
+        self.components.extend_from_slice(any);
+        self.components.extend_from_slice(not);
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
         let id = Query(self.queries.add(query));
-        for archetype in archetypes.iter() {
-            println!("Query match: {:?} for {:?}", archetype, id.0);
-            if self.query_match(id, archetype, archetypes) {
+        for archetype in entities.archetypes.iter() {
+            if self.query_match(id, archetype, &entities.archetypes) {
                 self.queries[id.0].archetypes.push(archetype);
             }
         }
@@ -193,7 +191,6 @@ pub struct QueryBuilder<'a> {
     pub(crate) any: &'a mut Vec<ComponentId>,
     pub(crate) not: &'a mut Vec<ComponentId>,
     pub(crate) entities: &'a mut EntityTable,
-    pub(crate) archetypes: &'a mut ArchetypeTable,
     pub(crate) queries: &'a mut QueryTable,
 }
 
@@ -242,7 +239,7 @@ impl<'a> QueryBuilder<'a> {
             return id;
         }
         self.queries
-            .add_query(self.entities, self.archetypes, self.all, self.any, self.not)
+            .add_query(self.entities, self.all, self.any, self.not)
     }
 
     fn add_filter_query(self, kind: FilterKind) -> FilterQuery {
@@ -251,7 +248,7 @@ impl<'a> QueryBuilder<'a> {
             .find_same_query(self.all, self.any, self.not)
             .unwrap_or_else(|| {
                 self.queries
-                    .add_query(self.entities, self.archetypes, self.all, self.any, self.not)
+                    .add_query(self.entities, self.all, self.any, self.not)
             });
         self.queries
             .add_filter_query(self.entities, kind, id, self.system)

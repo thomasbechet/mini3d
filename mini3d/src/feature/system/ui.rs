@@ -38,7 +38,6 @@ impl ParallelSystem for UpdateUI {
 
     fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
         let mut uis = ecs.view_mut(self.ui);
-        api.registry.log();
         for e in ecs.query(self.query) {
             let ui = &mut uis[e];
             expect!(api, ui.update(api.time.global()));

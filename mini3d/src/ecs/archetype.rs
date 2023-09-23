@@ -1,24 +1,27 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Range};
 
 use crate::{
     registry::component::ComponentId,
     utils::slotmap::{SlotId, SlotMap},
 };
 
+use super::{entity::Entity, query::FilterQuery};
+
 pub(crate) type ArchetypeId = SlotId;
 
+#[derive(Debug)]
 pub(crate) struct Archetype {
-    component_count: usize,
-    component_start: usize,
+    component_range: Range<usize>,
     last_edge: Option<ArchetypeEdgeId>,
+    pub(crate) added_filter_queries: Vec<FilterQuery>,
+    pub(crate) removed_filter_queries: Vec<FilterQuery>,
+    pub(crate) pool: Vec<Entity>,
 }
 
 impl Archetype {
     fn is_subset_of(&self, other: &Self, components: &[ComponentId]) -> bool {
-        let self_ids =
-            &components[self.component_start..(self.component_start + self.component_count)];
-        let other_ids =
-            &components[other.component_start..(other.component_start + other.component_count)];
+        let self_ids = &components[self.component_range.clone()];
+        let other_ids = &components[other.component_range.clone()];
         for self_id in self_ids {
             if !other_ids.contains(self_id) {
                 return false;
@@ -29,9 +32,11 @@ impl Archetype {
 
     fn empty() -> Self {
         Self {
-            component_count: 0,
-            component_start: 0,
+            component_range: 0..0,
             last_edge: None,
+            added_filter_queries: Vec::new(),
+            removed_filter_queries: Vec::new(),
+            pool: Default::default(),
         }
     }
 }
@@ -112,14 +117,12 @@ impl ArchetypeTable {
 
     fn link_if_previous(&mut self, a: ArchetypeId, b: ArchetypeId) {
         // Check if previous
-        if self.entries[a].component_count == self.entries[b].component_count + 1
+        if self.entries[a].component_range.len() == self.entries[b].component_range.len() + 1
             && self.entries[b].is_subset_of(&self.entries[b], &self.components)
         {
             // Found different component
-            let a_components = &self.components[self.entries[a].component_start
-                ..(self.entries[a].component_start + self.entries[a].component_count)];
-            let b_components = &self.components[self.entries[b].component_start
-                ..(self.entries[b].component_start + self.entries[b].component_count)];
+            let a_components = &self.components[self.entries[a].component_range.clone()];
+            let b_components = &self.components[self.entries[b].component_range.clone()];
             if let Some(component) = a_components.iter().find_map(|id| {
                 if !b_components.contains(id) {
                     Some(*id)
@@ -145,101 +148,108 @@ impl ArchetypeTable {
         }
         // Create new archetype
         let archetype = self.entries.get(archetype).unwrap();
-        let component_count = archetype.component_count + 1;
         let component_start = self.components.len();
-        for i in archetype.component_start..(archetype.component_start + archetype.component_count)
-        {
+        for i in archetype.component_range.clone() {
             self.components.push(self.components[i]);
         }
         self.components.push(component);
         let new_archetype = self.entries.add(Archetype {
-            component_count,
-            component_start,
+            component_range: component_start..self.components.len(),
             last_edge: None,
+            added_filter_queries: Default::default(),
+            removed_filter_queries: Default::default(),
+            pool: Default::default(),
         });
         // Link new archetype to existing archetypes
         let mut slot = self.entries.keys().next();
         while let Some(current) = slot {
             if current != new_archetype {
-                self.link(current, new_archetype, component);
+                self.link_if_previous(new_archetype, current);
             }
             slot = self.entries.next(current);
         }
         new_archetype
     }
 
-    pub(crate) fn find_remove(
-        &mut self,
-        archetype: ArchetypeId,
-        component: ComponentId,
-    ) -> ArchetypeId {
-        // Find from existing edges
-        if let Some(id) = self.found_edge(archetype, component) {
-            if let Some(remove) = self.edges[id].remove {
-                return remove;
-            }
-        }
-        // Find brutforce
-        let mut next = self.empty;
-        for i in 0..self.entries[archetype].component_count {
-            let id = self.components[self.entries[archetype].component_start + i];
-            if id != component {
-                next = self.find_add(next, id);
-            }
-        }
-        next
-    }
+    // pub(crate) fn find_remove(
+    //     &mut self,
+    //     archetype: ArchetypeId,
+    //     component: ComponentId,
+    // ) -> ArchetypeId {
+    //     // Find from existing edges
+    //     if let Some(id) = self.found_edge(archetype, component) {
+    //         if let Some(remove) = self.edges[id].remove {
+    //             return remove;
+    //         }
+    //     }
+    //     // Find brutforce
+    //     let mut next = self.empty;
+    //     for i in 0..self.entries[archetype].component_count {
+    //         let id = self.components[self.entries[archetype].component_start + i];
+    //         if id != component {
+    //             next = self.find_add(next, id);
+    //         }
+    //     }
+    //     next
+    // }
 
-    pub(crate) fn find(&mut self, components: &[ComponentId]) -> ArchetypeId {
-        let mut next = self.empty;
-        for component in components {
-            next = self.find_add(next, *component);
-        }
-        next
-    }
+    // pub(crate) fn find(&mut self, components: &[ComponentId]) -> ArchetypeId {
+    //     let mut next = self.empty;
+    //     for component in components {
+    //         next = self.find_add(next, *component);
+    //     }
+    //     next
+    // }
 
     pub(crate) fn components(&self, archetype: ArchetypeId) -> &[ComponentId] {
         let archetype = &self.entries[archetype];
-        &self.components
-            [archetype.component_start..(archetype.component_start + archetype.component_count)]
+        &self.components[archetype.component_range.clone()]
     }
 
-    pub(crate) fn collect_unique_childs(
-        &self,
-        archetype: ArchetypeId,
-        list: &mut Vec<ArchetypeId>,
-    ) {
-        let mut current = self.entries[archetype].last_edge;
-        while let Some(edge) = current {
-            if let Some(add) = self.edges[edge].add {
-                if !list.contains(&add) {
-                    list.push(add);
-                    self.collect_unique_childs(add, list);
-                }
-            }
-            current = self.edges[edge].previous;
-        }
-    }
+    // pub(crate) fn collect_unique_childs(
+    //     &self,
+    //     archetype: ArchetypeId,
+    //     list: &mut Vec<ArchetypeId>,
+    // ) {
+    //     let mut current = self.entries[archetype].last_edge;
+    //     while let Some(edge) = current {
+    //         if let Some(add) = self.edges[edge].add {
+    //             if !list.contains(&add) {
+    //                 list.push(add);
+    //                 self.collect_unique_childs(add, list);
+    //             }
+    //         }
+    //         current = self.edges[edge].previous;
+    //     }
+    // }
 
-    pub(crate) fn collect_unique_parents(
-        &self,
-        archetype: ArchetypeId,
-        list: &mut Vec<ArchetypeId>,
-    ) {
-        let mut current = self.entries[archetype].last_edge;
-        while let Some(edge) = current {
-            if let Some(remove) = self.edges[edge].remove {
-                if remove != self.empty && !list.contains(&remove) {
-                    list.push(remove);
-                    self.collect_unique_parents(remove, list);
-                }
-            }
-            current = self.edges[edge].previous;
-        }
-    }
+    // pub(crate) fn collect_unique_parents(
+    //     &self,
+    //     archetype: ArchetypeId,
+    //     list: &mut Vec<ArchetypeId>,
+    // ) {
+    //     let mut current = self.entries[archetype].last_edge;
+    //     while let Some(edge) = current {
+    //         if let Some(remove) = self.edges[edge].remove {
+    //             if remove != self.empty && !list.contains(&remove) {
+    //                 list.push(remove);
+    //                 self.collect_unique_parents(remove, list);
+    //             }
+    //         }
+    //         current = self.edges[edge].previous;
+    //     }
+    // }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = ArchetypeId> + '_ {
         self.entries.iter().map(|(id, _)| id)
+    }
+
+    pub(crate) fn get_mut(&mut self, id: ArchetypeId) -> &mut Archetype {
+        self.entries.get_mut(id).unwrap()
+    }
+
+    pub(crate) fn get(&self, id: ArchetypeId) -> Option<&Archetype> {
+        self.entries.get(id)
     }
 }
 
@@ -268,7 +278,11 @@ mod test {
         let a = ComponentId::from(components.add(()));
         let b = ComponentId::from(components.add(()));
         let c = ComponentId::from(components.add(()));
-        let archa = archetypes.find(&[a, b]);
+        // archetypes.find(&[a]);
+        // let archa = archetypes.find(&[a, b]);
+        for (id, archetype) in archetypes.entries.iter() {
+            println!("{:?} {:?}", id, archetype);
+        }
         println!("{:?}", archetypes.components);
         for edge in archetypes.edges {
             println!("{:?}", edge);

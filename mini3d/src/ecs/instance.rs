@@ -14,7 +14,6 @@ use super::{
         ecs::{ExclusiveECS, ParallelECS},
         ExclusiveAPI, ParallelAPI,
     },
-    archetype::ArchetypeTable,
     entity::EntityTable,
     query::{FilterQuery, QueryBuilder, QueryTable},
 };
@@ -26,7 +25,6 @@ pub struct ExclusiveResolver<'a> {
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
-    archetypes: &'a mut ArchetypeTable,
     queries: &'a mut QueryTable,
 }
 
@@ -47,7 +45,6 @@ impl<'a> ExclusiveResolver<'a> {
             any: self.any,
             not: self.not,
             entities: self.entities,
-            archetypes: self.archetypes,
             queries: self.queries,
         }
     }
@@ -62,7 +59,6 @@ pub struct ParallelResolver<'a> {
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
-    archetypes: &'a mut ArchetypeTable,
     queries: &'a mut QueryTable,
 }
 
@@ -102,7 +98,6 @@ impl<'a> ParallelResolver<'a> {
             any: self.any,
             not: self.not,
             entities: self.entities,
-            archetypes: self.archetypes,
             queries: self.queries,
         }
     }
@@ -198,7 +193,6 @@ impl SystemInstanceEntry {
         &mut self,
         registry: &ComponentRegistry,
         entities: &mut EntityTable,
-        archetypes: &mut ArchetypeTable,
         queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {
         match self.system {
@@ -210,7 +204,6 @@ impl SystemInstanceEntry {
                     any: &mut Default::default(),
                     not: &mut Default::default(),
                     entities,
-                    archetypes,
                     queries,
                 })?;
             }
@@ -224,7 +217,6 @@ impl SystemInstanceEntry {
                     any: &mut Default::default(),
                     not: &mut Default::default(),
                     entities,
-                    archetypes,
                     queries,
                 })?;
             }
