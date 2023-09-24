@@ -137,7 +137,6 @@ impl Instance {
         // Define commoin features
         if features.common_ecs {
             define_component!(component::common::free_fly::FreeFly);
-            define_component!(component::common::lifecycle::Lifecycle);
             define_component!(component::common::prefab::Prefab);
             define_component!(component::common::rotator::Rotator);
             define_component!(component::common::script::Script);
@@ -146,7 +145,6 @@ impl Instance {
             define_component!(component::scene::hierarchy::Hierarchy);
             define_component!(component::scene::local_to_world::LocalToWorld);
             define_component!(component::scene::transform::Transform);
-            define_system_exclusive!(system::despawn::DespawnEntities, SystemStage::UPDATE);
             define_system_parallel!(system::free_fly::FreeFlySystem, SystemStage::UPDATE);
             define_system_parallel!(system::rotator::RotatorSystem, SystemStage::UPDATE);
             define_system_parallel!(system::transform::PropagateTransforms, SystemStage::UPDATE);

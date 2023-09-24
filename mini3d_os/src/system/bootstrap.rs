@@ -6,7 +6,7 @@ use mini3d::{
     },
     expect,
     feature::component::{
-        common::{free_fly::FreeFly, lifecycle::Lifecycle, rotator::Rotator, script::Script},
+        common::{free_fly::FreeFly, rotator::Rotator, script::Script},
         input::input_table::{InputAction, InputAxis, InputAxisRange, InputTable},
         renderer::{
             camera::Camera, font::Font, material::Material, mesh::Mesh, model::Model,
@@ -416,8 +416,6 @@ impl OSInitialize {
 
     fn setup_scene(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
         // Find components
-        let lifecycle: StaticComponent<Lifecycle> =
-            expect!(api, api.registry.components.find(Lifecycle::NAME));
         let transform: StaticComponent<Transform> =
             expect!(api, api.registry.components.find(Transform::NAME));
         let rotator: StaticComponent<Rotator> =
@@ -447,7 +445,6 @@ impl OSInitialize {
         {
             let e = ecs
                 .add()
-                .with(lifecycle, Lifecycle::alive())
                 .with(
                     transform,
                     Transform {
@@ -464,7 +461,6 @@ impl OSInitialize {
         {
             let e = ecs
                 .add()
-                .with(lifecycle, Lifecycle::alive())
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, -7.0, 9.0)),
@@ -477,7 +473,6 @@ impl OSInitialize {
             let mut prng = PCG32::new(12345);
             for i in 0..100 {
                 ecs.add()
-                    .with(lifecycle, Lifecycle::alive())
                     .with(
                         transform,
                         Transform::from_translation(Vec3::new(
@@ -497,7 +492,6 @@ impl OSInitialize {
                     .build();
 
                 ecs.add()
-                    .with(lifecycle, Lifecycle::alive())
                     .with(
                         transform,
                         Transform::from_translation(Vec3::new(
@@ -519,7 +513,6 @@ impl OSInitialize {
         }
         {
             ecs.add()
-                .with(lifecycle, Lifecycle::alive())
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, 0.0, 4.0)),
@@ -532,7 +525,6 @@ impl OSInitialize {
         {
             let e = ecs
                 .add()
-                .with(lifecycle, Lifecycle::alive())
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, 0.0, -10.0)),
@@ -566,7 +558,6 @@ impl OSInitialize {
 
             let cam = ecs
                 .add()
-                .with(lifecycle, Lifecycle::alive())
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, -1.0, 0.0)),
@@ -686,7 +677,6 @@ impl OSInitialize {
 
             let uie = ecs
                 .add()
-                .with(lifecycle, Lifecycle::alive())
                 .with(ui, gui)
                 .with(
                     ui_render_target,
