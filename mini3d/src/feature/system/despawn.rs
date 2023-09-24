@@ -33,37 +33,37 @@ impl ExclusiveSystem for DespawnEntities {
     }
 
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        let mut despawn_entities: Vec<Entity> = Vec::new();
-        let mut detach_entities = Vec::new();
+        // let mut despawn_entities: Vec<Entity> = Vec::new();
+        // let mut detach_entities = Vec::new();
 
-        {
-            let mut hierarchies = ecs.view_mut(self.hierarchy);
-            let lifecycles = ecs.view(self.life_cycle);
+        // {
+        //     let mut hierarchies = ecs.view_mut(self.hierarchy);
+        //     let lifecycles = ecs.view(self.life_cycle);
 
-            // Collect despawned entities
-            for e in ecs.query(self.query) {
-                if !lifecycles[e].alive {
-                    despawn_entities.push(e);
-                    if let Some(hierarchy) = hierarchies.get_mut(e) {
-                        if let Some(parent) = hierarchy.parent() {
-                            detach_entities.push((parent, e));
-                        }
-                    }
-                }
-            }
+        //     // Collect despawned entities
+        //     for e in ecs.query(self.query) {
+        //         if !lifecycles[e].alive {
+        //             despawn_entities.push(e);
+        //             if let Some(hierarchy) = hierarchies.get_mut(e) {
+        //                 if let Some(parent) = hierarchy.parent() {
+        //                     detach_entities.push((parent, e));
+        //                 }
+        //             }
+        //         }
+        //     }
 
-            // Detach entities
-            for (parent, entity) in detach_entities {
-                for child in Hierarchy::collect_childs(entity, &hierarchies) {
-                    expect!(api, Hierarchy::detach(entity, child, &mut hierarchies));
-                }
-                expect!(api, Hierarchy::detach(parent, entity, &mut hierarchies));
-            }
-        }
+        //     // Detach entities
+        //     for (parent, entity) in detach_entities {
+        //         for child in Hierarchy::collect_childs(entity, &hierarchies) {
+        //             expect!(api, Hierarchy::detach(entity, child, &mut hierarchies));
+        //         }
+        //         expect!(api, Hierarchy::detach(parent, entity, &mut hierarchies));
+        //     }
+        // }
 
-        // Despawn entities
-        for entity in despawn_entities {
-            ecs.remove(entity);
-        }
+        // // Despawn entities
+        // for entity in despawn_entities {
+        //     ecs.remove(entity);
+        // }
     }
 }

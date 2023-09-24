@@ -34,6 +34,7 @@ pub mod scheduler;
 pub mod sparse;
 pub mod view;
 
+#[derive(Default)]
 pub(crate) struct ECSManager {
     pub(crate) containers: ContainerTable,
     entities: EntityTable,
@@ -41,19 +42,6 @@ pub(crate) struct ECSManager {
     instances: SystemInstanceTable,
     pub(crate) scheduler: Scheduler,
     global_cycle: u32,
-}
-
-impl Default for ECSManager {
-    fn default() -> Self {
-        Self {
-            containers: ContainerTable::default(),
-            entities: EntityTable::default(),
-            queries: QueryTable::default(),
-            instances: SystemInstanceTable::default(),
-            scheduler: Scheduler::default(),
-            global_cycle: 0,
-        }
-    }
 }
 
 pub(crate) struct ECSUpdateContext<'a> {
@@ -99,7 +87,8 @@ impl ECSManager {
     ) -> Result<(), RegistryError> {
         self.scheduler.on_registry_update(&registry.systems);
         self.containers.on_registry_update(&registry.components);
-        self.instances.on_registry_update(registry)?;
+        self.instances
+            .on_registry_update(registry, &mut self.entities, &mut self.queries)?;
         Ok(())
     }
 
@@ -132,20 +121,12 @@ impl ECSManager {
 
             // Execute node
             if node.count == 1 {
+                // Find instance
                 let instance = self.scheduler.instances[node.first];
-
-                // Lazy setup
                 let instance = self
                     .instances
                     .get_mut(instance)
                     .expect("System instance not found");
-                if instance.dirty {
-                    instance.setup(
-                        &context.registry.components,
-                        &mut self.entities,
-                        &mut self.queries,
-                    )?;
-                }
 
                 // Run the system
                 match &instance.system {
@@ -194,6 +175,11 @@ impl ECSManager {
                         // TODO: catch unwind
                         instance.run(ecs, api);
                     }
+                }
+
+                // Clear filter queries
+                for id in &instance.filter_queries {
+                    self.queries.filter_queries[id.0].pool.clear();
                 }
             } else {
                 // TODO: use thread pool

@@ -1,6 +1,9 @@
 use mini3d::{
     asset::handle::{AssetBundle, StaticAsset},
-    ecs::api::{ecs::ExclusiveECS, ExclusiveAPI},
+    ecs::{
+        api::{ecs::ExclusiveECS, ExclusiveAPI},
+        scheduler::Invocation,
+    },
     expect,
     feature::component::{
         common::{free_fly::FreeFly, lifecycle::Lifecycle, rotator::Rotator, script::Script},
@@ -18,7 +21,10 @@ use mini3d::{
     glam::{IVec2, Quat, Vec3},
     info,
     math::rect::IRect,
-    registry::{component::StaticComponent, system::ExclusiveSystem},
+    registry::{
+        component::StaticComponent,
+        system::{ExclusiveSystem, SystemOrder, SystemStage},
+    },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
     script::{compiler::Compiler, module::Module},
     system::event::ImportAssetEvent,
@@ -41,6 +47,7 @@ use mini3d::{
 use crate::{
     component::os::OS,
     input::{CommonAction, CommonAxis},
+    system::update::OSUpdate,
 };
 
 #[derive(Default)]
@@ -50,7 +57,40 @@ impl OSBootstrap {
     pub const NAME: &'static str = "os_bootstrap";
 }
 
-impl OSBootstrap {
+impl ExclusiveSystem for OSBootstrap {
+    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+        // Declare components
+        expect!(api, api.registry.components.add_static::<OS>(OS::NAME));
+        // Declare systems
+        expect!(
+            api,
+            api.registry.systems.add_static_exclusive::<OSInitialize>(
+                OSInitialize::NAME,
+                OSInitialize::NAME,
+                SystemOrder::default()
+            )
+        );
+        expect!(
+            api,
+            api.registry.systems.add_static_exclusive::<OSUpdate>(
+                OSUpdate::NAME,
+                SystemStage::UPDATE,
+                SystemOrder::default()
+            )
+        );
+        // Initialize OS
+        expect!(api, ecs.invoke(OSInitialize::NAME, Invocation::Immediate));
+    }
+}
+
+#[derive(Default)]
+pub struct OSInitialize;
+
+impl OSInitialize {
+    pub const NAME: &'static str = "os_initialize";
+}
+
+impl OSInitialize {
     fn setup_assets(&self, api: &mut ExclusiveAPI) {
         let default_bundle = expect!(api, api.asset.find_bundle(AssetBundle::DEFAULT));
 
@@ -471,7 +511,7 @@ impl OSBootstrap {
                     .with(
                         rotator,
                         Rotator {
-                            speed: -90.0 + prng.next_f32() * 90.0 * 2.0,
+                            speed: -90.0 + prng.next_f32() * 90.0 * 5.0,
                         },
                     )
                     .build();
@@ -684,11 +724,8 @@ impl OSBootstrap {
     }
 }
 
-impl ExclusiveSystem for OSBootstrap {
+impl ExclusiveSystem for OSInitialize {
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        // Declare OS component
-        expect!(api, api.registry.components.add_static::<OS>("os"));
-        ecs.update_registry(&api.registry.components);
         // Setup assets
         self.setup_assets(api);
         // Setup scene

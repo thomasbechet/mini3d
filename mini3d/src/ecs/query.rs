@@ -13,15 +13,15 @@ use crate::{
 };
 
 use super::{
-    archetype::{ArchetypeId, ArchetypeTable},
+    archetype::{Archetype, ArchetypeEntry},
     entity::{Entity, EntityTable},
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub struct Query(SlotId);
+pub struct Query(pub(crate) SlotId);
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
-pub struct FilterQuery(SlotId);
+pub struct FilterQuery(pub(crate) SlotId);
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub(crate) enum FilterKind {
@@ -32,78 +32,77 @@ pub(crate) enum FilterKind {
 
 #[derive(Default)]
 pub(crate) struct QueryEntry {
-    all: Range<usize>,
-    any: Range<usize>,
-    not: Range<usize>,
-    archetypes: Vec<ArchetypeId>,
+    pub(crate) all: Range<usize>,
+    pub(crate) any: Range<usize>,
+    pub(crate) not: Range<usize>,
+    pub(crate) archetypes: Vec<Archetype>,
 }
 
 pub(crate) struct FilterQueryEntry {
-    query: Query,
-    cycle: usize,
-    kind: FilterKind,
-    entities: Vec<Entity>,
+    pub(crate) query: Query,
+    pub(crate) cycle: usize,
+    pub(crate) kind: FilterKind,
+    pub(crate) pool: Vec<Entity>,
     system: System,
 }
 
 #[derive(Default)]
 pub(crate) struct QueryTable {
-    components: Vec<ComponentId>,
-    queries: SlotMap<QueryEntry>,
+    pub(crate) components: Vec<ComponentId>,
+    pub(crate) entries: SlotMap<QueryEntry>,
     pub(crate) filter_queries: SlotMap<FilterQueryEntry>,
 }
 
-impl QueryTable {
-    fn query_match(
-        &self,
-        query: Query,
-        archetype: ArchetypeId,
-        archetypes: &ArchetypeTable,
-    ) -> bool {
-        let components = archetypes.components(archetype);
-        let query = self.queries.get(query.0).unwrap();
-        let all = &self.components[query.all.clone()];
-        let any = &self.components[query.any.clone()];
-        let not = &self.components[query.not.clone()];
-        // All check
-        if !all.is_empty() {
-            for c in all {
-                if !components.contains(c) {
-                    return false;
-                }
-            }
-        }
-        // Any check
-        if !any.is_empty() {
-            let mut found = false;
-            for c in any {
-                if components.contains(c) {
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
+pub(crate) fn query_archetype_match(
+    query: &QueryEntry,
+    query_components: &[ComponentId],
+    archetype: &ArchetypeEntry,
+    archetype_components: &[ComponentId],
+) -> bool {
+    let components = &archetype_components[archetype.component_range.clone()];
+    let all = &query_components[query.all.clone()];
+    let any = &query_components[query.any.clone()];
+    let not = &query_components[query.not.clone()];
+    // All check
+    if !all.is_empty() {
+        for c in all {
+            if !components.contains(c) {
                 return false;
             }
         }
-        // Not check
-        if !not.is_empty() {
-            for c in not {
-                if components.contains(c) {
-                    return false;
-                }
+    }
+    // Any check
+    if !any.is_empty() {
+        let mut found = false;
+        for c in any {
+            if components.contains(c) {
+                found = true;
+                break;
             }
         }
-        true
+        if !found {
+            return false;
+        }
     }
+    // Not check
+    if !not.is_empty() {
+        for c in not {
+            if components.contains(c) {
+                return false;
+            }
+        }
+    }
+    true
+}
 
+impl QueryTable {
     fn find_same_query(
         &self,
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
     ) -> Option<Query> {
-        for (id, query) in self.queries.iter() {
+        for (id, query) in self.entries.iter() {
             if query.all.len() != all.len() {
                 continue;
             }
@@ -145,10 +144,18 @@ impl QueryTable {
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
-        let id = Query(self.queries.add(query));
-        for archetype in entities.archetypes.iter() {
-            if self.query_match(id, archetype, &entities.archetypes) {
-                self.queries[id.0].archetypes.push(archetype);
+        let id = Query(self.entries.add(query));
+        // Bind new query to existing archetypes
+        for archetype in entities.archetypes.entries.keys() {
+            let archetype_entry = &entities.archetypes[archetype];
+            let query_entry = &self.entries[id.0];
+            if query_archetype_match(
+                query_entry,
+                &self.components,
+                archetype_entry,
+                &entities.archetypes.components,
+            ) {
+                self.entries[id.0].archetypes.push(archetype);
             }
         }
         id
@@ -165,22 +172,28 @@ impl QueryTable {
             query,
             cycle: 0,
             kind,
-            entities: Vec::new(),
+            pool: Vec::new(),
             system,
         }));
-        // Register to groups for added / removed events
-        self.query_archetypes(query)
-            .iter()
-            .for_each(|archetype| entities.register_filter_query(*archetype, id, kind));
+        // Bind existing archetypes to new filter
+        match kind {
+            FilterKind::Added => {
+                for archetype in self.entries[query.0].archetypes.iter() {
+                    entities.archetypes.entries[*archetype]
+                        .added_filter_queries
+                        .push(id);
+                }
+            }
+            FilterKind::Removed => {
+                for archetype in self.entries[query.0].archetypes.iter() {
+                    entities.archetypes.entries[*archetype]
+                        .removed_filter_queries
+                        .push(id);
+                }
+            }
+            FilterKind::Changed => todo!(),
+        }
         id
-    }
-
-    pub(crate) fn query_archetypes(&self, id: Query) -> &[ArchetypeId] {
-        &self.queries.get(id.0).unwrap().archetypes
-    }
-
-    pub(crate) fn filter_query(&self, id: FilterQuery) -> &[Entity] {
-        &self.filter_queries.get(id.0).unwrap().entities
     }
 }
 
@@ -192,6 +205,7 @@ pub struct QueryBuilder<'a> {
     pub(crate) not: &'a mut Vec<ComponentId>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
+    pub(crate) filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> QueryBuilder<'a> {
@@ -234,7 +248,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn build(self) -> Query {
+    fn build_query(&mut self) -> Query {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
             return id;
         }
@@ -242,16 +256,20 @@ impl<'a> QueryBuilder<'a> {
             .add_query(self.entities, self.all, self.any, self.not)
     }
 
-    fn add_filter_query(self, kind: FilterKind) -> FilterQuery {
+    pub fn build(mut self) -> Query {
+        self.build_query()
+    }
+
+    fn add_filter_query(mut self, kind: FilterKind) -> FilterQuery {
+        // Build base query
+        let query = self.build_query();
+        // Add filtered query
         let id = self
             .queries
-            .find_same_query(self.all, self.any, self.not)
-            .unwrap_or_else(|| {
-                self.queries
-                    .add_query(self.entities, self.all, self.any, self.not)
-            });
-        self.queries
-            .add_filter_query(self.entities, kind, id, self.system)
+            .add_filter_query(self.entities, kind, query, self.system);
+        // Keep reference of filter in instance
+        self.filter_queries.push(id);
+        id
     }
 
     pub fn added(self) -> FilterQuery {

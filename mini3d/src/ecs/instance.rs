@@ -26,6 +26,7 @@ pub struct ExclusiveResolver<'a> {
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
+    filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> ExclusiveResolver<'a> {
@@ -38,6 +39,9 @@ impl<'a> ExclusiveResolver<'a> {
     }
 
     pub fn query(&mut self) -> QueryBuilder<'_> {
+        self.all.clear();
+        self.any.clear();
+        self.not.clear();
         QueryBuilder {
             registry: self.registry,
             system: self.system,
@@ -46,6 +50,7 @@ impl<'a> ExclusiveResolver<'a> {
             not: self.not,
             entities: self.entities,
             queries: self.queries,
+            filter_queries: self.filter_queries,
         }
     }
 }
@@ -60,6 +65,7 @@ pub struct ParallelResolver<'a> {
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
+    filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> ParallelResolver<'a> {
@@ -91,6 +97,9 @@ impl<'a> ParallelResolver<'a> {
     }
 
     pub fn query(&mut self) -> QueryBuilder<'_> {
+        self.all.clear();
+        self.any.clear();
+        self.not.clear();
         QueryBuilder {
             registry: self.registry,
             system: self.system,
@@ -99,6 +108,7 @@ impl<'a> ParallelResolver<'a> {
             not: self.not,
             entities: self.entities,
             queries: self.queries,
+            filter_queries: self.filter_queries,
         }
     }
 }
@@ -168,8 +178,8 @@ pub(crate) struct SystemInstanceEntry {
     pub(crate) system: SystemInstance,
     pub(crate) last_execution_cycle: usize,
     pub(crate) filter_queries: Vec<FilterQuery>,
-    pub(crate) dirty: bool,
     pub(crate) active: bool,
+    pub(crate) dirty: bool,
 }
 
 impl SystemInstanceEntry {
@@ -184,8 +194,8 @@ impl SystemInstanceEntry {
             system: instance,
             last_execution_cycle: 0,
             filter_queries: Vec::new(),
-            dirty: true,
             active: true,
+            dirty: true,
         }
     }
 
@@ -205,6 +215,7 @@ impl SystemInstanceEntry {
                     not: &mut Default::default(),
                     entities,
                     queries,
+                    filter_queries: &mut self.filter_queries,
                 })?;
             }
             SystemInstance::Parallel(ref mut instance) => {
@@ -218,10 +229,10 @@ impl SystemInstanceEntry {
                     not: &mut Default::default(),
                     entities,
                     queries,
+                    filter_queries: &mut self.filter_queries,
                 })?;
             }
         }
-        self.dirty = false;
         Ok(())
     }
 }
@@ -235,17 +246,21 @@ impl SystemInstanceTable {
     pub(crate) fn on_registry_update(
         &mut self,
         registry: &RegistryManager,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {
-        for (id, entry) in registry.systems.systems.iter() {
+        for (id, _) in registry.systems.systems.iter() {
             // Create instance if missing
             if !self.instances.contains(id) {
                 self.instances
                     .insert(id, SystemInstanceEntry::new(id.into(), &registry.systems));
             }
 
-            // Invalidate instances
             // TODO: check if system must be changed
-            self.instances[id].dirty = true;
+            if self.instances[id].dirty {
+                self.instances[id].setup(&registry.components, entities, queries)?;
+                self.instances[id].dirty = false;
+            }
         }
         Ok(())
     }

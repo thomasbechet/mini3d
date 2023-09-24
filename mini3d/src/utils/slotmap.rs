@@ -19,11 +19,11 @@ impl SlotId {
         Self(index as u32 | ((version.0 as u32) << 24))
     }
 
-    fn index(&self) -> usize {
+    pub(crate) fn index(&self) -> usize {
         (self.0 & 0x00ff_ffff) as usize
     }
 
-    fn version(&self) -> SlotVersion {
+    pub(crate) fn version(&self) -> SlotVersion {
         SlotVersion((self.0 >> 24) as u8)
     }
 
@@ -139,6 +139,19 @@ impl<V> SlotMap<V> {
             .filter_map(|(index, entry)| {
                 if index == entry.slot.index() {
                     Some((entry.slot, &entry.value))
+                } else {
+                    None
+                }
+            })
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (SlotId, &mut V)> {
+        self.entries
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(index, entry)| {
+                if index == entry.slot.index() {
+                    Some((entry.slot, &mut entry.value))
                 } else {
                     None
                 }

@@ -28,19 +28,7 @@ use crate::{
 use super::error::RegistryError;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ComponentId(SlotId);
-
-impl From<SlotId> for ComponentId {
-    fn from(id: SlotId) -> Self {
-        Self(id)
-    }
-}
-
-impl From<ComponentId> for SlotId {
-    fn from(id: ComponentId) -> Self {
-        id.0
-    }
-}
+pub struct ComponentId(pub(crate) SlotId);
 
 pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
 pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
@@ -122,7 +110,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
                 components
                     .0
                     .containers
-                    .get(self.id.into())
+                    .get(self.id.0)
                     .unwrap()
                     .try_borrow()
                     .map_err(|_| ECSError::ContainerBorrowMut)?,
@@ -145,7 +133,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
                 components
                     .0
                     .containers
-                    .get(self.id.into())
+                    .get(self.id.0)
                     .unwrap()
                     .try_borrow_mut()
                     .map_err(|_| ECSError::ContainerBorrowMut)?,
@@ -173,7 +161,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
         components
             .0
             .containers
-            .get_mut(self.id.into())
+            .get_mut(self.id.0)
             .expect("Component container not found while adding entity")
             .get_mut()
             .as_any_mut()
@@ -210,7 +198,7 @@ impl ComponentHandle for Component {
             container: components
                 .0
                 .containers
-                .get(self.id.into())
+                .get(self.id.0)
                 .unwrap()
                 .try_borrow()
                 .map_err(|_| ECSError::ContainerBorrowMut)?,
@@ -226,7 +214,7 @@ impl ComponentHandle for Component {
             container: components
                 .0
                 .containers
-                .get(self.id.into())
+                .get(self.id.0)
                 .unwrap()
                 .try_borrow_mut()
                 .map_err(|_| ECSError::ContainerBorrowMut)?,
@@ -346,7 +334,7 @@ impl ComponentRegistry {
         let id = self.add(name, ComponentKind::Static, Box::new(reflection))?;
         Ok(StaticComponent {
             _marker: std::marker::PhantomData,
-            id: id.into(),
+            id: ComponentId(id),
         })
     }
 
@@ -363,7 +351,7 @@ impl ComponentRegistry {
         handle: H,
     ) -> Result<&ComponentEntry, RegistryError> {
         self.entries
-            .get(handle.id().into())
+            .get(handle.id().0)
             .ok_or(RegistryError::ComponentNotFound)
     }
 
@@ -372,12 +360,12 @@ impl ComponentRegistry {
         self.entries
             .iter()
             .find(|(_, def)| UID::new(&def.name) == component)
-            .map(|(id, _)| id.into())
+            .map(|(id, _)| ComponentId(id))
     }
 
     pub fn find<H: ComponentHandle>(&self, component: impl ToUID) -> Option<H> {
         if let Some(id) = self.find_id(component) {
-            if !H::check_type_id(self.entries[id.into()].reflection.type_id()) {
+            if !H::check_type_id(self.entries[id.0].reflection.type_id()) {
                 None
             } else {
                 Some(H::new(id))

@@ -14,18 +14,18 @@ use mini3d::{
 use crate::{component::os::OS, input::CommonAction};
 
 #[derive(Default)]
-pub struct UpdateOS {
+pub struct OSUpdate {
     os: StaticComponent<OS>,
     free_fly: StaticComponent<FreeFly>,
     ui: StaticComponent<UI>,
     query: Query,
 }
 
-impl UpdateOS {
+impl OSUpdate {
     pub const NAME: &'static str = "update_os";
 }
 
-impl ExclusiveSystem for UpdateOS {
+impl ExclusiveSystem for OSUpdate {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         self.os = resolver.find(OS::NAME)?;
         self.free_fly = resolver.find(FreeFly::NAME)?;
@@ -58,7 +58,7 @@ impl ExclusiveSystem for UpdateOS {
         let ui = uis.iter_mut().next().unwrap();
         let user = ui.user("main".into()).unwrap();
 
-        expect!(api, os.controller.update(&api.input, user));
+        expect!(api, os.controller.update(api.input, user));
 
         // Render center cross
         api.renderer.graphics().fill_rect(

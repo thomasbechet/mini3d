@@ -1,4 +1,5 @@
 use core::result::Result;
+use std::any::TypeId;
 
 use crate::registry::component::{ComponentHandle, ComponentId, ComponentRegistry};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
@@ -185,7 +186,7 @@ impl AssetManager {
         }
         let id = self.add_entry(name, handle.id(), bundle, AssetSource::IO)?;
         // TODO: preload asset in container ? wait for read ? define proper strategy
-        if let Some(container) = self.containers.get_mut(handle.id().into()) {
+        if let Some(container) = self.containers.get_mut(handle.id().0) {
             self.entries[id].slot = <C::AssetHandle as AssetHandle>::insert_container(
                 PrivateAnyAssetContainerMut(container.as_mut()),
                 data,
@@ -205,7 +206,7 @@ impl AssetManager {
         // TODO: remove cached data from container
         if !self.entries[id].slot.is_null() {
             <H as AssetHandle>::remove_container(
-                PrivateAnyAssetContainerMut(self.containers.get_mut(id.into()).unwrap().as_mut()),
+                PrivateAnyAssetContainerMut(self.containers.get_mut(id).unwrap().as_mut()),
                 self.entries[id].slot,
             );
         }
@@ -220,13 +221,10 @@ impl AssetManager {
             .find(|(_, entry)| entry.name.as_str() == name)
             .filter(|(_, entry)| {
                 H::check_type(PrivateAnyAssetContainerRef(
-                    self.containers
-                        .get(entry.component.into())
-                        .unwrap()
-                        .as_ref(),
+                    self.containers.get(entry.component.0).unwrap().as_ref(),
                 ))
             })
-            .map(|(_, entry)| H::new(entry.slot))
+            .map(|(id, _)| H::new(id))
     }
 
     pub fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
@@ -238,12 +236,13 @@ impl AssetManager {
     }
 
     pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
-        let slot = handle.id();
-        let entry = self.entries.get(slot).ok_or(AssetError::AssetNotFound)?;
+        let id = handle.id();
+        let entry = self.entries.get(id).ok_or(AssetError::AssetNotFound)?;
         if !entry.slot.is_null() {
-            Ok(handle.asset_ref(PrivateAnyAssetContainerRef(
-                self.containers[entry.component.into()].as_ref(),
-            )))
+            Ok(handle.asset_ref(
+                entry.slot,
+                PrivateAnyAssetContainerRef(self.containers[entry.component.0].as_ref()),
+            ))
         } else {
             Err(AssetError::AssetNotFound) // TODO: load the asset from source
         }

@@ -4,9 +4,9 @@ use crate::{
 };
 
 use super::{
-    archetype::{ArchetypeId, ArchetypeTable},
+    archetype::{Archetype, ArchetypeTable},
     container::ContainerTable,
-    query::{FilterKind, FilterQuery},
+    query::QueryTable,
     sparse::PagedVector,
 };
 
@@ -58,14 +58,14 @@ impl Serialize for Entity {
 
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityEntry {
-    pub(crate) archetype: ArchetypeId,
+    pub(crate) archetype: Archetype,
     pub(crate) pool_index: u32,
     pub(crate) pending_remove_counter: u16,
 }
 
 pub(crate) struct EntityTable {
     pub(crate) archetypes: ArchetypeTable,
-    entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
+    pub(crate) entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
     free_entities: Vec<Entity>,
     next_entity: Entity,
 }
@@ -87,7 +87,7 @@ impl EntityTable {
             return;
         }
         // Check if the archetype is watched by any filter queries
-        let archetype = self.archetypes.get(info.archetype).unwrap();
+        let archetype = &self.archetypes.entries[info.archetype];
         if !archetype.removed_filter_queries.is_empty() {
             // Entity must be removed manually by the filter query
             info.pending_remove_counter = archetype.removed_filter_queries.len() as u16;
@@ -105,7 +105,7 @@ impl EntityTable {
         }
         // In all cases, we want to remove the entity from the pool
         // Filtered queries are not affected as they keep their own list of entities
-        let archetype = self.archetypes.get_mut(info.archetype);
+        let archetype = &mut self.archetypes[info.archetype];
         let last_entity = archetype.pool.last().copied();
         archetype.pool.swap_remove(info.pool_index as usize);
         if let Some(last_entity) = last_entity {
@@ -116,35 +116,12 @@ impl EntityTable {
 
     pub(crate) fn iter_pool_entities(
         &self,
-        archetype: ArchetypeId,
+        archetype: Archetype,
     ) -> impl Iterator<Item = Entity> + '_ {
-        if let Some(archetype) = self.archetypes.get(archetype) {
+        if let Some(archetype) = self.archetypes.entries.get(archetype) {
             archetype.pool.iter().copied()
         } else {
             [].iter().copied()
-        }
-    }
-
-    pub(crate) fn register_filter_query(
-        &mut self,
-        archetype: ArchetypeId,
-        query: FilterQuery,
-        kind: FilterKind,
-    ) {
-        match kind {
-            FilterKind::Added => {
-                self.archetypes
-                    .get_mut(archetype)
-                    .added_filter_queries
-                    .push(query);
-            }
-            FilterKind::Removed => {
-                self.archetypes
-                    .get_mut(archetype)
-                    .removed_filter_queries
-                    .push(query);
-            }
-            FilterKind::Changed => {}
         }
     }
 }
@@ -162,9 +139,10 @@ impl Default for EntityTable {
 
 pub struct EntityBuilder<'a> {
     entity: Entity,
-    archetype: ArchetypeId,
+    archetype: Archetype,
     entities: &'a mut EntityTable,
     containers: &'a mut ContainerTable,
+    queries: &'a mut QueryTable,
     cycle: u32,
 }
 
@@ -172,6 +150,7 @@ impl<'a> EntityBuilder<'a> {
     pub(crate) fn new(
         entities: &'a mut EntityTable,
         containers: &'a mut ContainerTable,
+        queries: &'a mut QueryTable,
         cycle: u32,
     ) -> Self {
         // Find next entity
@@ -181,15 +160,16 @@ impl<'a> EntityBuilder<'a> {
             archetype: entities.archetypes.empty,
             entities,
             containers,
+            queries,
             cycle,
         }
     }
 
     pub fn with<H: ComponentHandle>(mut self, component: H, data: H::Data) -> Self {
-        self.archetype = self
-            .entities
-            .archetypes
-            .find_add(self.archetype, component.id());
+        self.archetype =
+            self.entities
+                .archetypes
+                .find_add(self.queries, self.archetype, component.id());
         component.insert_container(
             PrivateComponentTableMut(self.containers),
             self.entity,
@@ -211,9 +191,13 @@ impl<'a> EntityBuilder<'a> {
 impl<'a> Drop for EntityBuilder<'a> {
     fn drop(&mut self) {
         // Add to pool
-        let archetype = self.entities.archetypes.get_mut(self.archetype);
+        let archetype = &mut self.entities.archetypes[self.archetype];
         let pool_index = archetype.pool.len();
         archetype.pool.push(self.entity);
+        // Add to added filter queries
+        for added in &archetype.added_filter_queries {
+            self.queries.filter_queries[added.0].pool.push(self.entity);
+        }
         // Update entity info
         self.entities.entries.set(
             self.entity.key(),

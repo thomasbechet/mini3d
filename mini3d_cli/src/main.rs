@@ -28,7 +28,6 @@ impl ExclusiveSystem for SpawnSystem {
         //     .unwrap();
         let transforms: StaticComponent<Transform> =
             api.registry.components.find(Transform::NAME).unwrap();
-        ecs.update_registry(&api.registry.components);
         let entity = ecs
             .add()
             .with(

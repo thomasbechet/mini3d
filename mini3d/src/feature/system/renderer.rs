@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct DespawnRendererEntities {
+pub struct SynchronizeRendererResources {
     // Components
     viewport: StaticComponent<Viewport>,
     camera: StaticComponent<Camera>,
@@ -28,18 +28,18 @@ pub struct DespawnRendererEntities {
     added_camera: FilterQuery,
     removed_camera: FilterQuery,
     camera_query: Query,
-    added_model: FilterQuery,
-    removed_model: FilterQuery,
+    added_static_mesh: FilterQuery,
+    removed_static_mesh: FilterQuery,
     added_canvas: FilterQuery,
     removed_canvas: FilterQuery,
     scene_canvas_query: Query,
 }
 
-impl DespawnRendererEntities {
-    pub const NAME: &'static str = "despawn_renderer_entities";
+impl SynchronizeRendererResources {
+    pub const NAME: &'static str = "synchronize_renderer_resources";
 }
 
-impl ExclusiveSystem for DespawnRendererEntities {
+impl ExclusiveSystem for SynchronizeRendererResources {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         self.viewport = resolver.find(Viewport::NAME)?;
         self.camera = resolver.find(Camera::NAME)?;
@@ -60,11 +60,11 @@ impl ExclusiveSystem for DespawnRendererEntities {
             .query()
             .all(&[LocalToWorld::NAME, Camera::NAME])?
             .build();
-        self.added_model = resolver
+        self.added_static_mesh = resolver
             .query()
             .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
             .added();
-        self.removed_model = resolver
+        self.removed_static_mesh = resolver
             .query()
             .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
             .removed();
@@ -86,7 +86,7 @@ impl ExclusiveSystem for DespawnRendererEntities {
         let mut cameras = ecs.view_mut(self.camera);
         let mut static_meshes = ecs.view_mut(self.static_mesh);
         let mut canvases = ecs.view_mut(self.canvas);
-        let mut local_to_worlds = ecs.view_mut(self.local_to_world);
+        let local_to_worlds = ecs.view_mut(self.local_to_world);
 
         // Camera
         for e in ecs.filter_query(self.removed_camera) {
@@ -98,21 +98,9 @@ impl ExclusiveSystem for DespawnRendererEntities {
         for e in ecs.filter_query(self.added_camera) {
             let camera = &mut cameras[e];
             camera.handle = expect!(api, api.renderer.provider.scene_camera_add());
-            let local_to_world = &local_to_worlds[e];
-            expect!(
-                api,
-                api.renderer.provider.scene_camera_update(
-                    camera.handle,
-                    local_to_world.translation(),
-                    local_to_world.forward(),
-                    local_to_world.up(),
-                    camera.fov,
-                )
-            );
         }
         for e in ecs.query(self.camera_query) {
             let camera = &mut cameras[e];
-            camera.handle = expect!(api, api.renderer.provider.scene_camera_add());
             let local_to_world = &local_to_worlds[e];
             expect!(
                 api,
@@ -125,8 +113,8 @@ impl ExclusiveSystem for DespawnRendererEntities {
                 )
             );
         }
-        // Model
-        for e in ecs.filter_query(self.removed_model) {
+        // StaticMesh
+        for e in ecs.filter_query(self.removed_static_mesh) {
             expect!(
                 api,
                 api.renderer
@@ -134,9 +122,8 @@ impl ExclusiveSystem for DespawnRendererEntities {
                     .scene_model_remove(static_meshes[e].handle)
             );
         }
-        for e in ecs.filter_query(self.added_model) {
+        for e in ecs.filter_query(self.added_static_mesh) {
             let s = &mut static_meshes[e];
-            let t = &mut local_to_worlds[e];
             let model = expect!(api, api.asset.read(s.model));
             // Load mesh
             let mesh_handle = expect!(

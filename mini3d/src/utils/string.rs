@@ -1,4 +1,7 @@
-use std::ops::Deref;
+use std::{
+    fmt::{Display, Formatter},
+    ops::Deref,
+};
 
 use mini3d_derive::Error;
 
@@ -43,9 +46,11 @@ impl<const SIZE: usize> AsciiArray<SIZE> {
     pub fn as_str(&self) -> &str {
         std::str::from_utf8(&self.data[..self.len]).unwrap()
     }
+}
 
-    pub fn to_string(&self) -> String {
-        self.as_str().to_string()
+impl<const SIZE: usize> Display for AsciiArray<SIZE> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 

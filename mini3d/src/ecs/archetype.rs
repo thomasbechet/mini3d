@@ -5,20 +5,23 @@ use crate::{
     utils::slotmap::{SlotId, SlotMap},
 };
 
-use super::{entity::Entity, query::FilterQuery};
+use super::{
+    entity::Entity,
+    query::{query_archetype_match, FilterKind, FilterQuery, QueryTable},
+};
 
-pub(crate) type ArchetypeId = SlotId;
+pub(crate) type Archetype = SlotId;
 
 #[derive(Debug)]
-pub(crate) struct Archetype {
-    component_range: Range<usize>,
+pub(crate) struct ArchetypeEntry {
+    pub(crate) component_range: Range<usize>,
     last_edge: Option<ArchetypeEdgeId>,
     pub(crate) added_filter_queries: Vec<FilterQuery>,
     pub(crate) removed_filter_queries: Vec<FilterQuery>,
     pub(crate) pool: Vec<Entity>,
 }
 
-impl Archetype {
+impl ArchetypeEntry {
     fn is_subset_of(&self, other: &Self, components: &[ComponentId]) -> bool {
         let self_ids = &components[self.component_range.clone()];
         let other_ids = &components[other.component_range.clone()];
@@ -46,16 +49,16 @@ type ArchetypeEdgeId = usize;
 #[derive(Debug)]
 struct ArchetypeEdge {
     component: ComponentId,
-    add: Option<ArchetypeId>,
-    remove: Option<ArchetypeId>,
+    add: Option<Archetype>,
+    remove: Option<Archetype>,
     previous: Option<ArchetypeEdgeId>,
 }
 
 pub(crate) struct ArchetypeTable {
-    components: Vec<ComponentId>,
-    entries: SlotMap<Archetype>,
+    pub(crate) components: Vec<ComponentId>,
+    pub(crate) entries: SlotMap<ArchetypeEntry>,
     edges: Vec<ArchetypeEdge>,
-    pub(crate) empty: ArchetypeId,
+    pub(crate) empty: Archetype,
 }
 
 impl ArchetypeTable {
@@ -66,15 +69,11 @@ impl ArchetypeTable {
             edges: Vec::with_capacity(256),
             empty: SlotId::null(),
         };
-        table.empty = table.entries.add(Archetype::empty());
+        table.empty = table.entries.add(ArchetypeEntry::empty());
         table
     }
 
-    fn found_edge(
-        &self,
-        archetype: ArchetypeId,
-        component: ComponentId,
-    ) -> Option<ArchetypeEdgeId> {
+    fn found_edge(&self, archetype: Archetype, component: ComponentId) -> Option<ArchetypeEdgeId> {
         let mut current = self.entries[archetype].last_edge;
         while let Some(edge) = current {
             if self.edges[edge].component == component {
@@ -85,7 +84,7 @@ impl ArchetypeTable {
         None
     }
 
-    fn link(&mut self, a: ArchetypeId, b: ArchetypeId, component: ComponentId) {
+    fn link(&mut self, a: Archetype, b: Archetype, component: ComponentId) {
         assert!(a != b);
         // Link a to b (add)
         if let Some(id) = self.found_edge(a, component) {
@@ -115,7 +114,7 @@ impl ArchetypeTable {
         }
     }
 
-    fn link_if_previous(&mut self, a: ArchetypeId, b: ArchetypeId) {
+    fn link_if_previous(&mut self, a: Archetype, b: Archetype) {
         // Check if previous
         if self.entries[a].component_range.len() == self.entries[b].component_range.len() + 1
             && self.entries[b].is_subset_of(&self.entries[b], &self.components)
@@ -137,9 +136,10 @@ impl ArchetypeTable {
 
     pub(crate) fn find_add(
         &mut self,
-        archetype: ArchetypeId,
+        queries: &mut QueryTable,
+        archetype: Archetype,
         component: ComponentId,
-    ) -> ArchetypeId {
+    ) -> Archetype {
         // Find from existing edges
         if let Some(id) = self.found_edge(archetype, component) {
             if let Some(add) = self.edges[id].add {
@@ -153,7 +153,7 @@ impl ArchetypeTable {
             self.components.push(self.components[i]);
         }
         self.components.push(component);
-        let new_archetype = self.entries.add(Archetype {
+        let new_archetype = self.entries.add(ArchetypeEntry {
             component_range: component_start..self.components.len(),
             last_edge: None,
             added_filter_queries: Default::default(),
@@ -167,6 +167,42 @@ impl ArchetypeTable {
                 self.link_if_previous(new_archetype, current);
             }
             slot = self.entries.next(current);
+        }
+        // Bind existing queries to new archetype
+        for (query_id, query_entry) in queries.entries.iter_mut() {
+            let archetype_entry = &self.entries[new_archetype];
+            if query_archetype_match(
+                query_entry,
+                &queries.components,
+                archetype_entry,
+                &self.components,
+            ) {
+                query_entry.archetypes.push(new_archetype);
+            }
+        }
+        // Bind new archetype to existing filter queries
+        for (filter_id, filter_query_entry) in queries.filter_queries.iter() {
+            let archetype_entry = &mut self.entries[new_archetype];
+            if query_archetype_match(
+                &queries.entries[filter_query_entry.query.0],
+                &queries.components,
+                archetype_entry,
+                &self.components,
+            ) {
+                match filter_query_entry.kind {
+                    FilterKind::Added => {
+                        archetype_entry
+                            .added_filter_queries
+                            .push(FilterQuery(filter_id));
+                    }
+                    FilterKind::Removed => {
+                        archetype_entry
+                            .removed_filter_queries
+                            .push(FilterQuery(filter_id));
+                    }
+                    _ => todo!(),
+                }
+            }
         }
         new_archetype
     }
@@ -201,7 +237,7 @@ impl ArchetypeTable {
     //     next
     // }
 
-    pub(crate) fn components(&self, archetype: ArchetypeId) -> &[ComponentId] {
+    pub(crate) fn components(&self, archetype: Archetype) -> &[ComponentId] {
         let archetype = &self.entries[archetype];
         &self.components[archetype.component_range.clone()]
     }
@@ -239,30 +275,18 @@ impl ArchetypeTable {
     //         current = self.edges[edge].previous;
     //     }
     // }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = ArchetypeId> + '_ {
-        self.entries.iter().map(|(id, _)| id)
-    }
-
-    pub(crate) fn get_mut(&mut self, id: ArchetypeId) -> &mut Archetype {
-        self.entries.get_mut(id).unwrap()
-    }
-
-    pub(crate) fn get(&self, id: ArchetypeId) -> Option<&Archetype> {
-        self.entries.get(id)
-    }
 }
 
-impl Index<ArchetypeId> for ArchetypeTable {
-    type Output = Archetype;
+impl Index<Archetype> for ArchetypeTable {
+    type Output = ArchetypeEntry;
 
-    fn index(&self, id: ArchetypeId) -> &Self::Output {
+    fn index(&self, id: Archetype) -> &Self::Output {
         self.entries.get(id).unwrap()
     }
 }
 
-impl IndexMut<ArchetypeId> for ArchetypeTable {
-    fn index_mut(&mut self, id: ArchetypeId) -> &mut Self::Output {
+impl IndexMut<Archetype> for ArchetypeTable {
+    fn index_mut(&mut self, id: Archetype) -> &mut Self::Output {
         self.entries.get_mut(id).unwrap()
     }
 }
@@ -275,9 +299,9 @@ mod test {
         let mut archetypes = ArchetypeTable::new();
         assert!(!archetypes.empty.is_null());
         let mut components = SlotMap::default();
-        let a = ComponentId::from(components.add(()));
-        let b = ComponentId::from(components.add(()));
-        let c = ComponentId::from(components.add(()));
+        let a = ComponentId(components.add(()));
+        let b = ComponentId(components.add(()));
+        let c = ComponentId(components.add(()));
         // archetypes.find(&[a]);
         // let archa = archetypes.find(&[a, b]);
         for (id, archetype) in archetypes.entries.iter() {

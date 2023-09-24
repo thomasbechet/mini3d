@@ -106,7 +106,7 @@ impl Instance {
         }
 
         // Define renderer features
-        if features.common_ecs {
+        if features.renderer_ecs {
             define_component!(component::renderer::camera::Camera);
             define_component!(component::renderer::font::Font);
             define_component!(component::renderer::material::Material);
@@ -117,6 +117,10 @@ impl Instance {
             define_component!(component::renderer::tilemap::Tilemap);
             define_component!(component::renderer::tileset::Tileset);
             define_component!(component::renderer::viewport::Viewport);
+            define_system_exclusive!(
+                system::renderer::SynchronizeRendererResources,
+                SystemStage::UPDATE
+            );
         }
 
         // Define UI features
@@ -130,7 +134,7 @@ impl Instance {
             define_system_exclusive!(system::ui::RenderUI, SystemStage::UPDATE);
         }
 
-        // Define components
+        // Define commoin features
         if features.common_ecs {
             define_component!(component::common::free_fly::FreeFly);
             define_component!(component::common::lifecycle::Lifecycle);
@@ -143,10 +147,6 @@ impl Instance {
             define_component!(component::scene::local_to_world::LocalToWorld);
             define_component!(component::scene::transform::Transform);
             define_system_exclusive!(system::despawn::DespawnEntities, SystemStage::UPDATE);
-            define_system_exclusive!(
-                system::renderer::DespawnRendererEntities,
-                SystemStage::UPDATE
-            );
             define_system_parallel!(system::free_fly::FreeFlySystem, SystemStage::UPDATE);
             define_system_parallel!(system::rotator::RotatorSystem, SystemStage::UPDATE);
             define_system_parallel!(system::transform::PropagateTransforms, SystemStage::UPDATE);
@@ -295,8 +295,8 @@ impl Instance {
             .map_err(|err| ProgressError::System)?;
 
         // ================= POST-UPDATE STAGE ================== //
-        // self.renderer
-        //     .submit_graphics(&mut self.asset, &self.ecs.containers);
+        self.renderer
+            .submit_graphics(&mut self.asset, &self.ecs.containers);
 
         Ok(())
     }

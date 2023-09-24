@@ -349,7 +349,7 @@ impl ContainerTable {
 
     pub(crate) fn remove(&mut self, entity: Entity, component: ComponentId) {
         self.containers
-            .get_mut(component.into())
+            .get_mut(component.0)
             .expect("Component container not found while removing entity")
             .get_mut()
             .remove(entity);
