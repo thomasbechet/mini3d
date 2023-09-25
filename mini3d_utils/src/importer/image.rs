@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use mini3d::{
-    feature::component::renderer::texture::{Texture, TextureFormat},
+    feature::renderer::texture::{Texture, TextureFormat},
     system::event::{AssetImportEntry, ImportAssetEvent},
 };
 

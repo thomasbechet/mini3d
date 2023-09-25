@@ -5,13 +5,11 @@ use crate::{
         query::{FilterQuery, Query},
     },
     expect,
-    feature::component::{
-        renderer::{camera::Camera, static_mesh::StaticMesh, viewport::Viewport},
-        scene::local_to_world::LocalToWorld,
-        ui::canvas::Canvas,
-    },
+    feature::{common::local_to_world::LocalToWorld, ui::canvas::Canvas},
     registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
 };
+
+use super::{camera::Camera, static_mesh::StaticMesh, viewport::Viewport};
 
 #[derive(Default)]
 pub struct SynchronizeRendererResources {

@@ -5,7 +5,7 @@ use mini3d::{
         query::Query,
     },
     expect,
-    feature::component::{common::free_fly::FreeFly, ui::ui::UI},
+    feature::{common::free_fly::FreeFly, ui::ui::UI},
     math::rect::IRect,
     registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
     renderer::{color::Color, SCREEN_CENTER},

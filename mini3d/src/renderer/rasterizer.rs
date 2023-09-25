@@ -1,6 +1,6 @@
 use glam::IVec2;
 
-use crate::{feature::component::renderer::font::Font, math::rect::IRect};
+use crate::{feature::renderer::font::Font, math::rect::IRect};
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer

@@ -2,7 +2,7 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    feature::ui::ui_stylesheet::UIStyleSheet,
     math::rect::IRect,
     renderer::{color::Color, graphics::Graphics},
     ui::event::{Event, EventContext},

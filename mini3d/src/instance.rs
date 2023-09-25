@@ -3,7 +3,7 @@ use mini3d_derive::Error;
 use crate::asset::AssetManager;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
-use crate::feature::{component, system};
+use crate::feature::{common, input, physics, renderer, ui};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
@@ -33,25 +33,31 @@ const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 #[derive(Clone)]
 pub struct InstanceFeatures {
-    renderer_ecs: bool,
-    ui_ecs: bool,
-    common_ecs: bool,
+    common: bool,
+    input: bool,
+    physics: bool,
+    renderer: bool,
+    ui: bool,
 }
 
 impl InstanceFeatures {
     pub fn all() -> Self {
         Self {
-            renderer_ecs: true,
-            ui_ecs: true,
-            common_ecs: true,
+            common: true,
+            input: true,
+            physics: true,
+            renderer: true,
+            ui: true,
         }
     }
 
     pub fn none() -> Self {
         Self {
-            renderer_ecs: false,
-            ui_ecs: false,
-            common_ecs: false,
+            common: false,
+            input: false,
+            physics: false,
+            renderer: false,
+            ui: false,
         }
     }
 }
@@ -105,49 +111,54 @@ impl Instance {
             };
         }
 
-        // Define renderer features
-        if features.renderer_ecs {
-            define_component!(component::renderer::camera::Camera);
-            define_component!(component::renderer::font::Font);
-            define_component!(component::renderer::material::Material);
-            define_component!(component::renderer::mesh::Mesh);
-            define_component!(component::renderer::model::Model);
-            define_component!(component::renderer::static_mesh::StaticMesh);
-            define_component!(component::renderer::texture::Texture);
-            define_component!(component::renderer::tilemap::Tilemap);
-            define_component!(component::renderer::tileset::Tileset);
-            define_component!(component::renderer::viewport::Viewport);
+        // Define features
+
+        if features.common {
+            define_component!(common::free_fly::FreeFly);
+            define_component!(common::rotator::Rotator);
+            define_component!(common::script::Script);
+            define_component!(common::program::Program);
+            define_component!(common::transform::Transform);
+            define_component!(common::hierarchy::Hierarchy);
+            define_component!(common::local_to_world::LocalToWorld);
+            define_system_parallel!(common::free_fly::FreeFlySystem, SystemStage::UPDATE);
+            define_system_parallel!(common::rotator::RotatorSystem, SystemStage::UPDATE);
+            define_system_parallel!(common::transform::PropagateTransforms, SystemStage::UPDATE);
+        }
+
+        if features.input {
+            define_component!(input::input_table::InputTable);
+        }
+
+        if features.physics {
+            define_component!(physics::rigid_body::RigidBody);
+        }
+
+        if features.renderer {
+            define_component!(renderer::camera::Camera);
+            define_component!(renderer::font::Font);
+            define_component!(renderer::material::Material);
+            define_component!(renderer::mesh::Mesh);
+            define_component!(renderer::model::Model);
+            define_component!(renderer::static_mesh::StaticMesh);
+            define_component!(renderer::texture::Texture);
+            define_component!(renderer::tilemap::Tilemap);
+            define_component!(renderer::tileset::Tileset);
+            define_component!(renderer::viewport::Viewport);
             define_system_exclusive!(
-                system::renderer::SynchronizeRendererResources,
+                renderer::system::SynchronizeRendererResources,
                 SystemStage::UPDATE
             );
         }
 
-        // Define UI features
-        if features.ui_ecs {
-            define_component!(component::ui::canvas::Canvas);
-            define_component!(component::ui::ui_stylesheet::UIStyleSheet);
-            define_component!(component::ui::ui_template::UITemplate);
-            define_component!(component::ui::ui::UI);
-            define_component!(component::ui::ui::UIRenderTarget);
-            define_system_parallel!(system::ui::UpdateUI, SystemStage::UPDATE);
-            define_system_exclusive!(system::ui::RenderUI, SystemStage::UPDATE);
-        }
-
-        // Define commoin features
-        if features.common_ecs {
-            define_component!(component::common::free_fly::FreeFly);
-            define_component!(component::common::prefab::Prefab);
-            define_component!(component::common::rotator::Rotator);
-            define_component!(component::common::script::Script);
-            define_component!(component::input::input_table::InputTable);
-            define_component!(component::physics::rigid_body::RigidBody);
-            define_component!(component::scene::hierarchy::Hierarchy);
-            define_component!(component::scene::local_to_world::LocalToWorld);
-            define_component!(component::scene::transform::Transform);
-            define_system_parallel!(system::free_fly::FreeFlySystem, SystemStage::UPDATE);
-            define_system_parallel!(system::rotator::RotatorSystem, SystemStage::UPDATE);
-            define_system_parallel!(system::transform::PropagateTransforms, SystemStage::UPDATE);
+        if features.ui {
+            define_component!(ui::canvas::Canvas);
+            define_component!(ui::ui_stylesheet::UIStyleSheet);
+            define_component!(ui::ui_template::UITemplate);
+            define_component!(ui::ui::UI);
+            define_component!(ui::ui::UIRenderTarget);
+            define_system_parallel!(ui::update_ui::UpdateUI, SystemStage::UPDATE);
+            define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
         }
 
         Ok(())

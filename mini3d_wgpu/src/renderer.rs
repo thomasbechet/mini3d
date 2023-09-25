@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d::feature::component::renderer::{mesh, texture};
+use mini3d::feature::renderer::{mesh, texture};
 use mini3d::glam::{IVec2, Mat4, UVec2, Vec3, Vec4};
 use mini3d::math::rect::IRect;
 use mini3d::renderer::color::{srgb_to_linear, Color};

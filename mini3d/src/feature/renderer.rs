@@ -4,6 +4,7 @@ pub mod material;
 pub mod mesh;
 pub mod model;
 pub mod static_mesh;
+pub mod system;
 pub mod texture;
 pub mod tilemap;
 pub mod tileset;

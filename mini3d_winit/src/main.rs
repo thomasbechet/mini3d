@@ -11,7 +11,7 @@ use gui::{WindowControl, WindowGUI};
 use mapper::InputMapper;
 use mini3d::{
     ecs::scheduler::Invocation,
-    feature::component::common::script::Script,
+    feature::common::script::Script,
     glam::Vec2,
     instance::{Instance, InstanceFeatures},
     renderer::SCREEN_RESOLUTION,

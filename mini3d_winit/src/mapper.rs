@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
 use mini3d::{
-    feature::component::input::input_table::InputTable,
+    feature::input::input_table::InputTable,
     input::{
         event::{InputActionEvent, InputAxisEvent, InputEvent, InputTextEvent},
         provider::{InputProvider, InputProviderError},

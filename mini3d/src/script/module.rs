@@ -1,6 +1,6 @@
 use crate::{
     asset::handle::StaticAsset,
-    feature::component::common::script::Script,
+    feature::common::script::Script,
     utils::uid::{ToUID, UID},
 };
 

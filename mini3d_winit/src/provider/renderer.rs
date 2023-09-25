@@ -25,7 +25,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn mesh_add(
         &mut self,
-        mesh: &mini3d::feature::component::renderer::mesh::Mesh,
+        mesh: &mini3d::feature::renderer::mesh::Mesh,
     ) -> Result<
         mini3d::renderer::provider::MeshHandle,
         mini3d::renderer::provider::RendererProviderError,
@@ -42,7 +42,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn texture_add(
         &mut self,
-        texture: &mini3d::feature::component::renderer::texture::Texture,
+        texture: &mini3d::feature::renderer::texture::Texture,
     ) -> Result<
         mini3d::renderer::provider::TextureHandle,
         mini3d::renderer::provider::RendererProviderError,

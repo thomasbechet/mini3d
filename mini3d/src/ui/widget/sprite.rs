@@ -3,7 +3,7 @@ use mini3d_derive::Serialize;
 
 use crate::{
     asset::handle::StaticAsset,
-    feature::component::{renderer::texture::Texture, ui::ui_stylesheet::UIStyleSheet},
+    feature::{renderer::texture::Texture, ui::ui_stylesheet::UIStyleSheet},
     math::rect::IRect,
     renderer::{
         color::Color,

@@ -3,7 +3,7 @@ use mini3d_derive::Serialize;
 
 use crate::{
     asset::handle::StaticAsset,
-    feature::component::{renderer::font::Font, ui::ui_stylesheet::UIStyleSheet},
+    feature::{renderer::font::Font, ui::ui_stylesheet::UIStyleSheet},
     math::rect::IRect,
     renderer::graphics::Graphics,
     ui::event::{Event, EventContext},

@@ -23,7 +23,7 @@ impl InputProvider for WinitInputProvider {
     fn update_table(
         &mut self,
         uid: mini3d::utils::uid::UID,
-        table: Option<&mini3d::feature::component::input::input_table::InputTable>,
+        table: Option<&mini3d::feature::input::input_table::InputTable>,
     ) -> Result<(), mini3d::input::provider::InputProviderError> {
         self.0.borrow_mut().update_table(uid, table)
     }

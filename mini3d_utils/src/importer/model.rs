@@ -5,7 +5,7 @@ use std::{
 };
 
 use mini3d::{
-    feature::component::renderer::{
+    feature::renderer::{
         material::Material,
         mesh::{Mesh, SubMesh, Vertex},
         model::Model,

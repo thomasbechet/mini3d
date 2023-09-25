@@ -3,7 +3,7 @@ use mini3d_derive::Error;
 
 use crate::{
     define_provider_handle,
-    feature::component::renderer::{mesh::Mesh, texture::Texture},
+    feature::renderer::{mesh::Mesh, texture::Texture},
     math::rect::IRect,
 };
 

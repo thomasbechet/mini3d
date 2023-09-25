@@ -1,4 +1,4 @@
-use mini3d::feature::component;
+use mini3d::feature::renderer;
 use wgpu::util::DeviceExt;
 
 use crate::context::WGPUContext;
@@ -11,7 +11,7 @@ pub(crate) struct Texture {
 impl Texture {
     pub(crate) fn from_asset(
         context: &WGPUContext,
-        texture: &component::renderer::texture::Texture,
+        texture: &renderer::texture::Texture,
         usage: wgpu::TextureUsages,
         label: Option<&str>,
     ) -> Self {

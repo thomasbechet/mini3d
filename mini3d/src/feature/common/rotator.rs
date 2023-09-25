@@ -1,4 +1,5 @@
 use glam::{Quat, Vec3};
+use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
@@ -6,9 +7,15 @@ use crate::{
         instance::ParallelResolver,
         query::Query,
     },
-    feature::component::{common::rotator::Rotator, scene::transform::Transform},
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
+
+use super::transform::Transform;
+
+#[derive(Default, Component, Serialize, Reflect, Clone)]
+pub struct Rotator {
+    pub speed: f32,
+}
 
 #[derive(Default)]
 pub struct RotatorSystem {

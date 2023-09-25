@@ -1,7 +1,7 @@
 use mini3d_derive::{Error, Serialize};
 use std::collections::HashMap;
 
-use crate::feature::component::input::input_table::{InputAxisRange, InputTable};
+use crate::feature::input::input_table::{InputAxisRange, InputTable};
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::serialize::{Encoder, EncoderError};
 use crate::utils::uid::{ToUID, UID};

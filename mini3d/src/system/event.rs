@@ -1,7 +1,7 @@
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::component::{
+    feature::{
         common::script::Script,
         renderer::{font::Font, material::Material, mesh::Mesh, model::Model, texture::Texture},
     },

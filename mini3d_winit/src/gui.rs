@@ -1,5 +1,5 @@
 use mini3d::{
-    feature::component::input::input_table::{InputAxisRange, InputTable},
+    feature::input::input_table::{InputAxisRange, InputTable},
     glam::Vec4,
     utils::uid::UID,
 };

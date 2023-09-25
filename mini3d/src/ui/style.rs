@@ -2,7 +2,7 @@ use mini3d_derive::{Error, Serialize};
 
 use crate::{
     asset::handle::StaticAsset,
-    feature::component::renderer::texture::Texture,
+    feature::renderer::texture::Texture,
     math::rect::IRect,
     renderer::{
         color::Color,

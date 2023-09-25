@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::{feature::component::input::input_table::InputTable, utils::uid::UID};
+use crate::{feature::input::input_table::InputTable, utils::uid::UID};
 
 use super::event::InputEvent;
 

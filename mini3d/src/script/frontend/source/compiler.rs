@@ -1,6 +1,6 @@
 use crate::{
     asset::{handle::StaticAsset, AssetManager},
-    feature::component::common::script::Script,
+    feature::common::script::Script,
     script::{
         compiler::CompilationUnit,
         frontend::error::CompileError,

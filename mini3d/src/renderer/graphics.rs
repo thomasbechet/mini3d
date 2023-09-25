@@ -7,7 +7,7 @@ use crate::{
         entity::Entity,
         view::{StaticComponentView, StaticComponentViewRef},
     },
-    feature::component::renderer::{font::Font, texture::Texture, viewport::Viewport},
+    feature::renderer::{font::Font, texture::Texture, viewport::Viewport},
     math::rect::IRect,
 };
 

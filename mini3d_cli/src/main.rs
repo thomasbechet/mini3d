@@ -5,7 +5,7 @@ use mini3d::{
         query::Query,
         scheduler::Invocation,
     },
-    feature::component::scene::transform::Transform,
+    feature::common::transform::Transform,
     info,
     instance::{Instance, InstanceFeatures},
     registry::{

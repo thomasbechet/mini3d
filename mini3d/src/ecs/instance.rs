@@ -1,5 +1,5 @@
 use crate::{
-    feature::component::common::program::Program,
+    feature::common::program::Program,
     registry::{
         component::{ComponentHandle, ComponentId, ComponentRegistry},
         error::RegistryError,

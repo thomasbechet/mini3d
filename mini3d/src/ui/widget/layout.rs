@@ -4,7 +4,7 @@ use glam::IVec2;
 use mini3d_derive::{Error, Serialize};
 
 use crate::{
-    feature::component::ui::ui_stylesheet::UIStyleSheet,
+    feature::ui::ui_stylesheet::UIStyleSheet,
     math::rect::IRect,
     renderer::{graphics::Graphics, SCREEN_VIEWPORT},
     ui::{

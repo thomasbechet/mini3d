@@ -1,4 +1,4 @@
-use mini3d::feature::component;
+use mini3d::feature::renderer;
 
 use crate::{context::WGPUContext, error::WGPURendererError};
 
@@ -50,7 +50,7 @@ impl VertexAllocator {
     pub fn add(
         &mut self,
         context: &WGPUContext,
-        vertices: &Vec<component::renderer::mesh::Vertex>,
+        vertices: &Vec<renderer::mesh::Vertex>,
     ) -> Result<VertexBufferDescriptor, WGPURendererError> {
         // Create the vertex descriptor
         let descriptor = VertexBufferDescriptor {

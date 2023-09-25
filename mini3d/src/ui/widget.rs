@@ -1,8 +1,7 @@
 use glam::IVec2;
 
 use crate::{
-    feature::component::ui::ui_stylesheet::UIStyleSheet, math::rect::IRect,
-    renderer::graphics::Graphics,
+    feature::ui::ui_stylesheet::UIStyleSheet, math::rect::IRect, renderer::graphics::Graphics,
 };
 
 use super::event::{Event, EventContext};

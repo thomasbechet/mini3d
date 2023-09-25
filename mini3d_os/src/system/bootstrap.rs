@@ -5,14 +5,16 @@ use mini3d::{
         scheduler::Invocation,
     },
     expect,
-    feature::component::{
-        common::{free_fly::FreeFly, rotator::Rotator, script::Script},
+    feature::{
+        common::{
+            free_fly::FreeFly, hierarchy::Hierarchy, local_to_world::LocalToWorld,
+            rotator::Rotator, script::Script, transform::Transform,
+        },
         input::input_table::{InputAction, InputAxis, InputAxisRange, InputTable},
         renderer::{
             camera::Camera, font::Font, material::Material, mesh::Mesh, model::Model,
             static_mesh::StaticMesh, texture::Texture, viewport::Viewport,
         },
-        scene::{hierarchy::Hierarchy, local_to_world::LocalToWorld, transform::Transform},
         ui::{
             ui::{UIRenderTarget, UI},
             ui_stylesheet::UIStyleSheet,
