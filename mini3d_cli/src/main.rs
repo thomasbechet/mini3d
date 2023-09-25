@@ -75,7 +75,5 @@ fn main() {
         .register_system::<SpawnSystem>("spawn_system", "startup")
         .unwrap();
     instance.invoke("startup", Invocation::NextFrame).unwrap();
-    for _ in 0..10 {
-        instance.progress(1.0 / 120.0).expect("Instance error");
-    }
+    instance.progress(1.0 / 120.0).expect("Instance error");
 }

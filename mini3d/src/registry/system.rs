@@ -86,19 +86,7 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct System(SlotId);
-
-impl From<SlotId> for System {
-    fn from(id: SlotId) -> Self {
-        Self(id)
-    }
-}
-
-impl From<System> for SlotId {
-    fn from(system: System) -> Self {
-        system.0
-    }
-}
+pub struct System(pub(crate) SlotId);
 
 pub struct SystemStage;
 
@@ -177,7 +165,7 @@ impl SystemRegistry {
     fn find_last_system_in_stage(&self, stage: SlotId) -> Option<System> {
         let mut system = self.stages[stage].first_system;
         while let Some(id) = system {
-            let entry = &self.systems[id.into()];
+            let entry = &self.systems[id.0];
             if entry.next_in_stage.is_none() {
                 return Some(id);
             }
@@ -190,21 +178,21 @@ impl SystemRegistry {
         let stage = entry.stage;
         let id = self.systems.add(entry);
         if let Some(last) = self.find_last_system_in_stage(stage) {
-            let last = last.into();
-            self.systems[last].next_in_stage = Some(id.into());
-            self.systems[id].prev_in_stage = Some(last.into());
+            let last = last.0;
+            self.systems[last].next_in_stage = Some(System(id));
+            self.systems[id].prev_in_stage = Some(System(last));
         } else {
-            self.stages[stage].first_system = Some(id.into());
+            self.stages[stage].first_system = Some(System(id));
         }
         self.changed = true;
-        Ok(id.into())
+        Ok(System(id))
     }
 
     pub fn remove(&mut self, system: System) {
-        let system = system.into();
+        let system = system.0;
         let stage = self.systems[system].stage;
         if let Some(prev) = self.systems[system].prev_in_stage {
-            self.systems[prev.into()].next_in_stage = self.systems[system].next_in_stage;
+            self.systems[prev.0].next_in_stage = self.systems[system].next_in_stage;
         } else {
             self.stages[stage].first_system = self.systems[system].next_in_stage;
         }
@@ -275,10 +263,10 @@ impl SystemRegistry {
         self.systems
             .iter()
             .find(|(_, def)| def.uid == uid)
-            .map(|(id, _)| id.into())
+            .map(|(id, _)| System(id))
     }
 
     pub(crate) fn get(&self, system: System) -> Option<&SystemEntry> {
-        self.systems.get(system.into())
+        self.systems.get(system.0)
     }
 }

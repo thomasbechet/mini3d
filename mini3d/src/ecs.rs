@@ -123,10 +123,7 @@ impl ECSManager {
             if node.count == 1 {
                 // Find instance
                 let instance = self.scheduler.instances[node.first];
-                let instance = self
-                    .instances
-                    .get_mut(instance)
-                    .expect("System instance not found");
+                let instance = &self.instances.entries[instance.0];
 
                 // Run the system
                 match &instance.system {

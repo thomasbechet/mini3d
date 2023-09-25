@@ -239,7 +239,7 @@ impl SystemInstanceEntry {
 
 #[derive(Default)]
 pub(crate) struct SystemInstanceTable {
-    instances: SparseSecondaryMap<SystemInstanceEntry>,
+    pub(crate) entries: SparseSecondaryMap<SystemInstanceEntry>,
 }
 
 impl SystemInstanceTable {
@@ -249,23 +249,19 @@ impl SystemInstanceTable {
         entities: &mut EntityTable,
         queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {
-        for (id, _) in registry.systems.systems.iter() {
+        for id in registry.systems.systems.keys() {
             // Create instance if missing
-            if !self.instances.contains(id) {
-                self.instances
-                    .insert(id, SystemInstanceEntry::new(id.into(), &registry.systems));
+            if !self.entries.contains(id) {
+                self.entries
+                    .insert(id, SystemInstanceEntry::new(System(id), &registry.systems));
             }
 
             // TODO: check if system must be changed
-            if self.instances[id].dirty {
-                self.instances[id].setup(&registry.components, entities, queries)?;
-                self.instances[id].dirty = false;
+            if self.entries[id].dirty {
+                self.entries[id].setup(&registry.components, entities, queries)?;
+                self.entries[id].dirty = false;
             }
         }
         Ok(())
-    }
-
-    pub(crate) fn get_mut(&mut self, system: System) -> Option<&mut SystemInstanceEntry> {
-        self.instances.get_mut(system.into())
     }
 }

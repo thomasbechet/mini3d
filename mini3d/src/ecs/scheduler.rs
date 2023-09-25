@@ -108,7 +108,7 @@ impl Scheduler {
                 });
 
                 // Iter next system in stage
-                system = registry.systems[instance.into()].next_in_stage;
+                system = registry.systems[instance.0].next_in_stage;
 
                 // Link previous node or create new stage
                 if let Some(previous_node) = previous_node {
