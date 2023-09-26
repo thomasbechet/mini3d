@@ -7,7 +7,7 @@ use crate::{
         entity::Entity,
         instance::ParallelResolver,
         query::Query,
-        view::{StaticComponentView, StaticComponentViewMut, StaticComponentViewRef},
+        view::single::{StaticSingleView, StaticSingleViewMut, StaticSingleViewRef},
     },
     registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
 };
@@ -61,9 +61,9 @@ impl Transform {
 
 fn recursive_propagate(
     entity: Entity,
-    transforms: &StaticComponentViewRef<Transform>,
-    local_to_worlds: &mut StaticComponentViewMut<LocalToWorld>,
-    hierarchies: &StaticComponentViewRef<Hierarchy>,
+    transforms: &StaticSingleViewRef<Transform>,
+    local_to_worlds: &mut StaticSingleViewMut<LocalToWorld>,
+    hierarchies: &StaticSingleViewRef<Hierarchy>,
 ) -> Mat4 {
     if let Some(mut local_to_world) = local_to_worlds.get(entity).cloned() {
         if !local_to_world.dirty {

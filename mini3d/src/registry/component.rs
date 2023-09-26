@@ -9,12 +9,13 @@ use crate::{
         handle::{Asset, AssetHandle, StaticAsset},
     },
     ecs::{
-        container::{AnyComponentContainer, ContainerTable, StaticComponentContainer},
+        container::{
+            single::{AnySingleContainer, StaticSingleContainer},
+            ContainerTable,
+        },
         entity::Entity,
         error::ECSError,
-        view::{
-            ComponentViewMut, ComponentViewRef, StaticComponentViewMut, StaticComponentViewRef,
-        },
+        view::single::{SingleViewMut, SingleViewRef, StaticSingleViewMut, StaticSingleViewRef},
     },
     script::reflection::{Property, Reflect},
     serialize::Serialize,
@@ -34,23 +35,25 @@ pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
 pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
 
 pub trait ComponentHandle: Copy {
-    type ViewRef<'a>;
-    type ViewMut<'a>;
+    type SingleViewRef<'a>;
+    type SingleViewMut<'a>;
+    type ArrayViewRef<'a>;
+    type ArrayViewMut<'a>;
     type AssetHandle: AssetHandle;
     type Data: Default;
     fn new(id: ComponentId) -> Self;
     fn id(&self) -> ComponentId;
-    fn view_ref<'a>(
+    fn single_view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::ViewRef<'a>, ECSError>;
-    fn view_mut<'a>(
+    ) -> Result<Self::SingleViewRef<'a>, ECSError>;
+    fn single_view_mut<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
         cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, ECSError>;
+    ) -> Result<Self::SingleViewMut<'a>, ECSError>;
     fn check_type_id(id: TypeId) -> bool;
-    fn insert_container(
+    fn insert_single_container(
         &self,
         components: PrivateComponentTableMut,
         entity: Entity,
@@ -85,8 +88,8 @@ impl<C: ComponentData> Default for StaticComponent<C> {
 }
 
 impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
-    type ViewRef<'a> = StaticComponentViewRef<'a, C>;
-    type ViewMut<'a> = StaticComponentViewMut<'a, C>;
+    type SingleViewRef<'a> = StaticSingleViewRef<'a, C>;
+    type SingleViewMut<'a> = StaticSingleViewMut<'a, C>;
     type AssetHandle = StaticAsset<C>;
     type Data = C;
 
@@ -101,11 +104,11 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
         self.id
     }
 
-    fn view_ref<'a>(
+    fn single_view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::ViewRef<'a>, ECSError> {
-        Ok(StaticComponentViewRef {
+    ) -> Result<Self::SingleViewRef<'a>, ECSError> {
+        Ok(StaticSingleViewRef {
             container: Ref::map(
                 components
                     .0
@@ -116,19 +119,19 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
                     .map_err(|_| ECSError::ContainerBorrowMut)?,
                 |r| {
                     r.as_any()
-                        .downcast_ref::<StaticComponentContainer<C>>()
+                        .downcast_ref::<StaticSingleContainer<C>>()
                         .unwrap()
                 },
             ),
         })
     }
 
-    fn view_mut<'a>(
+    fn single_view_mut<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
         cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, ECSError> {
-        Ok(StaticComponentViewMut {
+    ) -> Result<Self::SingleViewMut<'a>, ECSError> {
+        Ok(StaticSingleViewMut {
             container: RefMut::map(
                 components
                     .0
@@ -139,7 +142,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
                     .map_err(|_| ECSError::ContainerBorrowMut)?,
                 |r| {
                     r.as_any_mut()
-                        .downcast_mut::<StaticComponentContainer<C>>()
+                        .downcast_mut::<StaticSingleContainer<C>>()
                         .unwrap()
                 },
             ),
@@ -151,7 +154,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
         id == TypeId::of::<C>()
     }
 
-    fn insert_container(
+    fn insert_single_container(
         &self,
         components: PrivateComponentTableMut,
         entity: Entity,
@@ -165,7 +168,7 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
             .expect("Component container not found while adding entity")
             .get_mut()
             .as_any_mut()
-            .downcast_mut::<StaticComponentContainer<C>>()
+            .downcast_mut::<StaticSingleContainer<C>>()
             .expect("Component type mismatch while adding static component")
             .add(entity, data, cycle);
     }
@@ -177,8 +180,8 @@ pub struct Component {
 }
 
 impl ComponentHandle for Component {
-    type ViewRef<'a> = ComponentViewRef<'a>;
-    type ViewMut<'a> = ComponentViewMut<'a>;
+    type SingleViewRef<'a> = SingleViewRef<'a>;
+    type SingleViewMut<'a> = SingleViewMut<'a>;
     type AssetHandle = Asset;
     type Data = ();
 
@@ -190,11 +193,11 @@ impl ComponentHandle for Component {
         self.id
     }
 
-    fn view_ref<'a>(
+    fn single_view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::ViewRef<'a>, ECSError> {
-        Ok(ComponentViewRef {
+    ) -> Result<Self::SingleViewRef<'a>, ECSError> {
+        Ok(SingleViewRef {
             container: components
                 .0
                 .containers
@@ -205,12 +208,12 @@ impl ComponentHandle for Component {
         })
     }
 
-    fn view_mut<'a>(
+    fn single_view_mut<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
         cycle: u32,
-    ) -> Result<Self::ViewMut<'a>, ECSError> {
-        Ok(ComponentViewMut {
+    ) -> Result<Self::SingleViewMut<'a>, ECSError> {
+        Ok(SingleViewMut {
             container: components
                 .0
                 .containers
@@ -226,7 +229,7 @@ impl ComponentHandle for Component {
         true // Dynamic handle is valid for both static and dynamic components
     }
 
-    fn insert_container(
+    fn insert_single_container(
         &self,
         components: PrivateComponentTableMut,
         entity: Entity,
@@ -266,7 +269,7 @@ pub enum ComponentStorage {
 
 pub(crate) trait AnyComponentReflection {
     fn create_asset_container(&self) -> Box<dyn AnyAssetContainer>;
-    fn create_scene_container(&self) -> Box<dyn AnyComponentContainer>;
+    fn create_scene_container(&self) -> Box<dyn AnySingleContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
     fn type_id(&self) -> TypeId;
@@ -281,8 +284,8 @@ impl<C: ComponentData> AnyComponentReflection for StaticComponentReflection<C> {
         Box::<StaticAssetContainer<C>>::default()
     }
 
-    fn create_scene_container(&self) -> Box<dyn AnyComponentContainer> {
-        Box::new(StaticComponentContainer::<C>::with_capacity(128))
+    fn create_scene_container(&self) -> Box<dyn AnySingleContainer> {
+        Box::new(StaticSingleContainer::<C>::with_capacity(128))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {

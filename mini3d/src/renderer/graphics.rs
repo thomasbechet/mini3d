@@ -5,7 +5,7 @@ use crate::{
     asset::{handle::StaticAsset, AssetManager},
     ecs::{
         entity::Entity,
-        view::{StaticComponentView, StaticComponentViewRef},
+        view::single::{StaticSingleView, StaticSingleViewRef},
     },
     feature::renderer::{font::Font, texture::Texture, viewport::Viewport},
     math::rect::IRect,
@@ -92,7 +92,7 @@ impl Graphics {
         clear_color: Color,
         resources: &mut RendererResourceManager,
         asset: &mut AssetManager,
-        viewports: &StaticComponentViewRef<Viewport>,
+        viewports: &StaticSingleViewRef<Viewport>,
         provider: &mut dyn RendererProvider,
     ) -> Result<(), RendererProviderError> {
         if let Some(canvas) = canvas {

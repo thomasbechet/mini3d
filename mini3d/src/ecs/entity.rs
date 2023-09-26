@@ -170,12 +170,28 @@ impl<'a> EntityBuilder<'a> {
             self.entities
                 .archetypes
                 .find_add(self.queries, self.archetype, component.id());
-        component.insert_container(
+        component.insert_single_container(
             PrivateComponentTableMut(self.containers),
             self.entity,
             data,
             self.cycle,
         );
+        self
+    }
+
+    pub fn with_array<H: ComponentHandle>(mut self, component: H, data: &[H::Data]) -> Self {
+        self
+    }
+
+    pub fn with_list<H: ComponentHandle>(mut self, component: H, data: &[H::Data]) -> Self {
+        self
+    }
+
+    pub fn with_map<H: ComponentHandle>(
+        mut self,
+        component: H,
+        data: &[(Entity, H::Data)],
+    ) -> Self {
         self
     }
 
