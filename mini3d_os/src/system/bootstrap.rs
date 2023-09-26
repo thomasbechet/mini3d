@@ -20,7 +20,7 @@ use mini3d::{
     info,
     math::rect::IRect,
     registry::{
-        component::StaticComponent,
+        component::{ComponentStorage, StaticComponent},
         system::{ExclusiveSystem, SystemOrder, SystemStage},
     },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
@@ -45,7 +45,12 @@ impl OSBootstrap {
 impl ExclusiveSystem for OSBootstrap {
     fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Declare components
-        expect!(ctx, ctx.registry.components.add_static::<OS>(OS::NAME));
+        expect!(
+            ctx,
+            ctx.registry
+                .components
+                .add_static::<OS>(OS::NAME, ComponentStorage::Single)
+        );
         // Declare systems
         expect!(
             ctx,

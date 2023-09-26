@@ -257,6 +257,13 @@ pub(crate) enum ComponentKind {
     Tag,
 }
 
+pub enum ComponentStorage {
+    Single,
+    Array(usize),
+    List,
+    Map,
+}
+
 pub(crate) trait AnyComponentReflection {
     fn create_asset_container(&self) -> Box<dyn AnyAssetContainer>;
     fn create_scene_container(&self) -> Box<dyn AnyComponentContainer>;
@@ -297,6 +304,7 @@ pub(crate) struct ComponentEntry {
     pub(crate) name: AsciiArray<MAX_COMPONENT_NAME_LEN>,
     pub(crate) reflection: Box<dyn AnyComponentReflection>,
     pub(crate) kind: ComponentKind,
+    pub(crate) storage: ComponentStorage,
 }
 
 #[derive(Default)]
@@ -309,6 +317,7 @@ impl ComponentRegistry {
     fn add(
         &mut self,
         name: &str,
+        storage: ComponentStorage,
         kind: ComponentKind,
         reflection: Box<dyn AnyComponentReflection>,
     ) -> Result<SlotId, RegistryError> {
@@ -320,6 +329,7 @@ impl ComponentRegistry {
         Ok(self.entries.add(ComponentEntry {
             name: name.into(),
             kind,
+            storage,
             reflection,
         }))
     }
@@ -327,18 +337,23 @@ impl ComponentRegistry {
     pub fn add_static<C: ComponentData>(
         &mut self,
         name: &str,
+        storage: ComponentStorage,
     ) -> Result<StaticComponent<C>, RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
-        let id = self.add(name, ComponentKind::Static, Box::new(reflection))?;
+        let id = self.add(name, storage, ComponentKind::Static, Box::new(reflection))?;
         Ok(StaticComponent {
             _marker: std::marker::PhantomData,
             id: ComponentId(id),
         })
     }
 
-    pub fn add_dynamic(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+    pub fn add_dynamic(
+        &mut self,
+        name: &str,
+        storage: ComponentStorage,
+    ) -> Result<ComponentId, RegistryError> {
         unimplemented!()
     }
 

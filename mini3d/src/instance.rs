@@ -3,12 +3,13 @@ use mini3d_derive::Error;
 use crate::asset::AssetManager;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
-use crate::feature::{common, input, physics, renderer, ui};
+use crate::feature::{common, input, physics, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
 use crate::logger::LoggerManager;
 use crate::physics::PhysicsManager;
+use crate::registry::component::ComponentStorage;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
@@ -84,10 +85,10 @@ pub struct Instance {
 impl Instance {
     fn register_core_features(&mut self, features: &InstanceFeatures) -> Result<(), RegistryError> {
         macro_rules! define_component {
-            ($component: ty) => {
+            ($component: ty, $storage: expr) => {
                 self.registry
                     .components
-                    .add_static::<$component>(<$component>::NAME)?;
+                    .add_static::<$component>(<$component>::NAME, $storage)?;
             };
         }
 
@@ -114,38 +115,41 @@ impl Instance {
         // Define features
 
         if features.common {
-            define_component!(common::free_fly::FreeFly);
-            define_component!(common::rotator::Rotator);
-            define_component!(common::script::Script);
-            define_component!(common::program::Program);
-            define_component!(common::transform::Transform);
-            define_component!(common::hierarchy::Hierarchy);
-            define_component!(common::local_to_world::LocalToWorld);
+            define_component!(common::free_fly::FreeFly, ComponentStorage::Single);
+            define_component!(common::rotator::Rotator, ComponentStorage::Single);
+            define_component!(common::script::Script, ComponentStorage::Single);
+            define_component!(common::program::Program, ComponentStorage::Single);
+            define_component!(common::transform::Transform, ComponentStorage::Single);
+            define_component!(common::hierarchy::Hierarchy, ComponentStorage::Single);
+            define_component!(
+                common::local_to_world::LocalToWorld,
+                ComponentStorage::Single
+            );
             define_system_parallel!(common::free_fly::FreeFlySystem, SystemStage::UPDATE);
             define_system_parallel!(common::rotator::RotatorSystem, SystemStage::UPDATE);
             define_system_parallel!(common::transform::PropagateTransforms, SystemStage::UPDATE);
         }
 
         if features.input {
-            define_component!(input::input_table::InputTable);
+            define_component!(input::input_table::InputTable, ComponentStorage::Single);
         }
 
         if features.physics {
-            define_component!(physics::rigid_body::RigidBody);
+            define_component!(physics::rigid_body::RigidBody, ComponentStorage::Single);
         }
 
         if features.renderer {
-            define_component!(renderer::camera::Camera);
-            define_component!(renderer::font::Font);
-            define_component!(renderer::material::Material);
-            define_component!(renderer::mesh::Mesh);
-            define_component!(renderer::model::Model);
-            define_component!(renderer::static_mesh::StaticMesh);
-            define_component!(renderer::texture::Texture);
-            define_component!(renderer::tilemap::Tilemap);
-            define_component!(renderer::tileset::Tileset);
-            define_component!(renderer::viewport::Viewport);
-            define_component!(renderer::canvas::Canvas);
+            define_component!(renderer::camera::Camera, ComponentStorage::Single);
+            define_component!(renderer::font::Font, ComponentStorage::Single);
+            define_component!(renderer::material::Material, ComponentStorage::Single);
+            define_component!(renderer::mesh::Mesh, ComponentStorage::Single);
+            define_component!(renderer::model::Model, ComponentStorage::Single);
+            define_component!(renderer::static_mesh::StaticMesh, ComponentStorage::Single);
+            define_component!(renderer::texture::Texture, ComponentStorage::Single);
+            define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
+            define_component!(renderer::tileset::Tileset, ComponentStorage::Single);
+            define_component!(renderer::viewport::Viewport, ComponentStorage::Single);
+            define_component!(renderer::canvas::Canvas, ComponentStorage::Single);
             define_system_exclusive!(
                 renderer::system::SynchronizeRendererResources,
                 SystemStage::UPDATE

@@ -145,7 +145,7 @@ impl<C: ComponentData> StaticComponentContainer<C> {
                 }
                 Some(&mut tuple.0)
             } else {
-                return None;
+                None
             }
         })
     }
