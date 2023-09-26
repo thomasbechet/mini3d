@@ -1,7 +1,7 @@
 use mini3d::{
     asset::handle::{AssetBundle, StaticAsset},
     ecs::{
-        api::{ecs::ExclusiveECS, ExclusiveAPI},
+        api::{context::Context, ecs::ECS},
         scheduler::Invocation,
     },
     expect,
@@ -43,28 +43,28 @@ impl OSBootstrap {
 }
 
 impl ExclusiveSystem for OSBootstrap {
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Declare components
-        expect!(api, api.registry.components.add_static::<OS>(OS::NAME));
+        expect!(ctx, ctx.registry.components.add_static::<OS>(OS::NAME));
         // Declare systems
         expect!(
-            api,
-            api.registry.systems.add_static_exclusive::<OSInitialize>(
+            ctx,
+            ctx.registry.systems.add_static_exclusive::<OSInitialize>(
                 OSInitialize::NAME,
                 OSInitialize::NAME,
                 SystemOrder::default()
             )
         );
         expect!(
-            api,
-            api.registry.systems.add_static_exclusive::<OSUpdate>(
+            ctx,
+            ctx.registry.systems.add_static_exclusive::<OSUpdate>(
                 OSUpdate::NAME,
                 SystemStage::UPDATE,
                 SystemOrder::default()
             )
         );
         // Initialize OS
-        expect!(api, ecs.invoke(OSInitialize::NAME, Invocation::Immediate));
+        expect!(ctx, ecs.invoke(OSInitialize::NAME, Invocation::Immediate));
     }
 }
 
@@ -76,21 +76,21 @@ impl OSInitialize {
 }
 
 impl OSInitialize {
-    fn setup_assets(&self, api: &mut ExclusiveAPI) {
-        let default_bundle = expect!(api, api.asset.find_bundle(AssetBundle::DEFAULT));
+    fn setup_assets(&self, ctx: &mut Context) {
+        let default_bundle = expect!(ctx, ctx.asset.find_bundle(AssetBundle::DEFAULT));
 
         // Register default font
-        let font: StaticComponent<Font> = api.registry.components.find(Font::NAME).unwrap();
+        let font: StaticComponent<Font> = ctx.registry.components.find(Font::NAME).unwrap();
         expect!(
-            api,
-            api.asset
+            ctx,
+            ctx.asset
                 .add(font, "default", default_bundle, Font::default())
         );
 
         // Register input tables
         expect!(
-            api,
-            api.input.add_table(&InputTable {
+            ctx,
+            ctx.input.add_table(&InputTable {
                 name: "common".to_string(),
                 display_name: "Common Inputs".to_string(),
                 description: "".to_string(),
@@ -253,8 +253,8 @@ impl OSInitialize {
             })
         );
         expect!(
-            api,
-            api.input.add_table(&InputTable {
+            ctx,
+            ctx.input.add_table(&InputTable {
                 name: "default".to_string(),
                 display_name: "Default Inputs".to_string(),
                 description: "".to_string(),
@@ -295,50 +295,50 @@ impl OSInitialize {
         );
 
         let texture: StaticComponent<Texture> =
-            expect!(api, api.registry.components.find(Texture::NAME));
-        let mesh: StaticComponent<Mesh> = expect!(api, api.registry.components.find(Mesh::NAME));
-        let model: StaticComponent<Model> = expect!(api, api.registry.components.find(Model::NAME));
+            expect!(ctx, ctx.registry.components.find(Texture::NAME));
+        let mesh: StaticComponent<Mesh> = expect!(ctx, ctx.registry.components.find(Mesh::NAME));
+        let model: StaticComponent<Model> = expect!(ctx, ctx.registry.components.find(Model::NAME));
         let material: StaticComponent<Material> =
-            expect!(api, api.registry.components.find(Material::NAME));
+            expect!(ctx, ctx.registry.components.find(Material::NAME));
         let script: StaticComponent<Script> =
-            expect!(api, api.registry.components.find(Script::NAME));
+            expect!(ctx, ctx.registry.components.find(Script::NAME));
 
         // Import assets
-        while let Some(import) = api.system.next_import() {
+        while let Some(import) = ctx.system.next_import() {
             match import {
                 ImportAssetEvent::Material(entry) => {
                     expect!(
-                        api,
-                        api.asset
+                        ctx,
+                        ctx.asset
                             .add(material, &entry.name, default_bundle, entry.data.clone(),)
                     );
                 }
                 ImportAssetEvent::Mesh(entry) => {
-                    info!(api, "Importing mesh: {}", entry.name);
+                    info!(ctx, "Importing mesh: {}", entry.name);
                     expect!(
-                        api,
-                        api.asset
+                        ctx,
+                        ctx.asset
                             .add(mesh, &entry.name, default_bundle, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Model(entry) => {
                     expect!(
-                        api,
-                        api.asset
+                        ctx,
+                        ctx.asset
                             .add(model, &entry.name, default_bundle, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Script(entry) => {
                     expect!(
-                        api,
-                        api.asset
+                        ctx,
+                        ctx.asset
                             .add(script, &entry.name, default_bundle, entry.data.clone(),)
                     );
                 }
                 ImportAssetEvent::Texture(entry) => {
                     expect!(
-                        api,
-                        api.asset
+                        ctx,
+                        ctx.asset
                             .add(texture, &entry.name, default_bundle, entry.data.clone(),)
                     );
                 }
@@ -347,13 +347,13 @@ impl OSInitialize {
         }
 
         // Non default assets
-        let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
-        let alfred_mesh = expect!(api, api.asset.find("alfred_mesh"));
-        let car_texture = expect!(api, api.asset.find("car_tex"));
-        let car_mesh = expect!(api, api.asset.find("car_mesh"));
+        let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));
+        let alfred_mesh = expect!(ctx, ctx.asset.find("alfred_mesh"));
+        let car_texture = expect!(ctx, ctx.asset.find("car_tex"));
+        let car_mesh = expect!(ctx, ctx.asset.find("car_mesh"));
         let alfred_material = expect!(
-            api,
-            api.asset.add(
+            ctx,
+            ctx.asset.add(
                 material,
                 "alfred_mat",
                 default_bundle,
@@ -363,8 +363,8 @@ impl OSInitialize {
             )
         );
         let car_material = expect!(
-            api,
-            api.asset.add(
+            ctx,
+            ctx.asset.add(
                 material,
                 "car_mat",
                 default_bundle,
@@ -374,8 +374,8 @@ impl OSInitialize {
             )
         );
         expect!(
-            api,
-            api.asset.add(
+            ctx,
+            ctx.asset.add(
                 model,
                 "car_model",
                 default_bundle,
@@ -386,8 +386,8 @@ impl OSInitialize {
             )
         );
         expect!(
-            api,
-            api.asset.add(
+            ctx,
+            ctx.asset.add(
                 model,
                 "alfred_model",
                 default_bundle,
@@ -399,34 +399,34 @@ impl OSInitialize {
         );
     }
 
-    fn setup_scene(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+    fn setup_scene(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Find components
         let transform: StaticComponent<Transform> =
-            expect!(api, api.registry.components.find(Transform::NAME));
+            expect!(ctx, ctx.registry.components.find(Transform::NAME));
         let rotator: StaticComponent<Rotator> =
-            expect!(api, api.registry.components.find(Rotator::NAME));
+            expect!(ctx, ctx.registry.components.find(Rotator::NAME));
         let static_mesh: StaticComponent<StaticMesh> =
-            expect!(api, api.registry.components.find(StaticMesh::NAME));
+            expect!(ctx, ctx.registry.components.find(StaticMesh::NAME));
         let local_to_world: StaticComponent<LocalToWorld> =
-            expect!(api, api.registry.components.find(LocalToWorld::NAME));
+            expect!(ctx, ctx.registry.components.find(LocalToWorld::NAME));
         let hierarchy: StaticComponent<Hierarchy> =
-            expect!(api, api.registry.components.find(Hierarchy::NAME));
+            expect!(ctx, ctx.registry.components.find(Hierarchy::NAME));
         let camera: StaticComponent<Camera> =
-            expect!(api, api.registry.components.find(Camera::NAME));
+            expect!(ctx, ctx.registry.components.find(Camera::NAME));
         let viewport: StaticComponent<Viewport> =
-            expect!(api, api.registry.components.find(Viewport::NAME));
-        // let ui: StaticComponent<UI> = expect!(api, api.registry.components.find(UI::NAME));
+            expect!(ctx, ctx.registry.components.find(Viewport::NAME));
+        // let ui: StaticComponent<UI> = expect!(ctx, ctx.registry.components.find(UI::NAME));
         // let ui_render_target: StaticComponent<UIRenderTarget> =
-        //     expect!(api, api.registry.components.find(UIRenderTarget::NAME));
+        //     expect!(ctx, ctx.registry.components.find(UIRenderTarget::NAME));
         let free_fly: StaticComponent<FreeFly> =
-            expect!(api, api.registry.components.find(FreeFly::NAME));
-        let os: StaticComponent<OS> = expect!(api, api.registry.components.find(OS::NAME));
+            expect!(ctx, ctx.registry.components.find(FreeFly::NAME));
+        let os: StaticComponent<OS> = expect!(ctx, ctx.registry.components.find(OS::NAME));
 
-        let alfred_model = expect!(api, api.asset.find("alfred_model"));
-        // let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
-        let car_model = expect!(api, api.asset.find("car_model"));
-        // let gui_texture = expect!(api, api.asset.find("GUI"));
-        // let font = expect!(api, api.asset.find("default"));
+        let alfred_model = expect!(ctx, ctx.asset.find("alfred_model"));
+        // let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));
+        let car_model = expect!(ctx, ctx.asset.find("car_model"));
+        // let gui_texture = expect!(ctx, ctx.asset.find("GUI"));
+        // let font = expect!(ctx, ctx.asset.find("default"));
         {
             let e = ecs
                 .add()
@@ -552,7 +552,7 @@ impl OSInitialize {
                 .with_default(hierarchy)
                 .build();
 
-            expect!(api, Hierarchy::attach(e, cam, &mut ecs.view_mut(hierarchy)));
+            expect!(ctx, Hierarchy::attach(e, cam, &mut ecs.view_mut(hierarchy)));
 
             let viewport = ecs
                 .add()
@@ -700,21 +700,21 @@ impl OSInitialize {
 }
 
 impl ExclusiveSystem for OSInitialize {
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Setup assets
-        self.setup_assets(api);
+        self.setup_assets(ctx);
         // Setup scene
-        self.setup_scene(ecs, api);
+        self.setup_scene(ecs, ctx);
 
-        let main_script: StaticAsset<Script> = api
+        let main_script: StaticAsset<Script> = ctx
             .asset
             .find("main_script")
             .expect("Script 'main' not found");
-        let utils_script: StaticAsset<Script> = api
+        let utils_script: StaticAsset<Script> = ctx
             .asset
             .find("utils_script")
             .expect("Script 'utils' not found");
-        let script = expect!(api, api.asset.read(main_script));
+        let script = expect!(ctx, ctx.asset.read(main_script));
 
         println!("Script: {:?}", script.source);
         let mut compiler = Compiler::default();
@@ -725,7 +725,7 @@ impl ExclusiveSystem for OSInitialize {
                 asset: utils_script,
             },
         );
-        if let Result::Err(e) = compiler.compile(entry, api.asset) {
+        if let Result::Err(e) = compiler.compile(entry, ctx.asset) {
             println!("Error: {:?}", e);
         } else {
             println!("SUCCESS");

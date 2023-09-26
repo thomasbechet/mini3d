@@ -10,10 +10,7 @@ use crate::{
 };
 
 use super::{
-    api::{
-        ecs::{ExclusiveECS, ParallelECS},
-        ExclusiveAPI, ParallelAPI,
-    },
+    api::{context::Context, ecs::ECS},
     entity::EntityTable,
     query::{FilterQuery, QueryBuilder, QueryTable},
 };
@@ -115,12 +112,12 @@ impl<'a> ParallelResolver<'a> {
 
 pub(crate) trait AnyStaticExclusiveSystemInstance {
     fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI);
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context);
 }
 
 pub(crate) trait AnyStaticParallelSystemInstance {
     fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI);
+    fn run(&self, ecs: &ECS, ctx: &Context);
 }
 
 pub(crate) enum ExclusiveSystemInstance {
@@ -139,9 +136,9 @@ impl ExclusiveSystemInstance {
         }
     }
 
-    pub(crate) fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+    pub(crate) fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
         match self {
-            Self::Static(instance) => instance.run(ecs, api),
+            Self::Static(instance) => instance.run(ecs, ctx),
             Self::Program(instance) => {}
         }
     }
@@ -160,9 +157,9 @@ impl ParallelSystemInstance {
         }
     }
 
-    pub(crate) fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
+    pub(crate) fn run(&self, ecs: &ECS, ctx: &Context) {
         match self {
-            Self::Static(instance) => instance.run(ecs, api),
+            Self::Static(instance) => instance.run(ecs, ctx),
             Self::Program(instance) => {}
         }
     }

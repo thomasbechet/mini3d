@@ -1,6 +1,5 @@
 use crate::{
     asset::AssetManager,
-    ecs::api::{ecs::ParallelECS, ParallelAPI},
     logger::LoggerManager,
     registry::error::RegistryError,
     serialize::{Decoder, DecoderError, EncoderError},
@@ -15,7 +14,7 @@ use crate::{
 };
 
 use self::{
-    api::{ecs::ExclusiveECS, time::TimeAPI, ExclusiveAPI},
+    api::{context::Context, ecs::ECS, time::TimeAPI},
     container::ContainerTable,
     entity::EntityTable,
     instance::{SystemInstance, SystemInstanceTable},
@@ -128,7 +127,7 @@ impl ECSManager {
                 // Run the system
                 match &instance.system {
                     SystemInstance::Exclusive(instance) => {
-                        let api = &mut ExclusiveAPI {
+                        let ctx = &mut Context {
                             asset: context.asset,
                             input: context.input,
                             registry: context.registry,
@@ -140,7 +139,7 @@ impl ECSManager {
                                 global: context.global_time,
                             },
                         };
-                        let ecs = &mut ExclusiveECS {
+                        let ecs = &mut ECS {
                             containers: &mut self.containers,
                             entities: &mut self.entities,
                             queries: &mut self.queries,
@@ -148,10 +147,10 @@ impl ECSManager {
                             cycle: self.global_cycle,
                         };
                         // TODO: catch unwind
-                        instance.run(ecs, api);
+                        instance.run(ecs, ctx);
                     }
                     SystemInstance::Parallel(instance) => {
-                        let api = &mut ParallelAPI {
+                        let ctx = &Context {
                             asset: context.asset,
                             input: context.input,
                             registry: context.registry,
@@ -163,14 +162,15 @@ impl ECSManager {
                                 global: context.global_time,
                             },
                         };
-                        let ecs = &mut ParallelECS {
+                        let ecs = &ECS {
                             containers: &mut self.containers,
                             entities: &mut self.entities,
                             queries: &mut self.queries,
+                            scheduler: &mut self.scheduler,
                             cycle: self.global_cycle,
                         };
                         // TODO: catch unwind
-                        instance.run(ecs, api);
+                        instance.run(ecs, ctx);
                     }
                 }
 

@@ -3,7 +3,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{ecs::ParallelECS, ParallelAPI},
+        api::{context::Context, ecs::ECS},
         entity::Entity,
         instance::ParallelResolver,
         query::Query,
@@ -109,7 +109,7 @@ impl ParallelSystem for PropagateTransforms {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
+    fn run(&self, ecs: &ECS, ctx: &Context) {
         let transforms = ecs.view(self.transform);
         let hierarchies = ecs.view(self.hierarchy);
         let mut local_to_worlds = ecs.view_mut(self.local_to_world);

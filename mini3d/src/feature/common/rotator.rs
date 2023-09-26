@@ -3,7 +3,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{ecs::ParallelECS, ParallelAPI},
+        api::{context::Context, ecs::ECS},
         instance::ParallelResolver,
         query::Query,
     },
@@ -39,13 +39,13 @@ impl ParallelSystem for RotatorSystem {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
+    fn run(&self, ecs: &ECS, ctx: &Context) {
         let mut transforms = ecs.view_mut(self.transform);
         let rotators = ecs.view(self.rotator);
         for e in ecs.query(self.query) {
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
-                api.time.delta() as f32 * f32::to_radians(rotators[e].speed),
+                ctx.time.delta() as f32 * f32::to_radians(rotators[e].speed),
             );
         }
     }

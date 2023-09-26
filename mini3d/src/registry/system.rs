@@ -1,9 +1,6 @@
 use crate::{
     ecs::{
-        api::{
-            ecs::{ExclusiveECS, ParallelECS},
-            ExclusiveAPI, ParallelAPI,
-        },
+        api::{context::Context, ecs::ECS},
         instance::{
             AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
             ExclusiveSystemInstance, ParallelResolver, ParallelSystemInstance, SystemInstance,
@@ -22,14 +19,14 @@ pub trait ExclusiveSystem: 'static + Default {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         Ok(())
     }
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {}
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {}
 }
 
 pub trait ParallelSystem: 'static + Default {
     fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
         Ok(())
     }
-    fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {}
+    fn run(&self, ecs: &ECS, ctx: &Context) {}
 }
 
 pub(crate) trait AnySystemReflection {
@@ -49,8 +46,8 @@ impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection
             fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
                 self.system.setup(resolver)
             }
-            fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-                self.system.run(ecs, api);
+            fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
+                self.system.run(ecs, ctx);
             }
         }
         SystemInstance::Exclusive(ExclusiveSystemInstance::Static(Box::new(InstanceHolder {
@@ -75,8 +72,8 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
             ) -> Result<(), RegistryError> {
                 self.system.setup(resolver)
             }
-            fn run(&self, ecs: &mut ParallelECS, api: &mut ParallelAPI) {
-                self.system.run(ecs, api);
+            fn run(&self, ecs: &ECS, ctx: &Context) {
+                self.system.run(ecs, ctx);
             }
         }
         SystemInstance::Parallel(ParallelSystemInstance::Static(Box::new(InstanceHolder {

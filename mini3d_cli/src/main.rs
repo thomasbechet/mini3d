@@ -1,6 +1,6 @@
 use mini3d::{
     ecs::{
-        api::{ecs::ExclusiveECS, ExclusiveAPI},
+        api::{context::Context, ecs::ECS},
         instance::ExclusiveResolver,
         query::Query,
         scheduler::Invocation,
@@ -20,14 +20,14 @@ use mini3d_utils::stdout::StdoutLogger;
 struct SpawnSystem;
 
 impl ExclusiveSystem for SpawnSystem {
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        // let transforms = api
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
+        // let transforms = ctx
         //     .registry
         //     .components
         //     .add_static::<Transform>(Transform::NAME)
         //     .unwrap();
         let transforms: StaticComponent<Transform> =
-            api.registry.components.find(Transform::NAME).unwrap();
+            ctx.registry.components.find(Transform::NAME).unwrap();
         let entity = ecs
             .add()
             .with(
@@ -35,7 +35,7 @@ impl ExclusiveSystem for SpawnSystem {
                 Transform::from_translation([0.0, 0.0, 0.0].into()),
             )
             .build();
-        info!(api, "Spawned entity: {:?}", entity);
+        info!(ctx, "Spawned entity: {:?}", entity);
     }
 }
 
@@ -52,19 +52,19 @@ impl ExclusiveSystem for TestSystem {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
         // let ui = ecs.add().with(self.ui, UI::new()).build();
         // ecs.add().with(self.button, UIButton::new(ui)).build();
 
         let transforms = ecs.view(self.transforms);
         // for transform in transforms.iter() {
-        //     info!(api, "{:?}", transform);
+        //     info!(ctx, "{:?}", transform);
         // }
         for (i, e) in ecs.query(self.transform_query).enumerate() {
             let transform = &transforms[e];
-            info!(api, "{} {:?}", i, transform);
+            info!(ctx, "{} {:?}", i, transform);
         }
-        info!(api, "{:.3} {:.3}", api.time.global(), api.time.delta());
+        info!(ctx, "{:.3} {:.3}", ctx.time.global(), ctx.time.delta());
     }
 }
 

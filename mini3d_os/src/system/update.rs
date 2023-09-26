@@ -1,6 +1,6 @@
 use mini3d::{
     ecs::{
-        api::{ecs::ExclusiveECS, ExclusiveAPI},
+        api::{context::Context, ecs::ECS},
         instance::ExclusiveResolver,
         query::Query,
     },
@@ -34,11 +34,11 @@ impl ExclusiveSystem for OSUpdate {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
-        let mut os = expect!(api, ecs.view_mut(self.os).singleton());
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
+        let mut os = expect!(ctx, ecs.view_mut(self.os).singleton());
 
         // Toggle control mode
-        if expect!(api, api.input.action(CommonAction::CHANGE_CONTROL_MODE)).is_just_pressed() {
+        if expect!(ctx, ctx.input.action(CommonAction::CHANGE_CONTROL_MODE)).is_just_pressed() {
             os.layout_active = !os.layout_active;
             let mut view = ecs.view_mut(self.free_fly);
             for e in ecs.query(self.query) {
@@ -58,10 +58,10 @@ impl ExclusiveSystem for OSUpdate {
         // let ui = uis.iter_mut().next().unwrap();
         // let user = ui.user("main".into()).unwrap();
 
-        // expect!(api, os.controller.update(api.input, user));
+        // expect!(ctx, os.controller.update(ctx.input, user));
 
         // Render center cross
-        api.renderer.graphics().fill_rect(
+        ctx.renderer.graphics().fill_rect(
             IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2),
             Color::WHITE,
         );

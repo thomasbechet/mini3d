@@ -1,6 +1,6 @@
 use crate::{
     ecs::{
-        api::{ecs::ExclusiveECS, ExclusiveAPI},
+        api::{context::Context, ecs::ECS},
         instance::ExclusiveResolver,
         query::{FilterQuery, Query},
     },
@@ -79,7 +79,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
         let mut viewports = ecs.view_mut(self.viewport);
         let mut cameras = ecs.view_mut(self.camera);
         let mut static_meshes = ecs.view_mut(self.static_mesh);
@@ -89,20 +89,20 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         // Camera
         for e in ecs.filter_query(self.removed_camera) {
             expect!(
-                api,
-                api.renderer.provider.scene_camera_remove(cameras[e].handle)
+                ctx,
+                ctx.renderer.provider.scene_camera_remove(cameras[e].handle)
             );
         }
         for e in ecs.filter_query(self.added_camera) {
             let camera = &mut cameras[e];
-            camera.handle = expect!(api, api.renderer.provider.scene_camera_add());
+            camera.handle = expect!(ctx, ctx.renderer.provider.scene_camera_add());
         }
         for e in ecs.query(self.camera_query) {
             let camera = &mut cameras[e];
             let local_to_world = &local_to_worlds[e];
             expect!(
-                api,
-                api.renderer.provider.scene_camera_update(
+                ctx,
+                ctx.renderer.provider.scene_camera_update(
                     camera.handle,
                     local_to_world.translation(),
                     local_to_world.forward(),
@@ -114,40 +114,40 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         // StaticMesh
         for e in ecs.filter_query(self.removed_static_mesh) {
             expect!(
-                api,
-                api.renderer
+                ctx,
+                ctx.renderer
                     .provider
                     .scene_model_remove(static_meshes[e].handle)
             );
         }
         for e in ecs.filter_query(self.added_static_mesh) {
             let s = &mut static_meshes[e];
-            let model = expect!(api, api.asset.read(s.model));
+            let model = expect!(ctx, ctx.asset.read(s.model));
             // Load mesh
             let mesh_handle = expect!(
-                api,
-                api.renderer.resources.request_mesh(
+                ctx,
+                ctx.renderer.resources.request_mesh(
                     model.mesh,
-                    api.renderer.provider.as_mut(),
-                    api.asset
+                    ctx.renderer.provider.as_mut(),
+                    ctx.asset
                 )
             )
             .handle;
-            let handle = expect!(api, api.renderer.provider.scene_model_add(mesh_handle));
+            let handle = expect!(ctx, ctx.renderer.provider.scene_model_add(mesh_handle));
             // Load material
             for (index, material) in model.materials.iter().enumerate() {
                 let material_handle = expect!(
-                    api,
-                    api.renderer.resources.request_material(
+                    ctx,
+                    ctx.renderer.resources.request_material(
                         *material,
-                        api.renderer.provider.as_mut(),
-                        api.asset
+                        ctx.renderer.provider.as_mut(),
+                        ctx.asset
                     )
                 )
                 .handle;
                 expect!(
-                    api,
-                    api.renderer
+                    ctx,
+                    ctx.renderer
                         .provider
                         .scene_model_set_material(handle, index, material_handle)
                 );
@@ -158,8 +158,8 @@ impl ExclusiveSystem for SynchronizeRendererResources {
             let s = &static_meshes[e];
             let t = &local_to_worlds[e];
             expect!(
-                api,
-                api.renderer
+                ctx,
+                ctx.renderer
                     .provider
                     .scene_model_transfer_matrix(s.handle, t.matrix)
             );
@@ -167,8 +167,8 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         // Canvas
         for e in ecs.filter_query(self.removed_canvas) {
             expect!(
-                api,
-                api.renderer
+                ctx,
+                ctx.renderer
                     .provider
                     .scene_canvas_remove(canvases[e].handle)
             );
@@ -176,14 +176,14 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         for e in ecs.filter_query(self.added_canvas) {
             let c = &mut canvases[e];
             let t = &local_to_worlds[e];
-            expect!(api, api.renderer.provider.scene_canvas_add(c.resolution));
+            expect!(ctx, ctx.renderer.provider.scene_canvas_add(c.resolution));
         }
         for e in ecs.query(self.scene_canvas_query) {
             let c = &canvases[e];
             let t = &local_to_worlds[e];
             expect!(
-                api,
-                api.renderer
+                ctx,
+                ctx.renderer
                     .provider
                     .scene_canvas_transfer_matrix(c.handle, t.matrix)
             );
@@ -191,21 +191,21 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         // Viewport
         for e in ecs.filter_query(self.removed_viewport) {
             expect!(
-                api,
-                api.renderer.provider.viewport_remove(viewports[e].handle)
+                ctx,
+                ctx.renderer.provider.viewport_remove(viewports[e].handle)
             );
         }
         for e in ecs.filter_query(self.added_viewport) {
             let v = &mut viewports[e];
-            v.handle = expect!(api, api.renderer.provider.viewport_add(v.resolution));
+            v.handle = expect!(ctx, ctx.renderer.provider.viewport_add(v.resolution));
             let camera = v.camera.map(|e| cameras[e].handle);
             expect!(
-                api,
-                api.renderer.provider.viewport_set_camera(v.handle, camera)
+                ctx,
+                ctx.renderer.provider.viewport_set_camera(v.handle, camera)
             );
             expect!(
-                api,
-                api.renderer
+                ctx,
+                ctx.renderer
                     .provider
                     .viewport_set_resolution(v.handle, v.resolution)
             );
