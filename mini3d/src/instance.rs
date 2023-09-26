@@ -145,6 +145,7 @@ impl Instance {
             define_component!(renderer::tilemap::Tilemap);
             define_component!(renderer::tileset::Tileset);
             define_component!(renderer::viewport::Viewport);
+            define_component!(renderer::canvas::Canvas);
             define_system_exclusive!(
                 renderer::system::SynchronizeRendererResources,
                 SystemStage::UPDATE
@@ -152,13 +153,11 @@ impl Instance {
         }
 
         if features.ui {
-            define_component!(ui::canvas::Canvas);
-            define_component!(ui::ui_stylesheet::UIStyleSheet);
-            define_component!(ui::ui_template::UITemplate);
-            define_component!(ui::ui::UI);
-            define_component!(ui::ui::UIRenderTarget);
-            define_system_parallel!(ui::update_ui::UpdateUI, SystemStage::UPDATE);
-            define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
+            // define_component!(ui::ui_stylesheet::UIStyleSheet);
+            // define_component!(ui::ui::UI);
+            // define_component!(ui::ui::UIRenderTarget);
+            // define_system_parallel!(ui::update_ui::UpdateUI, SystemStage::UPDATE);
+            // define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
         }
 
         Ok(())

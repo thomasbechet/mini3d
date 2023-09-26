@@ -1,14 +1,14 @@
 use glam::Vec2;
-use mini3d_derive::Serialize;
+use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     input::{InputError, InputManager},
     utils::uid::{ToUID, UID},
 };
 
-use super::{event::Direction, user::UIUser};
+use super::user::UIUser;
 
-#[derive(Default, Serialize)]
+#[derive(Default, Serialize, Component, Reflect)]
 pub struct UIController {
     selection_move: Option<(UID, UID, UID, UID)>,
 

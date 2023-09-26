@@ -15,10 +15,6 @@ use mini3d::{
             camera::Camera, font::Font, material::Material, mesh::Mesh, model::Model,
             static_mesh::StaticMesh, texture::Texture, viewport::Viewport,
         },
-        ui::{
-            ui::{UIRenderTarget, UI},
-            ui_stylesheet::UIStyleSheet,
-        },
     },
     glam::{IVec2, Quat, Vec3},
     info,
@@ -30,19 +26,6 @@ use mini3d::{
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
     script::{compiler::Compiler, module::Module},
     system::event::ImportAssetEvent,
-    ui::{
-        controller::UIController,
-        style::{UIBoxStyle, UIImageStyle, UIMargin},
-        widget::{
-            button::{UIButton, UIButtonStyle},
-            checkbox::{UICheckBox, UICheckBoxStyle},
-            label::UILabel,
-            layout::Navigation,
-            sprite::UISprite,
-            textbox::UITextBox,
-            viewport::UIViewport,
-        },
-    },
     utils::prng::PCG32,
 };
 
@@ -432,18 +415,18 @@ impl OSInitialize {
             expect!(api, api.registry.components.find(Camera::NAME));
         let viewport: StaticComponent<Viewport> =
             expect!(api, api.registry.components.find(Viewport::NAME));
-        let ui: StaticComponent<UI> = expect!(api, api.registry.components.find(UI::NAME));
-        let ui_render_target: StaticComponent<UIRenderTarget> =
-            expect!(api, api.registry.components.find(UIRenderTarget::NAME));
+        // let ui: StaticComponent<UI> = expect!(api, api.registry.components.find(UI::NAME));
+        // let ui_render_target: StaticComponent<UIRenderTarget> =
+        //     expect!(api, api.registry.components.find(UIRenderTarget::NAME));
         let free_fly: StaticComponent<FreeFly> =
             expect!(api, api.registry.components.find(FreeFly::NAME));
         let os: StaticComponent<OS> = expect!(api, api.registry.components.find(OS::NAME));
 
         let alfred_model = expect!(api, api.asset.find("alfred_model"));
-        let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
+        // let alfred_texture = expect!(api, api.asset.find("alfred_tex"));
         let car_model = expect!(api, api.asset.find("car_model"));
-        let gui_texture = expect!(api, api.asset.find("GUI"));
-        let font = expect!(api, api.asset.find("default"));
+        // let gui_texture = expect!(api, api.asset.find("GUI"));
+        // let font = expect!(api, api.asset.find("default"));
         {
             let e = ecs
                 .add()
@@ -576,142 +559,142 @@ impl OSInitialize {
                 .with(viewport, Viewport::new(SCREEN_RESOLUTION, Some(cam)))
                 .build();
 
-            let mut stylesheet = UIStyleSheet::empty();
-            {
-                let frame0 = UIBoxStyle::Image(
-                    UIImageStyle::sliced(
-                        gui_texture,
-                        IRect::new(2, 34, 44, 44),
-                        UIMargin::new(6, 6, 6, 6),
-                    )
-                    .unwrap(),
-                );
-                let button_normal = UIBoxStyle::Image(
-                    UIImageStyle::sliced(
-                        gui_texture,
-                        IRect::new(1, 81, 14, 14),
-                        UIMargin::new(3, 4, 3, 3),
-                    )
-                    .unwrap(),
-                );
-                let button_pressed = UIBoxStyle::Image(
-                    UIImageStyle::sliced(
-                        gui_texture,
-                        IRect::new(17, 81, 14, 14),
-                        UIMargin::new(4, 3, 3, 3),
-                    )
-                    .unwrap(),
-                );
-                let button = UIButtonStyle::new(button_normal, button_pressed, button_normal);
-                let checkbox_unchecked = UIBoxStyle::Image(
-                    UIImageStyle::sliced(
-                        gui_texture,
-                        IRect::new(81, 257, 14, 14),
-                        UIMargin::new(3, 4, 3, 3),
-                    )
-                    .unwrap(),
-                );
-                let checkbox_checked = UIBoxStyle::Image(
-                    UIImageStyle::sliced(
-                        gui_texture,
-                        IRect::new(97, 257, 14, 14),
-                        UIMargin::new(4, 3, 3, 3),
-                    )
-                    .unwrap(),
-                );
-                let checkbox = UICheckBoxStyle::new(checkbox_unchecked, checkbox_checked);
-                stylesheet
-                    .add_button_style(UIButtonStyle::DEFAULT, button)
-                    .unwrap();
-                stylesheet
-                    .add_checkbox_style(UICheckBoxStyle::DEFAULT, checkbox)
-                    .unwrap();
-            }
-            let mut gui = UI::new(SCREEN_RESOLUTION, stylesheet);
-            // let box_style = UIBoxStyle::sliced("frame".into(), (0, 0, 96, 96).into(), UIMargin::new(5, 5, 5, 5), TextureWrapMode::Repeat);
-            // let button_style = UIButtonStyle::new(box_style, box_style, box_style);
-            let mut button = UIButton::new(IRect::new(10, 10, 60, 20));
-            button.on_pressed(Some("HELLO".into()));
-            let b0 = gui.root().add_button("b0", 5, button);
-            // let b1 = ui.root().add_button("b1", 0, UIButton::new(IRect::new(10, 50, 50, 20)))?;
-            gui.root().add_sprite(
-                "alfred",
-                1,
-                UISprite::new(alfred_texture, (50, 50).into(), (0, 0, 64, 64).into()),
-            );
-            let t0 =
-                gui.root()
-                    .add_textbox("textbox", 2, UITextBox::new((50, 100, 100, 15).into()));
-            let mut checkbox = UICheckBox::new((80, 10, 14, 14).into(), false);
-            checkbox.on_checked(Some("checked".into()));
-            let c0 = gui.root().add_checkbox("c0", 0, checkbox);
-            // ui.root().add_sprite("frame", 1, UISprite::new("frame".into(), (300, 50).into(), (0, 0, 96, 96).into()))?;
-            gui.root()
-                .add_label("test", 2, UILabel::new((330, 90).into(), "Hello", font));
+            //     let mut stylesheet = UIStyleSheet::empty();
+            //     {
+            //         let frame0 = UIBoxStyle::Image(
+            //             UIImageStyle::sliced(
+            //                 gui_texture,
+            //                 IRect::new(2, 34, 44, 44),
+            //                 UIMargin::new(6, 6, 6, 6),
+            //             )
+            //             .unwrap(),
+            //         );
+            //         let button_normal = UIBoxStyle::Image(
+            //             UIImageStyle::sliced(
+            //                 gui_texture,
+            //                 IRect::new(1, 81, 14, 14),
+            //                 UIMargin::new(3, 4, 3, 3),
+            //             )
+            //             .unwrap(),
+            //         );
+            //         let button_pressed = UIBoxStyle::Image(
+            //             UIImageStyle::sliced(
+            //                 gui_texture,
+            //                 IRect::new(17, 81, 14, 14),
+            //                 UIMargin::new(4, 3, 3, 3),
+            //             )
+            //             .unwrap(),
+            //         );
+            //         let button = UIButtonStyle::new(button_normal, button_pressed, button_normal);
+            //         let checkbox_unchecked = UIBoxStyle::Image(
+            //             UIImageStyle::sliced(
+            //                 gui_texture,
+            //                 IRect::new(81, 257, 14, 14),
+            //                 UIMargin::new(3, 4, 3, 3),
+            //             )
+            //             .unwrap(),
+            //         );
+            //         let checkbox_checked = UIBoxStyle::Image(
+            //             UIImageStyle::sliced(
+            //                 gui_texture,
+            //                 IRect::new(97, 257, 14, 14),
+            //                 UIMargin::new(4, 3, 3, 3),
+            //             )
+            //             .unwrap(),
+            //         );
+            //         let checkbox = UICheckBoxStyle::new(checkbox_unchecked, checkbox_checked);
+            //         stylesheet
+            //             .add_button_style(UIButtonStyle::DEFAULT, button)
+            //             .unwrap();
+            //         stylesheet
+            //             .add_checkbox_style(UICheckBoxStyle::DEFAULT, checkbox)
+            //             .unwrap();
+            //     }
+            //     let mut gui = UI::new(SCREEN_RESOLUTION, stylesheet);
+            //     // let box_style = UIBoxStyle::sliced("frame".into(), (0, 0, 96, 96).into(), UIMargin::new(5, 5, 5, 5), TextureWrapMode::Repeat);
+            //     // let button_style = UIButtonStyle::new(box_style, box_style, box_style);
+            //     let mut button = UIButton::new(IRect::new(10, 10, 60, 20));
+            //     button.on_pressed(Some("HELLO".into()));
+            //     let b0 = gui.root().add_button("b0", 5, button);
+            //     // let b1 = ui.root().add_button("b1", 0, UIButton::new(IRect::new(10, 50, 50, 20)))?;
+            //     gui.root().add_sprite(
+            //         "alfred",
+            //         1,
+            //         UISprite::new(alfred_texture, (50, 50).into(), (0, 0, 64, 64).into()),
+            //     );
+            //     let t0 =
+            //         gui.root()
+            //             .add_textbox("textbox", 2, UITextBox::new((50, 100, 100, 15).into()));
+            //     let mut checkbox = UICheckBox::new((80, 10, 14, 14).into(), false);
+            //     checkbox.on_checked(Some("checked".into()));
+            //     let c0 = gui.root().add_checkbox("c0", 0, checkbox);
+            //     // ui.root().add_sprite("frame", 1, UISprite::new("frame".into(), (300, 50).into(), (0, 0, 96, 96).into()))?;
+            //     gui.root()
+            //         .add_label("test", 2, UILabel::new((330, 90).into(), "Hello", font));
 
-            gui.root()
-                .set_navigation(
-                    b0,
-                    Navigation {
-                        up: None,
-                        down: None,
-                        left: None,
-                        right: Some(c0),
-                    },
-                )
-                .unwrap();
-            gui.root()
-                .set_navigation(
-                    c0,
-                    Navigation {
-                        up: None,
-                        down: None,
-                        left: Some(b0),
-                        right: None,
-                    },
-                )
-                .unwrap();
+            //     gui.root()
+            //         .set_navigation(
+            //             b0,
+            //             Navigation {
+            //                 up: None,
+            //                 down: None,
+            //                 left: None,
+            //                 right: Some(c0),
+            //             },
+            //         )
+            //         .unwrap();
+            //     gui.root()
+            //         .set_navigation(
+            //             c0,
+            //             Navigation {
+            //                 up: None,
+            //                 down: None,
+            //                 left: Some(b0),
+            //                 right: None,
+            //             },
+            //         )
+            //         .unwrap();
 
-            gui.root()
-                .add_viewport("main_viewport", -1, UIViewport::new(IVec2::ZERO, viewport));
+            //     gui.root()
+            //         .add_viewport("main_viewport", -1, UIViewport::new(IVec2::ZERO, viewport));
 
-            gui.add_user("main").unwrap();
+            //     gui.add_user("main").unwrap();
 
-            let uie = ecs
-                .add()
-                .with(ui, gui)
-                .with(
-                    ui_render_target,
-                    UIRenderTarget::Screen {
-                        offset: (0, 0).into(),
-                    },
-                )
-                .build();
-        }
+            //     let uie = ecs
+            //         .add()
+            //         .with(ui, gui)
+            //         .with(
+            //             ui_render_target,
+            //             UIRenderTarget::Screen {
+            //                 offset: (0, 0).into(),
+            //             },
+            //         )
+            //         .build();
+            // }
 
-        let controller = UIController::new()
-            .with_primary(CommonAction::CLICK)
-            .with_cancel(CommonAction::BACK)
-            .with_cursor_motion(CommonAxis::CURSOR_MOTION_X, CommonAxis::CURSOR_MOTION_Y)
-            .with_cursor_position(CommonAxis::CURSOR_X, CommonAxis::CURSOR_Y)
-            .with_selection_move(
-                CommonAction::UP,
-                CommonAction::DOWN,
-                CommonAction::LEFT,
-                CommonAction::RIGHT,
-            );
+            // let controller = UIController::new()
+            //     .with_primary(CommonAction::CLICK)
+            //     .with_cancel(CommonAction::BACK)
+            //     .with_cursor_motion(CommonAxis::CURSOR_MOTION_X, CommonAxis::CURSOR_MOTION_Y)
+            //     .with_cursor_position(CommonAxis::CURSOR_X, CommonAxis::CURSOR_Y)
+            //     .with_selection_move(
+            //         CommonAction::UP,
+            //         CommonAction::DOWN,
+            //         CommonAction::LEFT,
+            //         CommonAction::RIGHT,
+            //     );
 
-        // Setup singleton
-        {
-            ecs.add()
-                .with(
-                    os,
-                    OS {
-                        layout_active: true,
-                        controller,
-                    },
-                )
-                .build();
+            // // Setup singleton
+            // {
+            //     ecs.add()
+            //         .with(
+            //             os,
+            //             OS {
+            //                 layout_active: true,
+            //                 controller,
+            //             },
+            //         )
+            //         .build();
         }
     }
 }

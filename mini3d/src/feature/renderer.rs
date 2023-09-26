@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod canvas;
 pub mod font;
 pub mod material;
 pub mod mesh;

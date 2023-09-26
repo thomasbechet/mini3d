@@ -1,5 +1,4 @@
 use glam::{IVec2, Vec2};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{

@@ -15,7 +15,6 @@ pub mod script;
 pub mod serialize;
 pub mod storage;
 pub mod system;
-pub mod ui;
 pub mod utils;
 
 pub use glam;

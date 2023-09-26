@@ -5,7 +5,7 @@ use mini3d::{
         query::Query,
     },
     expect,
-    feature::{common::free_fly::FreeFly, ui::ui::UI},
+    feature::common::free_fly::FreeFly,
     math::rect::IRect,
     registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
     renderer::{color::Color, SCREEN_CENTER},
@@ -17,7 +17,7 @@ use crate::{component::os::OS, input::CommonAction};
 pub struct OSUpdate {
     os: StaticComponent<OS>,
     free_fly: StaticComponent<FreeFly>,
-    ui: StaticComponent<UI>,
+    // ui: StaticComponent<UI>,
     query: Query,
 }
 
@@ -29,7 +29,7 @@ impl ExclusiveSystem for OSUpdate {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
         self.os = resolver.find(OS::NAME)?;
         self.free_fly = resolver.find(FreeFly::NAME)?;
-        self.ui = resolver.find(UI::NAME)?;
+        // self.ui = resolver.find(UI::NAME)?;
         self.query = resolver.query().all(&[FreeFly::NAME])?.build();
         Ok(())
     }
@@ -54,11 +54,11 @@ impl ExclusiveSystem for OSUpdate {
         //     }
         // }
 
-        let mut uis = ecs.view_mut(self.ui);
-        let ui = uis.iter_mut().next().unwrap();
-        let user = ui.user("main".into()).unwrap();
+        // let mut uis = ecs.view_mut(self.ui);
+        // let ui = uis.iter_mut().next().unwrap();
+        // let user = ui.user("main".into()).unwrap();
 
-        expect!(api, os.controller.update(api.input, user));
+        // expect!(api, os.controller.update(api.input, user));
 
         // Render center cross
         api.renderer.graphics().fill_rect(

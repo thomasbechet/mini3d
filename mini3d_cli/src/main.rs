@@ -53,6 +53,9 @@ impl ExclusiveSystem for TestSystem {
     }
 
     fn run(&self, ecs: &mut ExclusiveECS, api: &mut ExclusiveAPI) {
+        // let ui = ecs.add().with(self.ui, UI::new()).build();
+        // ecs.add().with(self.button, UIButton::new(ui)).build();
+
         let transforms = ecs.view(self.transforms);
         // for transform in transforms.iter() {
         //     info!(api, "{:?}", transform);

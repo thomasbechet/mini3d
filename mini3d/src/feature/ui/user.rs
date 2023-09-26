@@ -1,13 +1,11 @@
 use glam::{IVec2, Vec2};
-use mini3d_derive::Serialize;
+use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     math::rect::IRect,
     renderer::{color::Color, graphics::Graphics, SCREEN_CENTER, SCREEN_VIEWPORT},
-    utils::uid::UID,
+    utils::{string::AsciiArray, uid::UID},
 };
-
-use super::event::{Direction, Event};
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 pub(crate) enum InteractionMode {
@@ -49,11 +47,12 @@ fn render_cursor(position: IVec2, gfx: &mut Graphics, _time: f64) {
     gfx.draw_vline(position.x, position.y - 1, position.y + 1, Color::WHITE);
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Component, Reflect)]
 pub struct UIUser {
-    pub(crate) name: String,
+    pub(crate) name: AsciiArray<64>,
     pub(crate) mode: InteractionMode,
-    pub(crate) events: Vec<Event>,
+    pub(crate) events: [Event; 8],
+    pub(crate) event_count: u8,
     pub(crate) locked: bool,
     pub(crate) extent: IRect,
 
@@ -68,9 +67,10 @@ pub struct UIUser {
 impl UIUser {
     pub(crate) fn new(name: &str, extent: IRect) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.into(),
             mode: InteractionMode::Disabled,
             events: Vec::new(),
+            event_count: 0,
             locked: false,
             extent,
 

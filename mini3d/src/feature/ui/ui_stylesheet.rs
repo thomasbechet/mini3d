@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use mini3d_derive::{Component, Error, Reflect, Serialize};
 
-use crate::{
-    ui::widget::{button::UIButtonStyle, checkbox::UICheckBoxStyle},
-    utils::uid::UID,
-};
+use crate::utils::uid::UID;
+
+use super::widget::button::UIButtonStyle;
 
 #[derive(Debug, Error)]
 pub enum UIStyleSheetError {
