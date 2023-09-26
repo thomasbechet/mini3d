@@ -140,13 +140,11 @@ impl<C: ComponentData> Serialize for StaticAsset<C> {
 }
 
 #[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct Asset {
-    id: SlotId,
-}
+pub struct Asset(pub(crate) SlotId);
 
 impl<C: ComponentData> From<StaticAsset<C>> for Asset {
     fn from(asset: StaticAsset<C>) -> Self {
-        Self { id: asset.id }
+        Self(asset.id)
     }
 }
 
@@ -154,10 +152,10 @@ impl AssetHandle for Asset {
     type AssetRef<'a> = ();
     type Data = ();
     fn new(id: SlotId) -> Self {
-        Self { id }
+        Self(id)
     }
     fn id(&self) -> SlotId {
-        self.id
+        self.0
     }
     fn asset_ref<'a>(
         &self,
@@ -178,15 +176,13 @@ impl Serialize for Asset {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.id.serialize(encoder)
+        self.0.serialize(encoder)
     }
 
     fn deserialize(
         decoder: &mut impl Decoder,
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        Ok(Self {
-            id: SlotId::deserialize(decoder, &Default::default())?,
-        })
+        Ok(Self(SlotId::deserialize(decoder, &Default::default())?))
     }
 }

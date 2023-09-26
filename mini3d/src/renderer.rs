@@ -1,6 +1,4 @@
-use std::collections::{hash_map, HashMap};
-
-use crate::asset::handle::{Asset, StaticAsset};
+use crate::asset::handle::{AssetHandle, StaticAsset};
 use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
 use crate::ecs::ECSManager;
@@ -17,6 +15,7 @@ use crate::feature::renderer::viewport::Viewport;
 use crate::registry::component::{ComponentRegistry, StaticComponent};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
+use crate::utils::slotmap::SecondaryMap;
 use crate::utils::uid::UID;
 use crate::{
     math::rect::IRect,
@@ -81,29 +80,33 @@ pub struct RendererStatistics {
     pub draw_count: usize,
 }
 
+#[derive(Default)]
 pub(crate) struct RendererFont {
     pub(crate) atlas: FontAtlas,
     pub(crate) handle: TextureHandle,
 }
 
+#[derive(Default)]
 pub(crate) struct RendererTexture {
     pub(crate) handle: TextureHandle,
 }
 
+#[derive(Default)]
 pub(crate) struct RendererMesh {
     pub(crate) handle: MeshHandle,
 }
 
+#[derive(Default)]
 pub(crate) struct RendererMaterial {
     pub(crate) handle: MaterialHandle,
 }
 
 #[derive(Default)]
 pub(crate) struct RendererResourceManager {
-    fonts: HashMap<Asset, RendererFont>,
-    textures: HashMap<Asset, RendererTexture>,
-    meshes: HashMap<Asset, RendererMesh>,
-    materials: HashMap<Asset, RendererMaterial>,
+    fonts: SecondaryMap<RendererFont>,
+    textures: SecondaryMap<RendererTexture>,
+    meshes: SecondaryMap<RendererMesh>,
+    materials: SecondaryMap<RendererMaterial>,
 }
 
 fn load_font(
@@ -139,13 +142,13 @@ fn load_texture(
 
 fn load_material(
     handle: StaticAsset<Material>,
-    textures: &HashMap<Asset, RendererTexture>,
+    textures: &SecondaryMap<RendererTexture>,
     provider: &mut dyn RendererProvider,
     asset: &AssetManager,
 ) -> Result<RendererMaterial, RendererProviderError> {
     let material = asset.read(handle).unwrap();
     let info = asset.info(handle).unwrap();
-    let diffuse = textures.get(&material.diffuse.into()).unwrap().handle;
+    let diffuse = textures.get(material.diffuse.id()).unwrap().handle;
     let handle = provider.material_add(ProviderMaterialDescriptor {
         diffuse,
         name: info.name,
@@ -161,19 +164,18 @@ impl RendererResourceManager {
         self.materials.clear();
     }
 
-    pub(crate) fn request_font<'a>(
-        &'a mut self,
+    pub(crate) fn request_font(
+        &mut self,
         handle: StaticAsset<Font>,
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
-    ) -> Result<&'a RendererFont, RendererProviderError> {
-        match self.fonts.entry(handle.into()) {
-            hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
-            hash_map::Entry::Vacant(e) => {
-                let font = load_font(handle, provider, asset)?;
-                Ok(e.insert(font))
-            }
+    ) -> Result<&RendererFont, RendererProviderError> {
+        if self.fonts.contains(handle.id()) {
+            return Ok(self.fonts.get(handle.id()).unwrap());
         }
+        let font = load_font(handle, provider, asset)?;
+        self.fonts.insert(handle.id(), font);
+        Ok(self.fonts.get(handle.id()).unwrap())
     }
 
     pub(crate) fn request_mesh(
@@ -182,13 +184,12 @@ impl RendererResourceManager {
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererMesh, RendererProviderError> {
-        match self.meshes.entry(handle.into()) {
-            hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
-            hash_map::Entry::Vacant(e) => {
-                let mesh = load_mesh(handle, provider, asset)?;
-                Ok(e.insert(mesh))
-            }
+        if self.meshes.contains(handle.id()) {
+            return Ok(self.meshes.get(handle.id()).unwrap());
         }
+        self.meshes
+            .insert(handle.id(), load_mesh(handle, provider, asset)?);
+        Ok(self.meshes.get(handle.id()).unwrap())
     }
 
     pub(crate) fn request_texture(
@@ -197,13 +198,12 @@ impl RendererResourceManager {
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererTexture, RendererProviderError> {
-        match self.textures.entry(handle.into()) {
-            hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
-            hash_map::Entry::Vacant(e) => {
-                let texture = load_texture(handle, provider, asset)?;
-                Ok(e.insert(texture))
-            }
+        if self.textures.contains(handle.id()) {
+            return Ok(self.textures.get(handle.id()).unwrap());
         }
+        self.textures
+            .insert(handle.id(), load_texture(handle, provider, asset)?);
+        Ok(self.textures.get(handle.id()).unwrap())
     }
 
     pub(crate) fn request_material(
@@ -212,18 +212,19 @@ impl RendererResourceManager {
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererMaterial, RendererProviderError> {
-        match self.materials.entry(handle.into()) {
-            hash_map::Entry::Occupied(e) => Ok(&*e.into_mut()),
-            hash_map::Entry::Vacant(e) => {
-                let material = asset.read(handle).unwrap();
-                if let hash_map::Entry::Vacant(e) = self.textures.entry(material.diffuse.into()) {
-                    let diffuse = load_texture(material.diffuse, provider, asset)?;
-                    e.insert(diffuse);
-                }
-                let material = load_material(handle, &self.textures, provider, asset)?;
-                Ok(e.insert(material))
-            }
+        if self.materials.contains(handle.id()) {
+            return Ok(self.materials.get(handle.id()).unwrap());
         }
+        let material = asset.read(handle).unwrap();
+        if !self.textures.contains(material.diffuse.id()) {
+            let diffuse = load_texture(material.diffuse, provider, asset)?;
+            self.textures.insert(material.diffuse.id(), diffuse);
+        }
+        self.materials.insert(
+            handle.id(),
+            load_material(handle, &self.textures, provider, asset)?,
+        );
+        Ok(self.materials.get(handle.id()).unwrap())
     }
 }
 

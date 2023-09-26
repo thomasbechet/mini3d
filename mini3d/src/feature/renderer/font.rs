@@ -27,6 +27,7 @@ impl Default for Font {
     }
 }
 
+#[derive(Default)]
 pub struct FontAtlas {
     pub texture: Texture,
     pub extents: HashMap<char, IRect>,
