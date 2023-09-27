@@ -3,7 +3,13 @@ use std::{
     ops::{Deref, Index, IndexMut},
 };
 
-use crate::{ecs::entity::Entity, registry::component::ComponentData};
+use crate::{
+    ecs::{
+        container::array::{AnyArrayContainer, StaticArrayContainer},
+        entity::Entity,
+    },
+    registry::component::ComponentData,
+};
 
 pub trait StaticArrayView<C: ComponentData> {
     fn get(&self, entity: Entity) -> Option<&[C]>;
@@ -26,7 +32,7 @@ impl<'a, C: ComponentData> StaticArrayView<C> for StaticArrayViewRef<'a, C> {
 }
 
 impl<'a, C: ComponentData> Index<Entity> for StaticArrayViewRef<'a, C> {
-    type Output = C;
+    type Output = &'a [C];
 
     fn index(&self, entity: Entity) -> &Self::Output {
         self.get(entity).expect("Entity not found")

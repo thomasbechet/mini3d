@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 
+use mini3d_derive::Serialize;
+
 use crate::{
     registry::component::{
         ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTableRef,
@@ -16,6 +18,44 @@ pub mod array;
 pub mod list;
 pub mod map;
 pub mod single;
+
+#[derive(Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ComponentStatus {
+    #[default]
+    Unchanged = 0b00,
+    Changed = 0b01,
+    Added = 0b10,
+    Removed = 0b11,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+struct ComponentFlags(u32);
+
+impl ComponentFlags {
+    fn added(cycle: u32) -> Self {
+        let mut flags = Self(0);
+        flags.set(ComponentStatus::Added, cycle);
+        flags
+    }
+
+    fn cycle(&self) -> u32 {
+        self.0 >> 2
+    }
+
+    fn status(&self) -> ComponentStatus {
+        match self.0 & 0b11 {
+            0b00 => ComponentStatus::Unchanged,
+            0b01 => ComponentStatus::Changed,
+            0b10 => ComponentStatus::Added,
+            0b11 => ComponentStatus::Removed,
+            _ => unreachable!(),
+        }
+    }
+
+    fn set(&mut self, status: ComponentStatus, cycle: u32) {
+        self.0 = ((cycle << 2) & (!0b11)) | status as u32;
+    }
+}
 
 #[derive(Default)]
 pub(crate) struct ContainerTable {
