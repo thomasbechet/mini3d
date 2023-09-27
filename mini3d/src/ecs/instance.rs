@@ -1,7 +1,7 @@
 use crate::{
     feature::common::program::Program,
     registry::{
-        component::{ComponentHandle, ComponentId, ComponentRegistry},
+        component::{ComponentRegistry, ComponentType, ComponentTypeHandle},
         error::RegistryError,
         system::{System, SystemRegistry},
         RegistryManager,
@@ -18,16 +18,19 @@ use super::{
 pub struct ExclusiveResolver<'a> {
     registry: &'a ComponentRegistry,
     system: System,
-    all: &'a mut Vec<ComponentId>,
-    any: &'a mut Vec<ComponentId>,
-    not: &'a mut Vec<ComponentId>,
+    all: &'a mut Vec<ComponentType>,
+    any: &'a mut Vec<ComponentType>,
+    not: &'a mut Vec<ComponentType>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
     filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> ExclusiveResolver<'a> {
-    pub fn find<H: ComponentHandle>(&mut self, component: impl ToUID) -> Result<H, RegistryError> {
+    pub fn find<H: ComponentTypeHandle>(
+        &mut self,
+        component: impl ToUID,
+    ) -> Result<H, RegistryError> {
         let handle = self
             .registry
             .find::<H>(component)
@@ -55,18 +58,21 @@ impl<'a> ExclusiveResolver<'a> {
 pub struct ParallelResolver<'a> {
     registry: &'a ComponentRegistry,
     system: System,
-    reads: Vec<ComponentId>,
-    writes: Vec<ComponentId>,
-    all: &'a mut Vec<ComponentId>,
-    any: &'a mut Vec<ComponentId>,
-    not: &'a mut Vec<ComponentId>,
+    reads: Vec<ComponentType>,
+    writes: Vec<ComponentType>,
+    all: &'a mut Vec<ComponentType>,
+    any: &'a mut Vec<ComponentType>,
+    not: &'a mut Vec<ComponentType>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
     filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> ParallelResolver<'a> {
-    pub fn read<H: ComponentHandle>(&mut self, component: impl ToUID) -> Result<H, RegistryError> {
+    pub fn read<H: ComponentTypeHandle>(
+        &mut self,
+        component: impl ToUID,
+    ) -> Result<H, RegistryError> {
         let handle: H = self
             .registry
             .find(component)
@@ -78,7 +84,10 @@ impl<'a> ParallelResolver<'a> {
         Ok(H::new(id))
     }
 
-    pub fn write<H: ComponentHandle>(&mut self, component: impl ToUID) -> Result<H, RegistryError> {
+    pub fn write<H: ComponentTypeHandle>(
+        &mut self,
+        component: impl ToUID,
+    ) -> Result<H, RegistryError> {
         let handle: H = self
             .registry
             .find(component)

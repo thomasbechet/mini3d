@@ -7,7 +7,7 @@ use mini3d::{
     expect,
     feature::common::free_fly::FreeFly,
     math::rect::IRect,
-    registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
+    registry::{component::StaticComponentType, error::RegistryError, system::ExclusiveSystem},
     renderer::{color::Color, SCREEN_CENTER},
 };
 
@@ -15,8 +15,8 @@ use crate::{component::os::OS, input::CommonAction};
 
 #[derive(Default)]
 pub struct OSUpdate {
-    os: StaticComponent<OS>,
-    free_fly: StaticComponent<FreeFly>,
+    os: StaticComponentType<OS>,
+    free_fly: StaticComponentType<FreeFly>,
     // ui: StaticComponent<UI>,
     query: Query,
 }

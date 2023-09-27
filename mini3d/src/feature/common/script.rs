@@ -1,6 +1,6 @@
-use mini3d_derive::{Component, Reflect, Serialize};
+use mini3d_derive::{Asset, Reflect, Serialize};
 
-#[derive(Clone, Default, Component, Reflect, Serialize)]
+#[derive(Clone, Default, Asset, Reflect, Serialize)]
 pub struct Script {
     pub source: String,
 }

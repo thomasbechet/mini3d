@@ -9,6 +9,7 @@ pub mod math;
 pub mod network;
 pub mod physics;
 pub mod recorder;
+pub mod reflection;
 pub mod registry;
 pub mod renderer;
 pub mod script;

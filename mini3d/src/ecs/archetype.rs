@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut, Range};
 
 use crate::{
-    registry::component::ComponentId,
+    registry::component::ComponentType,
     utils::slotmap::{SlotId, SlotMap},
 };
 
@@ -22,7 +22,7 @@ pub(crate) struct ArchetypeEntry {
 }
 
 impl ArchetypeEntry {
-    fn is_subset_of(&self, other: &Self, components: &[ComponentId]) -> bool {
+    fn is_subset_of(&self, other: &Self, components: &[ComponentType]) -> bool {
         let self_ids = &components[self.component_range.clone()];
         let other_ids = &components[other.component_range.clone()];
         for self_id in self_ids {
@@ -48,14 +48,14 @@ type ArchetypeEdgeId = usize;
 
 #[derive(Debug)]
 struct ArchetypeEdge {
-    component: ComponentId,
+    component: ComponentType,
     add: Option<Archetype>,
     remove: Option<Archetype>,
     previous: Option<ArchetypeEdgeId>,
 }
 
 pub(crate) struct ArchetypeTable {
-    pub(crate) components: Vec<ComponentId>,
+    pub(crate) components: Vec<ComponentType>,
     pub(crate) entries: SlotMap<ArchetypeEntry>,
     edges: Vec<ArchetypeEdge>,
     pub(crate) empty: Archetype,
@@ -73,7 +73,11 @@ impl ArchetypeTable {
         table
     }
 
-    fn found_edge(&self, archetype: Archetype, component: ComponentId) -> Option<ArchetypeEdgeId> {
+    fn found_edge(
+        &self,
+        archetype: Archetype,
+        component: ComponentType,
+    ) -> Option<ArchetypeEdgeId> {
         let mut current = self.entries[archetype].last_edge;
         while let Some(edge) = current {
             if self.edges[edge].component == component {
@@ -84,7 +88,7 @@ impl ArchetypeTable {
         None
     }
 
-    fn link(&mut self, a: Archetype, b: Archetype, component: ComponentId) {
+    fn link(&mut self, a: Archetype, b: Archetype, component: ComponentType) {
         assert!(a != b);
         // Link a to b (add)
         if let Some(id) = self.found_edge(a, component) {
@@ -138,7 +142,7 @@ impl ArchetypeTable {
         &mut self,
         queries: &mut QueryTable,
         archetype: Archetype,
-        component: ComponentId,
+        component: ComponentType,
     ) -> Archetype {
         // Find from existing edges
         if let Some(id) = self.found_edge(archetype, component) {
@@ -207,7 +211,7 @@ impl ArchetypeTable {
         new_archetype
     }
 
-    pub(crate) fn components(&self, archetype: Archetype) -> &[ComponentId] {
+    pub(crate) fn components(&self, archetype: Archetype) -> &[ComponentType] {
         let archetype = &self.entries[archetype];
         &self.components[archetype.component_range.clone()]
     }

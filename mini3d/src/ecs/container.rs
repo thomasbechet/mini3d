@@ -4,7 +4,7 @@ use mini3d_derive::Serialize;
 
 use crate::{
     registry::component::{
-        ComponentHandle, ComponentId, ComponentRegistry, PrivateComponentTableRef,
+        ComponentRegistry, ComponentType, ComponentTypeHandle, PrivateComponentTableRef,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
@@ -81,7 +81,7 @@ impl ContainerTable {
         // for (id, container) in self.containers.iter() {
         //     let uid = UID::new(&registry.definition(id.into()).unwrap().name);
         //     uid.serialize(encoder)?;
-        //     container.borrow().serialize(encoder)?;
+        //     container.borroComponentTypeHandlencoder)?;
         // }
         Ok(())
     }
@@ -106,7 +106,7 @@ impl ContainerTable {
         Ok(())
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentId) {
+    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentType) {
         self.containers
             .get_mut(component.0)
             .expect("Component container not found while removing entity")
@@ -114,14 +114,14 @@ impl ContainerTable {
             .remove(entity);
     }
 
-    pub(crate) fn view<H: ComponentHandle>(
+    pub(crate) fn view<H: ComponentTypeHandle>(
         &self,
         component: H,
     ) -> Result<H::SingleViewRef<'_>, ECSError> {
         component.single_view_ref(PrivateComponentTableRef(self))
     }
 
-    pub(crate) fn view_mut<H: ComponentHandle>(
+    pub(crate) fn view_mut<H: ComponentTypeHandle>(
         &self,
         component: H,
         cycle: u32,

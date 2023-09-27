@@ -6,7 +6,7 @@ use crate::{
         query::{FilterQuery, Query, QueryTable},
         scheduler::{Invocation, Scheduler},
     },
-    registry::{component::ComponentHandle, error::RegistryError},
+    registry::{component::ComponentTypeHandle, error::RegistryError},
     utils::uid::{ToUID, UID},
 };
 
@@ -27,13 +27,13 @@ impl<'a> ECS<'a> {
         self.entities.remove(entity, self.containers)
     }
 
-    pub fn view<H: ComponentHandle>(&self, component: H) -> H::SingleViewRef<'_> {
+    pub fn view<H: ComponentTypeHandle>(&self, component: H) -> H::SingleViewRef<'_> {
         self.containers
             .view(component)
             .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
     }
 
-    pub fn view_mut<H: ComponentHandle>(&self, component: H) -> H::SingleViewMut<'_> {
+    pub fn view_mut<H: ComponentTypeHandle>(&self, component: H) -> H::SingleViewMut<'_> {
         self.containers
             .view_mut(component, self.cycle)
             .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))

@@ -4,8 +4,8 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
     ecs::{entity::Entity, sparse::PagedVector},
+    reflection::PropertyId,
     registry::component::ComponentData,
-    script::reflection::PropertyId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::uid::UID,
 };

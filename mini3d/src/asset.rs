@@ -1,7 +1,7 @@
 use core::result::Result;
-use std::any::TypeId;
 
-use crate::registry::component::{ComponentHandle, ComponentId, ComponentRegistry};
+use crate::registry::asset::{AssetRegistry, AssetType, AssetTypeHandle};
+use crate::registry::component::ComponentRegistry;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::string::AsciiArray;
@@ -31,7 +31,7 @@ pub(crate) const MAX_ASSET_NAME_LEN: usize = 64;
 
 struct AssetEntry {
     name: AsciiArray<MAX_ASSET_NAME_LEN>,
-    component: ComponentId,
+    ty: AssetType,
     slot: SlotId, // Null if not loaded
     source: AssetSource,
     bundle: AssetBundle,
@@ -47,9 +47,9 @@ struct AssetBundleEntry {
 }
 
 pub struct AssetManager {
-    containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // ComponentId -> Container
+    containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // AssetType -> Container
     bundles: DenseSlotMap<AssetBundleEntry>,                    // AssetBundleId -> AssetBundle
-    entries: DenseSlotMap<AssetEntry>,                          // AssetId -> AssetEntry
+    entries: DenseSlotMap<AssetEntry>,                          // AssetType -> AssetEntry
 }
 
 impl Default for AssetManager {
@@ -118,7 +118,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn on_registry_update(&mut self, registry: &ComponentRegistry) {
+    pub(crate) fn on_registry_update(&mut self, registry: &AssetRegistry) {
         for (id, entry) in registry.entries.iter() {
             if !self.containers.contains(id) {
                 let container = entry.reflection.create_asset_container();
@@ -130,7 +130,7 @@ impl AssetManager {
     fn add_entry(
         &mut self,
         name: &str,
-        component: ComponentId,
+        asset: AssetType,
         bundle: AssetBundle,
         source: AssetSource,
     ) -> Result<SlotId, AssetError> {
@@ -138,7 +138,7 @@ impl AssetManager {
         if let Some(bundle_entry) = self.bundles.get_mut(id) {
             let slot = self.entries.add(AssetEntry {
                 name: name.into(),
-                component,
+                ty: asset,
                 slot: SlotId::null(),
                 source,
                 bundle,
@@ -174,38 +174,36 @@ impl AssetManager {
         self.entries.remove(slot);
     }
 
-    pub fn add<C: ComponentHandle>(
+    pub fn add<H: AssetHandle>(
         &mut self,
-        handle: C,
+        ty: <H as AssetHandle>::TypeHandle,
         name: &str,
         bundle: AssetBundle,
-        data: <C::AssetHandle as AssetHandle>::Data,
-    ) -> Result<C::AssetHandle, AssetError> {
-        if self.find::<C::AssetHandle>(name).is_some() {
+        data: <<H as AssetHandle>::TypeHandle>::Data,
+    ) -> Result<H, AssetError> {
+        if self.find::<H>(name).is_some() {
             return Err(AssetError::DuplicatedAssetEntry);
         }
-        let id = self.add_entry(name, handle.id(), bundle, AssetSource::IO)?;
+        let id = self.add_entry(name, ty.id(), bundle, AssetSource::IO)?;
         // TODO: preload asset in container ? wait for read ? define proper strategy
-        if let Some(container) = self.containers.get_mut(handle.id().0) {
-            self.entries[id].slot = <C::AssetHandle as AssetHandle>::insert_container(
-                PrivateAnyAssetContainerMut(container.as_mut()),
-                data,
-            );
-            Ok(<C::AssetHandle as AssetHandle>::new(id))
+        if let Some(container) = self.containers.get_mut(ty.id().0) {
+            self.entries[id].slot =
+                <H>::insert_container(PrivateAnyAssetContainerMut(container.as_mut()), data);
+            Ok(<H>::new(id))
         } else {
             // TODO: report proper error (not sync with registry ?)
             Err(AssetError::AssetTypeNotFound)
         }
     }
 
-    pub fn remove<H: AssetHandle>(&mut self, handle: H) -> Result<(), AssetError> {
+    pub fn remove<H: AssetTypeHandle>(&mut self, handle: H) -> Result<(), AssetError> {
         let id = handle.id();
         if !self.entries.contains(id) {
             return Err(AssetError::AssetNotFound);
         }
         // TODO: remove cached data from container
         if !self.entries[id].slot.is_null() {
-            <H as AssetHandle>::remove_container(
+            <H>::remove_container(
                 PrivateAnyAssetContainerMut(self.containers.get_mut(id).unwrap().as_mut()),
                 self.entries[id].slot,
             );
@@ -215,43 +213,43 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
+    pub fn find<H: AssetTypeHandle>(&self, name: &str) -> Option<H> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.name.as_str() == name)
             .filter(|(_, entry)| {
                 H::check_type(PrivateAnyAssetContainerRef(
-                    self.containers.get(entry.component.0).unwrap().as_ref(),
+                    self.containers.get(entry.ty.0).unwrap().as_ref(),
                 ))
             })
-            .map(|(id, _)| H::new(id))
+            .map(|(id, _)| H::new(AssetType(id)))
     }
 
-    pub fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
+    pub fn info<H: AssetTypeHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
         let id = handle.id();
         self.entries
-            .get(id)
+            .get(id.0)
             .map(|entry| AssetInfo { name: &entry.name })
             .ok_or(AssetError::AssetNotFound)
     }
 
-    pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::AssetRef<'_>, AssetError> {
+    pub fn read<H: AssetTypeHandle>(&self, handle: H) -> Result<H::Ref<'_>, AssetError> {
         let id = handle.id();
-        let entry = self.entries.get(id).ok_or(AssetError::AssetNotFound)?;
+        let entry = self.entries.get(id.0).ok_or(AssetError::AssetNotFound)?;
         if !entry.slot.is_null() {
             Ok(handle.asset_ref(
                 entry.slot,
-                PrivateAnyAssetContainerRef(self.containers[entry.component.0].as_ref()),
+                PrivateAnyAssetContainerRef(self.containers[entry.ty.0].as_ref()),
             ))
         } else {
             Err(AssetError::AssetNotFound) // TODO: load the asset from source
         }
     }
 
-    pub fn write<H: AssetHandle>(
+    pub fn write<H: AssetTypeHandle>(
         &self,
         handle: H,
-        asset: H::AssetRef<'_>,
+        asset: H::Ref<'_>,
     ) -> Result<(), AssetError> {
         Ok(())
     }

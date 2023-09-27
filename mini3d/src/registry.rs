@@ -1,13 +1,15 @@
-use self::{component::ComponentRegistry, system::SystemRegistry};
+use self::{asset::AssetRegistry, component::ComponentRegistry, system::SystemRegistry};
 
+pub mod asset;
 pub mod component;
 pub mod error;
 pub mod system;
 
 #[derive(Default)]
 pub struct RegistryManager {
-    pub systems: SystemRegistry,
+    pub assets: AssetRegistry,
     pub components: ComponentRegistry,
+    pub systems: SystemRegistry,
 }
 
 impl RegistryManager {

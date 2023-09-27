@@ -9,7 +9,7 @@ use crate::{
         query::Query,
         view::single::{StaticSingleView, StaticSingleViewMut, StaticSingleViewRef},
     },
-    registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
+    registry::{component::StaticComponentType, error::RegistryError, system::ParallelSystem},
 };
 
 use super::{hierarchy::Hierarchy, local_to_world::LocalToWorld};
@@ -90,9 +90,9 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: StaticComponent<Transform>,
-    hierarchy: StaticComponent<Hierarchy>,
-    local_to_world: StaticComponent<LocalToWorld>,
+    transform: StaticComponentType<Transform>,
+    hierarchy: StaticComponentType<Hierarchy>,
+    local_to_world: StaticComponentType<LocalToWorld>,
     query: Query,
 }
 

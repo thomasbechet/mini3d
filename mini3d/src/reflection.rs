@@ -1,8 +1,6 @@
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
-use crate::{ecs::entity::Entity, utils::uid::UID};
-
-use super::mir::primitive::PrimitiveType;
+use crate::{ecs::entity::Entity, script::mir::primitive::PrimitiveType, utils::uid::UID};
 
 pub enum PropertyAccess {
     Read,

@@ -9,7 +9,7 @@ use mini3d::{
     info,
     instance::{Instance, InstanceFeatures},
     registry::{
-        component::StaticComponent,
+        component::StaticComponentType,
         error::RegistryError,
         system::{ExclusiveSystem, SystemStage},
     },
@@ -26,7 +26,7 @@ impl ExclusiveSystem for SpawnSystem {
         //     .components
         //     .add_static::<Transform>(Transform::NAME)
         //     .unwrap();
-        let transforms: StaticComponent<Transform> =
+        let transforms: StaticComponentType<Transform> =
             ctx.registry.components.find(Transform::NAME).unwrap();
         let entity = ecs
             .add()
@@ -41,7 +41,7 @@ impl ExclusiveSystem for SpawnSystem {
 
 #[derive(Default)]
 struct TestSystem {
-    transforms: StaticComponent<Transform>,
+    transforms: StaticComponentType<Transform>,
     transform_query: Query,
 }
 

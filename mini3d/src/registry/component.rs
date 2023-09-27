@@ -4,10 +4,6 @@ use std::{
 };
 
 use crate::{
-    asset::{
-        container::{AnyAssetContainer, StaticAssetContainer},
-        handle::{Asset, AssetHandle, StaticAsset},
-    },
     ecs::{
         container::{
             single::{AnySingleContainer, StaticSingleContainer},
@@ -17,7 +13,7 @@ use crate::{
         error::ECSError,
         view::single::{SingleViewMut, SingleViewRef, StaticSingleViewMut, StaticSingleViewRef},
     },
-    script::reflection::{Property, Reflect},
+    reflection::{Property, Reflect},
     serialize::Serialize,
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -29,20 +25,19 @@ use crate::{
 use super::error::RegistryError;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ComponentId(pub(crate) SlotId);
+pub struct ComponentType(pub(crate) SlotId);
 
 pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
 pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
 
-pub trait ComponentHandle: Copy {
+pub trait ComponentTypeHandle: Copy {
     type SingleViewRef<'a>;
     type SingleViewMut<'a>;
-    type ArrayViewRef<'a>;
-    type ArrayViewMut<'a>;
-    type AssetHandle: AssetHandle;
+    // type ArrayViewRef<'a>;
+    // type ArrayViewMut<'a>;
     type Data: Default;
-    fn new(id: ComponentId) -> Self;
-    fn id(&self) -> ComponentId;
+    fn new(id: ComponentType) -> Self;
+    fn id(&self) -> ComponentType;
     fn single_view_ref<'a>(
         &self,
         components: PrivateComponentTableRef<'a>,
@@ -62,12 +57,12 @@ pub trait ComponentHandle: Copy {
     );
 }
 
-pub struct StaticComponent<C: ComponentData> {
+pub struct StaticComponentType<C: ComponentData> {
     _marker: std::marker::PhantomData<C>,
-    pub(crate) id: ComponentId,
+    pub(crate) id: ComponentType,
 }
 
-impl<C: ComponentData> Clone for StaticComponent<C> {
+impl<C: ComponentData> Clone for StaticComponentType<C> {
     fn clone(&self) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -76,31 +71,30 @@ impl<C: ComponentData> Clone for StaticComponent<C> {
     }
 }
 
-impl<C: ComponentData> Copy for StaticComponent<C> {}
+impl<C: ComponentData> Copy for StaticComponentType<C> {}
 
-impl<C: ComponentData> Default for StaticComponent<C> {
+impl<C: ComponentData> Default for StaticComponentType<C> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
-            id: ComponentId::default(),
+            id: ComponentType::default(),
         }
     }
 }
 
-impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
+impl<C: ComponentData> ComponentTypeHandle for StaticComponentType<C> {
     type SingleViewRef<'a> = StaticSingleViewRef<'a, C>;
     type SingleViewMut<'a> = StaticSingleViewMut<'a, C>;
-    type AssetHandle = StaticAsset<C>;
     type Data = C;
 
-    fn new(id: ComponentId) -> Self {
+    fn new(id: ComponentType) -> Self {
         Self {
             _marker: std::marker::PhantomData,
             id,
         }
     }
 
-    fn id(&self) -> ComponentId {
+    fn id(&self) -> ComponentType {
         self.id
     }
 
@@ -174,23 +168,17 @@ impl<C: ComponentData> ComponentHandle for StaticComponent<C> {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct Component {
-    id: ComponentId,
-}
-
-impl ComponentHandle for Component {
+impl ComponentTypeHandle for ComponentType {
     type SingleViewRef<'a> = SingleViewRef<'a>;
     type SingleViewMut<'a> = SingleViewMut<'a>;
-    type AssetHandle = Asset;
     type Data = ();
 
-    fn new(id: ComponentId) -> Self {
-        Self { id }
+    fn new(id: ComponentType) -> Self {
+        id
     }
 
-    fn id(&self) -> ComponentId {
-        self.id
+    fn id(&self) -> ComponentType {
+        *self
     }
 
     fn single_view_ref<'a>(
@@ -201,7 +189,7 @@ impl ComponentHandle for Component {
             container: components
                 .0
                 .containers
-                .get(self.id.0)
+                .get(self.0)
                 .unwrap()
                 .try_borrow()
                 .map_err(|_| ECSError::ContainerBorrowMut)?,
@@ -217,7 +205,7 @@ impl ComponentHandle for Component {
             container: components
                 .0
                 .containers
-                .get(self.id.0)
+                .get(self.0)
                 .unwrap()
                 .try_borrow_mut()
                 .map_err(|_| ECSError::ContainerBorrowMut)?,
@@ -268,7 +256,6 @@ pub enum ComponentStorage {
 }
 
 pub(crate) trait AnyComponentReflection {
-    fn create_asset_container(&self) -> Box<dyn AnyAssetContainer>;
     fn create_scene_container(&self) -> Box<dyn AnySingleContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
@@ -280,10 +267,6 @@ pub(crate) struct StaticComponentReflection<C: ComponentData> {
 }
 
 impl<C: ComponentData> AnyComponentReflection for StaticComponentReflection<C> {
-    fn create_asset_container(&self) -> Box<dyn AnyAssetContainer> {
-        Box::<StaticAssetContainer<C>>::default()
-    }
-
     fn create_scene_container(&self) -> Box<dyn AnySingleContainer> {
         Box::new(StaticSingleContainer::<C>::with_capacity(128))
     }
@@ -325,7 +308,7 @@ impl ComponentRegistry {
         reflection: Box<dyn AnyComponentReflection>,
     ) -> Result<SlotId, RegistryError> {
         let uid: UID = name.into();
-        if self.find_id(uid).is_some() {
+        if self.contains(uid) {
             return Err(RegistryError::DuplicatedComponent);
         }
         self.changed = true;
@@ -341,14 +324,14 @@ impl ComponentRegistry {
         &mut self,
         name: &str,
         storage: ComponentStorage,
-    ) -> Result<StaticComponent<C>, RegistryError> {
+    ) -> Result<StaticComponentType<C>, RegistryError> {
         let reflection = StaticComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
         let id = self.add(name, storage, ComponentKind::Static, Box::new(reflection))?;
-        Ok(StaticComponent {
+        Ok(StaticComponentType {
             _marker: std::marker::PhantomData,
-            id: ComponentId(id),
+            id: ComponentType(id),
         })
     }
 
@@ -356,15 +339,15 @@ impl ComponentRegistry {
         &mut self,
         name: &str,
         storage: ComponentStorage,
-    ) -> Result<ComponentId, RegistryError> {
+    ) -> Result<ComponentType, RegistryError> {
         unimplemented!()
     }
 
-    pub fn add_tag(&mut self, name: &str) -> Result<ComponentId, RegistryError> {
+    pub fn add_tag(&mut self, name: &str) -> Result<ComponentType, RegistryError> {
         unimplemented!()
     }
 
-    pub(crate) fn definition<H: ComponentHandle>(
+    pub(crate) fn definition<H: ComponentTypeHandle>(
         &self,
         handle: H,
     ) -> Result<&ComponentEntry, RegistryError> {
@@ -373,16 +356,16 @@ impl ComponentRegistry {
             .ok_or(RegistryError::ComponentNotFound)
     }
 
-    pub(crate) fn find_id(&self, component: impl ToUID) -> Option<ComponentId> {
+    pub fn find<H: ComponentTypeHandle>(&self, component: impl ToUID) -> Option<H> {
+        // Find entry
         let component = component.to_uid();
-        self.entries
+        let component = self
+            .entries
             .iter()
             .find(|(_, def)| UID::new(&def.name) == component)
-            .map(|(id, _)| ComponentId(id))
-    }
-
-    pub fn find<H: ComponentHandle>(&self, component: impl ToUID) -> Option<H> {
-        if let Some(id) = self.find_id(component) {
+            .map(|(id, _)| ComponentType(id));
+        // Check type
+        if let Some(id) = component {
             if !H::check_type_id(self.entries[id.0].reflection.type_id()) {
                 None
             } else {
@@ -391,5 +374,10 @@ impl ComponentRegistry {
         } else {
             None
         }
+    }
+
+    pub fn contains(&self, component: impl ToUID) -> bool {
+        let component = component.to_uid();
+        self.find::<ComponentType>(component).is_some()
     }
 }

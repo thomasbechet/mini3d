@@ -7,7 +7,7 @@ use crate::{
         instance::ParallelResolver,
         query::Query,
     },
-    registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
+    registry::{component::StaticComponentType, error::RegistryError, system::ParallelSystem},
 };
 
 use super::transform::Transform;
@@ -19,8 +19,8 @@ pub struct Rotator {
 
 #[derive(Default)]
 pub struct RotatorSystem {
-    transform: StaticComponent<Transform>,
-    rotator: StaticComponent<Rotator>,
+    transform: StaticComponentType<Transform>,
+    rotator: StaticComponentType<Rotator>,
     query: Query,
 }
 

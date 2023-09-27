@@ -8,7 +8,7 @@ use crate::{
         query::Query,
     },
     expect,
-    registry::{component::StaticComponent, error::RegistryError, system::ParallelSystem},
+    registry::{component::StaticComponentType, error::RegistryError, system::ParallelSystem},
     utils::uid::UID,
 };
 
@@ -51,8 +51,8 @@ impl FreeFly {
 
 #[derive(Default)]
 pub struct FreeFlySystem {
-    free_fly: StaticComponent<FreeFly>,
-    transform: StaticComponent<Transform>,
+    free_fly: StaticComponentType<FreeFly>,
+    transform: StaticComponentType<Transform>,
     query: Query,
 }
 

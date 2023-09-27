@@ -1,11 +1,11 @@
 use crate::math::rect::IRect;
 use glam::{IVec2, UVec2};
-use mini3d_derive::{Component, Reflect, Serialize};
+use mini3d_derive::{Asset, Reflect, Serialize};
 use std::collections::HashMap;
 
 use super::texture::{Texture, TextureFormat};
 
-#[derive(Clone, Component, Reflect, Serialize)]
+#[derive(Clone, Asset, Reflect, Serialize)]
 pub struct Font {
     pub glyph_size: UVec2,
     pub data: Vec<u8>,

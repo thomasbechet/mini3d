@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::{
     registry::{
-        component::{ComponentId, ComponentRegistry},
+        component::{ComponentRegistry, ComponentType},
         error::RegistryError,
         system::System,
     },
@@ -48,16 +48,16 @@ pub(crate) struct FilterQueryEntry {
 
 #[derive(Default)]
 pub(crate) struct QueryTable {
-    pub(crate) components: Vec<ComponentId>,
+    pub(crate) components: Vec<ComponentType>,
     pub(crate) entries: SlotMap<QueryEntry>,
     pub(crate) filter_queries: SlotMap<FilterQueryEntry>,
 }
 
 pub(crate) fn query_archetype_match(
     query: &QueryEntry,
-    query_components: &[ComponentId],
+    query_components: &[ComponentType],
     archetype: &ArchetypeEntry,
-    archetype_components: &[ComponentId],
+    archetype_components: &[ComponentType],
 ) -> bool {
     let components = &archetype_components[archetype.component_range.clone()];
     let all = &query_components[query.all.clone()];
@@ -98,9 +98,9 @@ pub(crate) fn query_archetype_match(
 impl QueryTable {
     fn find_same_query(
         &self,
-        all: &[ComponentId],
-        any: &[ComponentId],
-        not: &[ComponentId],
+        all: &[ComponentType],
+        any: &[ComponentType],
+        not: &[ComponentType],
     ) -> Option<Query> {
         for (id, query) in self.entries.iter() {
             if query.all.len() != all.len() {
@@ -132,9 +132,9 @@ impl QueryTable {
     fn add_query(
         &mut self,
         entities: &mut EntityTable,
-        all: &[ComponentId],
-        any: &[ComponentId],
-        not: &[ComponentId],
+        all: &[ComponentType],
+        any: &[ComponentType],
+        not: &[ComponentType],
     ) -> Query {
         let mut query = QueryEntry::default();
         let start = self.components.len();
@@ -200,9 +200,9 @@ impl QueryTable {
 pub struct QueryBuilder<'a> {
     pub(crate) registry: &'a ComponentRegistry,
     pub(crate) system: System,
-    pub(crate) all: &'a mut Vec<ComponentId>,
-    pub(crate) any: &'a mut Vec<ComponentId>,
-    pub(crate) not: &'a mut Vec<ComponentId>,
+    pub(crate) all: &'a mut Vec<ComponentType>,
+    pub(crate) any: &'a mut Vec<ComponentType>,
+    pub(crate) not: &'a mut Vec<ComponentType>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
     pub(crate) filter_queries: &'a mut Vec<FilterQuery>,
@@ -213,7 +213,7 @@ impl<'a> QueryBuilder<'a> {
         for component in components {
             let component = self
                 .registry
-                .find_id(component.to_uid())
+                .find(component.to_uid())
                 .ok_or(RegistryError::ComponentNotFound)?;
             if self.all.iter().all(|c| *c != component) {
                 self.all.push(component);
@@ -226,7 +226,7 @@ impl<'a> QueryBuilder<'a> {
         for component in components {
             let component = self
                 .registry
-                .find_id(component.to_uid())
+                .find(component.to_uid())
                 .ok_or(RegistryError::ComponentNotFound)?;
             if self.any.iter().all(|c| *c != component) {
                 self.any.push(component);
@@ -239,7 +239,7 @@ impl<'a> QueryBuilder<'a> {
         for component in components {
             let component = self
                 .registry
-                .find_id(component.to_uid())
+                .find(component.to_uid())
                 .ok_or(RegistryError::ComponentNotFound)?;
             if self.not.iter().all(|c| *c != component) {
                 self.not.push(component);
@@ -280,7 +280,7 @@ impl<'a> QueryBuilder<'a> {
         self.add_filter_query(FilterKind::Removed)
     }
 
-    pub fn changed(self, component: ComponentId) -> FilterQuery {
+    pub fn changed(self, component: ComponentType) -> FilterQuery {
         self.add_filter_query(FilterKind::Changed)
     }
 }

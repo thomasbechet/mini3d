@@ -20,7 +20,7 @@ use mini3d::{
     info,
     math::rect::IRect,
     registry::{
-        component::{ComponentStorage, StaticComponent},
+        component::{ComponentStorage, StaticComponentType},
         system::{ExclusiveSystem, SystemOrder, SystemStage},
     },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
@@ -85,7 +85,7 @@ impl OSInitialize {
         let default_bundle = expect!(ctx, ctx.asset.find_bundle(AssetBundle::DEFAULT));
 
         // Register default font
-        let font: StaticComponent<Font> = ctx.registry.components.find(Font::NAME).unwrap();
+        let font: StaticComponentType<Font> = ctx.registry.components.find(Font::NAME).unwrap();
         expect!(
             ctx,
             ctx.asset
@@ -299,13 +299,15 @@ impl OSInitialize {
             })
         );
 
-        let texture: StaticComponent<Texture> =
+        let texture: StaticComponentType<Texture> =
             expect!(ctx, ctx.registry.components.find(Texture::NAME));
-        let mesh: StaticComponent<Mesh> = expect!(ctx, ctx.registry.components.find(Mesh::NAME));
-        let model: StaticComponent<Model> = expect!(ctx, ctx.registry.components.find(Model::NAME));
-        let material: StaticComponent<Material> =
+        let mesh: StaticComponentType<Mesh> =
+            expect!(ctx, ctx.registry.components.find(Mesh::NAME));
+        let model: StaticComponentType<Model> =
+            expect!(ctx, ctx.registry.components.find(Model::NAME));
+        let material: StaticComponentType<Material> =
             expect!(ctx, ctx.registry.components.find(Material::NAME));
-        let script: StaticComponent<Script> =
+        let script: StaticComponentType<Script> =
             expect!(ctx, ctx.registry.components.find(Script::NAME));
 
         // Import assets
@@ -406,26 +408,26 @@ impl OSInitialize {
 
     fn setup_scene(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Find components
-        let transform: StaticComponent<Transform> =
+        let transform: StaticComponentType<Transform> =
             expect!(ctx, ctx.registry.components.find(Transform::NAME));
-        let rotator: StaticComponent<Rotator> =
+        let rotator: StaticComponentType<Rotator> =
             expect!(ctx, ctx.registry.components.find(Rotator::NAME));
-        let static_mesh: StaticComponent<StaticMesh> =
+        let static_mesh: StaticComponentType<StaticMesh> =
             expect!(ctx, ctx.registry.components.find(StaticMesh::NAME));
-        let local_to_world: StaticComponent<LocalToWorld> =
+        let local_to_world: StaticComponentType<LocalToWorld> =
             expect!(ctx, ctx.registry.components.find(LocalToWorld::NAME));
-        let hierarchy: StaticComponent<Hierarchy> =
+        let hierarchy: StaticComponentType<Hierarchy> =
             expect!(ctx, ctx.registry.components.find(Hierarchy::NAME));
-        let camera: StaticComponent<Camera> =
+        let camera: StaticComponentType<Camera> =
             expect!(ctx, ctx.registry.components.find(Camera::NAME));
-        let viewport: StaticComponent<Viewport> =
+        let viewport: StaticComponentType<Viewport> =
             expect!(ctx, ctx.registry.components.find(Viewport::NAME));
         // let ui: StaticComponent<UI> = expect!(ctx, ctx.registry.components.find(UI::NAME));
         // let ui_render_target: StaticComponent<UIRenderTarget> =
         //     expect!(ctx, ctx.registry.components.find(UIRenderTarget::NAME));
-        let free_fly: StaticComponent<FreeFly> =
+        let free_fly: StaticComponentType<FreeFly> =
             expect!(ctx, ctx.registry.components.find(FreeFly::NAME));
-        let os: StaticComponent<OS> = expect!(ctx, ctx.registry.components.find(OS::NAME));
+        let os: StaticComponentType<OS> = expect!(ctx, ctx.registry.components.find(OS::NAME));
 
         let alfred_model = expect!(ctx, ctx.asset.find("alfred_model"));
         // let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));

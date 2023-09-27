@@ -6,7 +6,7 @@ use crate::{
     },
     expect,
     feature::common::local_to_world::LocalToWorld,
-    registry::{component::StaticComponent, error::RegistryError, system::ExclusiveSystem},
+    registry::{component::StaticComponentType, error::RegistryError, system::ExclusiveSystem},
 };
 
 use super::{camera::Camera, canvas::Canvas, static_mesh::StaticMesh, viewport::Viewport};
@@ -14,11 +14,11 @@ use super::{camera::Camera, canvas::Canvas, static_mesh::StaticMesh, viewport::V
 #[derive(Default)]
 pub struct SynchronizeRendererResources {
     // Components
-    viewport: StaticComponent<Viewport>,
-    camera: StaticComponent<Camera>,
-    canvas: StaticComponent<Canvas>,
-    static_mesh: StaticComponent<StaticMesh>,
-    local_to_world: StaticComponent<LocalToWorld>,
+    viewport: StaticComponentType<Viewport>,
+    camera: StaticComponentType<Camera>,
+    canvas: StaticComponentType<Canvas>,
+    static_mesh: StaticComponentType<StaticMesh>,
+    local_to_world: StaticComponentType<LocalToWorld>,
     // Queries
     added_viewport: FilterQuery,
     removed_viewport: FilterQuery,

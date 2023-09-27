@@ -1,4 +1,4 @@
-use crate::asset::handle::{AssetHandle, StaticAsset};
+use crate::asset::handle::StaticAsset;
 use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
 use crate::ecs::ECSManager;
@@ -12,7 +12,8 @@ use crate::feature::renderer::model::Model;
 use crate::feature::renderer::static_mesh::StaticMesh;
 use crate::feature::renderer::texture::Texture;
 use crate::feature::renderer::viewport::Viewport;
-use crate::registry::component::{ComponentRegistry, StaticComponent};
+use crate::registry::asset::StaticAssetType;
+use crate::registry::component::{ComponentRegistry, StaticComponentType};
 use crate::registry::error::RegistryError;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::slotmap::SecondaryMap;
@@ -241,12 +242,12 @@ pub struct RendererManager {
     clear_color: Color,
 
     // Components
-    camera: StaticComponent<Camera>,
-    static_mesh: StaticComponent<StaticMesh>,
-    canvas: StaticComponent<Canvas>,
-    local_to_world: StaticComponent<LocalToWorld>,
-    viewport: StaticComponent<Viewport>,
-    model: StaticComponent<Model>,
+    camera: StaticComponentType<Camera>,
+    static_mesh: StaticComponentType<StaticMesh>,
+    canvas: StaticComponentType<Canvas>,
+    local_to_world: StaticComponentType<LocalToWorld>,
+    viewport: StaticComponentType<Viewport>,
+    model: StaticAssetType<Model>,
 }
 
 impl RendererManager {
