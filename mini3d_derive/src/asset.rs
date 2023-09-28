@@ -119,7 +119,7 @@ fn derive_struct(
     let asset_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::asset::AssetData for #ident #ty_generics #where_clause {}
+        impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #asset_name;
@@ -147,7 +147,7 @@ pub(crate) fn derive_tuple(
     let asset_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::asset::Asset for #ident #ty_generics #where_clause {}
+        impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #asset_name;
@@ -175,7 +175,7 @@ fn derive_enum(
     let asset_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::asset::AssetData for #ident #ty_generics #where_clause {}
+        impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #asset_name;

@@ -5,13 +5,13 @@ use crate::{
         common::script::Script,
         renderer::{font::Font, material::Material, mesh::Mesh, model::Model, texture::Texture},
     },
-    registry::asset::AssetData,
+    registry::datatype::StaticDataType,
 };
 
 #[derive(Serialize)]
-pub struct AssetImportEntry<A: AssetData> {
+pub struct AssetImportEntry<D: StaticDataType> {
     pub name: String,
-    pub data: A,
+    pub data: D,
 }
 
 #[derive(Serialize)]

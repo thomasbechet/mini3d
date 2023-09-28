@@ -8,67 +8,67 @@ use crate::{
         container::single::{AnySingleContainer, StaticSingleContainer},
         entity::Entity,
     },
-    registry::component::ComponentData,
+    registry::datatype::StaticDataType,
 };
 
-pub trait StaticSingleView<C: ComponentData> {
-    fn get(&self, entity: Entity) -> Option<&C>;
+pub trait StaticSingleView<D: StaticDataType> {
+    fn get(&self, entity: Entity) -> Option<&D>;
 }
 
-pub struct StaticSingleViewRef<'a, C: ComponentData> {
-    pub(crate) container: Ref<'a, StaticSingleContainer<C>>,
+pub struct StaticSingleViewRef<'a, D: StaticDataType> {
+    pub(crate) container: Ref<'a, StaticSingleContainer<D>>,
 }
 
-impl<'a, C: ComponentData> StaticSingleViewRef<'a, C> {
-    pub fn iter(&self) -> impl Iterator<Item = &C> {
+impl<'a, D: StaticDataType> StaticSingleViewRef<'a, D> {
+    pub fn iter(&self) -> impl Iterator<Item = &D> {
         self.container.iter()
     }
 
-    pub fn singleton(self) -> Option<StaticSingleSingletonRef<'a, C>> {
+    pub fn singleton(self) -> Option<StaticSingleSingletonRef<'a, D>> {
         // TODO: Ensure has at lease one entity
         Some(StaticSingleSingletonRef(self.container))
     }
 }
 
-impl<'a, C: ComponentData> StaticSingleView<C> for StaticSingleViewRef<'a, C> {
-    fn get(&self, entity: Entity) -> Option<&C> {
+impl<'a, D: StaticDataType> StaticSingleView<D> for StaticSingleViewRef<'a, D> {
+    fn get(&self, entity: Entity) -> Option<&D> {
         self.container.get(entity)
     }
 }
 
-impl<'a, C: ComponentData> Index<Entity> for StaticSingleViewRef<'a, C> {
-    type Output = C;
+impl<'a, D: StaticDataType> Index<Entity> for StaticSingleViewRef<'a, D> {
+    type Output = D;
 
     fn index(&self, entity: Entity) -> &Self::Output {
         self.get(entity).expect("Entity not found")
     }
 }
 
-pub struct StaticSingleSingletonRef<'a, C: ComponentData>(Ref<'a, StaticSingleContainer<C>>);
+pub struct StaticSingleSingletonRef<'a, D: StaticDataType>(Ref<'a, StaticSingleContainer<D>>);
 
-impl<'a, C: ComponentData> Deref for StaticSingleSingletonRef<'a, C> {
-    type Target = C;
+impl<'a, D: StaticDataType> Deref for StaticSingleSingletonRef<'a, D> {
+    type Target = D;
 
     fn deref(&self) -> &Self::Target {
         self.0.iter().next().unwrap()
     }
 }
 
-pub struct StaticSingleViewMut<'a, C: ComponentData> {
-    pub(crate) container: RefMut<'a, StaticSingleContainer<C>>,
+pub struct StaticSingleViewMut<'a, D: StaticDataType> {
+    pub(crate) container: RefMut<'a, StaticSingleContainer<D>>,
     pub(crate) cycle: u32,
 }
 
-impl<'a, C: ComponentData> StaticSingleViewMut<'a, C> {
-    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
+impl<'a, D: StaticDataType> StaticSingleViewMut<'a, D> {
+    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut D> {
         self.container.get_mut(entity, self.cycle)
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut D> {
         self.container.iter_mut()
     }
 
-    pub fn singleton(self) -> Option<StaticSingleSingletonMut<'a, C>> {
+    pub fn singleton(self) -> Option<StaticSingleSingletonMut<'a, D>> {
         // TODO: Ensure has at lease one entity
         Some(StaticSingleSingletonMut {
             container: self.container,
@@ -77,40 +77,40 @@ impl<'a, C: ComponentData> StaticSingleViewMut<'a, C> {
     }
 }
 
-impl<'a, C: ComponentData> StaticSingleView<C> for StaticSingleViewMut<'a, C> {
-    fn get(&self, entity: Entity) -> Option<&C> {
+impl<'a, D: StaticDataType> StaticSingleView<D> for StaticSingleViewMut<'a, D> {
+    fn get(&self, entity: Entity) -> Option<&D> {
         self.container.get(entity)
     }
 }
 
-impl<'a, C: ComponentData> Index<Entity> for StaticSingleViewMut<'a, C> {
-    type Output = C;
+impl<'a, D: StaticDataType> Index<Entity> for StaticSingleViewMut<'a, D> {
+    type Output = D;
 
     fn index(&self, entity: Entity) -> &Self::Output {
         self.get(entity).expect("Entity not found")
     }
 }
 
-impl<'a, C: ComponentData> IndexMut<Entity> for StaticSingleViewMut<'a, C> {
+impl<'a, D: StaticDataType> IndexMut<Entity> for StaticSingleViewMut<'a, D> {
     fn index_mut(&mut self, entity: Entity) -> &mut Self::Output {
         self.get_mut(entity).expect("Entity not found")
     }
 }
 
-pub struct StaticSingleSingletonMut<'a, C: ComponentData> {
-    container: RefMut<'a, StaticSingleContainer<C>>,
+pub struct StaticSingleSingletonMut<'a, D: StaticDataType> {
+    container: RefMut<'a, StaticSingleContainer<D>>,
     cycle: u32,
 }
 
-impl<'a, C: ComponentData> Deref for StaticSingleSingletonMut<'a, C> {
-    type Target = C;
+impl<'a, D: StaticDataType> Deref for StaticSingleSingletonMut<'a, D> {
+    type Target = D;
 
     fn deref(&self) -> &Self::Target {
         self.container.iter().next().unwrap()
     }
 }
 
-impl<'a, C: ComponentData> DerefMut for StaticSingleSingletonMut<'a, C> {
+impl<'a, D: StaticDataType> DerefMut for StaticSingleSingletonMut<'a, D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.container.iter_mut().next().unwrap()
     }

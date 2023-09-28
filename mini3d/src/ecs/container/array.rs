@@ -2,8 +2,8 @@ use std::any::Any;
 
 use crate::{
     ecs::{entity::Entity, sparse::PagedVector},
-    registry::component::ComponentData,
-    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
+    registry::datatype::StaticDataType,
+    serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
 use super::{ComponentFlags, ComponentStatus};
@@ -20,42 +20,42 @@ pub(crate) trait AnyArrayContainer {
 struct StaticArrayEntry {
     entity: Entity,
     flags: ComponentFlags,
-    start: usize,
+    chunk_index: usize,
 }
 
-pub(crate) struct StaticArrayContainer<C: ComponentData> {
-    array_length: usize,
-    data: Vec<C>,
+pub(crate) struct StaticArrayContainer<D: StaticDataType> {
+    chunk_size: usize,
+    data: Vec<D>,
     entries: Vec<StaticArrayEntry>,
     indices: PagedVector<usize>, // Entity -> Entry Index
     changed: Vec<Entity>,
 }
 
-impl<C: ComponentData> StaticArrayContainer<C> {
-    pub(crate) fn with_capacity(size: usize, array_length: usize) -> Self {
+impl<D: StaticDataType> StaticArrayContainer<D> {
+    pub(crate) fn with_capacity(size: usize, chunk_size: usize) -> Self {
         Self {
-            array_length,
-            data: Vec::with_capacity(size * array_length),
+            chunk_size,
+            data: Vec::with_capacity(size * chunk_size),
             entries: Vec::with_capacity(size),
             indices: PagedVector::new(),
             changed: Vec::with_capacity(size),
         }
     }
 
-    pub(crate) fn get(&self, entity: Entity) -> Option<&[C]> {
+    pub(crate) fn get(&self, entity: Entity) -> Option<&[D]> {
         self.indices.get(entity.key()).and_then(|index| {
             if self.entries[*index].entity == entity
                 && self.entries[*index].flags.status() != ComponentStatus::Removed
             {
-                let start = self.entries[*index].start;
-                Some(&self.data[start..start + self.array_length])
+                let start = self.entries[*index].chunk_index * self.chunk_size;
+                Some(&self.data[start..start + self.chunk_size])
             } else {
                 None
             }
         })
     }
 
-    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut [C]> {
+    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut [D]> {
         self.indices.get(entity.key()).and_then(|index| {
             let entry = &mut self.entries[*index];
             if entry.entity == entity {
@@ -71,38 +71,49 @@ impl<C: ComponentData> StaticArrayContainer<C> {
                         return None;
                     }
                 }
-                let start = entry.start;
-                Some(&mut self.data[start..start + self.array_length])
+                let start = entry.chunk_index * self.chunk_size;
+                Some(&mut self.data[start..start + self.chunk_size])
             } else {
                 None
             }
         })
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &[C]> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &[D]> {
+        let chunks = self.data.chunks_exact(self.chunk_size);
         self.entries
             .iter()
-            .filter(|entry| !matches!(entry.flags.status(), ComponentStatus::Removed))
-            .map(|entry| &self.data[entry.start..entry.start + self.array_length])
+            .zip(chunks.into_iter())
+            .filter(|(entry, _)| !matches!(entry.flags.status(), ComponentStatus::Removed))
+            .map(|(_, data)| data)
     }
 
-    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut [C]> {
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut [D]> {
+        let chunks = self.data.chunks_exact_mut(self.chunk_size);
         self.entries
             .iter()
-            .filter(|entry| !matches!(entry.flags.status(), ComponentStatus::Removed))
-            .map(|entry| &mut self.data[entry.start..entry.start + self.array_length])
+            .zip(chunks.into_iter())
+            .filter(|(entry, _)| !matches!(entry.flags.status(), ComponentStatus::Removed))
+            .map(|(_, data)| data)
     }
 
-    pub(crate) fn add(&mut self, entity: Entity, components: &[C], cycle: u32) {
-        // Append component
-        self.data
-            .push((component, entity, ComponentFlags::added(cycle)));
+    pub(crate) fn add<const S: usize>(&mut self, entity: Entity, components: [D; S], cycle: u32) {
+        // Allocate chunk
+        let chunk_index = self.data.len() / self.chunk_size;
+        // Fill chunk
+        self.data.extend(components);
+        // Append entry
+        self.entries.push(StaticArrayEntry {
+            entity,
+            flags: ComponentFlags::added(cycle),
+            chunk_index,
+        });
         // Update indices
         self.indices.set(entity.key(), self.data.len() - 1);
     }
 }
 
-impl<C: ComponentData> AnyArrayContainer for StaticArrayContainer<C> {
+impl<D: StaticDataType> AnyArrayContainer for StaticArrayContainer<D> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -113,11 +124,21 @@ impl<C: ComponentData> AnyArrayContainer for StaticArrayContainer<C> {
 
     fn remove(&mut self, entity: Entity) {
         let index = *self.indices.get(entity.key()).expect("Entity not found");
-        // Swap remove component
-        self.data.swap_remove(index);
+        let chunk_index = self.entries[index].chunk_index;
+        // Swap remove chunk
+        if index != self.entries.len() - 1 {
+            let start = chunk_index * self.chunk_size;
+            let last_start = (self.entries.len() - 1) * self.chunk_size;
+            for i in 0..self.chunk_size {
+                self.data.swap(start + i, last_start + i);
+            }
+        }
+        self.data.truncate(self.entries.len() * self.chunk_size);
+        // Swap remove entry
+        self.entries.swap_remove(index);
         // Remap swapped entity
-        if index != self.data.len() {
-            let swapped_entity = self.data[index].1;
+        if index != self.entries.len() {
+            let swapped_entity = self.entries[index].entity;
             self.indices.set(swapped_entity.key(), index);
         }
     }
@@ -127,37 +148,10 @@ impl<C: ComponentData> AnyArrayContainer for StaticArrayContainer<C> {
     }
 
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
-        // Write header
-        C::Header::default().serialize(&mut encoder)?;
-        // Write component count
-        encoder.write_u32(self.data.len() as u32)?;
-        // Write components
-        for (data, entity, flags) in self.data.iter() {
-            data.serialize(&mut encoder)?;
-            entity.serialize(&mut encoder)?;
-            flags.serialize(&mut encoder)?;
-        }
         Ok(())
     }
 
     fn deserialize(&mut self, mut decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
-        // Reset container
-        self.data.clear();
-        // Read header
-        let header = C::Header::deserialize(&mut decoder, &Default::default())?;
-        // Read component count
-        let count = decoder.read_u32()?;
-        // Read components
-        for _ in 0..count {
-            let data = C::deserialize(&mut decoder, &header)?;
-            let entity = Entity::deserialize(&mut decoder, &Default::default())?;
-            let flags = ComponentFlags::deserialize(&mut decoder, &Default::default())?;
-            self.data.push((data, entity, flags));
-        }
-        // Update indices
-        for (index, (_, entity, _)) in self.data.iter().enumerate() {
-            self.indices.set(entity.key(), index);
-        }
         Ok(())
     }
 }

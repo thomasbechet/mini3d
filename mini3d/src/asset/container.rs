@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    registry::asset::AssetData,
+    registry::datatype::StaticDataType,
     serialize::{Decoder, Encoder},
     utils::{slotmap::SlotMap, uid::UID},
 };
@@ -12,7 +12,7 @@ pub struct PrivateAnyAssetContainerRef<'a>(pub(crate) &'a dyn AnyAssetContainer)
 pub struct PrivateAnyAssetContainerMut<'a>(pub(crate) &'a mut dyn AnyAssetContainer);
 
 #[derive(Default)]
-pub(crate) struct StaticAssetContainer<A: AssetData>(pub(crate) SlotMap<A>);
+pub(crate) struct StaticAssetContainer<D: StaticDataType>(pub(crate) SlotMap<D>);
 
 pub(crate) trait AnyAssetContainer: Any {
     fn as_any(&self) -> &dyn Any;
@@ -30,7 +30,7 @@ pub(crate) trait AnyAssetContainer: Any {
     ) -> Result<(), AssetError>;
 }
 
-impl<A: AssetData> AnyAssetContainer for StaticAssetContainer<A> {
+impl<D: StaticDataType> AnyAssetContainer for StaticAssetContainer<D> {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
 use crate::{
-    registry::asset::{AssetData, AssetType, AssetTypeHandle, StaticAssetType},
+    registry::{
+        asset::{AssetType, AssetTypeHandle, StaticAssetType},
+        datatype::StaticDataType,
+    },
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SlotId,
 };
@@ -31,7 +34,15 @@ pub trait AssetHandle {
 }
 
 #[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct Asset(pub(crate) SlotId);
+pub struct Asset {
+    pub(crate) id: SlotId,
+    pub(crate) ty: AssetType,
+}
+
+pub struct StaticAsset<D: StaticDataType> {
+    pub(crate) id: SlotId,
+    pub(crate) ty: StaticAssetType<D>,
+}
 
 impl AssetHandle for Asset {
     type Ref<'a> = ();
@@ -51,12 +62,9 @@ impl AssetHandle for Asset {
     }
 }
 
-#[derive(Default, Hash)]
-pub struct StaticAsset<A: AssetData>(pub(crate) SlotId, pub(crate) std::marker::PhantomData<A>);
-
-impl<A: AssetData> AssetHandle for StaticAsset<A> {
-    type Ref<'a> = &'a A;
-    type TypeHandle = StaticAssetType<A>;
+impl<D: StaticDataType> AssetHandle for StaticAsset<D> {
+    type Ref<'a> = &'a D;
+    type TypeHandle = StaticAssetType<D>;
     fn new(id: SlotId) -> Self {
         Self(id, std::marker::PhantomData)
     }
@@ -71,7 +79,7 @@ impl<A: AssetData> AssetHandle for StaticAsset<A> {
         container
             .0
             .as_any()
-            .downcast_ref::<StaticAssetContainer<A>>()
+            .downcast_ref::<StaticAssetContainer<D>>()
             .expect("Invalid static asset container")
             .0
             .get(slot)
@@ -79,32 +87,35 @@ impl<A: AssetData> AssetHandle for StaticAsset<A> {
     }
 }
 
-impl<A: AssetData> Clone for StaticAsset<A> {
+impl<D: StaticDataType> Clone for StaticAsset<D> {
     fn clone(&self) -> Self {
-        Self(self.0, std::marker::PhantomData)
+        Self {
+            id: self.id,
+            ty: self.ty,
+        }
     }
 }
 
-impl<A: AssetData> Copy for StaticAsset<A> {}
+impl<D: StaticDataType> Copy for StaticAsset<D> {}
 
-impl<A: AssetData> Debug for StaticAsset<A> {
+impl<D: StaticDataType> Debug for StaticAsset<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("StaticAsset")
             .field(&self.0)
-            .field(&std::any::type_name::<A>())
+            .field(&std::any::type_name::<D>())
             .finish()
     }
 }
 
-impl<A: AssetData> PartialEq for StaticAsset<A> {
+impl<D: StaticDataType> PartialEq for StaticAsset<D> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<A: AssetData> Eq for StaticAsset<A> {}
+impl<D: StaticDataType> Eq for StaticAsset<D> {}
 
-impl<A: AssetData> Serialize for StaticAsset<A> {
+impl<D: StaticDataType> Serialize for StaticAsset<D> {
     type Header = ();
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         self.0.serialize(encoder)

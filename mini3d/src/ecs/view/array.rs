@@ -8,77 +8,77 @@ use crate::{
         container::array::{AnyArrayContainer, StaticArrayContainer},
         entity::Entity,
     },
-    registry::component::ComponentData,
+    registry::datatype::StaticDataType,
 };
 
-pub trait StaticArrayView<C: ComponentData> {
-    fn get(&self, entity: Entity) -> Option<&[C]>;
+pub trait StaticArrayView<D: StaticDataType> {
+    fn get(&self, entity: Entity) -> Option<&[D]>;
 }
 
-pub struct StaticArrayViewRef<'a, C: ComponentData> {
-    pub(crate) container: Ref<'a, StaticArrayContainer<C>>,
+pub struct StaticArrayViewRef<'a, D: StaticDataType> {
+    pub(crate) container: Ref<'a, StaticArrayContainer<D>>,
 }
 
-impl<'a, C: ComponentData> StaticArrayViewRef<'a, C> {
-    pub fn iter(&self) -> impl Iterator<Item = &C> {
+impl<'a, D: StaticDataType> StaticArrayViewRef<'a, D> {
+    pub fn iter(&self) -> impl Iterator<Item = &[D]> {
         self.container.iter()
     }
 }
 
-impl<'a, C: ComponentData> StaticArrayView<C> for StaticArrayViewRef<'a, C> {
-    fn get(&self, entity: Entity) -> Option<&[C]> {
+impl<'a, D: StaticDataType> StaticArrayView<D> for StaticArrayViewRef<'a, D> {
+    fn get(&self, entity: Entity) -> Option<&[D]> {
         self.container.get(entity)
     }
 }
 
-impl<'a, C: ComponentData> Index<Entity> for StaticArrayViewRef<'a, C> {
-    type Output = &'a [C];
+impl<'a, D: StaticDataType> Index<Entity> for StaticArrayViewRef<'a, D> {
+    type Output = [D];
 
     fn index(&self, entity: Entity) -> &Self::Output {
         self.get(entity).expect("Entity not found")
     }
 }
 
-pub struct StaticArrayArraytonRef<'a, C: ComponentData>(Ref<'a, StaticArrayContainer<C>>);
+pub struct StaticArrayArraytonRef<'a, D: StaticDataType>(Ref<'a, StaticArrayContainer<D>>);
 
-impl<'a, C: ComponentData> Deref for StaticArrayArraytonRef<'a, C> {
-    type Target = C;
+impl<'a, D: StaticDataType> Deref for StaticArrayArraytonRef<'a, D> {
+    type Target = [D];
 
     fn deref(&self) -> &Self::Target {
         self.0.iter().next().unwrap()
     }
 }
 
-pub struct StaticArrayViewMut<'a, C: ComponentData> {
-    pub(crate) container: RefMut<'a, StaticArrayContainer<C>>,
+pub struct StaticArrayViewMut<'a, D: StaticDataType> {
+    pub(crate) container: RefMut<'a, StaticArrayContainer<D>>,
     pub(crate) cycle: u32,
 }
 
-impl<'a, C: ComponentData> StaticArrayViewMut<'a, C> {
-    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
+impl<'a, D: StaticDataType> StaticArrayViewMut<'a, D> {
+    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut [D]> {
         self.container.get_mut(entity, self.cycle)
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut [D]> {
         self.container.iter_mut()
     }
 }
 
-impl<'a, C: ComponentData> StaticArrayView<C> for StaticArrayViewMut<'a, C> {
-    fn get(&self, entity: Entity) -> Option<&C> {
+impl<'a, D: StaticDataType> StaticArrayView<D> for StaticArrayViewMut<'a, D> {
+    fn get(&self, entity: Entity) -> Option<&[D]> {
         self.container.get(entity)
     }
 }
 
-impl<'a, C: ComponentData> Index<Entity> for StaticArrayViewMut<'a, C> {
-    type Output = C;
+impl<'a, D: StaticDataType> Index<Entity> for StaticArrayViewMut<'a, D> {
+    type Output = [D];
 
     fn index(&self, entity: Entity) -> &Self::Output {
         self.get(entity).expect("Entity not found")
     }
 }
 
-impl<'a, C: ComponentData> IndexMut<Entity> for StaticArrayViewMut<'a, C> {
+impl<'a, D: StaticDataType> IndexMut<Entity> for StaticArrayViewMut<'a, D> {
     fn index_mut(&mut self, entity: Entity) -> &mut Self::Output {
         self.get_mut(entity).expect("Entity not found")
     }

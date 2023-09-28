@@ -14,7 +14,6 @@ use crate::{
         view::single::{SingleViewMut, SingleViewRef, StaticSingleViewMut, StaticSingleViewRef},
     },
     reflection::{Property, Reflect},
-    serialize::Serialize,
     utils::{
         slotmap::{SlotId, SlotMap},
         string::AsciiArray,
@@ -22,7 +21,7 @@ use crate::{
     },
 };
 
-use super::error::RegistryError;
+use super::{datatype::StaticDataType, error::RegistryError};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ComponentType(pub(crate) SlotId);
@@ -57,12 +56,12 @@ pub trait ComponentTypeHandle: Copy {
     );
 }
 
-pub struct StaticComponentType<C: ComponentData> {
-    _marker: std::marker::PhantomData<C>,
+pub struct StaticComponentType<D: StaticDataType> {
+    _marker: std::marker::PhantomData<D>,
     pub(crate) id: ComponentType,
 }
 
-impl<C: ComponentData> Clone for StaticComponentType<C> {
+impl<D: StaticDataType> Clone for StaticComponentType<D> {
     fn clone(&self) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -71,9 +70,9 @@ impl<C: ComponentData> Clone for StaticComponentType<C> {
     }
 }
 
-impl<C: ComponentData> Copy for StaticComponentType<C> {}
+impl<D: StaticDataType> Copy for StaticComponentType<D> {}
 
-impl<C: ComponentData> Default for StaticComponentType<C> {
+impl<D: StaticDataType> Default for StaticComponentType<D> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -82,10 +81,10 @@ impl<C: ComponentData> Default for StaticComponentType<C> {
     }
 }
 
-impl<C: ComponentData> ComponentTypeHandle for StaticComponentType<C> {
-    type SingleViewRef<'a> = StaticSingleViewRef<'a, C>;
-    type SingleViewMut<'a> = StaticSingleViewMut<'a, C>;
-    type Data = C;
+impl<D: StaticDataType> ComponentTypeHandle for StaticComponentType<D> {
+    type SingleViewRef<'a> = StaticSingleViewRef<'a, D>;
+    type SingleViewMut<'a> = StaticSingleViewMut<'a, D>;
+    type Data = D;
 
     fn new(id: ComponentType) -> Self {
         Self {
@@ -113,7 +112,7 @@ impl<C: ComponentData> ComponentTypeHandle for StaticComponentType<C> {
                     .map_err(|_| ECSError::ContainerBorrowMut)?,
                 |r| {
                     r.as_any()
-                        .downcast_ref::<StaticSingleContainer<C>>()
+                        .downcast_ref::<StaticSingleContainer<D>>()
                         .unwrap()
                 },
             ),
@@ -136,7 +135,7 @@ impl<C: ComponentData> ComponentTypeHandle for StaticComponentType<C> {
                     .map_err(|_| ECSError::ContainerBorrowMut)?,
                 |r| {
                     r.as_any_mut()
-                        .downcast_mut::<StaticSingleContainer<C>>()
+                        .downcast_mut::<StaticSingleContainer<D>>()
                         .unwrap()
                 },
             ),
@@ -145,7 +144,7 @@ impl<C: ComponentData> ComponentTypeHandle for StaticComponentType<C> {
     }
 
     fn check_type_id(id: TypeId) -> bool {
-        id == TypeId::of::<C>()
+        id == TypeId::of::<D>()
     }
 
     fn insert_single_container(
@@ -162,7 +161,7 @@ impl<C: ComponentData> ComponentTypeHandle for StaticComponentType<C> {
             .expect("Component container not found while adding entity")
             .get_mut()
             .as_any_mut()
-            .downcast_mut::<StaticSingleContainer<C>>()
+            .downcast_mut::<StaticSingleContainer<D>>()
             .expect("Component type mismatch while adding static component")
             .add(entity, data, cycle);
     }
@@ -227,21 +226,6 @@ impl ComponentTypeHandle for ComponentType {
     }
 }
 
-pub struct EntityResolver;
-
-impl EntityResolver {
-    pub fn resolve(&self, entity: Entity) -> Result<Entity, ECSError> {
-        // TODO: Resolve entity
-        Ok(entity)
-    }
-}
-pub trait ComponentData: Default + Serialize + Reflect + 'static {
-    fn resolve_entities(&mut self, resolver: &EntityResolver) -> Result<(), ECSError> {
-        let _ = resolver;
-        Ok(())
-    }
-}
-
 pub(crate) enum ComponentKind {
     Static,
     Dynamic,
@@ -262,25 +246,25 @@ pub(crate) trait AnyComponentReflection {
     fn type_id(&self) -> TypeId;
 }
 
-pub(crate) struct StaticComponentReflection<C: ComponentData> {
-    _phantom: std::marker::PhantomData<C>,
+pub(crate) struct StaticComponentReflection<D: StaticDataType> {
+    _phantom: std::marker::PhantomData<D>,
 }
 
-impl<C: ComponentData> AnyComponentReflection for StaticComponentReflection<C> {
+impl<D: StaticDataType> AnyComponentReflection for StaticComponentReflection<D> {
     fn create_scene_container(&self) -> Box<dyn AnySingleContainer> {
-        Box::new(StaticSingleContainer::<C>::with_capacity(128))
+        Box::new(StaticSingleContainer::<D>::with_capacity(128))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {
-        C::PROPERTIES.iter().find(|p| p.name == name)
+        D::PROPERTIES.iter().find(|p| p.name == name)
     }
 
     fn properties(&self) -> &[Property] {
-        C::PROPERTIES
+        D::PROPERTIES
     }
 
     fn type_id(&self) -> TypeId {
-        TypeId::of::<C>()
+        TypeId::of::<D>()
     }
 }
 
@@ -320,12 +304,12 @@ impl ComponentRegistry {
         }))
     }
 
-    pub fn add_static<C: ComponentData>(
+    pub fn add_static<D: StaticDataType>(
         &mut self,
         name: &str,
         storage: ComponentStorage,
-    ) -> Result<StaticComponentType<C>, RegistryError> {
-        let reflection = StaticComponentReflection::<C> {
+    ) -> Result<StaticComponentType<D>, RegistryError> {
+        let reflection = StaticComponentReflection::<D> {
             _phantom: std::marker::PhantomData,
         };
         let id = self.add(name, storage, ComponentKind::Static, Box::new(reflection))?;

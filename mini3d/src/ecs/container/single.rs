@@ -5,7 +5,7 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use crate::{
     ecs::{entity::Entity, sparse::PagedVector},
     reflection::PropertyId,
-    registry::component::ComponentData,
+    registry::datatype::StaticDataType,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::uid::UID,
 };
@@ -62,13 +62,13 @@ pub(crate) trait AnySingleContainer {
     trait_property!(UID, read_uid, write_uid);
 }
 
-pub(crate) struct StaticSingleContainer<C: ComponentData> {
-    data: Vec<(C, Entity, ComponentFlags)>,
+pub(crate) struct StaticSingleContainer<D: StaticDataType> {
+    data: Vec<(D, Entity, ComponentFlags)>,
     indices: PagedVector<usize>, // Entity -> Index
     changed: Vec<Entity>,
 }
 
-impl<C: ComponentData> StaticSingleContainer<C> {
+impl<D: StaticDataType> StaticSingleContainer<D> {
     pub(crate) fn with_capacity(size: usize) -> Self {
         Self {
             data: Vec::with_capacity(size),
@@ -77,7 +77,7 @@ impl<C: ComponentData> StaticSingleContainer<C> {
         }
     }
 
-    pub(crate) fn get(&self, entity: Entity) -> Option<&C> {
+    pub(crate) fn get(&self, entity: Entity) -> Option<&D> {
         self.indices.get(entity.key()).and_then(|index| {
             if self.data[*index].1 == entity
                 && self.data[*index].2.status() != ComponentStatus::Removed
@@ -89,7 +89,7 @@ impl<C: ComponentData> StaticSingleContainer<C> {
         })
     }
 
-    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut C> {
+    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut D> {
         self.indices.get(entity.key()).and_then(|index| {
             let tuple = &mut self.data[*index];
             if tuple.1 == entity {
@@ -112,21 +112,21 @@ impl<C: ComponentData> StaticSingleContainer<C> {
         })
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &C> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &D> {
         self.data
             .iter()
             .filter(|(_, _, f)| !matches!(f.status(), ComponentStatus::Removed))
             .map(|(c, _, _)| c)
     }
 
-    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut D> {
         self.data
             .iter_mut()
             .filter(|(_, _, f)| !matches!(f.status(), ComponentStatus::Removed))
             .map(|(c, _, _)| c)
     }
 
-    pub(crate) fn add(&mut self, entity: Entity, component: C, cycle: u32) {
+    pub(crate) fn add(&mut self, entity: Entity, component: D, cycle: u32) {
         // Append component
         self.data
             .push((component, entity, ComponentFlags::added(cycle)));
@@ -135,7 +135,7 @@ impl<C: ComponentData> StaticSingleContainer<C> {
     }
 }
 
-impl<C: ComponentData> AnySingleContainer for StaticSingleContainer<C> {
+impl<D: StaticDataType> AnySingleContainer for StaticSingleContainer<D> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -161,7 +161,7 @@ impl<C: ComponentData> AnySingleContainer for StaticSingleContainer<C> {
 
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
         // Write header
-        C::Header::default().serialize(&mut encoder)?;
+        D::Header::default().serialize(&mut encoder)?;
         // Write component count
         encoder.write_u32(self.data.len() as u32)?;
         // Write components
@@ -177,12 +177,12 @@ impl<C: ComponentData> AnySingleContainer for StaticSingleContainer<C> {
         // Reset container
         self.data.clear();
         // Read header
-        let header = C::Header::deserialize(&mut decoder, &Default::default())?;
+        let header = D::Header::deserialize(&mut decoder, &Default::default())?;
         // Read component count
         let count = decoder.read_u32()?;
         // Read components
         for _ in 0..count {
-            let data = C::deserialize(&mut decoder, &header)?;
+            let data = D::deserialize(&mut decoder, &header)?;
             let entity = Entity::deserialize(&mut decoder, &Default::default())?;
             let flags = ComponentFlags::deserialize(&mut decoder, &Default::default())?;
             self.data.push((data, entity, flags));

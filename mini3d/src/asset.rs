@@ -15,6 +15,7 @@ use self::handle::{
 pub mod container;
 pub mod error;
 pub mod handle;
+pub mod reference;
 
 type AssetEntryId = SlotId;
 

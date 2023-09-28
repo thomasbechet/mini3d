@@ -2,6 +2,7 @@ use self::{asset::AssetRegistry, component::ComponentRegistry, system::SystemReg
 
 pub mod asset;
 pub mod component;
+pub mod datatype;
 pub mod error;
 pub mod system;
 

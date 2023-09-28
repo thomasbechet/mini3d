@@ -6,7 +6,6 @@ use crate::{
         handle::{PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef},
     },
     reflection::{Property, Reflect},
-    serialize::Serialize,
     utils::{
         slotmap::{SlotId, SlotMap},
         string::AsciiArray,
@@ -14,19 +13,17 @@ use crate::{
     },
 };
 
-use super::error::RegistryError;
-
-pub trait AssetData: Default + Serialize + Reflect + 'static {}
+use super::{datatype::StaticDataType, error::RegistryError};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AssetType(pub(crate) SlotId);
 
-pub struct StaticAssetType<A: AssetData> {
-    _marker: std::marker::PhantomData<A>,
+pub struct StaticAssetType<D: StaticDataType> {
+    _marker: std::marker::PhantomData<D>,
     pub(crate) id: AssetType,
 }
 
-impl<A: AssetData> Clone for StaticAssetType<A> {
+impl<D: StaticDataType> Clone for StaticAssetType<D> {
     fn clone(&self) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -35,9 +32,9 @@ impl<A: AssetData> Clone for StaticAssetType<A> {
     }
 }
 
-impl<A: AssetData> Copy for StaticAssetType<A> {}
+impl<D: StaticDataType> Copy for StaticAssetType<D> {}
 
-impl<A: AssetData> Default for StaticAssetType<A> {
+impl<D: StaticDataType> Default for StaticAssetType<D> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -84,8 +81,8 @@ impl AssetTypeHandle for AssetType {
     }
 }
 
-impl<A: AssetData> AssetTypeHandle for StaticAssetType<A> {
-    type Data = A;
+impl<D: StaticDataType> AssetTypeHandle for StaticAssetType<D> {
+    type Data = D;
 
     fn new(id: SlotId) -> Self {
         Self {
@@ -102,7 +99,7 @@ impl<A: AssetData> AssetTypeHandle for StaticAssetType<A> {
         container
             .0
             .as_any_mut()
-            .downcast_mut::<StaticAssetContainer<A>>()
+            .downcast_mut::<StaticAssetContainer<D>>()
             .expect("Invalid static asset container")
             .0
             .add(asset)
@@ -112,7 +109,7 @@ impl<A: AssetData> AssetTypeHandle for StaticAssetType<A> {
         container
             .0
             .as_any_mut()
-            .downcast_mut::<StaticAssetContainer<A>>()
+            .downcast_mut::<StaticAssetContainer<D>>()
             .expect("Invalid static asset container")
             .0
             .remove(slot);
@@ -122,12 +119,12 @@ impl<A: AssetData> AssetTypeHandle for StaticAssetType<A> {
         container
             .0
             .as_any()
-            .downcast_ref::<StaticAssetContainer<A>>()
+            .downcast_ref::<StaticAssetContainer<D>>()
             .is_some()
     }
 
     fn check_type_id(id: TypeId) -> bool {
-        id == TypeId::of::<A>()
+        id == TypeId::of::<D>()
     }
 }
 
@@ -145,25 +142,25 @@ pub(crate) trait AnyAssetReflection {
     fn type_id(&self) -> TypeId;
 }
 
-pub(crate) struct StaticAssetReflection<A: AssetData> {
-    _phantom: std::marker::PhantomData<A>,
+pub(crate) struct StaticAssetReflection<D: StaticDataType> {
+    _phantom: std::marker::PhantomData<D>,
 }
 
-impl<A: AssetData> AnyAssetReflection for StaticAssetReflection<A> {
+impl<D: StaticDataType> AnyAssetReflection for StaticAssetReflection<D> {
     fn create_asset_container(&self) -> Box<dyn AnyAssetContainer> {
-        Box::<StaticAssetContainer<A>>::default()
+        Box::<StaticAssetContainer<D>>::default()
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {
-        A::PROPERTIES.iter().find(|p| p.name == name)
+        D::PROPERTIES.iter().find(|p| p.name == name)
     }
 
     fn properties(&self) -> &[Property] {
-        A::PROPERTIES
+        D::PROPERTIES
     }
 
     fn type_id(&self) -> TypeId {
-        TypeId::of::<A>()
+        TypeId::of::<D>()
     }
 }
 
@@ -198,11 +195,11 @@ impl AssetRegistry {
         }))
     }
 
-    pub fn add_static<A: AssetData>(
+    pub fn add_static<D: StaticDataType>(
         &mut self,
         name: &str,
-    ) -> Result<StaticAssetType<A>, RegistryError> {
-        let reflection = StaticAssetReflection::<A> {
+    ) -> Result<StaticAssetType<D>, RegistryError> {
+        let reflection = StaticAssetReflection::<D> {
             _phantom: std::marker::PhantomData,
         };
         let id = self.add(name, AssetKind::Static, Box::new(reflection))?;
