@@ -84,6 +84,12 @@ pub struct Instance {
 
 impl Instance {
     fn register_core_features(&mut self, features: &InstanceFeatures) -> Result<(), RegistryError> {
+        macro_rules! define_asset {
+            ($asset: ty) => {
+                self.registry.assets.add_static::<$asset>(<$asset>::NAME)?;
+            };
+        }
+
         macro_rules! define_component {
             ($component: ty, $storage: expr) => {
                 self.registry
@@ -115,10 +121,10 @@ impl Instance {
         // Define features
 
         if features.common {
+            define_asset!(common::script::Script);
+            define_asset!(common::program::Program);
             define_component!(common::free_fly::FreeFly, ComponentStorage::Single);
             define_component!(common::rotator::Rotator, ComponentStorage::Single);
-            define_component!(common::script::Script, ComponentStorage::Single);
-            define_component!(common::program::Program, ComponentStorage::Single);
             define_component!(common::transform::Transform, ComponentStorage::Single);
             define_component!(common::hierarchy::Hierarchy, ComponentStorage::Single);
             define_component!(
@@ -139,13 +145,13 @@ impl Instance {
         }
 
         if features.renderer {
+            define_asset!(renderer::font::Font);
+            define_asset!(renderer::material::Material);
+            define_asset!(renderer::mesh::Mesh);
+            define_asset!(renderer::model::Model);
+            define_asset!(renderer::texture::Texture);
             define_component!(renderer::camera::Camera, ComponentStorage::Single);
-            define_component!(renderer::font::Font, ComponentStorage::Single);
-            define_component!(renderer::material::Material, ComponentStorage::Single);
-            define_component!(renderer::mesh::Mesh, ComponentStorage::Single);
-            define_component!(renderer::model::Model, ComponentStorage::Single);
             define_component!(renderer::static_mesh::StaticMesh, ComponentStorage::Single);
-            define_component!(renderer::texture::Texture, ComponentStorage::Single);
             define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
             define_component!(renderer::tileset::Tileset, ComponentStorage::Single);
             define_component!(renderer::viewport::Viewport, ComponentStorage::Single);
@@ -179,10 +185,10 @@ impl Instance {
         self.ecs
             .scheduler
             .on_registry_update(&self.registry.systems);
-        self.asset.on_registry_update(&self.registry.components);
+        self.asset.on_registry_update(&self.registry.assets);
         // Setup managers
         self.renderer
-            .reload_ecs_components(&self.registry.components)
+            .reload_components_and_assets(&self.registry)
             .expect("Failed to reload component handles");
     }
 

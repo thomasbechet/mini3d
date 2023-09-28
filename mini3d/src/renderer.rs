@@ -1,4 +1,4 @@
-use crate::asset::handle::StaticAsset;
+use crate::asset::handle::{AssetHandle, StaticAsset};
 use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
 use crate::ecs::ECSManager;
@@ -13,8 +13,9 @@ use crate::feature::renderer::static_mesh::StaticMesh;
 use crate::feature::renderer::texture::Texture;
 use crate::feature::renderer::viewport::Viewport;
 use crate::registry::asset::StaticAssetType;
-use crate::registry::component::{ComponentRegistry, StaticComponentType};
+use crate::registry::component::StaticComponentType;
 use crate::registry::error::RegistryError;
+use crate::registry::RegistryManager;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::slotmap::SecondaryMap;
 use crate::utils::uid::UID;
@@ -261,16 +262,22 @@ impl RendererManager {
         self.resources.reset();
     }
 
-    pub(crate) fn reload_ecs_components(
+    pub(crate) fn reload_components_and_assets(
         &mut self,
-        registry: &ComponentRegistry,
+        registry: &RegistryManager,
     ) -> Result<(), RegistryError> {
-        self.camera = registry.find(Camera::NAME).unwrap_or_default();
-        self.static_mesh = registry.find(StaticMesh::NAME).unwrap_or_default();
-        self.canvas = registry.find(Canvas::NAME).unwrap_or_default();
-        self.local_to_world = registry.find(LocalToWorld::NAME).unwrap_or_default();
-        self.viewport = registry.find(Viewport::NAME).unwrap_or_default();
-        self.model = registry.find(Model::NAME).unwrap_or_default();
+        self.camera = registry.components.find(Camera::NAME).unwrap_or_default();
+        self.static_mesh = registry
+            .components
+            .find(StaticMesh::NAME)
+            .unwrap_or_default();
+        self.canvas = registry.components.find(Canvas::NAME).unwrap_or_default();
+        self.local_to_world = registry
+            .components
+            .find(LocalToWorld::NAME)
+            .unwrap_or_default();
+        self.viewport = registry.components.find(Viewport::NAME).unwrap_or_default();
+        self.model = registry.assets.find(Model::NAME).unwrap_or_default();
         Ok(())
     }
 

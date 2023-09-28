@@ -130,7 +130,7 @@ impl AssetManager {
     fn add_entry(
         &mut self,
         name: &str,
-        asset: AssetType,
+        ty: AssetType,
         bundle: AssetBundle,
         source: AssetSource,
     ) -> Result<SlotId, AssetError> {
@@ -138,7 +138,7 @@ impl AssetManager {
         if let Some(bundle_entry) = self.bundles.get_mut(id) {
             let slot = self.entries.add(AssetEntry {
                 name: name.into(),
-                ty: asset,
+                ty,
                 slot: SlotId::null(),
                 source,
                 bundle,
@@ -179,16 +179,18 @@ impl AssetManager {
         ty: <H as AssetHandle>::TypeHandle,
         name: &str,
         bundle: AssetBundle,
-        data: <<H as AssetHandle>::TypeHandle>::Data,
+        data: <H::TypeHandle as AssetTypeHandle>::Data,
     ) -> Result<H, AssetError> {
         if self.find::<H>(name).is_some() {
             return Err(AssetError::DuplicatedAssetEntry);
         }
-        let id = self.add_entry(name, ty.id(), bundle, AssetSource::IO)?;
+        let id = self.add_entry(name, AssetType(ty.id()), bundle, AssetSource::IO)?;
         // TODO: preload asset in container ? wait for read ? define proper strategy
-        if let Some(container) = self.containers.get_mut(ty.id().0) {
-            self.entries[id].slot =
-                <H>::insert_container(PrivateAnyAssetContainerMut(container.as_mut()), data);
+        if let Some(container) = self.containers.get_mut(ty.id()) {
+            self.entries[id].slot = <H::TypeHandle as AssetTypeHandle>::insert_container(
+                PrivateAnyAssetContainerMut(container.as_mut()),
+                data,
+            );
             Ok(<H>::new(id))
         } else {
             // TODO: report proper error (not sync with registry ?)
@@ -213,29 +215,29 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn find<H: AssetTypeHandle>(&self, name: &str) -> Option<H> {
+    pub fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.name.as_str() == name)
             .filter(|(_, entry)| {
-                H::check_type(PrivateAnyAssetContainerRef(
+                <H::TypeHandle>::check_type(PrivateAnyAssetContainerRef(
                     self.containers.get(entry.ty.0).unwrap().as_ref(),
                 ))
             })
-            .map(|(id, _)| H::new(AssetType(id)))
+            .map(|(id, _)| H::new(id))
     }
 
-    pub fn info<H: AssetTypeHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
+    pub fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
         let id = handle.id();
         self.entries
-            .get(id.0)
+            .get(id)
             .map(|entry| AssetInfo { name: &entry.name })
             .ok_or(AssetError::AssetNotFound)
     }
 
-    pub fn read<H: AssetTypeHandle>(&self, handle: H) -> Result<H::Ref<'_>, AssetError> {
+    pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::Ref<'_>, AssetError> {
         let id = handle.id();
-        let entry = self.entries.get(id.0).ok_or(AssetError::AssetNotFound)?;
+        let entry = self.entries.get(id).ok_or(AssetError::AssetNotFound)?;
         if !entry.slot.is_null() {
             Ok(handle.asset_ref(
                 entry.slot,
@@ -246,11 +248,7 @@ impl AssetManager {
         }
     }
 
-    pub fn write<H: AssetTypeHandle>(
-        &self,
-        handle: H,
-        asset: H::Ref<'_>,
-    ) -> Result<(), AssetError> {
+    pub fn write<H: AssetHandle>(&self, handle: H, asset: H::Ref<'_>) -> Result<(), AssetError> {
         Ok(())
     }
 

@@ -100,13 +100,13 @@ impl ECSManager {
         // TODO: protect against infinite loops
         loop {
             // Check registry update
+            if context.registry.assets.changed {
+                context.asset.on_registry_update(&context.registry.assets);
+                context.registry.assets.changed = false;
+            }
             if context.registry.systems.changed || context.registry.components.changed {
                 // Update ECS
                 self.on_registry_update(context.registry)?;
-                // Update assets
-                context
-                    .asset
-                    .on_registry_update(&context.registry.components);
                 context.registry.systems.changed = false;
                 context.registry.components.changed = false;
             }

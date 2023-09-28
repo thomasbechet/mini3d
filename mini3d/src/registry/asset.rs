@@ -47,15 +47,9 @@ impl<A: AssetData> Default for StaticAssetType<A> {
 }
 
 pub trait AssetTypeHandle: Copy {
-    type Ref<'a>;
     type Data: Default;
     fn new(id: SlotId) -> Self;
     fn id(&self) -> SlotId;
-    fn asset_ref<'a>(
-        &self,
-        slot: SlotId,
-        container: PrivateAnyAssetContainerRef<'a>,
-    ) -> Self::Ref<'a>;
     fn insert_container(container: PrivateAnyAssetContainerMut, data: Self::Data) -> SlotId;
     fn remove_container(container: PrivateAnyAssetContainerMut, slot: SlotId);
     fn check_type(container: PrivateAnyAssetContainerRef) -> bool;
@@ -63,7 +57,6 @@ pub trait AssetTypeHandle: Copy {
 }
 
 impl AssetTypeHandle for AssetType {
-    type Ref<'a> = ();
     type Data = ();
 
     fn new(id: SlotId) -> Self {
@@ -72,14 +65,6 @@ impl AssetTypeHandle for AssetType {
 
     fn id(&self) -> SlotId {
         self.0
-    }
-
-    fn asset_ref<'a>(
-        &self,
-        slot: SlotId,
-        container: PrivateAnyAssetContainerRef<'a>,
-    ) -> Self::Ref<'a> {
-        todo!()
     }
 
     fn insert_container(container: PrivateAnyAssetContainerMut, data: Self::Data) -> SlotId {
@@ -100,7 +85,6 @@ impl AssetTypeHandle for AssetType {
 }
 
 impl<A: AssetData> AssetTypeHandle for StaticAssetType<A> {
-    type Ref<'a> = &'a A;
     type Data = A;
 
     fn new(id: SlotId) -> Self {
@@ -112,21 +96,6 @@ impl<A: AssetData> AssetTypeHandle for StaticAssetType<A> {
 
     fn id(&self) -> SlotId {
         self.id.0
-    }
-
-    fn asset_ref<'a>(
-        &self,
-        slot: SlotId,
-        container: PrivateAnyAssetContainerRef<'a>,
-    ) -> Self::Ref<'a> {
-        container
-            .0
-            .as_any()
-            .downcast_ref::<StaticAssetContainer<A>>()
-            .expect("Invalid static asset container")
-            .0
-            .get(slot)
-            .expect("Asset not found in container")
     }
 
     fn insert_container(container: PrivateAnyAssetContainerMut, asset: Self::Data) -> SlotId {
