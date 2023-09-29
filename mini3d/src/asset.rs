@@ -5,12 +5,14 @@ use crate::registry::component::ComponentRegistry;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::string::AsciiArray;
+use crate::utils::uid::UID;
 
 use self::container::AnyAssetContainer;
 use self::error::AssetError;
 use self::handle::{
     AssetBundle, AssetHandle, PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef,
 };
+use self::reference::AssetRefTrait;
 
 pub mod container;
 pub mod error;
@@ -216,16 +218,12 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn find<H: AssetHandle>(&self, name: &str) -> Option<H> {
-        self.entries
+    pub fn find<H: AssetRefTrait>(&self, name: &str) -> Option<H> {
+        let entry = self
+            .entries
             .iter()
             .find(|(_, entry)| entry.name.as_str() == name)
-            .filter(|(_, entry)| {
-                <H::TypeHandle>::check_type(PrivateAnyAssetContainerRef(
-                    self.containers.get(entry.ty.0).unwrap().as_ref(),
-                ))
-            })
-            .map(|(id, _)| H::new(id))
+            .map(|(id, entry)| H::new(id, entry.ty.0, entry.name.as_str().into()))
     }
 
     pub fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
