@@ -84,8 +84,8 @@ impl ECSManager {
         &mut self,
         registry: &RegistryManager,
     ) -> Result<(), RegistryError> {
-        self.scheduler.on_registry_update(&registry.systems);
-        self.containers.on_registry_update(&registry.components);
+        self.scheduler.on_registry_update(&registry.system);
+        self.containers.on_registry_update(&registry.component);
         self.instances
             .on_registry_update(registry, &mut self.entities, &mut self.queries)?;
         Ok(())
@@ -100,15 +100,15 @@ impl ECSManager {
         // TODO: protect against infinite loops
         loop {
             // Check registry update
-            if context.registry.assets.changed {
-                context.asset.on_registry_update(&context.registry.assets);
-                context.registry.assets.changed = false;
+            if context.registry.asset.changed {
+                context.asset.on_registry_update(&context.registry.asset);
+                context.registry.asset.changed = false;
             }
-            if context.registry.systems.changed || context.registry.components.changed {
+            if context.registry.system.changed || context.registry.component.changed {
                 // Update ECS
                 self.on_registry_update(context.registry)?;
-                context.registry.systems.changed = false;
-                context.registry.components.changed = false;
+                context.registry.system.changed = false;
+                context.registry.component.changed = false;
             }
 
             // Acquire next node

@@ -1,25 +1,22 @@
 use core::result::Result;
 
-use crate::registry::asset::{AssetRegistry, AssetType, AssetTypeHandle};
+use crate::registry::asset::{AssetReferenceTrait, AssetRegistry, AssetType, AssetTypeTrait};
 use crate::registry::component::ComponentRegistry;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
-use crate::utils::string::AsciiArray;
-use crate::utils::uid::UID;
+use crate::utils::uid::ToUID;
 
-use self::container::AnyAssetContainer;
-use self::error::AssetError;
-use self::handle::{
-    AssetBundle, AssetHandle, PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef,
+use self::container::{
+    AnyAssetContainer, PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef,
 };
-use self::reference::AssetRefTrait;
+use self::error::AssetError;
+use self::handle::AssetHandle;
+use self::key::AssetKey;
 
 pub mod container;
 pub mod error;
 pub mod handle;
-pub mod reference;
-
-type AssetEntryId = SlotId;
+pub mod key;
 
 pub(crate) enum AssetSource {
     Persistent,
@@ -27,43 +24,27 @@ pub(crate) enum AssetSource {
 }
 
 pub struct AssetInfo<'a> {
-    pub name: &'a str,
+    pub key: &'a str,
 }
 
-pub(crate) const MAX_ASSET_NAME_LEN: usize = 64;
-
 struct AssetEntry {
-    name: AsciiArray<MAX_ASSET_NAME_LEN>,
+    key: AssetKey,
     ty: AssetType,
     slot: SlotId, // Null if not loaded
     source: AssetSource,
-    bundle: AssetBundle,
-    next_in_bundle: AssetEntryId,
-    prev_in_bundle: AssetEntryId,
-}
-
-pub(crate) const MAX_ASSET_BUNDLE_NAME_LEN: usize = 64;
-
-struct AssetBundleEntry {
-    name: AsciiArray<MAX_ASSET_BUNDLE_NAME_LEN>,
-    first_entry: AssetEntryId, // Null if empty
 }
 
 pub struct AssetManager {
     containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // AssetType -> Container
-    bundles: DenseSlotMap<AssetBundleEntry>,                    // AssetBundleId -> AssetBundle
     entries: DenseSlotMap<AssetEntry>,                          // AssetType -> AssetEntry
 }
 
 impl Default for AssetManager {
     fn default() -> Self {
-        let mut manager = Self {
+        Self {
             containers: Default::default(),
-            bundles: Default::default(),
             entries: Default::default(),
-        };
-        manager.add_bundle(AssetBundle::DEFAULT).unwrap();
-        manager
+        }
     }
 }
 
@@ -130,160 +111,103 @@ impl AssetManager {
         }
     }
 
-    fn add_entry(
+    pub fn add<T: AssetTypeTrait>(
         &mut self,
-        name: &str,
-        ty: AssetType,
-        bundle: AssetBundle,
-        source: AssetSource,
-    ) -> Result<SlotId, AssetError> {
-        let id = bundle.0;
-        if let Some(bundle_entry) = self.bundles.get_mut(id) {
-            let slot = self.entries.add(AssetEntry {
-                name: name.into(),
-                ty,
-                slot: SlotId::null(),
-                source,
-                bundle,
-                next_in_bundle: SlotId::null(),
-                prev_in_bundle: SlotId::null(),
-            });
-            // Update chain list
-            if !bundle_entry.first_entry.is_null() {
-                self.entries[bundle_entry.first_entry].prev_in_bundle = slot;
-                self.entries[slot].next_in_bundle = bundle_entry.first_entry;
-            }
-            bundle_entry.first_entry = slot;
-            Ok(slot)
-        } else {
-            Err(AssetError::BundleNotFound)
-        }
-    }
-
-    fn remove_entry(&mut self, slot: SlotId) {
-        let bundle = self.entries[slot].bundle;
-        // Remove from chain
-        let next = self.entries[slot].next_in_bundle;
-        let prev = self.entries[slot].prev_in_bundle;
-        if prev.is_null() {
-            self.bundles[bundle.0].first_entry = next;
-        } else {
-            self.entries[prev].next_in_bundle = next;
-        }
-        if !next.is_null() {
-            self.entries[next].prev_in_bundle = prev;
-        }
-        // Remove entry
-        self.entries.remove(slot);
-    }
-
-    pub fn add<H: AssetHandle>(
-        &mut self,
-        ty: <H as AssetHandle>::TypeHandle,
-        name: &str,
-        bundle: AssetBundle,
-        data: <H::TypeHandle as AssetTypeHandle>::Data,
-    ) -> Result<H, AssetError> {
-        if self.find::<H>(name).is_some() {
+        ty: T,
+        key: &str,
+        data: T::Data,
+    ) -> Result<AssetHandle, AssetError> {
+        if self.find(key).is_some() {
             return Err(AssetError::DuplicatedAssetEntry);
         }
-        let id = self.add_entry(name, AssetType(ty.id()), bundle, AssetSource::IO)?;
+        let id = self.entries.add(AssetEntry {
+            key: AssetKey::new(key),
+            ty: AssetType(ty.id()),
+            slot: SlotId::null(),
+            source: AssetSource::Persistent,
+        });
         // TODO: preload asset in container ? wait for read ? define proper strategy
         if let Some(container) = self.containers.get_mut(ty.id()) {
-            self.entries[id].slot = <H::TypeHandle as AssetTypeHandle>::insert_container(
-                PrivateAnyAssetContainerMut(container.as_mut()),
-                data,
-            );
-            Ok(<H>::new(id))
+            self.entries[id].slot =
+                T::insert_container(PrivateAnyAssetContainerMut(container.as_mut()), data);
+            Ok(AssetHandle {
+                id,
+                key: key.to_uid(),
+            })
         } else {
             // TODO: report proper error (not sync with registry ?)
             Err(AssetError::AssetTypeNotFound)
         }
     }
 
-    pub fn remove<H: AssetTypeHandle>(&mut self, handle: H) -> Result<(), AssetError> {
-        let id = handle.id();
-        if !self.entries.contains(id) {
+    pub fn remove(&mut self, handle: AssetHandle) -> Result<(), AssetError> {
+        if !self.entries.contains(handle.id) {
             return Err(AssetError::AssetNotFound);
         }
         // TODO: remove cached data from container
-        if !self.entries[id].slot.is_null() {
-            <H>::remove_container(
-                PrivateAnyAssetContainerMut(self.containers.get_mut(id).unwrap().as_mut()),
-                self.entries[id].slot,
-            );
+        if !self.entries[handle.id].slot.is_null() {
+            self.containers
+                .get_mut(handle.id)
+                .unwrap()
+                .remove(self.entries[handle.id].slot);
         }
         // Remove entry
-        self.remove_entry(id);
+        self.entries.remove(handle.id);
         Ok(())
     }
 
-    pub fn find<H: AssetRefTrait>(&self, name: &str) -> Option<H> {
+    pub fn load<T: AssetTypeTrait>(
+        &mut self,
+        handle: AssetHandle,
+    ) -> Result<T::Ref<'_>, AssetError> {
         let entry = self
             .entries
-            .iter()
-            .find(|(_, entry)| entry.name.as_str() == name)
-            .map(|(id, entry)| H::new(id, entry.ty.0, entry.name.as_str().into()))
-    }
-
-    pub fn info<H: AssetHandle>(&self, handle: H) -> Result<AssetInfo, AssetError> {
-        let id = handle.id();
-        self.entries
-            .get(id)
-            .map(|entry| AssetInfo { name: &entry.name })
-            .ok_or(AssetError::AssetNotFound)
-    }
-
-    pub fn read<H: AssetHandle>(&self, handle: H) -> Result<H::Ref<'_>, AssetError> {
-        let id = handle.id();
-        let entry = self.entries.get(id).ok_or(AssetError::AssetNotFound)?;
+            .get(handle.id)
+            .ok_or(AssetError::AssetNotFound)?;
         if !entry.slot.is_null() {
-            Ok(handle.asset_ref(
-                entry.slot,
+            Ok(T::asset_ref(
                 PrivateAnyAssetContainerRef(self.containers[entry.ty.0].as_ref()),
+                entry.slot,
             ))
         } else {
-            Err(AssetError::AssetNotFound) // TODO: load the asset from source
+            todo!("Load asset from source")
         }
     }
 
-    pub fn write<H: AssetHandle>(&self, handle: H, asset: H::Ref<'_>) -> Result<(), AssetError> {
-        Ok(())
+    pub fn read<T: AssetReferenceTrait>(
+        &self,
+        handle: AssetHandle,
+    ) -> Result<<T::AssetType as AssetTypeTrait>::Ref<'_>, AssetError> {
+        let entry = self
+            .entries
+            .get(handle.id)
+            .ok_or(AssetError::AssetNotFound)?;
+        if !entry.slot.is_null() {
+            Ok(<T::AssetType as AssetTypeTrait>::asset_ref(
+                PrivateAnyAssetContainerRef(self.containers[entry.ty.0].as_ref()),
+                entry.slot,
+            ))
+        } else {
+            Err(AssetError::AssetNotLoaded)
+        }
     }
 
-    pub fn add_bundle(&mut self, name: &str) -> Result<AssetBundle, AssetError> {
-        if self
-            .bundles
-            .values()
-            .any(|entry| entry.name.as_str() == name)
-        {
-            return Err(AssetError::DuplicatedBundle);
-        }
-        let slot = self.bundles.add(AssetBundleEntry {
-            name: name.into(),
-            first_entry: SlotId::null(),
-        });
-        Ok(AssetBundle(slot))
-    }
-
-    pub fn remove_bundle(&mut self, bundle: AssetBundle) -> Result<(), AssetError> {
-        let id = bundle.0;
-        if !self.bundles.contains(id) {
-            return Err(AssetError::BundleNotFound);
-        }
-        // Remove all entries
-        while !self.bundles[id].first_entry.is_null() {
-            self.remove_entry(self.bundles[id].first_entry);
-        }
-        // Remove bundle
-        self.bundles.remove(id);
-        Ok(())
-    }
-
-    pub fn find_bundle(&self, name: &str) -> Option<AssetBundle> {
-        self.bundles
+    pub fn find(&self, key: impl ToUID) -> Option<AssetHandle> {
+        self.entries
             .iter()
-            .find(|(_, entry)| entry.name.as_str() == name)
-            .map(|(id, _)| AssetBundle(id))
+            .find(|(_, entry)| entry.key.to_uid() == key.to_uid())
+            .map(|(id, entry)| AssetHandle {
+                id,
+                key: entry.key.to_uid(),
+            })
+    }
+
+    pub fn info(&self, handle: AssetHandle) -> Result<AssetInfo, AssetError> {
+        self.entries
+            .get(handle.id)
+            .map(|entry| AssetInfo {
+                key: entry.key.as_str(),
+            })
+            .ok_or(AssetError::AssetNotFound)
     }
 }

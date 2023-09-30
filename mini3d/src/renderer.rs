@@ -1,4 +1,4 @@
-use crate::asset::handle::{AssetHandle, StaticAsset};
+use crate::asset::handle::AssetHandle;
 use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
 use crate::ecs::ECSManager;
@@ -112,48 +112,48 @@ pub(crate) struct RendererResourceManager {
 }
 
 fn load_font(
-    handle: StaticAsset<Font>,
+    handle: AssetHandle,
     provider: &mut dyn RendererProvider,
     asset: &AssetManager,
 ) -> Result<RendererFont, RendererProviderError> {
-    let font = asset.read(handle).unwrap();
+    let font = asset.read::<Font>(handle).unwrap();
     let atlas = FontAtlas::new(font);
     let handle = provider.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(
-    handle: StaticAsset<Mesh>,
+    handle: AssetHandle,
     provider: &mut dyn RendererProvider,
     asset: &AssetManager,
 ) -> Result<RendererMesh, RendererProviderError> {
-    let mesh = asset.read(handle).unwrap();
+    let mesh = asset.read::<Mesh>(handle).unwrap();
     let handle = provider.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(
-    handle: StaticAsset<Texture>,
+    handle: AssetHandle,
     provider: &mut dyn RendererProvider,
     asset: &AssetManager,
 ) -> Result<RendererTexture, RendererProviderError> {
-    let texture = asset.read(handle).unwrap();
+    let texture = asset.read::<Texture>(handle).unwrap();
     let handle = provider.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(
-    handle: StaticAsset<Material>,
+    handle: AssetHandle,
     textures: &SecondaryMap<RendererTexture>,
     provider: &mut dyn RendererProvider,
     asset: &AssetManager,
 ) -> Result<RendererMaterial, RendererProviderError> {
-    let material = asset.read(handle).unwrap();
+    let material = asset.read::<Material>(handle).unwrap();
     let info = asset.info(handle).unwrap();
-    let diffuse = textures.get(material.diffuse.id()).unwrap().handle;
+    let diffuse = textures.get(material.diffuse.id).unwrap().handle;
     let handle = provider.material_add(ProviderMaterialDescriptor {
         diffuse,
-        name: info.name,
+        name: info.key,
     })?;
     Ok(RendererMaterial { handle })
 }
@@ -168,65 +168,65 @@ impl RendererResourceManager {
 
     pub(crate) fn request_font(
         &mut self,
-        handle: StaticAsset<Font>,
+        handle: AssetHandle,
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererFont, RendererProviderError> {
-        if self.fonts.contains(handle.id()) {
-            return Ok(self.fonts.get(handle.id()).unwrap());
+        if self.fonts.contains(handle.id) {
+            return Ok(self.fonts.get(handle.id).unwrap());
         }
         let font = load_font(handle, provider, asset)?;
-        self.fonts.insert(handle.id(), font);
-        Ok(self.fonts.get(handle.id()).unwrap())
+        self.fonts.insert(handle.id, font);
+        Ok(self.fonts.get(handle.id).unwrap())
     }
 
     pub(crate) fn request_mesh(
         &mut self,
-        handle: StaticAsset<Mesh>,
+        handle: AssetHandle,
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererMesh, RendererProviderError> {
-        if self.meshes.contains(handle.id()) {
-            return Ok(self.meshes.get(handle.id()).unwrap());
+        if self.meshes.contains(handle.id) {
+            return Ok(self.meshes.get(handle.id).unwrap());
         }
         self.meshes
-            .insert(handle.id(), load_mesh(handle, provider, asset)?);
-        Ok(self.meshes.get(handle.id()).unwrap())
+            .insert(handle.id, load_mesh(handle, provider, asset)?);
+        Ok(self.meshes.get(handle.id).unwrap())
     }
 
     pub(crate) fn request_texture(
         &mut self,
-        handle: StaticAsset<Texture>,
+        handle: AssetHandle,
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererTexture, RendererProviderError> {
-        if self.textures.contains(handle.id()) {
-            return Ok(self.textures.get(handle.id()).unwrap());
+        if self.textures.contains(handle.id) {
+            return Ok(self.textures.get(handle.id).unwrap());
         }
         self.textures
-            .insert(handle.id(), load_texture(handle, provider, asset)?);
-        Ok(self.textures.get(handle.id()).unwrap())
+            .insert(handle.id, load_texture(handle, provider, asset)?);
+        Ok(self.textures.get(handle.id).unwrap())
     }
 
     pub(crate) fn request_material(
         &mut self,
-        handle: StaticAsset<Material>,
+        handle: AssetHandle,
         provider: &mut dyn RendererProvider,
         asset: &AssetManager,
     ) -> Result<&RendererMaterial, RendererProviderError> {
-        if self.materials.contains(handle.id()) {
-            return Ok(self.materials.get(handle.id()).unwrap());
+        if self.materials.contains(handle.id) {
+            return Ok(self.materials.get(handle.id).unwrap());
         }
-        let material = asset.read(handle).unwrap();
-        if !self.textures.contains(material.diffuse.id()) {
+        let material = asset.read::<Material>(handle).unwrap();
+        if !self.textures.contains(material.diffuse.id) {
             let diffuse = load_texture(material.diffuse, provider, asset)?;
-            self.textures.insert(material.diffuse.id(), diffuse);
+            self.textures.insert(material.diffuse.id, diffuse);
         }
         self.materials.insert(
-            handle.id(),
+            handle.id,
             load_material(handle, &self.textures, provider, asset)?,
         );
-        Ok(self.materials.get(handle.id()).unwrap())
+        Ok(self.materials.get(handle.id).unwrap())
     }
 }
 
@@ -266,18 +266,18 @@ impl RendererManager {
         &mut self,
         registry: &RegistryManager,
     ) -> Result<(), RegistryError> {
-        self.camera = registry.components.find(Camera::NAME).unwrap_or_default();
+        self.camera = registry.component.find(Camera::NAME).unwrap_or_default();
         self.static_mesh = registry
-            .components
+            .component
             .find(StaticMesh::NAME)
             .unwrap_or_default();
-        self.canvas = registry.components.find(Canvas::NAME).unwrap_or_default();
+        self.canvas = registry.component.find(Canvas::NAME).unwrap_or_default();
         self.local_to_world = registry
-            .components
+            .component
             .find(LocalToWorld::NAME)
             .unwrap_or_default();
-        self.viewport = registry.components.find(Viewport::NAME).unwrap_or_default();
-        self.model = registry.assets.find(Model::NAME).unwrap_or_default();
+        self.viewport = registry.component.find(Viewport::NAME).unwrap_or_default();
+        self.model = registry.asset.find(Model::NAME).unwrap_or_default();
         Ok(())
     }
 

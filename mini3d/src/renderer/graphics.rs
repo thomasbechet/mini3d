@@ -2,12 +2,12 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    asset::{handle::StaticAsset, AssetManager},
+    asset::{handle::AssetHandle, AssetManager},
     ecs::{
         entity::Entity,
         view::single::{StaticSingleView, StaticSingleViewRef},
     },
-    feature::renderer::{font::Font, texture::Texture, viewport::Viewport},
+    feature::renderer::viewport::Viewport,
     math::rect::IRect,
 };
 
@@ -30,10 +30,10 @@ enum Command {
         position: IVec2,
         start: usize,
         stop: usize,
-        font: StaticAsset<Font>,
+        font: AssetHandle,
     },
     BlitTexture {
-        texture: StaticAsset<Texture>,
+        texture: AssetHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
@@ -179,7 +179,7 @@ impl Graphics {
         Ok(())
     }
 
-    pub fn print(&mut self, position: IVec2, text: &str, font: StaticAsset<Font>) {
+    pub fn print(&mut self, position: IVec2, text: &str, font: AssetHandle) {
         let start = self.text_buffer.len();
         self.text_buffer.push_str(text);
         let stop = self.text_buffer.len();
@@ -193,7 +193,7 @@ impl Graphics {
 
     pub fn blit_texture(
         &mut self,
-        texture: StaticAsset<Texture>,
+        texture: AssetHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,

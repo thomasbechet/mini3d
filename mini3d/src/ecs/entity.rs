@@ -1,5 +1,5 @@
 use crate::{
-    registry::component::{ComponentTypeHandle, PrivateComponentTableMut},
+    registry::component::{ComponentTypeTrait, PrivateComponentTableMut},
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
 };
 
@@ -165,7 +165,7 @@ impl<'a> EntityBuilder<'a> {
         }
     }
 
-    pub fn with<H: ComponentTypeHandle>(mut self, component: H, data: H::Data) -> Self {
+    pub fn with<H: ComponentTypeTrait>(mut self, component: H, data: H::Data) -> Self {
         self.archetype =
             self.entities
                 .archetypes
@@ -179,15 +179,15 @@ impl<'a> EntityBuilder<'a> {
         self
     }
 
-    pub fn with_array<H: ComponentTypeHandle>(mut self, component: H, data: &[H::Data]) -> Self {
+    pub fn with_array<H: ComponentTypeTrait>(mut self, component: H, data: &[H::Data]) -> Self {
         self
     }
 
-    pub fn with_list<H: ComponentTypeHandle>(mut self, component: H, data: &[H::Data]) -> Self {
+    pub fn with_list<H: ComponentTypeTrait>(mut self, component: H, data: &[H::Data]) -> Self {
         self
     }
 
-    pub fn with_map<H: ComponentTypeHandle>(
+    pub fn with_map<H: ComponentTypeTrait>(
         mut self,
         component: H,
         data: &[(Entity, H::Data)],
@@ -195,7 +195,7 @@ impl<'a> EntityBuilder<'a> {
         self
     }
 
-    pub fn with_default<H: ComponentTypeHandle>(self, component: H) -> Self {
+    pub fn with_default<H: ComponentTypeTrait>(self, component: H) -> Self {
         self.with(component, H::Data::default())
     }
 

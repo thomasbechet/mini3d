@@ -6,7 +6,7 @@ use crate::{
         query::{FilterQuery, Query, QueryTable},
         scheduler::{Invocation, Scheduler},
     },
-    registry::{component::ComponentTypeHandle, error::RegistryError},
+    registry::{component::ComponentTypeTrait, error::RegistryError},
     utils::uid::{ToUID, UID},
 };
 
@@ -27,13 +27,13 @@ impl<'a> ECS<'a> {
         self.entities.remove(entity, self.containers)
     }
 
-    pub fn view<H: ComponentTypeHandle>(&self, component: H) -> H::SingleViewRef<'_> {
+    pub fn view<H: ComponentTypeTrait>(&self, component: H) -> H::SingleViewRef<'_> {
         self.containers
             .view(component)
             .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
     }
 
-    pub fn view_mut<H: ComponentTypeHandle>(&self, component: H) -> H::SingleViewMut<'_> {
+    pub fn view_mut<H: ComponentTypeTrait>(&self, component: H) -> H::SingleViewMut<'_> {
         self.containers
             .view_mut(component, self.cycle)
             .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
@@ -62,35 +62,3 @@ impl<'a> ECS<'a> {
         self.queries.filter_queries[query.0].pool.iter().copied()
     }
 }
-
-// pub struct ParallelECS<'a> {
-//     pub(crate) containers: &'a ContainerTable,
-//     pub(crate) entities: &'a EntityTable,
-//     pub(crate) queries: &'a QueryTable,
-//     pub(crate) cycle: u32,
-// }
-
-// impl<'a> ParallelECS<'a> {
-//     pub fn view<H: ComponentHandle>(&self, component: H) -> H::ViewRef<'_> {
-//         self.containers
-//             .view(component)
-//             .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
-//     }
-
-//     pub fn view_mut<H: ComponentHandle>(&self, component: H) -> H::ViewMut<'_> {
-//         self.containers
-//             .view_mut(component, self.cycle)
-//             .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
-//     }
-
-//     pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {
-//         self.queries.entries[query.0]
-//             .archetypes
-//             .iter()
-//             .flat_map(|archetype| self.entities.iter_pool_entities(*archetype))
-//     }
-
-//     pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
-//         self.queries.filter_queries[query.0].pool.iter().copied()
-//     }
-// }

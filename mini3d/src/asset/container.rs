@@ -3,7 +3,10 @@ use std::{any::Any, collections::HashSet};
 use crate::{
     registry::datatype::StaticDataType,
     serialize::{Decoder, Encoder},
-    utils::{slotmap::SlotMap, uid::UID},
+    utils::{
+        slotmap::{SlotId, SlotMap},
+        uid::UID,
+    },
 };
 
 use super::error::AssetError;
@@ -17,6 +20,7 @@ pub(crate) struct StaticAssetContainer<D: StaticDataType>(pub(crate) SlotMap<D>)
 pub(crate) trait AnyAssetContainer: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn remove(&mut self, slot: SlotId);
     fn clear(&mut self);
     fn serialize_entries(
         &self,
@@ -37,6 +41,10 @@ impl<D: StaticDataType> AnyAssetContainer for StaticAssetContainer<D> {
 
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) {
         self
+    }
+
+    fn remove(&mut self, slot: SlotId) {
+        self.0.remove(slot);
     }
 
     fn clear(&mut self) {

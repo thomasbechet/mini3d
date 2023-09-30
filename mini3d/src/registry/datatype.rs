@@ -1,18 +1,25 @@
 use crate::{
-    asset::reference::AssetRef, ecs::entity::Entity, reflection::Reflect, serialize::Serialize,
+    ecs::entity::Entity,
+    reflection::Reflect,
+    serialize::Serialize,
+    utils::{slotmap::SlotId, uid::UID},
 };
 
 pub struct ReferenceResolver {}
 
 impl ReferenceResolver {
-    pub(crate) fn resolve_entity(&self, entity: Entity) -> Entity {
+    pub(crate) fn remap_entity(&self, entity: Entity) -> Entity {
         // TODO: resolve entity or log error ? panic in runtime ?
         entity
     }
 
-    pub(crate) fn resolve_asset(&self, reference: AssetRef) -> AssetRef {
+    pub(crate) fn resolve_asset_id(&self, uid: UID) -> SlotId {
         // TODO: resolve asse tor log error ? panic in runtime ?
-        reference
+        SlotId::null()
+    }
+
+    pub(crate) fn remap_asset_key(&self, id: SlotId) -> UID {
+        UID::null()
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{asset::AssetManager, utils::uid::ToUID};
+use crate::{asset::AssetManager, feature::common::script::Script, utils::uid::ToUID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -79,13 +79,15 @@ impl Compiler {
         while i < self.compilation_unit.len() {
             let module = self.compilation_unit.get(i);
             match self.modules.get(module).unwrap() {
-                Module::Source { asset } => self.source_compiler.resolve_cu_and_exports(
-                    assets,
-                    *asset,
-                    &mut self.modules,
-                    module,
-                    &mut self.compilation_unit,
-                )?,
+                Module::Source { asset } => {
+                    let script = assets.read::<Script>(*asset).unwrap();
+                    self.source_compiler.resolve_cu_and_exports(
+                        script,
+                        &mut self.modules,
+                        module,
+                        &mut self.compilation_unit,
+                    )?;
+                }
                 Module::Node { .. } => unimplemented!(),
                 Module::Interface { .. } => unimplemented!(),
                 Module::Builtin { .. } => unimplemented!(),
@@ -100,13 +102,11 @@ impl Compiler {
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
-                Module::Source { asset } => self.source_compiler.generate_mir(
-                    assets,
-                    *asset,
-                    &self.modules,
-                    *module,
-                    mir,
-                )?,
+                Module::Source { asset } => {
+                    let script = assets.read::<Script>(*asset).unwrap();
+                    self.source_compiler
+                        .generate_mir(script, &self.modules, *module, mir)?;
+                }
                 Module::Node { .. } => unimplemented!(),
                 Module::Interface { .. } => unimplemented!(),
                 Module::Builtin { .. } => unimplemented!(),

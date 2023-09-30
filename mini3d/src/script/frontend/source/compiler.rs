@@ -1,5 +1,4 @@
 use crate::{
-    asset::{handle::StaticAsset, AssetManager},
     feature::common::script::Script,
     script::{
         compiler::CompilationUnit,
@@ -45,19 +44,13 @@ impl SourceCompiler {
 
     pub(crate) fn resolve_cu_and_exports(
         &mut self,
-        assets: &AssetManager,
-        script: StaticAsset<Script>,
+        script: &Script,
         modules: &mut ModuleTable,
         module: ModuleId,
         compilation_unit: &mut CompilationUnit,
     ) -> Result<(), CompileError> {
         // Build source stream
-        let mut stream = SourceStream::new(
-            &assets
-                .read(script)
-                .map_err(|_| CompileError::ScriptNotFound)?
-                .source,
-        );
+        let mut stream = SourceStream::new(&script.source);
         // Find imports and exports
         ImportExportParser::<SourceStream>::evaluate(
             &mut self.strings,
@@ -72,8 +65,7 @@ impl SourceCompiler {
 
     pub(crate) fn generate_mir(
         &mut self,
-        assets: &AssetManager,
-        script: StaticAsset<Script>,
+        script: &Script,
         modules: &ModuleTable,
         module: ModuleId,
         mir: &mut MIR,
@@ -81,12 +73,7 @@ impl SourceCompiler {
         // Prepare compiler
         self.prepare();
         // Build source stream
-        let mut stream = SourceStream::new(
-            &assets
-                .read(script)
-                .map_err(|_| CompileError::ScriptNotFound)?
-                .source,
-        );
+        let mut stream = SourceStream::new(&script.source);
         // Generate AST
         ASTParser::<SourceStream>::evaluate(
             &mut self.ast,

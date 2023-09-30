@@ -9,7 +9,9 @@ use crate::{
     registry::{component::StaticComponentType, error::RegistryError, system::ExclusiveSystem},
 };
 
-use super::{camera::Camera, canvas::Canvas, static_mesh::StaticMesh, viewport::Viewport};
+use super::{
+    camera::Camera, canvas::Canvas, model::Model, static_mesh::StaticMesh, viewport::Viewport,
+};
 
 #[derive(Default)]
 pub struct SynchronizeRendererResources {
@@ -122,7 +124,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         }
         for e in ecs.filter_query(self.added_static_mesh) {
             let s = &mut static_meshes[e];
-            let model = expect!(ctx, ctx.asset.read(s.model));
+            let model = expect!(ctx, ctx.asset.read::<Model>(s.model));
             // Load mesh
             let mesh_handle = expect!(
                 ctx,

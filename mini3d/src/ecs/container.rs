@@ -4,7 +4,7 @@ use mini3d_derive::Serialize;
 
 use crate::{
     registry::component::{
-        ComponentRegistry, ComponentType, ComponentTypeHandle, PrivateComponentTableRef,
+        ComponentRegistry, ComponentType, ComponentTypeTrait, PrivateComponentTableRef,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
@@ -114,14 +114,14 @@ impl ContainerTable {
             .remove(entity);
     }
 
-    pub(crate) fn view<H: ComponentTypeHandle>(
+    pub(crate) fn view<H: ComponentTypeTrait>(
         &self,
         component: H,
     ) -> Result<H::SingleViewRef<'_>, ECSError> {
         component.single_view_ref(PrivateComponentTableRef(self))
     }
 
-    pub(crate) fn view_mut<H: ComponentTypeHandle>(
+    pub(crate) fn view_mut<H: ComponentTypeTrait>(
         &self,
         component: H,
         cycle: u32,

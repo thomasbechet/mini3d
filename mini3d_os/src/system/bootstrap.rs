@@ -1,5 +1,4 @@
 use mini3d::{
-    asset::handle::{AssetBundle, StaticAsset},
     ecs::{
         api::{context::Context, ecs::ECS},
         scheduler::Invocation,
@@ -18,8 +17,8 @@ use mini3d::{
     },
     glam::{IVec2, Quat, Vec3},
     info,
-    math::rect::IRect,
     registry::{
+        asset::StaticAssetType,
         component::{ComponentStorage, StaticComponentType},
         system::{ExclusiveSystem, SystemOrder, SystemStage},
     },
@@ -48,13 +47,13 @@ impl ExclusiveSystem for OSBootstrap {
         expect!(
             ctx,
             ctx.registry
-                .components
+                .component
                 .add_static::<OS>(OS::NAME, ComponentStorage::Single)
         );
         // Declare systems
         expect!(
             ctx,
-            ctx.registry.systems.add_static_exclusive::<OSInitialize>(
+            ctx.registry.system.add_static_exclusive::<OSInitialize>(
                 OSInitialize::NAME,
                 OSInitialize::NAME,
                 SystemOrder::default()
@@ -62,7 +61,7 @@ impl ExclusiveSystem for OSBootstrap {
         );
         expect!(
             ctx,
-            ctx.registry.systems.add_static_exclusive::<OSUpdate>(
+            ctx.registry.system.add_static_exclusive::<OSUpdate>(
                 OSUpdate::NAME,
                 SystemStage::UPDATE,
                 SystemOrder::default()
@@ -82,15 +81,9 @@ impl OSInitialize {
 
 impl OSInitialize {
     fn setup_assets(&self, ctx: &mut Context) {
-        let default_bundle = expect!(ctx, ctx.asset.find_bundle(AssetBundle::DEFAULT));
-
         // Register default font
-        let font: StaticComponentType<Font> = ctx.registry.components.find(Font::NAME).unwrap();
-        expect!(
-            ctx,
-            ctx.asset
-                .add(font, "default", default_bundle, Font::default())
-        );
+        let font: StaticAssetType<Font> = ctx.registry.asset.find(Font::NAME).unwrap();
+        expect!(ctx, ctx.asset.add(font, "default", Font::default()));
 
         // Register input tables
         expect!(
@@ -299,16 +292,13 @@ impl OSInitialize {
             })
         );
 
-        let texture: StaticComponentType<Texture> =
-            expect!(ctx, ctx.registry.components.find(Texture::NAME));
-        let mesh: StaticComponentType<Mesh> =
-            expect!(ctx, ctx.registry.components.find(Mesh::NAME));
-        let model: StaticComponentType<Model> =
-            expect!(ctx, ctx.registry.components.find(Model::NAME));
-        let material: StaticComponentType<Material> =
-            expect!(ctx, ctx.registry.components.find(Material::NAME));
-        let script: StaticComponentType<Script> =
-            expect!(ctx, ctx.registry.components.find(Script::NAME));
+        let texture: StaticAssetType<Texture> =
+            expect!(ctx, ctx.registry.asset.find(Texture::NAME));
+        let mesh: StaticAssetType<Mesh> = expect!(ctx, ctx.registry.asset.find(Mesh::NAME));
+        let model: StaticAssetType<Model> = expect!(ctx, ctx.registry.asset.find(Model::NAME));
+        let material: StaticAssetType<Material> =
+            expect!(ctx, ctx.registry.asset.find(Material::NAME));
+        let script: StaticAssetType<Script> = expect!(ctx, ctx.registry.asset.find(Script::NAME));
 
         // Import assets
         while let Some(import) = ctx.system.next_import() {
@@ -316,37 +306,23 @@ impl OSInitialize {
                 ImportAssetEvent::Material(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset
-                            .add(material, &entry.name, default_bundle, entry.data.clone(),)
+                        ctx.asset.add(material, &entry.name, entry.data.clone(),)
                     );
                 }
                 ImportAssetEvent::Mesh(entry) => {
                     info!(ctx, "Importing mesh: {}", entry.name);
-                    expect!(
-                        ctx,
-                        ctx.asset
-                            .add(mesh, &entry.name, default_bundle, entry.data.clone())
-                    );
+                    expect!(ctx, ctx.asset.add(mesh, &entry.name, entry.data.clone()));
                 }
                 ImportAssetEvent::Model(entry) => {
-                    expect!(
-                        ctx,
-                        ctx.asset
-                            .add(model, &entry.name, default_bundle, entry.data.clone())
-                    );
+                    expect!(ctx, ctx.asset.add(model, &entry.name, entry.data.clone()));
                 }
                 ImportAssetEvent::Script(entry) => {
-                    expect!(
-                        ctx,
-                        ctx.asset
-                            .add(script, &entry.name, default_bundle, entry.data.clone(),)
-                    );
+                    expect!(ctx, ctx.asset.add(script, &entry.name, entry.data.clone(),));
                 }
                 ImportAssetEvent::Texture(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset
-                            .add(texture, &entry.name, default_bundle, entry.data.clone(),)
+                        ctx.asset.add(texture, &entry.name, entry.data.clone(),)
                     );
                 }
                 _ => {}
@@ -363,7 +339,6 @@ impl OSInitialize {
             ctx.asset.add(
                 material,
                 "alfred_mat",
-                default_bundle,
                 Material {
                     diffuse: alfred_texture,
                 },
@@ -374,7 +349,6 @@ impl OSInitialize {
             ctx.asset.add(
                 material,
                 "car_mat",
-                default_bundle,
                 Material {
                     diffuse: car_texture,
                 },
@@ -385,7 +359,6 @@ impl OSInitialize {
             ctx.asset.add(
                 model,
                 "car_model",
-                default_bundle,
                 Model {
                     mesh: car_mesh,
                     materials: Vec::from([car_material]),
@@ -397,7 +370,6 @@ impl OSInitialize {
             ctx.asset.add(
                 model,
                 "alfred_model",
-                default_bundle,
                 Model {
                     mesh: alfred_mesh,
                     materials: Vec::from([alfred_material, alfred_material, alfred_material]),
@@ -409,25 +381,25 @@ impl OSInitialize {
     fn setup_scene(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Find components
         let transform: StaticComponentType<Transform> =
-            expect!(ctx, ctx.registry.components.find(Transform::NAME));
+            expect!(ctx, ctx.registry.component.find(Transform::NAME));
         let rotator: StaticComponentType<Rotator> =
-            expect!(ctx, ctx.registry.components.find(Rotator::NAME));
+            expect!(ctx, ctx.registry.component.find(Rotator::NAME));
         let static_mesh: StaticComponentType<StaticMesh> =
-            expect!(ctx, ctx.registry.components.find(StaticMesh::NAME));
+            expect!(ctx, ctx.registry.component.find(StaticMesh::NAME));
         let local_to_world: StaticComponentType<LocalToWorld> =
-            expect!(ctx, ctx.registry.components.find(LocalToWorld::NAME));
+            expect!(ctx, ctx.registry.component.find(LocalToWorld::NAME));
         let hierarchy: StaticComponentType<Hierarchy> =
-            expect!(ctx, ctx.registry.components.find(Hierarchy::NAME));
+            expect!(ctx, ctx.registry.component.find(Hierarchy::NAME));
         let camera: StaticComponentType<Camera> =
-            expect!(ctx, ctx.registry.components.find(Camera::NAME));
+            expect!(ctx, ctx.registry.component.find(Camera::NAME));
         let viewport: StaticComponentType<Viewport> =
-            expect!(ctx, ctx.registry.components.find(Viewport::NAME));
+            expect!(ctx, ctx.registry.component.find(Viewport::NAME));
         // let ui: StaticComponent<UI> = expect!(ctx, ctx.registry.components.find(UI::NAME));
         // let ui_render_target: StaticComponent<UIRenderTarget> =
         //     expect!(ctx, ctx.registry.components.find(UIRenderTarget::NAME));
         let free_fly: StaticComponentType<FreeFly> =
-            expect!(ctx, ctx.registry.components.find(FreeFly::NAME));
-        let os: StaticComponentType<OS> = expect!(ctx, ctx.registry.components.find(OS::NAME));
+            expect!(ctx, ctx.registry.component.find(FreeFly::NAME));
+        let os: StaticComponentType<OS> = expect!(ctx, ctx.registry.component.find(OS::NAME));
 
         let alfred_model = expect!(ctx, ctx.asset.find("alfred_model"));
         // let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));
@@ -713,15 +685,15 @@ impl ExclusiveSystem for OSInitialize {
         // Setup scene
         self.setup_scene(ecs, ctx);
 
-        let main_script: StaticAsset<Script> = ctx
+        let main_script = ctx
             .asset
             .find("main_script")
             .expect("Script 'main' not found");
-        let utils_script: StaticAsset<Script> = ctx
+        let utils_script = ctx
             .asset
             .find("utils_script")
             .expect("Script 'utils' not found");
-        let script = expect!(ctx, ctx.asset.read(main_script));
+        let script = expect!(ctx, ctx.asset.read::<Script>(main_script));
 
         println!("Script: {:?}", script.source);
         let mut compiler = Compiler::default();

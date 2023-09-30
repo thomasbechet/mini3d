@@ -1,7 +1,7 @@
 use crate::{
     feature::common::program::Program,
     registry::{
-        component::{ComponentRegistry, ComponentType, ComponentTypeHandle},
+        component::{ComponentRegistry, ComponentType, ComponentTypeTrait},
         error::RegistryError,
         system::{System, SystemRegistry},
         RegistryManager,
@@ -27,7 +27,7 @@ pub struct ExclusiveResolver<'a> {
 }
 
 impl<'a> ExclusiveResolver<'a> {
-    pub fn find<H: ComponentTypeHandle>(
+    pub fn find<H: ComponentTypeTrait>(
         &mut self,
         component: impl ToUID,
     ) -> Result<H, RegistryError> {
@@ -69,7 +69,7 @@ pub struct ParallelResolver<'a> {
 }
 
 impl<'a> ParallelResolver<'a> {
-    pub fn read<H: ComponentTypeHandle>(
+    pub fn read<H: ComponentTypeTrait>(
         &mut self,
         component: impl ToUID,
     ) -> Result<H, RegistryError> {
@@ -84,7 +84,7 @@ impl<'a> ParallelResolver<'a> {
         Ok(H::new(id))
     }
 
-    pub fn write<H: ComponentTypeHandle>(
+    pub fn write<H: ComponentTypeTrait>(
         &mut self,
         component: impl ToUID,
     ) -> Result<H, RegistryError> {
@@ -255,16 +255,16 @@ impl SystemInstanceTable {
         entities: &mut EntityTable,
         queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {
-        for id in registry.systems.systems.keys() {
+        for id in registry.system.systems.keys() {
             // Create instance if missing
             if !self.entries.contains(id) {
                 self.entries
-                    .insert(id, SystemInstanceEntry::new(System(id), &registry.systems));
+                    .insert(id, SystemInstanceEntry::new(System(id), &registry.system));
             }
 
             // TODO: check if system must be changed
             if self.entries[id].dirty {
-                self.entries[id].setup(&registry.components, entities, queries)?;
+                self.entries[id].setup(&registry.component, entities, queries)?;
                 self.entries[id].dirty = false;
             }
         }

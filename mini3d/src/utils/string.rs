@@ -5,6 +5,8 @@ use std::{
 
 use mini3d_derive::Error;
 
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+
 pub struct AsciiArray<const SIZE: usize> {
     data: [u8; SIZE],
     len: usize,
@@ -89,6 +91,28 @@ impl<const SIZE: usize> Deref for AsciiArray<SIZE> {
     type Target = str;
     fn deref(&self) -> &Self::Target {
         self.as_str()
+    }
+}
+
+impl<const SIZE: usize> Serialize for AsciiArray<SIZE> {
+    type Header = ();
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.as_str().serialize(encoder)
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        let mut array = Self::default();
+        array.len = decoder.read_u32()? as usize;
+        array.data.copy_from_slice(
+            decoder
+                .read_bytes(array.len)
+                .map_err(|_| DecoderError::CorruptedData)?,
+        );
+        Ok(array)
     }
 }
 

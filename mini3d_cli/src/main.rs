@@ -27,7 +27,7 @@ impl ExclusiveSystem for SpawnSystem {
         //     .add_static::<Transform>(Transform::NAME)
         //     .unwrap();
         let transforms: StaticComponentType<Transform> =
-            ctx.registry.components.find(Transform::NAME).unwrap();
+            ctx.registry.component.find(Transform::NAME).unwrap();
         let entity = ecs
             .add()
             .with(

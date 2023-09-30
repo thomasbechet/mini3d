@@ -13,7 +13,7 @@ use crate::{
         error::ECSError,
         view::single::{SingleViewMut, SingleViewRef, StaticSingleViewMut, StaticSingleViewRef},
     },
-    reflection::{Property, Reflect},
+    reflection::Property,
     utils::{
         slotmap::{SlotId, SlotMap},
         string::AsciiArray,
@@ -29,7 +29,7 @@ pub struct ComponentType(pub(crate) SlotId);
 pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
 pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
 
-pub trait ComponentTypeHandle: Copy {
+pub trait ComponentTypeTrait: Copy {
     type SingleViewRef<'a>;
     type SingleViewMut<'a>;
     // type ArrayViewRef<'a>;
@@ -81,7 +81,7 @@ impl<D: StaticDataType> Default for StaticComponentType<D> {
     }
 }
 
-impl<D: StaticDataType> ComponentTypeHandle for StaticComponentType<D> {
+impl<D: StaticDataType> ComponentTypeTrait for StaticComponentType<D> {
     type SingleViewRef<'a> = StaticSingleViewRef<'a, D>;
     type SingleViewMut<'a> = StaticSingleViewMut<'a, D>;
     type Data = D;
@@ -167,7 +167,7 @@ impl<D: StaticDataType> ComponentTypeHandle for StaticComponentType<D> {
     }
 }
 
-impl ComponentTypeHandle for ComponentType {
+impl ComponentTypeTrait for ComponentType {
     type SingleViewRef<'a> = SingleViewRef<'a>;
     type SingleViewMut<'a> = SingleViewMut<'a>;
     type Data = ();
@@ -331,7 +331,7 @@ impl ComponentRegistry {
         unimplemented!()
     }
 
-    pub(crate) fn definition<H: ComponentTypeHandle>(
+    pub(crate) fn definition<H: ComponentTypeTrait>(
         &self,
         handle: H,
     ) -> Result<&ComponentEntry, RegistryError> {
@@ -340,7 +340,7 @@ impl ComponentRegistry {
             .ok_or(RegistryError::ComponentNotFound)
     }
 
-    pub fn find<H: ComponentTypeHandle>(&self, component: impl ToUID) -> Option<H> {
+    pub fn find<H: ComponentTypeTrait>(&self, component: impl ToUID) -> Option<H> {
         // Find entry
         let component = component.to_uid();
         let component = self

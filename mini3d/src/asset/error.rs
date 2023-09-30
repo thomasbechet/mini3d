@@ -6,12 +6,10 @@ pub enum AssetError {
     DuplicatedAssetEntry,
     #[error("Asset not found")]
     AssetNotFound,
+    #[error("Asset not loaded")]
+    AssetNotLoaded,
     #[error("Asset type not found")]
     AssetTypeNotFound,
-    #[error("Bundle not found")]
-    BundleNotFound,
-    #[error("Duplicated bundle")]
-    DuplicatedBundle,
     #[error("Deserialization error")]
     DeserializationError,
     #[error("Serialization error")]

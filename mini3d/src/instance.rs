@@ -86,21 +86,21 @@ impl Instance {
     fn register_core_features(&mut self, features: &InstanceFeatures) -> Result<(), RegistryError> {
         macro_rules! define_asset {
             ($asset: ty) => {
-                self.registry.assets.add_static::<$asset>(<$asset>::NAME)?;
+                self.registry.asset.add_static::<$asset>(<$asset>::NAME)?;
             };
         }
 
         macro_rules! define_component {
             ($component: ty, $storage: expr) => {
                 self.registry
-                    .components
+                    .component
                     .add_static::<$component>(<$component>::NAME, $storage)?;
             };
         }
 
         macro_rules! define_system_exclusive {
             ($system: ty, $stage: expr) => {
-                self.registry.systems.add_static_exclusive::<$system>(
+                self.registry.system.add_static_exclusive::<$system>(
                     <$system>::NAME,
                     $stage,
                     SystemOrder::default(),
@@ -110,7 +110,7 @@ impl Instance {
 
         macro_rules! define_system_parallel {
             ($system: ty, $stage: expr) => {
-                self.registry.systems.add_static_parallel::<$system>(
+                self.registry.system.add_static_parallel::<$system>(
                     <$system>::NAME,
                     $stage,
                     SystemOrder::default(),
@@ -182,10 +182,8 @@ impl Instance {
             .scheduler
             .set_periodic_invoke(SystemStage::FIXED_UPDATE_60HZ, 1.0 / 60.0);
         // Update ECS and assets
-        self.ecs
-            .scheduler
-            .on_registry_update(&self.registry.systems);
-        self.asset.on_registry_update(&self.registry.assets);
+        self.ecs.scheduler.on_registry_update(&self.registry.system);
+        self.asset.on_registry_update(&self.registry.asset);
         // Setup managers
         self.renderer
             .reload_components_and_assets(&self.registry)
@@ -235,7 +233,7 @@ impl Instance {
         stage: &str,
     ) -> Result<(), RegistryError> {
         self.registry
-            .systems
+            .system
             .add_static_exclusive::<S>(name, stage, SystemOrder::default())?;
         self.ecs.on_registry_update(&self.registry)?;
         Ok(())
@@ -250,18 +248,18 @@ impl Instance {
     }
 
     pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.asset.save_state(&self.registry.components, encoder)?;
+        self.asset.save_state(&self.registry.component, encoder)?;
         self.renderer.save_state(encoder)?;
-        self.ecs.save_state(&self.registry.components, encoder)?;
+        self.ecs.save_state(&self.registry.component, encoder)?;
         self.input.save_state(encoder)?;
         self.global_time.serialize(encoder)?;
         Ok(())
     }
 
     pub fn load(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        self.asset.load_state(&self.registry.components, decoder)?;
+        self.asset.load_state(&self.registry.component, decoder)?;
         self.renderer.load_state(decoder)?;
-        self.ecs.load_state(&self.registry.components, decoder)?;
+        self.ecs.load_state(&self.registry.component, decoder)?;
         self.input.load_state(decoder)?;
         self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())

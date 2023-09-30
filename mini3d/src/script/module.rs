@@ -1,6 +1,5 @@
 use crate::{
-    asset::handle::StaticAsset,
-    feature::common::script::Script,
+    asset::handle::AssetHandle,
     utils::uid::{ToUID, UID},
 };
 
@@ -11,8 +10,8 @@ pub struct ModuleId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Module {
-    Source { asset: StaticAsset<Script> },
-    Node { asset: StaticAsset<Script> },
+    Source { asset: AssetHandle },
+    Node { asset: AssetHandle },
     Interface { id: InterfaceId },
     Builtin,
 }
