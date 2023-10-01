@@ -1,6 +1,5 @@
 use crate::{
-    network::provider::NetworkProvider, storage::provider::StorageProvider,
-    utils::slotmap::DenseSlotMap,
+    disk::provider::DiskProvider, network::provider::NetworkProvider, utils::slotmap::DenseSlotMap,
 };
 
 pub struct IOFile;
@@ -13,8 +12,12 @@ pub(crate) enum IOFileKind {
 
 struct IOFileEntry {}
 
-pub(crate) struct IOManager {
-    storage: Box<dyn StorageProvider>,
+pub struct IOManager {
+    disk: Box<dyn DiskProvider>,
     network: Box<dyn NetworkProvider>,
     files: DenseSlotMap<IOFileEntry>,
+}
+
+impl IOManager {
+    // pub
 }

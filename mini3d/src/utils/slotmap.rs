@@ -27,6 +27,14 @@ impl SlotId {
         SlotVersion((self.0 >> 24) as u8)
     }
 
+    pub(crate) fn raw(&self) -> u32 {
+        self.0
+    }
+
+    pub(crate) fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
     pub fn null() -> Self {
         Self(0xffff_ffff)
     }

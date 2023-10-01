@@ -7,6 +7,9 @@ use mini3d_derive::Error;
 
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
+use super::uid::{ToUID, UID};
+
+#[derive(Clone)]
 pub struct AsciiArray<const SIZE: usize> {
     data: [u8; SIZE],
     len: usize,
@@ -62,6 +65,12 @@ impl<const SIZE: usize> Default for AsciiArray<SIZE> {
             data: [0; SIZE],
             len: 0,
         }
+    }
+}
+
+impl<const SIZE: usize> ToUID for AsciiArray<SIZE> {
+    fn to_uid(&self) -> UID {
+        self.as_str().to_uid()
     }
 }
 

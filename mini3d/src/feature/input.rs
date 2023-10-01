@@ -1,1 +1,2 @@
-pub mod input_table;
+pub mod action;
+pub mod axis;

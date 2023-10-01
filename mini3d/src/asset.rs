@@ -1,5 +1,6 @@
 use core::result::Result;
 
+use crate::io::IOManager;
 use crate::registry::asset::{AssetReferenceTrait, AssetRegistry, AssetType, AssetTypeTrait};
 use crate::registry::component::ComponentRegistry;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
@@ -24,7 +25,7 @@ pub(crate) enum AssetSource {
 }
 
 pub struct AssetInfo<'a> {
-    pub key: &'a str,
+    pub path: &'a str,
 }
 
 struct AssetEntry {
@@ -34,18 +35,10 @@ struct AssetEntry {
     source: AssetSource,
 }
 
+#[derive(Default)]
 pub struct AssetManager {
     containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // AssetType -> Container
     entries: DenseSlotMap<AssetEntry>,                          // AssetType -> AssetEntry
-}
-
-impl Default for AssetManager {
-    fn default() -> Self {
-        Self {
-            containers: Default::default(),
-            entries: Default::default(),
-        }
-    }
 }
 
 impl AssetManager {
@@ -111,7 +104,7 @@ impl AssetManager {
         }
     }
 
-    pub fn add<T: AssetTypeTrait>(
+    pub fn persist<T: AssetTypeTrait>(
         &mut self,
         ty: T,
         key: &str,
@@ -158,6 +151,7 @@ impl AssetManager {
 
     pub fn load<T: AssetTypeTrait>(
         &mut self,
+        io: &mut IOManager,
         handle: AssetHandle,
     ) -> Result<T::Ref<'_>, AssetError> {
         let entry = self
@@ -206,7 +200,7 @@ impl AssetManager {
         self.entries
             .get(handle.id)
             .map(|entry| AssetInfo {
-                key: entry.key.as_str(),
+                path: entry.key.as_str(),
             })
             .ok_or(AssetError::AssetNotFound)
     }

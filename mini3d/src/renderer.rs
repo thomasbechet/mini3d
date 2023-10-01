@@ -1,7 +1,6 @@
 use crate::asset::handle::AssetHandle;
 use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
-use crate::ecs::ECSManager;
 use crate::feature::common::local_to_world::LocalToWorld;
 use crate::feature::renderer::camera::Camera;
 use crate::feature::renderer::canvas::Canvas;
@@ -153,7 +152,7 @@ fn load_material(
     let diffuse = textures.get(material.diffuse.id).unwrap().handle;
     let handle = provider.material_add(ProviderMaterialDescriptor {
         diffuse,
-        name: info.key,
+        name: info.path,
     })?;
     Ok(RendererMaterial { handle })
 }
@@ -256,10 +255,6 @@ impl RendererManager {
         self.provider.on_disconnect();
         self.provider = provider;
         self.provider.on_connect();
-    }
-
-    pub(crate) fn reset(&mut self, ecs: &mut ECSManager) {
-        self.resources.reset();
     }
 
     pub(crate) fn reload_components_and_assets(

@@ -1,22 +1,20 @@
 use mini3d_derive::Serialize;
 
-use crate::utils::uid::UID;
-
 #[derive(Serialize)]
 pub struct InputActionEvent {
-    pub action: UID,
+    pub id: u32,
     pub pressed: bool,
 }
 
 #[derive(Serialize)]
 pub struct InputAxisEvent {
-    pub axis: UID,
+    pub id: u32,
     pub value: f32,
 }
 
 #[derive(Serialize)]
 pub struct InputTextEvent {
-    pub stream: UID,
+    pub id: u32,
     pub value: String,
 }
 

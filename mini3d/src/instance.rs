@@ -1,6 +1,8 @@
 use mini3d_derive::Error;
 
 use crate::asset::AssetManager;
+use crate::disk::provider::DiskProvider;
+use crate::disk::StorageManager;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{common, input, physics, renderer};
@@ -16,8 +18,6 @@ use crate::registry::RegistryManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::storage::provider::StorageProvider;
-use crate::storage::StorageManager;
 use crate::system::provider::SystemProvider;
 use crate::system::SystemManager;
 use crate::utils::uid::ToUID;
@@ -137,7 +137,8 @@ impl Instance {
         }
 
         if features.input {
-            define_component!(input::input_table::InputTable, ComponentStorage::Single);
+            define_asset!(input::action::InputAction);
+            define_asset!(input::axis::InputAxis);
         }
 
         if features.physics {
@@ -219,7 +220,7 @@ impl Instance {
         self.system.set_provider(Box::new(provider));
     }
 
-    pub fn set_storage_provider(&mut self, provider: impl StorageProvider + 'static) {
+    pub fn set_storage_provider(&mut self, provider: impl DiskProvider + 'static) {
         self.storage.set_provider(Box::new(provider));
     }
 

@@ -38,7 +38,16 @@ impl ExclusiveSystem for OSUpdate {
         let mut os = expect!(ctx, ecs.view_mut(self.os).singleton());
 
         // Toggle control mode
-        if expect!(ctx, ctx.input.action(CommonAction::CHANGE_CONTROL_MODE)).is_just_pressed() {
+        if expect!(
+            ctx,
+            ctx.input.action(
+                ctx.input
+                    .find_action(CommonAction::CHANGE_CONTROL_MODE)
+                    .unwrap()
+            )
+        )
+        .is_just_pressed()
+        {
             os.layout_active = !os.layout_active;
             let mut view = ecs.view_mut(self.free_fly);
             for e in ecs.query(self.query) {

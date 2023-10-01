@@ -9,13 +9,16 @@ use mini3d::{
             free_fly::FreeFly, hierarchy::Hierarchy, local_to_world::LocalToWorld,
             rotator::Rotator, script::Script, transform::Transform,
         },
-        input::input_table::{InputAction, InputAxis, InputAxisRange, InputTable},
+        input::{
+            action::InputAction,
+            axis::{InputAxis, InputAxisRange},
+        },
         renderer::{
             camera::Camera, font::Font, material::Material, mesh::Mesh, model::Model,
             static_mesh::StaticMesh, texture::Texture, viewport::Viewport,
         },
     },
-    glam::{IVec2, Quat, Vec3},
+    glam::{Quat, Vec3},
     info,
     registry::{
         asset::StaticAssetType,
@@ -83,212 +86,235 @@ impl OSInitialize {
     fn setup_assets(&self, ctx: &mut Context) {
         // Register default font
         let font: StaticAssetType<Font> = ctx.registry.asset.find(Font::NAME).unwrap();
-        expect!(ctx, ctx.asset.add(font, "default", Font::default()));
+        expect!(ctx, ctx.asset.persist(font, "default", Font::default()));
 
-        // Register input tables
+        // Register inputs
         expect!(
             ctx,
-            ctx.input.add_table(&InputTable {
-                name: "common".to_string(),
-                display_name: "Common Inputs".to_string(),
-                description: "".to_string(),
-                actions: Vec::from([
-                    InputAction {
-                        name: CommonAction::CLICK.to_string(),
-                        display_name: "Click".to_string(),
-                        description: "UI interaction layout (click).".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::BACK.to_string(),
-                        display_name: "Back".to_string(),
-                        description: "UI interaction layout (back).".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::UP.to_string(),
-                        display_name: "Up".to_string(),
-                        description: "UI interaction layout (go up).".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::LEFT.to_string(),
-                        display_name: "Left".to_string(),
-                        description: "UI interaction layout (go left).".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::DOWN.to_string(),
-                        display_name: "Down".to_string(),
-                        description: "UI interaction layout (go down).".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::RIGHT.to_string(),
-                        display_name: "Right".to_string(),
-                        description: "UI interaction layout (go right).".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::CHANGE_CONTROL_MODE.to_string(),
-                        display_name: "Change Control Mode".to_string(),
-                        description: "Switch between selection and cursor control mode."
-                            .to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: CommonAction::TOGGLE_PROFILER.to_string(),
-                        display_name: "Toggle Profiler".to_string(),
-                        description: "Show or hide the profiler.".to_string(),
-                        default_pressed: false,
-                    },
-                ]),
-                axis: Vec::from([
-                    InputAxis {
-                        name: CommonAxis::CURSOR_X.to_string(),
-                        display_name: "Cursor X".to_string(),
-                        description:
-                            "Horizontal position of the mouse cursor relative to the screen."
-                                .to_string(),
-                        range: InputAxisRange::Clamped {
-                            min: 0.0,
-                            max: SCREEN_WIDTH as f32,
-                        },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::CURSOR_Y.to_string(),
-                        display_name: "Cursor Y".to_string(),
-                        description:
-                            "Vertical position of the mouse cursor relative to the screen."
-                                .to_string(),
-                        range: InputAxisRange::Clamped {
-                            min: 0.0,
-                            max: SCREEN_HEIGHT as f32,
-                        },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::SCROLL_MOTION.to_string(),
-                        display_name: "Scroll Motion".to_string(),
-                        description: "Delta scrolling value.".to_string(),
-                        range: InputAxisRange::Infinite,
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::CURSOR_MOTION_X.to_string(),
-                        display_name: "Cursor Motion X".to_string(),
-                        description: "Delta mouvement of the mouse on the horizontal axis."
-                            .to_string(),
-                        range: InputAxisRange::Infinite,
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::CURSOR_MOTION_Y.to_string(),
-                        display_name: "Cursor Motion Y".to_string(),
-                        description: "Delta mouvement of the mouse on the vertical axis."
-                            .to_string(),
-                        range: InputAxisRange::Infinite,
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::VIEW_X.to_string(),
-                        display_name: "View X".to_string(),
-                        description: "View horizontal delta movement.".to_string(),
-                        range: InputAxisRange::Infinite,
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::VIEW_Y.to_string(),
-                        display_name: "View Y".to_string(),
-                        description: "View vertical delta movement.".to_string(),
-                        range: InputAxisRange::Infinite,
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::MOVE_FORWARD.to_string(),
-                        display_name: "Move Forward".to_string(),
-                        description: "".to_string(),
-                        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::MOVE_BACKWARD.to_string(),
-                        display_name: "Move Backward".to_string(),
-                        description: "".to_string(),
-                        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::MOVE_LEFT.to_string(),
-                        display_name: "Move Left".to_string(),
-                        description: "".to_string(),
-                        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::MOVE_RIGHT.to_string(),
-                        display_name: "Move Right".to_string(),
-                        description: "".to_string(),
-                        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::MOVE_UP.to_string(),
-                        display_name: "Move Up".to_string(),
-                        description: "".to_string(),
-                        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                        default_value: 0.0,
-                    },
-                    InputAxis {
-                        name: CommonAxis::MOVE_DOWN.to_string(),
-                        display_name: "Move Down".to_string(),
-                        description: "".to_string(),
-                        range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                        default_value: 0.0,
-                    },
-                ]),
+            ctx.input.add_action(InputAction {
+                name: CommonAction::CLICK.into(),
+                display_name: "Click".into(),
+                default_pressed: false,
             })
         );
         expect!(
             ctx,
-            ctx.input.add_table(&InputTable {
-                name: "default".to_string(),
-                display_name: "Default Inputs".to_string(),
-                description: "".to_string(),
-                actions: Vec::from([
-                    InputAction {
-                        name: "roll_left".to_string(),
-                        display_name: "Roll Left".to_string(),
-                        description: "".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: "roll_right".to_string(),
-                        display_name: "Roll Right".to_string(),
-                        description: "".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: "switch_mode".to_string(),
-                        display_name: "Switch Mode".to_string(),
-                        description: "".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: "move_fast".to_string(),
-                        display_name: "Move Fast".to_string(),
-                        description: "".to_string(),
-                        default_pressed: false,
-                    },
-                    InputAction {
-                        name: "move_slow".to_string(),
-                        display_name: "Move Slow".to_string(),
-                        description: "".to_string(),
-                        default_pressed: false,
-                    },
-                ]),
-                axis: Vec::from([]),
+            ctx.input.add_action(InputAction {
+                name: CommonAction::BACK.into(),
+                display_name: "Back".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: CommonAction::UP.into(),
+                display_name: "Up".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: CommonAction::LEFT.into(),
+                display_name: "Left".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: CommonAction::DOWN.into(),
+                display_name: "Down".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: CommonAction::RIGHT.into(),
+                display_name: "Right".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: CommonAction::CHANGE_CONTROL_MODE.into(),
+                display_name: "Change Control Mode".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: CommonAction::TOGGLE_PROFILER.into(),
+                display_name: "Toggle Profiler".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::CURSOR_X.into(),
+                display_name: "Cursor X".into(),
+                range: InputAxisRange::Clamped {
+                    min: 0.0,
+                    max: SCREEN_WIDTH as f32,
+                },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::CURSOR_Y.into(),
+                display_name: "Cursor Y".into(),
+                range: InputAxisRange::Clamped {
+                    min: 0.0,
+                    max: SCREEN_HEIGHT as f32,
+                },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::SCROLL_MOTION.into(),
+                display_name: "Scroll Motion".into(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::CURSOR_MOTION_X.into(),
+                display_name: "Cursor Motion X".into(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::CURSOR_MOTION_Y.into(),
+                display_name: "Cursor Motion Y".into(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::VIEW_X.into(),
+                display_name: "View X".into(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::VIEW_Y.into(),
+                display_name: "View Y".into(),
+                range: InputAxisRange::Infinite,
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::MOVE_FORWARD.into(),
+                display_name: "Move Forward".into(),
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::MOVE_BACKWARD.into(),
+                display_name: "Move Backward".into(),
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::MOVE_LEFT.into(),
+                display_name: "Move Left".into(),
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::MOVE_RIGHT.into(),
+                display_name: "Move Right".into(),
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::MOVE_UP.into(),
+                display_name: "Move Up".into(),
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_axis(InputAxis {
+                name: CommonAxis::MOVE_DOWN.into(),
+                display_name: "Move Down".into(),
+                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                default_value: 0.0,
+            })
+        );
+
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: "roll_left".into(),
+                display_name: "Roll Left".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: "roll_right".into(),
+                display_name: "Roll Right".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: "switch_mode".into(),
+                display_name: "Switch Mode".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: "move_fast".into(),
+                display_name: "Move Fast".into(),
+                default_pressed: false,
+            })
+        );
+        expect!(
+            ctx,
+            ctx.input.add_action(InputAction {
+                name: "move_slow".into(),
+                display_name: "Move Slow".into(),
+                default_pressed: false,
             })
         );
 
@@ -306,23 +332,33 @@ impl OSInitialize {
                 ImportAssetEvent::Material(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset.add(material, &entry.name, entry.data.clone(),)
+                        ctx.asset
+                            .persist(material, &entry.name, entry.data.clone(),)
                     );
                 }
                 ImportAssetEvent::Mesh(entry) => {
                     info!(ctx, "Importing mesh: {}", entry.name);
-                    expect!(ctx, ctx.asset.add(mesh, &entry.name, entry.data.clone()));
+                    expect!(
+                        ctx,
+                        ctx.asset.persist(mesh, &entry.name, entry.data.clone())
+                    );
                 }
                 ImportAssetEvent::Model(entry) => {
-                    expect!(ctx, ctx.asset.add(model, &entry.name, entry.data.clone()));
+                    expect!(
+                        ctx,
+                        ctx.asset.persist(model, &entry.name, entry.data.clone())
+                    );
                 }
                 ImportAssetEvent::Script(entry) => {
-                    expect!(ctx, ctx.asset.add(script, &entry.name, entry.data.clone(),));
+                    expect!(
+                        ctx,
+                        ctx.asset.persist(script, &entry.name, entry.data.clone(),)
+                    );
                 }
                 ImportAssetEvent::Texture(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset.add(texture, &entry.name, entry.data.clone(),)
+                        ctx.asset.persist(texture, &entry.name, entry.data.clone(),)
                     );
                 }
                 _ => {}
@@ -336,7 +372,7 @@ impl OSInitialize {
         let car_mesh = expect!(ctx, ctx.asset.find("car_mesh"));
         let alfred_material = expect!(
             ctx,
-            ctx.asset.add(
+            ctx.asset.persist(
                 material,
                 "alfred_mat",
                 Material {
@@ -346,7 +382,7 @@ impl OSInitialize {
         );
         let car_material = expect!(
             ctx,
-            ctx.asset.add(
+            ctx.asset.persist(
                 material,
                 "car_mat",
                 Material {
@@ -356,7 +392,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.asset.add(
+            ctx.asset.persist(
                 model,
                 "car_model",
                 Model {
@@ -367,7 +403,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.asset.add(
+            ctx.asset.persist(
                 model,
                 "alfred_model",
                 Model {
@@ -498,19 +534,19 @@ impl OSInitialize {
                     free_fly,
                     FreeFly {
                         active: true,
-                        switch_mode: "switch_mode".into(),
-                        roll_left: "roll_left".into(),
-                        roll_right: "roll_right".into(),
-                        view_x: CommonAxis::VIEW_X.into(),
-                        view_y: CommonAxis::VIEW_Y.into(),
-                        move_forward: CommonAxis::MOVE_FORWARD.into(),
-                        move_backward: CommonAxis::MOVE_BACKWARD.into(),
-                        move_up: CommonAxis::MOVE_UP.into(),
-                        move_down: CommonAxis::MOVE_DOWN.into(),
-                        move_left: CommonAxis::MOVE_LEFT.into(),
-                        move_right: CommonAxis::MOVE_RIGHT.into(),
-                        move_fast: "move_fast".into(),
-                        move_slow: "move_slow".into(),
+                        switch_mode: ctx.input.find_action("switch_mode").unwrap(),
+                        roll_left: ctx.input.find_action("roll_left").unwrap(),
+                        roll_right: ctx.input.find_action("roll_right").unwrap(),
+                        view_x: ctx.input.find_axis(CommonAxis::VIEW_X).unwrap(),
+                        view_y: ctx.input.find_axis(CommonAxis::VIEW_Y).unwrap(),
+                        move_forward: ctx.input.find_axis(CommonAxis::MOVE_FORWARD).unwrap(),
+                        move_backward: ctx.input.find_axis(CommonAxis::MOVE_BACKWARD).unwrap(),
+                        move_up: ctx.input.find_axis(CommonAxis::MOVE_UP).unwrap(),
+                        move_down: ctx.input.find_axis(CommonAxis::MOVE_DOWN).unwrap(),
+                        move_left: ctx.input.find_axis(CommonAxis::MOVE_LEFT).unwrap(),
+                        move_right: ctx.input.find_axis(CommonAxis::MOVE_RIGHT).unwrap(),
+                        move_fast: ctx.input.find_action("move_fast").unwrap(),
+                        move_slow: ctx.input.find_action("move_slow").unwrap(),
                         free_mode: false,
                         yaw: 0.0,
                         pitch: 0.0,

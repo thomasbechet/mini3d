@@ -1,37 +1,42 @@
 use mini3d_derive::{Error, Serialize};
-use std::collections::HashMap;
 
-use crate::feature::input::input_table::{InputAxisRange, InputTable};
-use crate::serialize::{Decoder, DecoderError, Serialize};
+use crate::feature::input::action::InputAction;
+use crate::feature::input::axis::{InputAxis, InputAxisRange};
+use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
-use crate::utils::uid::{ToUID, UID};
+use crate::utils::slotmap::{SlotId, SlotMap};
+use crate::utils::uid::ToUID;
 
 use self::event::InputEvent;
+use self::handle::{InputActionHandle, InputAxisHandle, InputTextHandle};
 use self::provider::InputProvider;
 
 pub mod event;
+pub mod handle;
 pub mod provider;
+
+pub const MAX_INPUT_NAME_LEN: usize = 64;
+pub const MAX_INPUT_DISPLAY_NAME_LEN: usize = 64;
 
 #[derive(Debug, Error)]
 pub enum InputError {
-    #[error("Action with UID {uid} not found")]
-    ActionNotFound { uid: UID },
-    #[error("Axis with UID {uid} not found")]
-    AxisNotFound { uid: UID },
-    #[error("Text with UID {uid} not found")]
-    TextNotFound { uid: UID },
-    #[error("Duplicated table: {name}")]
-    DuplicatedTable { name: String },
-    #[error("Duplicated action: {name}")]
-    DuplicatedAction { name: String },
-    #[error("Duplicated axis: {name}")]
-    DuplicatedAxis { name: String },
+    #[error("Action not found")]
+    ActionNotFound,
+    #[error("Axis not found")]
+    AxisNotFound,
+    #[error("Text not found")]
+    TextNotFound,
+    #[error("Duplicated action")]
+    DuplicatedAction,
+    #[error("Duplicated axis")]
+    DuplicatedAxis,
     #[error("Table validation error")]
     TableValidationError,
 }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone)]
 pub struct InputActionState {
+    action: InputAction,
     pressed: bool,
     was_pressed: bool,
 }
@@ -54,15 +59,15 @@ impl InputActionState {
     }
 }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone)]
 pub struct InputAxisState {
+    axis: InputAxis,
     pub value: f32,
-    pub range: InputAxisRange,
 }
 
 impl InputAxisState {
     pub fn set_value(&mut self, value: f32) {
-        self.value = match &self.range {
+        self.value = match &self.axis.range {
             InputAxisRange::Clamped { min, max } => value.max(*min).min(*max),
             InputAxisRange::Normalized { norm } => value / norm,
             InputAxisRange::ClampedNormalized { min, max, norm } => {
@@ -81,10 +86,9 @@ pub struct InputTextState {
 #[derive(Default)]
 pub struct InputManager {
     provider: Box<dyn InputProvider>,
-    tables: HashMap<UID, InputTable>,
-    actions: HashMap<UID, InputActionState>,
-    axis: HashMap<UID, InputAxisState>,
-    texts: HashMap<UID, InputTextState>,
+    actions: SlotMap<InputActionState>,
+    axis: SlotMap<InputAxisState>,
+    texts: SlotMap<InputTextState>,
 }
 
 impl InputManager {
@@ -112,17 +116,17 @@ impl InputManager {
         while let Some(event) = self.provider.next_event() {
             match event {
                 InputEvent::Action(event) => {
-                    if let Some(action) = self.actions.get_mut(&event.action) {
+                    if let Some(action) = self.actions.get_mut(SlotId::from_raw(event.id)) {
                         action.pressed = event.pressed;
                     }
                 }
                 InputEvent::Axis(event) => {
-                    if let Some(axis) = self.axis.get_mut(&event.axis) {
+                    if let Some(axis) = self.axis.get_mut(SlotId::from_raw(event.id)) {
                         axis.set_value(event.value);
                     }
                 }
-                InputEvent::Text(text) => {
-                    if let Some(text) = self.texts.get_mut(&text.stream) {
+                InputEvent::Text(event) => {
+                    if let Some(text) = self.texts.get_mut(SlotId::from_raw(event.id)) {
                         text.value = text.value.clone();
                     }
                 }
@@ -131,84 +135,87 @@ impl InputManager {
     }
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.tables.serialize(encoder)?;
-        self.actions.serialize(encoder)?;
-        self.axis.serialize(encoder)?;
+        // self.actions.serialize(encoder)?;
+        // self.axis.serialize(encoder)?;
+        // self.texts.serialize(encoder)?;
         Ok(())
     }
 
     pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        self.tables = HashMap::deserialize(decoder, &Default::default())?;
-        self.actions = HashMap::deserialize(decoder, &Default::default())?;
-        self.axis = HashMap::deserialize(decoder, &Default::default())?;
+        // self.actions = HashMap::deserialize(decoder, &Default::default())?;
+        // self.axis = HashMap::deserialize(decoder, &Default::default())?;
+        // self.texts = HashMap::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
-    pub fn add_table(&mut self, table: &InputTable) -> Result<(), InputError> {
-        // Check table validity
-        table
-            .validate()
-            .map_err(|_| InputError::TableValidationError)?;
-        // Check duplicated table
-        if self.tables.contains_key(&table.uid()) {
-            return Err(InputError::DuplicatedTable {
-                name: table.name.to_string(),
-            });
+    pub fn add_action(&mut self, action: InputAction) -> Result<InputActionHandle, InputError> {
+        if self.find_action(&action.name).is_some() {
+            return Err(InputError::DuplicatedAction);
         }
-        // Check duplicated actions
-        for action in table.actions.iter() {
-            if self.actions.contains_key(&action.uid()) {
-                return Err(InputError::DuplicatedAction {
-                    name: action.name.to_string(),
-                });
-            }
-        }
-        // Check duplicated axis
-        for axis in table.axis.iter() {
-            if self.axis.contains_key(&axis.uid()) {
-                return Err(InputError::DuplicatedAxis {
-                    name: axis.name.to_string(),
-                });
-            }
-        }
-        // We can safely insert table, actions and axis
-        for action in table.actions.iter() {
-            self.actions.insert(
-                action.uid(),
-                InputActionState {
-                    pressed: action.default_pressed,
-                    was_pressed: false,
-                },
-            );
-        }
-        for axis in table.axis.iter() {
-            let mut state = InputAxisState {
-                value: axis.default_value,
-                range: axis.range,
-            };
-            state.set_value(axis.default_value);
-            self.axis.insert(axis.uid(), state);
-        }
-        self.tables.insert(table.uid(), table.clone());
-        // Notify input mapping
-        self.provider.update_table(table.uid(), Some(table));
-        Ok(())
+        let id = self.actions.add(InputActionState {
+            action: action.clone(),
+            pressed: action.default_pressed,
+            was_pressed: false,
+        });
+        let handle = InputActionHandle {
+            id,
+            uid: action.name.to_uid(),
+        };
+        self.provider.add_action(handle.id.raw(), &action);
+        Ok(handle)
     }
 
-    pub fn action(&self, uid: impl ToUID) -> Result<&InputActionState, InputError> {
-        let uid = uid.to_uid();
+    pub fn find_action(&self, name: &str) -> Option<InputActionHandle> {
+        let uid = name.into();
         self.actions
-            .get(&uid)
-            .ok_or(InputError::ActionNotFound { uid })
+            .iter()
+            .find(|(_, state)| state.action.name.to_uid() == uid)
+            .map(|(id, state)| InputActionHandle {
+                id,
+                uid: state.action.name.to_uid(),
+            })
     }
 
-    pub fn axis(&self, uid: impl ToUID) -> Result<&InputAxisState, InputError> {
-        let uid = uid.to_uid();
-        self.axis.get(&uid).ok_or(InputError::AxisNotFound { uid })
+    pub fn add_axis(&mut self, axis: InputAxis) -> Result<InputAxisHandle, InputError> {
+        if self.find_axis(&axis.name).is_some() {
+            return Err(InputError::DuplicatedAxis);
+        }
+        let mut state = InputAxisState {
+            axis: axis.clone(),
+            value: 0.0,
+        };
+        state.set_value(axis.default_value);
+        let id = self.axis.add(state);
+        let handle = InputAxisHandle {
+            id,
+            uid: axis.name.to_uid(),
+        };
+        self.provider.add_axis(handle.id.raw(), &axis);
+        Ok(handle)
     }
 
-    pub fn text(&self, uid: impl ToUID) -> Result<&InputTextState, InputError> {
-        let uid = uid.to_uid();
-        self.texts.get(&uid).ok_or(InputError::TextNotFound { uid })
+    pub fn find_axis(&self, name: &str) -> Option<InputAxisHandle> {
+        let uid = name.into();
+        self.axis
+            .iter()
+            .find(|(_, state)| state.axis.name.to_uid() == uid)
+            .map(|(id, state)| InputAxisHandle {
+                id,
+                uid: state.axis.name.to_uid(),
+            })
+    }
+
+    pub fn action(&self, handle: InputActionHandle) -> Result<&InputActionState, InputError> {
+        self.actions
+            .get(handle.id)
+            .ok_or(InputError::ActionNotFound)
+    }
+
+    pub fn axis(&self, handle: InputAxisHandle) -> Result<&InputAxisState, InputError> {
+        self.axis.get(handle.id).ok_or(InputError::AxisNotFound)
+    }
+
+    pub fn text(&self, handle: InputTextHandle) -> Result<&InputTextState, InputError> {
+        self.texts.get(handle.id).ok_or(InputError::TextNotFound)
     }
 }

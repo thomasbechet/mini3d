@@ -1,4 +1,5 @@
 pub mod asset;
+pub mod disk;
 pub mod ecs;
 pub mod feature;
 pub mod input;
@@ -14,7 +15,6 @@ pub mod registry;
 pub mod renderer;
 pub mod script;
 pub mod serialize;
-pub mod storage;
 pub mod system;
 pub mod utils;
 

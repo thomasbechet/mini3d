@@ -1,8 +1,11 @@
 use mini3d_derive::Error;
 
-use crate::{feature::input::input_table::InputTable, utils::uid::UID};
+use crate::feature::input::{action::InputAction, axis::InputAxis};
 
-use super::event::InputEvent;
+use super::{
+    event::InputEvent,
+    handle::{InputActionHandle, InputAxisHandle},
+};
 
 #[derive(Debug, Error)]
 pub enum InputProviderError {
@@ -17,11 +20,8 @@ pub trait InputProvider {
 
     fn next_event(&mut self) -> Option<InputEvent>;
 
-    fn update_table(
-        &mut self,
-        uid: UID,
-        table: Option<&InputTable>,
-    ) -> Result<(), InputProviderError>;
+    fn add_action(&mut self, id: u32, action: &InputAction);
+    fn add_axis(&mut self, id: u32, axis: &InputAxis);
 }
 
 #[derive(Default)]
@@ -35,13 +35,8 @@ impl InputProvider for PassiveInputProvider {
         None
     }
 
-    fn update_table(
-        &mut self,
-        uid: UID,
-        table: Option<&InputTable>,
-    ) -> Result<(), InputProviderError> {
-        Ok(())
-    }
+    fn add_action(&mut self, _id: u32, _action: &InputAction) {}
+    fn add_axis(&mut self, _id: u32, _axis: &InputAxis) {}
 }
 
 impl Default for Box<dyn InputProvider> {

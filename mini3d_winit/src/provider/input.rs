@@ -20,11 +20,11 @@ impl InputProvider for WinitInputProvider {
         self.0.borrow_mut().next_event()
     }
 
-    fn update_table(
-        &mut self,
-        uid: mini3d::utils::uid::UID,
-        table: Option<&mini3d::feature::input::input_table::InputTable>,
-    ) -> Result<(), mini3d::input::provider::InputProviderError> {
-        self.0.borrow_mut().update_table(uid, table)
+    fn add_action(&mut self, id: u32, action: &mini3d::feature::input::action::InputAction) {
+        self.0.borrow_mut().add_action(id, action);
+    }
+
+    fn add_axis(&mut self, id: u32, axis: &mini3d::feature::input::axis::InputAxis) {
+        self.0.borrow_mut().add_axis(id, axis);
     }
 }

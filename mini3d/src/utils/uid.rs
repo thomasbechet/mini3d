@@ -78,6 +78,12 @@ impl ToUID for &str {
     }
 }
 
+impl ToUID for String {
+    fn to_uid(&self) -> UID {
+        UID::new(self)
+    }
+}
+
 impl From<&String> for UID {
     fn from(s: &String) -> Self {
         s.as_str().into()

@@ -8,8 +8,8 @@ use crate::{
         query::Query,
     },
     expect,
+    input::handle::{InputActionHandle, InputAxisHandle},
     registry::{component::StaticComponentType, error::RegistryError, system::ParallelSystem},
-    utils::uid::UID,
 };
 
 use super::transform::Transform;
@@ -20,19 +20,19 @@ pub struct FreeFly {
     pub active: bool,
 
     // Inputs
-    pub switch_mode: UID,
-    pub roll_left: UID,
-    pub roll_right: UID,
-    pub view_x: UID,
-    pub view_y: UID,
-    pub move_forward: UID,
-    pub move_backward: UID,
-    pub move_up: UID,
-    pub move_down: UID,
-    pub move_left: UID,
-    pub move_right: UID,
-    pub move_fast: UID,
-    pub move_slow: UID,
+    pub switch_mode: InputActionHandle,
+    pub roll_left: InputActionHandle,
+    pub roll_right: InputActionHandle,
+    pub view_x: InputAxisHandle,
+    pub view_y: InputAxisHandle,
+    pub move_forward: InputAxisHandle,
+    pub move_backward: InputAxisHandle,
+    pub move_up: InputAxisHandle,
+    pub move_down: InputAxisHandle,
+    pub move_left: InputAxisHandle,
+    pub move_right: InputAxisHandle,
+    pub move_fast: InputActionHandle,
+    pub move_slow: InputActionHandle,
 
     // View data
     pub free_mode: bool,
