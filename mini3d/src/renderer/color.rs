@@ -11,23 +11,29 @@ impl Debug for Color {
         let g = self.g();
         let b = self.b();
         let a = self.a();
-        f.debug_tuple("Color").field(&r).field(&g).field(&b).field(&a).finish()
+        f.debug_tuple("Color")
+            .field(&r)
+            .field(&g)
+            .field(&b)
+            .field(&a)
+            .finish()
     }
 }
 
 impl Default for Color {
-    fn default() -> Self { Self::TRANSPARENT }
+    fn default() -> Self {
+        Self::TRANSPARENT
+    }
 }
 
 impl Color {
-
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
     pub const BLACK: Color = Color::rgba(0, 0, 0, 255);
     pub const RED: Color = Color::rgba(255, 0, 0, 255);
     pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
     pub const TRANSPARENT: Color = Color::rgba(0, 0, 0, 0);
     pub const GRAY: Color = Color::rgba(200, 200, 200, 255);
-    
+
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self((a as u32) << 24 | (r as u32) << 16 | (g as u32) << 8 | (b as u32))
     }
