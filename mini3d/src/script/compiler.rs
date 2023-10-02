@@ -1,4 +1,9 @@
-use crate::{asset::AssetManager, feature::common::script::Script, utils::uid::ToUID};
+use crate::{
+    asset::AssetManager,
+    ecs::api::{asset::Asset, context::Context},
+    feature::common::script::Script,
+    utils::uid::ToUID,
+};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -55,7 +60,7 @@ impl Compiler {
         module
     }
 
-    fn fetch_modules(&mut self, assets: &AssetManager) -> Result<(), CompileError> {
+    fn fetch_modules(&mut self, ctx: &Context) -> Result<(), CompileError> {
         // Insert builtin modules
         self.modules.add("scene", Module::Builtin);
         self.modules.add("asset", Module::Builtin);
@@ -70,7 +75,7 @@ impl Compiler {
     fn resolve_cu_and_exports(
         &mut self,
         entry: ModuleId,
-        assets: &AssetManager,
+        ctx: &Context,
     ) -> Result<(), CompileError> {
         println!("=> Resolve CU and exports");
         // Insert entry module
@@ -80,7 +85,7 @@ impl Compiler {
             let module = self.compilation_unit.get(i);
             match self.modules.get(module).unwrap() {
                 Module::Source { asset } => {
-                    let script = assets.read::<Script>(*asset).unwrap();
+                    let script = Asset::read::<Script>(ctx, *asset).unwrap();
                     self.source_compiler.resolve_cu_and_exports(
                         script,
                         &mut self.modules,
@@ -97,13 +102,13 @@ impl Compiler {
         Ok(())
     }
 
-    fn generate_mirs(&mut self, assets: &AssetManager) -> Result<(), CompileError> {
+    fn generate_mirs(&mut self, ctx: &Context) -> Result<(), CompileError> {
         println!("=> Generate MIRs");
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
                 Module::Source { asset } => {
-                    let script = assets.read::<Script>(*asset).unwrap();
+                    let script = Asset::read::<Script>(ctx, *asset).unwrap();
                     self.source_compiler
                         .generate_mir(script, &self.modules, *module, mir)?;
                 }
@@ -120,14 +125,14 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn compile(&mut self, entry: ModuleId, assets: &AssetManager) -> Result<(), CompileError> {
+    pub fn compile(&mut self, entry: ModuleId, ctx: &Context) -> Result<(), CompileError> {
         // Fetch all modules from the asset manager (sequential, acquire cached modules)
-        self.fetch_modules(assets)?;
+        self.fetch_modules(ctx)?;
         // Resolve compilation unit and exports (sequential, fast if cached)
-        self.resolve_cu_and_exports(entry, assets)?;
+        self.resolve_cu_and_exports(entry, ctx)?;
         self.modules.print();
         // Generate MIRs for all modules in the compilation unit (parallel, fast if cached)
-        self.generate_mirs(assets)?;
+        self.generate_mirs(ctx)?;
         // Generate program (sequential, slow)
         self.generate_program(entry)?;
         Ok(())

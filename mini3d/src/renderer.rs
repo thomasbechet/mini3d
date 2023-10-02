@@ -319,15 +319,15 @@ impl RendererManager {
         )
     }
 
-    pub fn graphics(&mut self) -> &mut Graphics {
+    pub(crate) fn graphics(&mut self) -> &mut Graphics {
         &mut self.graphics
     }
 
-    pub fn set_clear_color(&mut self, color: Color) {
+    pub(crate) fn set_clear_color(&mut self, color: Color) {
         self.clear_color = color;
     }
 
-    pub fn statistics(&self) -> RendererStatistics {
+    pub(crate) fn statistics(&self) -> RendererStatistics {
         self.statistics
     }
 }

@@ -1,6 +1,6 @@
 use mini3d::{
     ecs::{
-        api::{context::Context, ecs::ECS},
+        api::{context::Context, ecs::ECS, input::Input, renderer::Renderer},
         instance::ExclusiveResolver,
         query::Query,
     },
@@ -40,10 +40,9 @@ impl ExclusiveSystem for OSUpdate {
         // Toggle control mode
         if expect!(
             ctx,
-            ctx.input.action(
-                ctx.input
-                    .find_action(CommonAction::CHANGE_CONTROL_MODE)
-                    .unwrap()
+            Input::action(
+                ctx,
+                Input::find_action(ctx, CommonAction::CHANGE_CONTROL_MODE).unwrap()
             )
         )
         .is_just_pressed()
@@ -70,7 +69,7 @@ impl ExclusiveSystem for OSUpdate {
         // expect!(ctx, os.controller.update(ctx.input, user));
 
         // Render center cross
-        ctx.renderer.graphics().fill_rect(
+        Renderer::graphics(ctx).fill_rect(
             IRect::new(SCREEN_CENTER.x as i32, SCREEN_CENTER.y as i32, 2, 2),
             Color::WHITE,
         );

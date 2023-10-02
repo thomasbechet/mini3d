@@ -170,12 +170,12 @@ pub(crate) struct AssetEntry {
 }
 
 #[derive(Default)]
-pub struct AssetRegistry {
+pub struct AssetRegistryManager {
     pub(crate) entries: SlotMap<AssetEntry>,
     pub(crate) changed: bool,
 }
 
-impl AssetRegistry {
+impl AssetRegistryManager {
     fn add(
         &mut self,
         name: &str,
@@ -194,7 +194,7 @@ impl AssetRegistry {
         }))
     }
 
-    pub fn add_static<D: StaticDataType>(
+    pub(crate) fn add_static<D: StaticDataType>(
         &mut self,
         name: &str,
     ) -> Result<StaticAssetType<D>, RegistryError> {
@@ -208,7 +208,7 @@ impl AssetRegistry {
         })
     }
 
-    pub fn find<H: AssetTypeTrait>(&self, asset: impl ToUID) -> Option<H> {
+    pub(crate) fn find<H: AssetTypeTrait>(&self, asset: impl ToUID) -> Option<H> {
         // Find entry
         let asset = asset.to_uid();
         let asset = self
@@ -228,7 +228,7 @@ impl AssetRegistry {
         }
     }
 
-    pub fn contains(&self, asset: impl ToUID) -> bool {
+    pub(crate) fn contains(&self, asset: impl ToUID) -> bool {
         let asset = asset.to_uid();
         self.find::<AssetType>(asset).is_some()
     }

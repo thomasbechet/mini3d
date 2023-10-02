@@ -3,7 +3,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{context::Context, ecs::ECS, input::Input},
+        api::{context::Context, ecs::ECS, input::Input, time::Time},
         instance::ParallelResolver,
         query::Query,
     },
@@ -120,7 +120,7 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Apply transformation
-            transform.translation += direction * direction_length * ctx.time.delta() as f32 * speed;
+            transform.translation += direction * direction_length * Time::delta(ctx) as f32 * speed;
 
             // Apply rotation
             let motion_x = expect!(ctx, Input::axis(ctx, free_fly.view_x)).value;
@@ -131,7 +131,7 @@ impl ParallelSystem for FreeFlySystem {
                         Vec3::Y,
                         -f32::to_radians(motion_x)
                             * FreeFly::ROTATION_SENSIBILITY
-                            * ctx.time.delta() as f32,
+                            * Time::delta(ctx) as f32,
                     );
                 }
                 if motion_y != 0.0 {
@@ -139,29 +139,29 @@ impl ParallelSystem for FreeFlySystem {
                         Vec3::X,
                         f32::to_radians(motion_y)
                             * FreeFly::ROTATION_SENSIBILITY
-                            * ctx.time.delta() as f32,
+                            * Time::delta(ctx) as f32,
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_left)).is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
-                        -f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
+                        -f32::to_radians(FreeFly::ROLL_SPEED) * Time::delta(ctx) as f32,
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_right)).is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
-                        f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
+                        f32::to_radians(FreeFly::ROLL_SPEED) * Time::delta(ctx) as f32,
                     );
                 }
             } else {
                 if motion_x != 0.0 {
                     free_fly.yaw +=
-                        motion_x * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
+                        motion_x * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx) as f32;
                 }
                 if motion_y != 0.0 {
                     free_fly.pitch +=
-                        motion_y * FreeFly::ROTATION_SENSIBILITY * ctx.time.delta() as f32;
+                        motion_y * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx) as f32;
                 }
 
                 if free_fly.pitch < -90.0 {

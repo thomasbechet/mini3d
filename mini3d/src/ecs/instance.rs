@@ -3,7 +3,7 @@ use crate::{
     registry::{
         component::{ComponentRegistryManager, ComponentType, ComponentTypeTrait},
         error::RegistryError,
-        system::{System, SystemRegistry},
+        system::{System, SystemRegistryManager},
         RegistryManager,
     },
     utils::{slotmap::SparseSecondaryMap, uid::ToUID},
@@ -189,7 +189,7 @@ pub(crate) struct SystemInstanceEntry {
 }
 
 impl SystemInstanceEntry {
-    fn new(system: System, registry: &SystemRegistry) -> Self {
+    fn new(system: System, registry: &SystemRegistryManager) -> Self {
         let instance = registry
             .get(system)
             .expect("System not found")

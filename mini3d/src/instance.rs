@@ -17,9 +17,9 @@ use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
+use crate::runtime::provider::RuntimeProvider;
+use crate::runtime::RuntimeManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::system::provider::SystemProvider;
-use crate::system::SystemManager;
 use crate::utils::uid::ToUID;
 
 #[derive(Error, Debug)]
@@ -77,7 +77,7 @@ pub struct Instance {
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
-    pub(crate) system: SystemManager,
+    pub(crate) system: RuntimeManager,
     pub(crate) logger: LoggerManager,
     global_time: f64,
 }
@@ -216,7 +216,7 @@ impl Instance {
         self.input.set_provider(Box::new(provider));
     }
 
-    pub fn set_system_provider(&mut self, provider: impl SystemProvider + 'static) {
+    pub fn set_system_provider(&mut self, provider: impl RuntimeProvider + 'static) {
         self.system.set_provider(Box::new(provider));
     }
 

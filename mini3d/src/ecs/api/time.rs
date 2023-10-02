@@ -1,14 +1,18 @@
-pub struct TimeAPI {
+use super::context::Context;
+
+pub(crate) struct TimeAPI {
     pub(crate) delta: f64,
     pub(crate) global: f64,
 }
 
-impl TimeAPI {
-    pub fn delta(&self) -> f64 {
-        self.delta
+pub struct Time;
+
+impl Time {
+    pub fn delta(ctx: &Context) -> f64 {
+        ctx.time.delta
     }
 
-    pub fn global(&self) -> f64 {
-        self.global
+    pub fn global(ctx: &Context) -> f64 {
+        ctx.time.global
     }
 }

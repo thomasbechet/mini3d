@@ -115,13 +115,13 @@ pub(crate) struct SystemEntry {
 #[derive(Default)]
 pub struct SystemOrder;
 
-pub struct SystemRegistry {
+pub(crate) struct SystemRegistryManager {
     pub(crate) systems: SlotMap<SystemEntry>,
     pub(crate) stages: SlotMap<SystemStageEntry>,
     pub(crate) changed: bool,
 }
 
-impl Default for SystemRegistry {
+impl Default for SystemRegistryManager {
     fn default() -> Self {
         let mut reg = Self {
             systems: Default::default(),
@@ -140,7 +140,7 @@ impl Default for SystemRegistry {
     }
 }
 
-impl SystemRegistry {
+impl SystemRegistryManager {
     pub(crate) fn log(&self) {
         println!("=== SYSTEMS ===");
         for (id, entry) in self.systems.iter() {
@@ -185,7 +185,7 @@ impl SystemRegistry {
         Ok(System(id))
     }
 
-    pub fn remove(&mut self, system: System) {
+    pub(crate) fn remove(&mut self, system: System) {
         let system = system.0;
         let stage = self.systems[system].stage;
         if let Some(prev) = self.systems[system].prev_in_stage {
@@ -215,7 +215,7 @@ impl SystemRegistry {
         })
     }
 
-    pub fn add_static_exclusive<S: ExclusiveSystem>(
+    pub(crate) fn add_static_exclusive<S: ExclusiveSystem>(
         &mut self,
         name: &str,
         stage: &str,
@@ -235,7 +235,7 @@ impl SystemRegistry {
         })
     }
 
-    pub fn add_static_parallel<S: ParallelSystem>(
+    pub(crate) fn add_static_parallel<S: ParallelSystem>(
         &mut self,
         name: &str,
         stage: &str,
@@ -255,7 +255,7 @@ impl SystemRegistry {
         })
     }
 
-    pub fn find(&self, system: impl ToUID) -> Option<System> {
+    pub(crate) fn find(&self, system: impl ToUID) -> Option<System> {
         let uid = system.to_uid();
         self.systems
             .iter()

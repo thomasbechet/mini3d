@@ -1,6 +1,6 @@
 use mini3d::{
     ecs::{
-        api::{context::Context, ecs::ECS},
+        api::{context::Context, ecs::ECS, registry::ComponentRegistry, time::Time},
         instance::ExclusiveResolver,
         query::Query,
         scheduler::Invocation,
@@ -27,7 +27,7 @@ impl ExclusiveSystem for SpawnSystem {
         //     .add_static::<Transform>(Transform::NAME)
         //     .unwrap();
         let transforms: StaticComponentType<Transform> =
-            ctx.registry.component.find(Transform::NAME).unwrap();
+            ComponentRegistry::find(ctx, Transform::NAME).unwrap();
         let entity = ecs
             .add()
             .with(
@@ -64,7 +64,7 @@ impl ExclusiveSystem for TestSystem {
             let transform = &transforms[e];
             info!(ctx, "{} {:?}", i, transform);
         }
-        info!(ctx, "{:.3} {:.3}", ctx.time.global(), ctx.time.delta());
+        info!(ctx, "{:.3} {:.3}", Time::global(ctx), Time::delta(ctx));
     }
 }
 

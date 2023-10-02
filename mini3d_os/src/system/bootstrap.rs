@@ -1,6 +1,13 @@
 use mini3d::{
     ecs::{
-        api::{context::Context, ecs::ECS, input::Input},
+        api::{
+            asset::Asset,
+            context::Context,
+            ecs::ECS,
+            input::Input,
+            registry::{AssetRegistry, ComponentRegistry, SystemRegistry},
+            runtime::Runtime,
+        },
         scheduler::Invocation,
     },
     expect,
@@ -26,8 +33,8 @@ use mini3d::{
         system::{ExclusiveSystem, SystemOrder, SystemStage},
     },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
+    runtime::event::ImportAssetEvent,
     script::{compiler::Compiler, module::Module},
-    system::event::ImportAssetEvent,
     utils::prng::PCG32,
 };
 
@@ -49,14 +56,13 @@ impl ExclusiveSystem for OSBootstrap {
         // Declare components
         expect!(
             ctx,
-            ctx.registry
-                .component
-                .add_static::<OS>(OS::NAME, ComponentStorage::Single)
+            ComponentRegistry::add_static::<OS>(ctx, OS::NAME, ComponentStorage::Single)
         );
         // Declare systems
         expect!(
             ctx,
-            ctx.registry.system.add_static_exclusive::<OSInitialize>(
+            SystemRegistry::add_static_exclusive::<OSInitialize>(
+                ctx,
                 OSInitialize::NAME,
                 OSInitialize::NAME,
                 SystemOrder::default()
@@ -64,7 +70,8 @@ impl ExclusiveSystem for OSBootstrap {
         );
         expect!(
             ctx,
-            ctx.registry.system.add_static_exclusive::<OSUpdate>(
+            SystemRegistry::add_static_exclusive::<OSUpdate>(
+                ctx,
                 OSUpdate::NAME,
                 SystemStage::UPDATE,
                 SystemOrder::default()
@@ -85,8 +92,8 @@ impl OSInitialize {
 impl OSInitialize {
     fn setup_assets(&self, ctx: &mut Context) {
         // Register default font
-        let font: StaticAssetType<Font> = ctx.registry.asset.find(Font::NAME).unwrap();
-        expect!(ctx, ctx.asset.persist(font, "default", Font::default()));
+        let font: StaticAssetType<Font> = AssetRegistry::find(ctx, Font::NAME).unwrap();
+        expect!(ctx, Asset::persist(ctx, font, "default", Font::default()));
 
         // Register inputs
         expect!(
@@ -293,123 +300,149 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            Input::add_axis(ctx, InputAxis {
-                name: CommonAxis::MOVE_LEFT.into(),
-                display_name: "Move Left".into(),
-                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::MOVE_LEFT.into(),
+                    display_name: "Move Left".into(),
+                    range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_axis(ctx, InputAxis {
-                name: CommonAxis::MOVE_RIGHT.into(),
-                display_name: "Move Right".into(),
-                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::MOVE_RIGHT.into(),
+                    display_name: "Move Right".into(),
+                    range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_axis(ctx, InputAxis {
-                name: CommonAxis::MOVE_UP.into(),
-                display_name: "Move Up".into(),
-                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::MOVE_UP.into(),
+                    display_name: "Move Up".into(),
+                    range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_axis(ctx, InputAxis {
-                name: CommonAxis::MOVE_DOWN.into(),
-                display_name: "Move Down".into(),
-                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::MOVE_DOWN.into(),
+                    display_name: "Move Down".into(),
+                    range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                    default_value: 0.0,
+                }
+            )
         );
 
         expect!(
             ctx,
-            Input::.add_action(ctx, InputAction {
-                name: "roll_left".into(),
-                display_name: "Roll Left".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: "roll_left".into(),
+                    display_name: "Roll Left".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_action(ctx, InputAction {
-                name: "roll_right".into(),
-                display_name: "Roll Right".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: "roll_right".into(),
+                    display_name: "Roll Right".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_action(ctx, InputAction {
-                name: "switch_mode".into(),
-                display_name: "Switch Mode".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: "switch_mode".into(),
+                    display_name: "Switch Mode".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_action(ctx, InputAction {
-                name: "move_fast".into(),
-                display_name: "Move Fast".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: "move_fast".into(),
+                    display_name: "Move Fast".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            Input::.add_action(ctx, InputAction {
-                name: "move_slow".into(),
-                display_name: "Move Slow".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: "move_slow".into(),
+                    display_name: "Move Slow".into(),
+                    default_pressed: false,
+                }
+            )
         );
 
         let texture: StaticAssetType<Texture> =
-            expect!(ctx, ctx.registry.asset.find(Texture::NAME));
-        let mesh: StaticAssetType<Mesh> = expect!(ctx, ctx.registry.asset.find(Mesh::NAME));
-        let model: StaticAssetType<Model> = expect!(ctx, ctx.registry.asset.find(Model::NAME));
+            expect!(ctx, AssetRegistry::find(ctx, Texture::NAME));
+        let mesh: StaticAssetType<Mesh> = expect!(ctx, AssetRegistry::find(ctx, Mesh::NAME));
+        let model: StaticAssetType<Model> = expect!(ctx, AssetRegistry::find(ctx, Model::NAME));
         let material: StaticAssetType<Material> =
-            expect!(ctx, ctx.registry.asset.find(Material::NAME));
-        let script: StaticAssetType<Script> = expect!(ctx, ctx.registry.asset.find(Script::NAME));
+            expect!(ctx, AssetRegistry::find(ctx, Material::NAME));
+        let script: StaticAssetType<Script> = expect!(ctx, AssetRegistry::find(ctx, Script::NAME));
 
         // Import assets
-        while let Some(import) = ctx.system.next_import() {
+        while let Some(import) = Runtime::next_import(ctx) {
             match import {
                 ImportAssetEvent::Material(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset
-                            .persist(material, &entry.name, entry.data.clone(),)
+                        Asset::persist(ctx, material, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Mesh(entry) => {
                     info!(ctx, "Importing mesh: {}", entry.name);
                     expect!(
                         ctx,
-                        ctx.asset.persist(mesh, &entry.name, entry.data.clone())
+                        Asset::persist(ctx, mesh, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Model(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset.persist(model, &entry.name, entry.data.clone())
+                        Asset::persist(ctx, model, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Script(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset.persist(script, &entry.name, entry.data.clone(),)
+                        Asset::persist(ctx, script, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Texture(entry) => {
                     expect!(
                         ctx,
-                        ctx.asset.persist(texture, &entry.name, entry.data.clone(),)
+                        Asset::persist(ctx, texture, &entry.name, entry.data.clone())
                     );
                 }
                 _ => {}
@@ -417,13 +450,14 @@ impl OSInitialize {
         }
 
         // Non default assets
-        let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));
-        let alfred_mesh = expect!(ctx, ctx.asset.find("alfred_mesh"));
-        let car_texture = expect!(ctx, ctx.asset.find("car_tex"));
-        let car_mesh = expect!(ctx, ctx.asset.find("car_mesh"));
+        let alfred_texture = expect!(ctx, Asset::find(ctx, "alfred_tex"));
+        let alfred_mesh = expect!(ctx, Asset::find(ctx, "alfred_mesh"));
+        let car_texture = expect!(ctx, Asset::find(ctx, "car_tex"));
+        let car_mesh = expect!(ctx, Asset::find(ctx, "car_mesh"));
         let alfred_material = expect!(
             ctx,
-            ctx.asset.persist(
+            Asset::persist(
+                ctx,
                 material,
                 "alfred_mat",
                 Material {
@@ -433,7 +467,8 @@ impl OSInitialize {
         );
         let car_material = expect!(
             ctx,
-            ctx.asset.persist(
+            Asset::persist(
+                ctx,
                 material,
                 "car_mat",
                 Material {
@@ -443,7 +478,8 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.asset.persist(
+            Asset::persist(
+                ctx,
                 model,
                 "car_model",
                 Model {
@@ -454,7 +490,8 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.asset.persist(
+            Asset::persist(
+                ctx,
                 model,
                 "alfred_model",
                 Model {
@@ -468,29 +505,29 @@ impl OSInitialize {
     fn setup_scene(&self, ecs: &mut ECS, ctx: &mut Context) {
         // Find components
         let transform: StaticComponentType<Transform> =
-            expect!(ctx, ctx.registry.component.find(Transform::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, Transform::NAME));
         let rotator: StaticComponentType<Rotator> =
-            expect!(ctx, ctx.registry.component.find(Rotator::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, Rotator::NAME));
         let static_mesh: StaticComponentType<StaticMesh> =
-            expect!(ctx, ctx.registry.component.find(StaticMesh::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, StaticMesh::NAME));
         let local_to_world: StaticComponentType<LocalToWorld> =
-            expect!(ctx, ctx.registry.component.find(LocalToWorld::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, LocalToWorld::NAME));
         let hierarchy: StaticComponentType<Hierarchy> =
-            expect!(ctx, ctx.registry.component.find(Hierarchy::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, Hierarchy::NAME));
         let camera: StaticComponentType<Camera> =
-            expect!(ctx, ctx.registry.component.find(Camera::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, Camera::NAME));
         let viewport: StaticComponentType<Viewport> =
-            expect!(ctx, ctx.registry.component.find(Viewport::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, Viewport::NAME));
         // let ui: StaticComponent<UI> = expect!(ctx, ctx.registry.components.find(UI::NAME));
         // let ui_render_target: StaticComponent<UIRenderTarget> =
         //     expect!(ctx, ctx.registry.components.find(UIRenderTarget::NAME));
         let free_fly: StaticComponentType<FreeFly> =
-            expect!(ctx, ctx.registry.component.find(FreeFly::NAME));
-        let os: StaticComponentType<OS> = expect!(ctx, ctx.registry.component.find(OS::NAME));
+            expect!(ctx, ComponentRegistry::find(ctx, FreeFly::NAME));
+        let os: StaticComponentType<OS> = expect!(ctx, ComponentRegistry::find(ctx, OS::NAME));
 
-        let alfred_model = expect!(ctx, ctx.asset.find("alfred_model"));
+        let alfred_model = expect!(ctx, Asset::find(ctx, "alfred_model"));
         // let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));
-        let car_model = expect!(ctx, ctx.asset.find("car_model"));
+        let car_model = expect!(ctx, Asset::find(ctx, "car_model"));
         // let gui_texture = expect!(ctx, ctx.asset.find("GUI"));
         // let font = expect!(ctx, ctx.asset.find("default"));
         {
@@ -585,19 +622,19 @@ impl OSInitialize {
                     free_fly,
                     FreeFly {
                         active: true,
-                        switch_mode: Input::.find_action("switch_mode").unwrap(),
-                        roll_left: Input::.find_action("roll_left").unwrap(),
-                        roll_right: Input::.find_action("roll_right").unwrap(),
-                        view_x: Input::.find_axis(CommonAxis::VIEW_X).unwrap(),
-                        view_y: Input::.find_axis(CommonAxis::VIEW_Y).unwrap(),
-                        move_forward: Input::.find_axis(CommonAxis::MOVE_FORWARD).unwrap(),
-                        move_backward: Input::.find_axis(CommonAxis::MOVE_BACKWARD).unwrap(),
-                        move_up: Input::.find_axis(CommonAxis::MOVE_UP).unwrap(),
-                        move_down: Input::.find_axis(CommonAxis::MOVE_DOWN).unwrap(),
-                        move_left: Input::.find_axis(CommonAxis::MOVE_LEFT).unwrap(),
-                        move_right: Input::.find_axis(CommonAxis::MOVE_RIGHT).unwrap(),
-                        move_fast: Input::.find_action("move_fast").unwrap(),
-                        move_slow: Input::.find_action("move_slow").unwrap(),
+                        switch_mode: Input::find_action(ctx, "switch_mode").unwrap(),
+                        roll_left: Input::find_action(ctx, "roll_left").unwrap(),
+                        roll_right: Input::find_action(ctx, "roll_right").unwrap(),
+                        view_x: Input::find_axis(ctx, CommonAxis::VIEW_X).unwrap(),
+                        view_y: Input::find_axis(ctx, CommonAxis::VIEW_Y).unwrap(),
+                        move_forward: Input::find_axis(ctx, CommonAxis::MOVE_FORWARD).unwrap(),
+                        move_backward: Input::find_axis(ctx, CommonAxis::MOVE_BACKWARD).unwrap(),
+                        move_up: Input::find_axis(ctx, CommonAxis::MOVE_UP).unwrap(),
+                        move_down: Input::find_axis(ctx, CommonAxis::MOVE_DOWN).unwrap(),
+                        move_left: Input::find_axis(ctx, CommonAxis::MOVE_LEFT).unwrap(),
+                        move_right: Input::find_axis(ctx, CommonAxis::MOVE_RIGHT).unwrap(),
+                        move_fast: Input::find_action(ctx, "move_fast").unwrap(),
+                        move_slow: Input::find_action(ctx, "move_slow").unwrap(),
                         free_mode: false,
                         yaw: 0.0,
                         pitch: 0.0,
@@ -772,15 +809,9 @@ impl ExclusiveSystem for OSInitialize {
         // Setup scene
         self.setup_scene(ecs, ctx);
 
-        let main_script = ctx
-            .asset
-            .find("main_script")
-            .expect("Script 'main' not found");
-        let utils_script = ctx
-            .asset
-            .find("utils_script")
-            .expect("Script 'utils' not found");
-        let script = expect!(ctx, ctx.asset.read::<Script>(main_script));
+        let main_script = Asset::find(ctx, "main_script").expect("Script 'main' not found");
+        let utils_script = Asset::find(ctx, "utils_script").expect("Script 'utils' not found");
+        let script = expect!(ctx, Asset::read::<Script>(ctx, main_script));
 
         println!("Script: {:?}", script.source);
         let mut compiler = Compiler::default();
@@ -791,7 +822,7 @@ impl ExclusiveSystem for OSInitialize {
                 asset: utils_script,
             },
         );
-        if let Result::Err(e) = compiler.compile(entry, ctx.asset) {
+        if let Result::Err(e) = compiler.compile(entry, ctx) {
             println!("Error: {:?}", e);
         } else {
             println!("SUCCESS");

@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::{
     registry::{
         error::RegistryError,
-        system::{System, SystemRegistry, SystemStage},
+        system::{System, SystemRegistryManager, SystemStage},
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -54,7 +54,7 @@ pub(crate) struct Scheduler {
 }
 
 impl Scheduler {
-    pub(crate) fn log(&self, registry: &SystemRegistry) {
+    pub(crate) fn log(&self, registry: &SystemRegistryManager) {
         println!("Scheduler:");
         for stage in self.stages.iter() {
             println!("  Stage: {}", stage.uid);
@@ -71,7 +71,7 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn on_registry_update(&mut self, registry: &SystemRegistry) {
+    pub(crate) fn on_registry_update(&mut self, registry: &SystemRegistryManager) {
         // Reset baked resources
         self.stages.clear();
         self.nodes.clear();

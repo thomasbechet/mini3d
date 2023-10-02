@@ -13,9 +13,9 @@ pub mod recorder;
 pub mod reflection;
 pub mod registry;
 pub mod renderer;
+pub mod runtime;
 pub mod script;
 pub mod serialize;
-pub mod system;
 pub mod utils;
 
 pub use glam;

@@ -2,8 +2,8 @@ use crate::{
     asset::AssetManager,
     logger::LoggerManager,
     registry::error::RegistryError,
+    runtime::RuntimeManager,
     serialize::{Decoder, DecoderError, EncoderError},
-    system::SystemManager,
 };
 
 use crate::{
@@ -48,7 +48,7 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) asset: &'a mut AssetManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,
-    pub(crate) system: &'a mut SystemManager,
+    pub(crate) system: &'a mut RuntimeManager,
     pub(crate) logger: &'a mut LoggerManager,
     pub(crate) delta_time: f64,
     pub(crate) global_time: f64,
@@ -132,7 +132,7 @@ impl ECSManager {
                             input: context.input,
                             registry: context.registry,
                             renderer: context.renderer,
-                            system: context.system,
+                            runtime: context.system,
                             logger: context.logger,
                             time: TimeAPI {
                                 delta: context.delta_time,
@@ -155,7 +155,7 @@ impl ECSManager {
                             input: context.input,
                             registry: context.registry,
                             renderer: context.renderer,
-                            system: context.system,
+                            runtime: context.system,
                             logger: context.logger,
                             time: TimeAPI {
                                 delta: context.delta_time,

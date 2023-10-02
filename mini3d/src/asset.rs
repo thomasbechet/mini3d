@@ -1,7 +1,9 @@
 use core::result::Result;
 
 use crate::io::IOManager;
-use crate::registry::asset::{AssetReferenceTrait, AssetRegistry, AssetType, AssetTypeTrait};
+use crate::registry::asset::{
+    AssetReferenceTrait, AssetRegistryManager, AssetType, AssetTypeTrait,
+};
 use crate::registry::component::ComponentRegistryManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
@@ -95,7 +97,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn on_registry_update(&mut self, registry: &AssetRegistry) {
+    pub(crate) fn on_registry_update(&mut self, registry: &AssetRegistryManager) {
         for (id, entry) in registry.entries.iter() {
             if !self.containers.contains(id) {
                 let container = entry.reflection.create_asset_container();
