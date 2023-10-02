@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::{
     registry::{
-        component::{ComponentRegistry, ComponentType},
+        component::{ComponentRegistryManager, ComponentType},
         error::RegistryError,
         system::System,
     },
@@ -198,7 +198,7 @@ impl QueryTable {
 }
 
 pub struct QueryBuilder<'a> {
-    pub(crate) registry: &'a ComponentRegistry,
+    pub(crate) registry: &'a ComponentRegistryManager,
     pub(crate) system: System,
     pub(crate) all: &'a mut Vec<ComponentType>,
     pub(crate) any: &'a mut Vec<ComponentType>,

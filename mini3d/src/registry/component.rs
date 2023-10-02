@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     ecs::{
+        api::context::Context,
         container::{
             single::{AnySingleContainer, StaticSingleContainer},
             ContainerTable,
@@ -278,12 +279,12 @@ pub(crate) struct ComponentEntry {
 }
 
 #[derive(Default)]
-pub struct ComponentRegistry {
+pub struct ComponentRegistryManager {
     pub(crate) entries: SlotMap<ComponentEntry>,
     pub(crate) changed: bool,
 }
 
-impl ComponentRegistry {
+impl ComponentRegistryManager {
     fn add(
         &mut self,
         name: &str,
@@ -304,7 +305,7 @@ impl ComponentRegistry {
         }))
     }
 
-    pub fn add_static<D: StaticDataType>(
+    pub(crate) fn add_static<D: StaticDataType>(
         &mut self,
         name: &str,
         storage: ComponentStorage,
@@ -319,15 +320,11 @@ impl ComponentRegistry {
         })
     }
 
-    pub fn add_dynamic(
+    pub(crate) fn add_dynamic(
         &mut self,
         name: &str,
         storage: ComponentStorage,
     ) -> Result<ComponentType, RegistryError> {
-        unimplemented!()
-    }
-
-    pub fn add_tag(&mut self, name: &str) -> Result<ComponentType, RegistryError> {
         unimplemented!()
     }
 
@@ -340,7 +337,7 @@ impl ComponentRegistry {
             .ok_or(RegistryError::ComponentNotFound)
     }
 
-    pub fn find<H: ComponentTypeTrait>(&self, component: impl ToUID) -> Option<H> {
+    pub(crate) fn find<H: ComponentTypeTrait>(&self, component: impl ToUID) -> Option<H> {
         // Find entry
         let component = component.to_uid();
         let component = self
@@ -360,7 +357,7 @@ impl ComponentRegistry {
         }
     }
 
-    pub fn contains(&self, component: impl ToUID) -> bool {
+    pub(crate) fn contains(&self, component: impl ToUID) -> bool {
         let component = component.to_uid();
         self.find::<ComponentType>(component).is_some()
     }

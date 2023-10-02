@@ -3,7 +3,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{context::Context, ecs::ECS},
+        api::{context::Context, ecs::ECS, input::Input},
         instance::ParallelResolver,
         query::Query,
     },
@@ -85,35 +85,37 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Update view mod
-            if expect!(ctx, ctx.input.action(free_fly.switch_mode)).is_just_pressed() {
+            if expect!(ctx, Input::action(ctx, free_fly.switch_mode)).is_just_pressed() {
                 free_fly.free_mode = !free_fly.free_mode;
             }
 
             // Compute camera translation
             let mut direction = Vec3::ZERO;
             direction +=
-                transform.forward() * expect!(ctx, ctx.input.axis(free_fly.move_forward)).value;
+                transform.forward() * expect!(ctx, Input::axis(ctx, free_fly.move_forward)).value;
             direction +=
-                transform.backward() * expect!(ctx, ctx.input.axis(free_fly.move_backward)).value;
-            direction += transform.left() * expect!(ctx, ctx.input.axis(free_fly.move_left)).value;
+                transform.backward() * expect!(ctx, Input::axis(ctx, free_fly.move_backward)).value;
             direction +=
-                transform.right() * expect!(ctx, ctx.input.axis(free_fly.move_right)).value;
+                transform.left() * expect!(ctx, Input::axis(ctx, free_fly.move_left)).value;
+            direction +=
+                transform.right() * expect!(ctx, Input::axis(ctx, free_fly.move_right)).value;
             if free_fly.free_mode {
-                direction += transform.up() * expect!(ctx, ctx.input.axis(free_fly.move_up)).value;
                 direction +=
-                    transform.down() * expect!(ctx, ctx.input.axis(free_fly.move_down)).value;
+                    transform.up() * expect!(ctx, Input::axis(ctx, free_fly.move_up)).value;
+                direction +=
+                    transform.down() * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
             } else {
-                direction += Vec3::Y * expect!(ctx, ctx.input.axis(free_fly.move_up)).value;
-                direction += Vec3::NEG_Y * expect!(ctx, ctx.input.axis(free_fly.move_down)).value;
+                direction += Vec3::Y * expect!(ctx, Input::axis(ctx, free_fly.move_up)).value;
+                direction += Vec3::NEG_Y * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
             }
             let direction_length = direction.length();
             direction = direction.normalize_or_zero();
 
             // Camera speed
             let mut speed = FreeFly::NORMAL_SPEED;
-            if expect!(ctx, ctx.input.action(free_fly.move_fast)).is_pressed() {
+            if expect!(ctx, Input::action(ctx, free_fly.move_fast)).is_pressed() {
                 speed = FreeFly::FAST_SPEED;
-            } else if expect!(ctx, ctx.input.action(free_fly.move_slow)).is_pressed() {
+            } else if expect!(ctx, Input::action(ctx, free_fly.move_slow)).is_pressed() {
                 speed = FreeFly::SLOW_SPEED;
             }
 
@@ -121,8 +123,8 @@ impl ParallelSystem for FreeFlySystem {
             transform.translation += direction * direction_length * ctx.time.delta() as f32 * speed;
 
             // Apply rotation
-            let motion_x = expect!(ctx, ctx.input.axis(free_fly.view_x)).value;
-            let motion_y = expect!(ctx, ctx.input.axis(free_fly.view_y)).value;
+            let motion_x = expect!(ctx, Input::axis(ctx, free_fly.view_x)).value;
+            let motion_y = expect!(ctx, Input::axis(ctx, free_fly.view_y)).value;
             if free_fly.free_mode {
                 if motion_x != 0.0 {
                     transform.rotation *= Quat::from_axis_angle(
@@ -140,13 +142,13 @@ impl ParallelSystem for FreeFlySystem {
                             * ctx.time.delta() as f32,
                     );
                 }
-                if expect!(ctx, ctx.input.action(free_fly.roll_left)).is_pressed() {
+                if expect!(ctx, Input::action(ctx, free_fly.roll_left)).is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
                         -f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,
                     );
                 }
-                if expect!(ctx, ctx.input.action(free_fly.roll_right)).is_pressed() {
+                if expect!(ctx, Input::action(ctx, free_fly.roll_right)).is_pressed() {
                     transform.rotation *= Quat::from_axis_angle(
                         Vec3::Z,
                         f32::to_radians(FreeFly::ROLL_SPEED) * ctx.time.delta() as f32,

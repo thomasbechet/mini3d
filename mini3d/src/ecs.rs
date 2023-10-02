@@ -8,7 +8,7 @@ use crate::{
 
 use crate::{
     input::InputManager,
-    registry::{component::ComponentRegistry, RegistryManager},
+    registry::{component::ComponentRegistryManager, RegistryManager},
     renderer::RendererManager,
     serialize::Encoder,
 };
@@ -57,7 +57,7 @@ pub(crate) struct ECSUpdateContext<'a> {
 impl ECSManager {
     pub(crate) fn save_state(
         &self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
         // encoder.write_u32(self.scenes.len() as u32)?;
@@ -69,7 +69,7 @@ impl ECSManager {
 
     pub(crate) fn load_state(
         &mut self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
         // let scenes_count = decoder.read_u32()?;

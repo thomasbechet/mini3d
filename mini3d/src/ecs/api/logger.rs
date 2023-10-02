@@ -1,50 +1,56 @@
+use std::fmt::Arguments;
+
+use crate::logger::level::LogLevel;
+
+use super::context::Context;
+
 #[macro_export]
 macro_rules! info {
-    ($api:ident, $($arg:tt)*) => {{
-        $api.logger.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Info, Some((file!(), line!())));
+    ($ctx:ident, $($arg:tt)*) => {{
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Info, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! debug {
-    ($api:ident, $($arg:tt)*) => {{
-        $api.logger.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Debug, Some((file!(), line!())));
+    ($ctx:ident, $($arg:tt)*) => {{
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Debug, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! warn {
-    ($api:ident, $($arg:tt)*) => {{
-        $api.logger.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Warning, Some((file!(), line!())));
+    ($ctx:ident, $($arg:tt)*) => {{
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Warning, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! error {
-    ($api:ident, $($arg:tt)*) => {{
-        $api.logger.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Error, Some((file!(), line!())));
+    ($ctx:ident, $($arg:tt)*) => {{
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Error, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! panic {
     ($api:ident, $($arg:tt)*) => {{
-        $api.logger.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
         panic!()
     }}
 }
 
 #[macro_export]
 macro_rules! expect {
-    ($api:ident, $result:expr, $($arg:tt)*) => {{
+    ($ctx:ident, $result:expr, $($arg:tt)*) => {{
         $crate::ecs::api::logger::IntoResult::into_result($result).unwrap_or_else(|_| {
-            $api.logger.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
+            $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
             panic!()
         })
     }};
-    ($api:ident, $result:expr) => {{
+    ($ctx:ident, $result:expr) => {{
         $crate::ecs::api::logger::IntoResult::into_result($result).unwrap_or_else(|e| {
-            $api.logger.log(format_args!("{}", e), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
+            $crate::ecs::api::logger::Logger::log($ctx, format_args!("{}", e), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
             panic!()
         })
     }};
@@ -66,5 +72,22 @@ impl<T> IntoResult<T, &'static str> for Option<T> {
             Some(v) => Ok(v),
             None => Err("Got value of None"),
         }
+    }
+}
+
+pub struct Logger;
+
+impl Logger {
+    pub fn log(
+        ctx: &Context,
+        args: Arguments<'_>,
+        level: LogLevel,
+        source: Option<(&'static str, u32)>,
+    ) {
+        ctx.logger.log(args, level, source);
+    }
+
+    pub fn set_max_level(ctx: &mut Context, level: LogLevel) {
+        ctx.logger.set_max_level(level);
     }
 }

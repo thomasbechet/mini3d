@@ -1,7 +1,7 @@
 use crate::{
     feature::common::program::Program,
     registry::{
-        component::{ComponentRegistry, ComponentType, ComponentTypeTrait},
+        component::{ComponentRegistryManager, ComponentType, ComponentTypeTrait},
         error::RegistryError,
         system::{System, SystemRegistry},
         RegistryManager,
@@ -16,7 +16,7 @@ use super::{
 };
 
 pub struct ExclusiveResolver<'a> {
-    registry: &'a ComponentRegistry,
+    registry: &'a ComponentRegistryManager,
     system: System,
     all: &'a mut Vec<ComponentType>,
     any: &'a mut Vec<ComponentType>,
@@ -56,7 +56,7 @@ impl<'a> ExclusiveResolver<'a> {
 }
 
 pub struct ParallelResolver<'a> {
-    registry: &'a ComponentRegistry,
+    registry: &'a ComponentRegistryManager,
     system: System,
     reads: Vec<ComponentType>,
     writes: Vec<ComponentType>,
@@ -207,7 +207,7 @@ impl SystemInstanceEntry {
 
     pub(crate) fn setup(
         &mut self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
     ) -> Result<(), RegistryError> {

@@ -6,11 +6,11 @@ use crate::{
 use super::time::TimeAPI;
 
 pub struct Context<'a> {
-    pub asset: &'a mut AssetManager,
-    pub input: &'a mut InputManager,
-    pub registry: &'a mut RegistryManager,
-    pub renderer: &'a mut RendererManager,
-    pub system: &'a mut SystemManager,
-    pub logger: &'a mut LoggerManager,
-    pub time: TimeAPI,
+    pub(crate) asset: &'a mut AssetManager,
+    pub(crate) input: &'a mut InputManager,
+    pub(crate) registry: &'a mut RegistryManager,
+    pub(crate) renderer: &'a mut RendererManager,
+    pub(crate) system: &'a mut SystemManager,
+    pub(crate) logger: &'a mut LoggerManager,
+    pub(crate) time: TimeAPI,
 }

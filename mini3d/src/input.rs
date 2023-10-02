@@ -148,7 +148,10 @@ impl InputManager {
         Ok(())
     }
 
-    pub fn add_action(&mut self, action: InputAction) -> Result<InputActionHandle, InputError> {
+    pub(crate) fn add_action(
+        &mut self,
+        action: InputAction,
+    ) -> Result<InputActionHandle, InputError> {
         if self.find_action(&action.name).is_some() {
             return Err(InputError::DuplicatedAction);
         }
@@ -165,7 +168,7 @@ impl InputManager {
         Ok(handle)
     }
 
-    pub fn find_action(&self, name: &str) -> Option<InputActionHandle> {
+    pub(crate) fn find_action(&self, name: &str) -> Option<InputActionHandle> {
         let uid = name.into();
         self.actions
             .iter()
@@ -176,7 +179,7 @@ impl InputManager {
             })
     }
 
-    pub fn add_axis(&mut self, axis: InputAxis) -> Result<InputAxisHandle, InputError> {
+    pub(crate) fn add_axis(&mut self, axis: InputAxis) -> Result<InputAxisHandle, InputError> {
         if self.find_axis(&axis.name).is_some() {
             return Err(InputError::DuplicatedAxis);
         }
@@ -194,7 +197,7 @@ impl InputManager {
         Ok(handle)
     }
 
-    pub fn find_axis(&self, name: &str) -> Option<InputAxisHandle> {
+    pub(crate) fn find_axis(&self, name: &str) -> Option<InputAxisHandle> {
         let uid = name.into();
         self.axis
             .iter()
@@ -205,17 +208,20 @@ impl InputManager {
             })
     }
 
-    pub fn action(&self, handle: InputActionHandle) -> Result<&InputActionState, InputError> {
+    pub(crate) fn action(
+        &self,
+        handle: InputActionHandle,
+    ) -> Result<&InputActionState, InputError> {
         self.actions
             .get(handle.id)
             .ok_or(InputError::ActionNotFound)
     }
 
-    pub fn axis(&self, handle: InputAxisHandle) -> Result<&InputAxisState, InputError> {
+    pub(crate) fn axis(&self, handle: InputAxisHandle) -> Result<&InputAxisState, InputError> {
         self.axis.get(handle.id).ok_or(InputError::AxisNotFound)
     }
 
-    pub fn text(&self, handle: InputTextHandle) -> Result<&InputTextState, InputError> {
+    pub(crate) fn text(&self, handle: InputTextHandle) -> Result<&InputTextState, InputError> {
         self.texts.get(handle.id).ok_or(InputError::TextNotFound)
     }
 }

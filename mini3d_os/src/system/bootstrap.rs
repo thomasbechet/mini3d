@@ -1,6 +1,6 @@
 use mini3d::{
     ecs::{
-        api::{context::Context, ecs::ECS},
+        api::{context::Context, ecs::ECS, input::Input},
         scheduler::Invocation,
     },
     expect,
@@ -91,158 +91,209 @@ impl OSInitialize {
         // Register inputs
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::CLICK.into(),
-                display_name: "Click".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::CLICK.into(),
+                    display_name: "Click".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::BACK.into(),
-                display_name: "Back".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::BACK.into(),
+                    display_name: "Back".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::UP.into(),
-                display_name: "Up".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::UP.into(),
+                    display_name: "Up".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::LEFT.into(),
-                display_name: "Left".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::LEFT.into(),
+                    display_name: "Left".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::DOWN.into(),
-                display_name: "Down".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::DOWN.into(),
+                    display_name: "Down".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::RIGHT.into(),
-                display_name: "Right".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::RIGHT.into(),
+                    display_name: "Right".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::CHANGE_CONTROL_MODE.into(),
-                display_name: "Change Control Mode".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::CHANGE_CONTROL_MODE.into(),
+                    display_name: "Change Control Mode".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
-                name: CommonAction::TOGGLE_PROFILER.into(),
-                display_name: "Toggle Profiler".into(),
-                default_pressed: false,
-            })
+            Input::add_action(
+                ctx,
+                InputAction {
+                    name: CommonAction::TOGGLE_PROFILER.into(),
+                    display_name: "Toggle Profiler".into(),
+                    default_pressed: false,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::CURSOR_X.into(),
-                display_name: "Cursor X".into(),
-                range: InputAxisRange::Clamped {
-                    min: 0.0,
-                    max: SCREEN_WIDTH as f32,
-                },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::CURSOR_X.into(),
+                    display_name: "Cursor X".into(),
+                    range: InputAxisRange::Clamped {
+                        min: 0.0,
+                        max: SCREEN_WIDTH as f32,
+                    },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::CURSOR_Y.into(),
-                display_name: "Cursor Y".into(),
-                range: InputAxisRange::Clamped {
-                    min: 0.0,
-                    max: SCREEN_HEIGHT as f32,
-                },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::CURSOR_Y.into(),
+                    display_name: "Cursor Y".into(),
+                    range: InputAxisRange::Clamped {
+                        min: 0.0,
+                        max: SCREEN_HEIGHT as f32,
+                    },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::SCROLL_MOTION.into(),
-                display_name: "Scroll Motion".into(),
-                range: InputAxisRange::Infinite,
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::SCROLL_MOTION.into(),
+                    display_name: "Scroll Motion".into(),
+                    range: InputAxisRange::Infinite,
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::CURSOR_MOTION_X.into(),
-                display_name: "Cursor Motion X".into(),
-                range: InputAxisRange::Infinite,
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::CURSOR_MOTION_X.into(),
+                    display_name: "Cursor Motion X".into(),
+                    range: InputAxisRange::Infinite,
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::CURSOR_MOTION_Y.into(),
-                display_name: "Cursor Motion Y".into(),
-                range: InputAxisRange::Infinite,
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::CURSOR_MOTION_Y.into(),
+                    display_name: "Cursor Motion Y".into(),
+                    range: InputAxisRange::Infinite,
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::VIEW_X.into(),
-                display_name: "View X".into(),
-                range: InputAxisRange::Infinite,
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::VIEW_X.into(),
+                    display_name: "View X".into(),
+                    range: InputAxisRange::Infinite,
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::VIEW_Y.into(),
-                display_name: "View Y".into(),
-                range: InputAxisRange::Infinite,
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::VIEW_Y.into(),
+                    display_name: "View Y".into(),
+                    range: InputAxisRange::Infinite,
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::MOVE_FORWARD.into(),
-                display_name: "Move Forward".into(),
-                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::MOVE_FORWARD.into(),
+                    display_name: "Move Forward".into(),
+                    range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
-                name: CommonAxis::MOVE_BACKWARD.into(),
-                display_name: "Move Backward".into(),
-                range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
-                default_value: 0.0,
-            })
+            Input::add_axis(
+                ctx,
+                InputAxis {
+                    name: CommonAxis::MOVE_BACKWARD.into(),
+                    display_name: "Move Backward".into(),
+                    range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
+                    default_value: 0.0,
+                }
+            )
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
+            Input::add_axis(ctx, InputAxis {
                 name: CommonAxis::MOVE_LEFT.into(),
                 display_name: "Move Left".into(),
                 range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
@@ -251,7 +302,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
+            Input::.add_axis(ctx, InputAxis {
                 name: CommonAxis::MOVE_RIGHT.into(),
                 display_name: "Move Right".into(),
                 range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
@@ -260,7 +311,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
+            Input::.add_axis(ctx, InputAxis {
                 name: CommonAxis::MOVE_UP.into(),
                 display_name: "Move Up".into(),
                 range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
@@ -269,7 +320,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_axis(InputAxis {
+            Input::.add_axis(ctx, InputAxis {
                 name: CommonAxis::MOVE_DOWN.into(),
                 display_name: "Move Down".into(),
                 range: InputAxisRange::Clamped { min: 0.0, max: 1.0 },
@@ -279,7 +330,7 @@ impl OSInitialize {
 
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
+            Input::.add_action(ctx, InputAction {
                 name: "roll_left".into(),
                 display_name: "Roll Left".into(),
                 default_pressed: false,
@@ -287,7 +338,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
+            Input::.add_action(ctx, InputAction {
                 name: "roll_right".into(),
                 display_name: "Roll Right".into(),
                 default_pressed: false,
@@ -295,7 +346,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
+            Input::.add_action(ctx, InputAction {
                 name: "switch_mode".into(),
                 display_name: "Switch Mode".into(),
                 default_pressed: false,
@@ -303,7 +354,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
+            Input::.add_action(ctx, InputAction {
                 name: "move_fast".into(),
                 display_name: "Move Fast".into(),
                 default_pressed: false,
@@ -311,7 +362,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            ctx.input.add_action(InputAction {
+            Input::.add_action(ctx, InputAction {
                 name: "move_slow".into(),
                 display_name: "Move Slow".into(),
                 default_pressed: false,
@@ -534,19 +585,19 @@ impl OSInitialize {
                     free_fly,
                     FreeFly {
                         active: true,
-                        switch_mode: ctx.input.find_action("switch_mode").unwrap(),
-                        roll_left: ctx.input.find_action("roll_left").unwrap(),
-                        roll_right: ctx.input.find_action("roll_right").unwrap(),
-                        view_x: ctx.input.find_axis(CommonAxis::VIEW_X).unwrap(),
-                        view_y: ctx.input.find_axis(CommonAxis::VIEW_Y).unwrap(),
-                        move_forward: ctx.input.find_axis(CommonAxis::MOVE_FORWARD).unwrap(),
-                        move_backward: ctx.input.find_axis(CommonAxis::MOVE_BACKWARD).unwrap(),
-                        move_up: ctx.input.find_axis(CommonAxis::MOVE_UP).unwrap(),
-                        move_down: ctx.input.find_axis(CommonAxis::MOVE_DOWN).unwrap(),
-                        move_left: ctx.input.find_axis(CommonAxis::MOVE_LEFT).unwrap(),
-                        move_right: ctx.input.find_axis(CommonAxis::MOVE_RIGHT).unwrap(),
-                        move_fast: ctx.input.find_action("move_fast").unwrap(),
-                        move_slow: ctx.input.find_action("move_slow").unwrap(),
+                        switch_mode: Input::.find_action("switch_mode").unwrap(),
+                        roll_left: Input::.find_action("roll_left").unwrap(),
+                        roll_right: Input::.find_action("roll_right").unwrap(),
+                        view_x: Input::.find_axis(CommonAxis::VIEW_X).unwrap(),
+                        view_y: Input::.find_axis(CommonAxis::VIEW_Y).unwrap(),
+                        move_forward: Input::.find_axis(CommonAxis::MOVE_FORWARD).unwrap(),
+                        move_backward: Input::.find_axis(CommonAxis::MOVE_BACKWARD).unwrap(),
+                        move_up: Input::.find_axis(CommonAxis::MOVE_UP).unwrap(),
+                        move_down: Input::.find_axis(CommonAxis::MOVE_DOWN).unwrap(),
+                        move_left: Input::.find_axis(CommonAxis::MOVE_LEFT).unwrap(),
+                        move_right: Input::.find_axis(CommonAxis::MOVE_RIGHT).unwrap(),
+                        move_fast: Input::.find_action("move_fast").unwrap(),
+                        move_slow: Input::.find_action("move_slow").unwrap(),
                         free_mode: false,
                         yaw: 0.0,
                         pitch: 0.0,

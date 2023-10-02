@@ -2,7 +2,7 @@ use core::result::Result;
 
 use crate::io::IOManager;
 use crate::registry::asset::{AssetReferenceTrait, AssetRegistry, AssetType, AssetTypeTrait};
-use crate::registry::component::ComponentRegistry;
+use crate::registry::component::ComponentRegistryManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::uid::ToUID;
@@ -44,7 +44,7 @@ pub struct AssetManager {
 impl AssetManager {
     pub(crate) fn save_state(
         &self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
         // encoder.write_u32(self.bundles.len() as u32)?;
@@ -57,7 +57,7 @@ impl AssetManager {
 
     pub(crate) fn load_state(
         &mut self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
         // // Clear all data
@@ -104,7 +104,7 @@ impl AssetManager {
         }
     }
 
-    pub fn persist<T: AssetTypeTrait>(
+    pub(crate) fn persist<T: AssetTypeTrait>(
         &mut self,
         ty: T,
         key: &str,
@@ -133,7 +133,7 @@ impl AssetManager {
         }
     }
 
-    pub fn remove(&mut self, handle: AssetHandle) -> Result<(), AssetError> {
+    pub(crate) fn remove(&mut self, handle: AssetHandle) -> Result<(), AssetError> {
         if !self.entries.contains(handle.id) {
             return Err(AssetError::AssetNotFound);
         }
@@ -149,7 +149,7 @@ impl AssetManager {
         Ok(())
     }
 
-    pub fn load<T: AssetTypeTrait>(
+    pub(crate) fn load<T: AssetTypeTrait>(
         &mut self,
         io: &mut IOManager,
         handle: AssetHandle,
@@ -168,7 +168,7 @@ impl AssetManager {
         }
     }
 
-    pub fn read<T: AssetReferenceTrait>(
+    pub(crate) fn read<T: AssetReferenceTrait>(
         &self,
         handle: AssetHandle,
     ) -> Result<<T::AssetType as AssetTypeTrait>::Ref<'_>, AssetError> {
@@ -186,7 +186,7 @@ impl AssetManager {
         }
     }
 
-    pub fn find(&self, key: impl ToUID) -> Option<AssetHandle> {
+    pub(crate) fn find(&self, key: impl ToUID) -> Option<AssetHandle> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.key.to_uid() == key.to_uid())
@@ -196,7 +196,7 @@ impl AssetManager {
             })
     }
 
-    pub fn info(&self, handle: AssetHandle) -> Result<AssetInfo, AssetError> {
+    pub(crate) fn info(&self, handle: AssetHandle) -> Result<AssetInfo, AssetError> {
         self.entries
             .get(handle.id)
             .map(|entry| AssetInfo {

@@ -4,7 +4,7 @@ use mini3d_derive::Serialize;
 
 use crate::{
     registry::component::{
-        ComponentRegistry, ComponentType, ComponentTypeTrait, PrivateComponentTableRef,
+        ComponentRegistryManager, ComponentType, ComponentTypeTrait, PrivateComponentTableRef,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
@@ -63,7 +63,7 @@ pub(crate) struct ContainerTable {
 }
 
 impl ContainerTable {
-    pub(crate) fn on_registry_update(&mut self, registry: &ComponentRegistry) {
+    pub(crate) fn on_registry_update(&mut self, registry: &ComponentRegistryManager) {
         for (id, entry) in registry.entries.iter() {
             if !self.containers.contains(id) {
                 let container = entry.reflection.create_scene_container();
@@ -74,7 +74,7 @@ impl ContainerTable {
 
     pub(crate) fn serialize(
         &self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         encoder: &mut impl Encoder,
     ) -> Result<(), EncoderError> {
         // encoder.write_u32(self.containers.len() as u32)?;
@@ -88,7 +88,7 @@ impl ContainerTable {
 
     pub(crate) fn deserialize(
         &mut self,
-        registry: &ComponentRegistry,
+        registry: &ComponentRegistryManager,
         decoder: &mut impl Decoder,
     ) -> Result<(), DecoderError> {
         // self.containers.clear();
