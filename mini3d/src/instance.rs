@@ -11,14 +11,14 @@ use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
 use crate::logger::LoggerManager;
 use crate::physics::PhysicsManager;
+use crate::platform::provider::PlatformProvider;
+use crate::platform::PlatformManager;
 use crate::registry::component::ComponentStorage;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
-use crate::runtime::provider::RuntimeProvider;
-use crate::runtime::RuntimeManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::utils::uid::ToUID;
 
@@ -77,7 +77,7 @@ pub struct Instance {
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
-    pub(crate) system: RuntimeManager,
+    pub(crate) system: PlatformManager,
     pub(crate) logger: LoggerManager,
     global_time: f64,
 }
@@ -216,7 +216,7 @@ impl Instance {
         self.input.set_provider(Box::new(provider));
     }
 
-    pub fn set_system_provider(&mut self, provider: impl RuntimeProvider + 'static) {
+    pub fn set_system_provider(&mut self, provider: impl PlatformProvider + 'static) {
         self.system.set_provider(Box::new(provider));
     }
 

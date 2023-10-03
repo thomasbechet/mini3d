@@ -27,13 +27,13 @@ use mini3d::{
     },
     glam::{Quat, Vec3},
     info,
+    platform::event::ImportAssetEvent,
     registry::{
         asset::StaticAssetType,
         component::{ComponentStorage, StaticComponentType},
         system::{ExclusiveSystem, SystemOrder, SystemStage},
     },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
-    runtime::event::ImportAssetEvent,
     script::{compiler::Compiler, module::Module},
     utils::prng::PCG32,
 };

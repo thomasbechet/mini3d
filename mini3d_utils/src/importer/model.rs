@@ -11,7 +11,7 @@ use mini3d::{
         model::Model,
     },
     glam::{Vec2, Vec3, Vec4},
-    runtime::event::{AssetImportEntry, ImportAssetEvent},
+    platform::event::{AssetImportEntry, ImportAssetEvent},
 };
 use wavefront_obj::obj::{self, Primitive};
 

@@ -25,6 +25,6 @@ pub enum ImportAssetEvent {
 }
 
 #[derive(Serialize)]
-pub enum RuntimeEvent {
+pub enum PlatformEvent {
     RequestStop,
 }

@@ -14,11 +14,11 @@ use mini3d::{
     feature::common::script::Script,
     glam::Vec2,
     instance::{Instance, InstanceFeatures},
-    renderer::SCREEN_RESOLUTION,
-    runtime::{
-        event::{AssetImportEntry, ImportAssetEvent, RuntimeEvent},
-        provider::RuntimeProvider,
+    platform::{
+        event::{AssetImportEntry, ImportAssetEvent, PlatformEvent},
+        provider::PlatformProvider,
     },
+    renderer::SCREEN_RESOLUTION,
     serialize::SliceDecoder,
 };
 use mini3d_derive::Serialize;
@@ -98,7 +98,7 @@ impl WinitSystemStatus {
     }
 }
 
-impl RuntimeProvider for WinitSystemStatus {
+impl PlatformProvider for WinitSystemStatus {
     fn on_connect(&mut self) {}
     fn on_disconnect(&mut self) {}
 
@@ -106,10 +106,10 @@ impl RuntimeProvider for WinitSystemStatus {
         self.imports.pop()
     }
 
-    fn next_event(&mut self) -> Option<RuntimeEvent> {
+    fn next_event(&mut self) -> Option<PlatformEvent> {
         if self.stop_event {
             self.stop_event = false;
-            Some(RuntimeEvent::RequestStop)
+            Some(PlatformEvent::RequestStop)
         } else {
             None
         }

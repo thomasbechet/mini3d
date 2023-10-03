@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use mini3d::{
     feature::renderer::texture::{Texture, TextureFormat},
-    runtime::event::{AssetImportEntry, ImportAssetEvent},
+    platform::event::{AssetImportEntry, ImportAssetEvent},
 };
 
 pub struct ImageImport {

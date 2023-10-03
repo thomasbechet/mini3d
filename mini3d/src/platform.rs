@@ -1,19 +1,19 @@
 use self::{
-    event::{ImportAssetEvent, RuntimeEvent},
-    provider::RuntimeProvider,
+    event::{ImportAssetEvent, PlatformEvent},
+    provider::PlatformProvider,
 };
 
 pub mod event;
 pub mod provider;
 
 #[derive(Default)]
-pub struct RuntimeManager {
-    provider: Box<dyn RuntimeProvider>,
+pub struct PlatformManager {
+    provider: Box<dyn PlatformProvider>,
     request_stop: bool,
 }
 
-impl RuntimeManager {
-    pub(crate) fn set_provider(&mut self, provider: Box<dyn RuntimeProvider>) {
+impl PlatformManager {
+    pub(crate) fn set_provider(&mut self, provider: Box<dyn PlatformProvider>) {
         self.provider.on_disconnect();
         self.provider = provider;
         self.provider.on_connect();
@@ -30,7 +30,7 @@ impl RuntimeManager {
     pub(crate) fn dispatch_events(&mut self) {
         while let Some(event) = self.provider.next_event() {
             match event {
-                RuntimeEvent::RequestStop => self.request_stop = true,
+                PlatformEvent::RequestStop => self.request_stop = true,
             }
         }
         if self.request_stop {

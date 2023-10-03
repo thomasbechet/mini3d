@@ -1,8 +1,8 @@
 use crate::{
     asset::AssetManager,
     logger::LoggerManager,
+    platform::PlatformManager,
     registry::error::RegistryError,
-    runtime::RuntimeManager,
     serialize::{Decoder, DecoderError, EncoderError},
 };
 
@@ -48,7 +48,7 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) asset: &'a mut AssetManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,
-    pub(crate) system: &'a mut RuntimeManager,
+    pub(crate) system: &'a mut PlatformManager,
     pub(crate) logger: &'a mut LoggerManager,
     pub(crate) delta_time: f64,
     pub(crate) global_time: f64,

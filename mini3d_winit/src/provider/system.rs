@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use mini3d::runtime::provider::RuntimeProvider;
+use mini3d::platform::provider::PlatformProvider;
 
 use crate::WinitSystemStatus;
 
@@ -12,18 +12,18 @@ impl WinitSystemProvider {
     }
 }
 
-impl RuntimeProvider for WinitSystemProvider {
+impl PlatformProvider for WinitSystemProvider {
     fn on_connect(&mut self) {}
     fn on_disconnect(&mut self) {}
 
-    fn next_import(&mut self) -> Option<mini3d::runtime::event::ImportAssetEvent> {
+    fn next_import(&mut self) -> Option<mini3d::platform::event::ImportAssetEvent> {
         self.0.borrow_mut().next_import()
     }
 
-    fn next_event(&mut self) -> Option<mini3d::runtime::event::RuntimeEvent> {
+    fn next_event(&mut self) -> Option<mini3d::platform::event::PlatformEvent> {
         if self.0.borrow().stop_event {
             self.0.borrow_mut().stop_event = false;
-            return Some(mini3d::runtime::event::RuntimeEvent::RequestStop);
+            return Some(mini3d::platform::event::PlatformEvent::RequestStop);
         }
         None
     }
