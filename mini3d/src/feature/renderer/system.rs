@@ -89,13 +89,13 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         let local_to_worlds = ecs.view_mut(self.local_to_world);
 
         // Camera
-        for e in ecs.filter_query(self.removed_camera) {
+        for e in ecs.query_filter(self.removed_camera) {
             expect!(
                 ctx,
                 ctx.renderer.provider.scene_camera_remove(cameras[e].handle)
             );
         }
-        for e in ecs.filter_query(self.added_camera) {
+        for e in ecs.query_filter(self.added_camera) {
             let camera = &mut cameras[e];
             camera.handle = expect!(ctx, ctx.renderer.provider.scene_camera_add());
         }
@@ -114,7 +114,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
             );
         }
         // StaticMesh
-        for e in ecs.filter_query(self.removed_static_mesh) {
+        for e in ecs.query_filter(self.removed_static_mesh) {
             expect!(
                 ctx,
                 ctx.renderer
@@ -122,7 +122,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
                     .scene_model_remove(static_meshes[e].handle)
             );
         }
-        for e in ecs.filter_query(self.added_static_mesh) {
+        for e in ecs.query_filter(self.added_static_mesh) {
             let s = &mut static_meshes[e];
             let model = expect!(ctx, ctx.resource.read::<Model>(s.model));
             // Load mesh
@@ -167,7 +167,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
             );
         }
         // Canvas
-        for e in ecs.filter_query(self.removed_canvas) {
+        for e in ecs.query_filter(self.removed_canvas) {
             expect!(
                 ctx,
                 ctx.renderer
@@ -175,7 +175,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
                     .scene_canvas_remove(canvases[e].handle)
             );
         }
-        for e in ecs.filter_query(self.added_canvas) {
+        for e in ecs.query_filter(self.added_canvas) {
             let c = &mut canvases[e];
             let t = &local_to_worlds[e];
             expect!(ctx, ctx.renderer.provider.scene_canvas_add(c.resolution));
@@ -191,13 +191,13 @@ impl ExclusiveSystem for SynchronizeRendererResources {
             );
         }
         // Viewport
-        for e in ecs.filter_query(self.removed_viewport) {
+        for e in ecs.query_filter(self.removed_viewport) {
             expect!(
                 ctx,
                 ctx.renderer.provider.viewport_remove(viewports[e].handle)
             );
         }
-        for e in ecs.filter_query(self.added_viewport) {
+        for e in ecs.query_filter(self.added_viewport) {
             let v = &mut viewports[e];
             v.handle = expect!(ctx, ctx.renderer.provider.viewport_add(v.resolution));
             let camera = v.camera.map(|e| cameras[e].handle);

@@ -14,9 +14,9 @@ use crate::{
 
 use super::context::Context;
 
-pub struct AssetRegistry;
+pub struct ResourceRegistry;
 
-impl AssetRegistry {
+impl ResourceRegistry {
     pub fn add_static<D: StaticDataType>(
         ctx: &mut Context,
         name: &str,

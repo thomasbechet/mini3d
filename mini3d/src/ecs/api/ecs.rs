@@ -7,6 +7,7 @@ use crate::{
         scheduler::{Invocation, Scheduler},
     },
     registry::{component::ComponentTypeTrait, error::RegistryError},
+    resource::handle::ResourceHandle,
     utils::uid::{ToUID, UID},
 };
 
@@ -58,7 +59,15 @@ impl<'a> ECS<'a> {
             .flat_map(|archetype| self.entities.iter_pool_entities(*archetype))
     }
 
-    pub fn filter_query(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
+    pub fn query_filter(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
         self.queries.filter_queries[query.0].pool.iter().copied()
+    }
+
+    pub fn add_system(&mut self, system: ResourceHandle) -> Result<(), RegistryError> {
+        self.scheduler.add_system(system)
+    }
+
+    pub fn remove_system(&mut self, system: ResourceHandle) -> Result<(), RegistryError> {
+        self.scheduler.remove_system(system)
     }
 }

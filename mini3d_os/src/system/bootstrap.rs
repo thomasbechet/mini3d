@@ -4,7 +4,7 @@ use mini3d::{
             context::Context,
             ecs::ECS,
             input::Input,
-            registry::{AssetRegistry, ComponentRegistry, SystemRegistry},
+            registry::{ComponentRegistry, ResourceRegistry, SystemRegistry},
             resource::Resource,
             runtime::Runtime,
         },
@@ -92,7 +92,7 @@ impl OSInitialize {
 impl OSInitialize {
     fn setup_resources(&self, ctx: &mut Context) {
         // Register default font
-        let font: StaticResourceType<Font> = AssetRegistry::find(ctx, Font::NAME).unwrap();
+        let font: StaticResourceType<Font> = ResourceRegistry::find(ctx, Font::NAME).unwrap();
         expect!(
             ctx,
             Resource::persist(ctx, font, "default", Font::default())
@@ -407,13 +407,14 @@ impl OSInitialize {
         );
 
         let texture: StaticResourceType<Texture> =
-            expect!(ctx, AssetRegistry::find(ctx, Texture::NAME));
-        let mesh: StaticResourceType<Mesh> = expect!(ctx, AssetRegistry::find(ctx, Mesh::NAME));
-        let model: StaticResourceType<Model> = expect!(ctx, AssetRegistry::find(ctx, Model::NAME));
+            expect!(ctx, ResourceRegistry::find(ctx, Texture::NAME));
+        let mesh: StaticResourceType<Mesh> = expect!(ctx, ResourceRegistry::find(ctx, Mesh::NAME));
+        let model: StaticResourceType<Model> =
+            expect!(ctx, ResourceRegistry::find(ctx, Model::NAME));
         let material: StaticResourceType<Material> =
-            expect!(ctx, AssetRegistry::find(ctx, Material::NAME));
+            expect!(ctx, ResourceRegistry::find(ctx, Material::NAME));
         let script: StaticResourceType<Script> =
-            expect!(ctx, AssetRegistry::find(ctx, Script::NAME));
+            expect!(ctx, ResourceRegistry::find(ctx, Script::NAME));
 
         // Import resources
         while let Some(import) = Runtime::next_import(ctx) {
