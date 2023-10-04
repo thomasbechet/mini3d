@@ -1,11 +1,11 @@
 use mini3d::{
     ecs::{
         api::{
-            asset::Asset,
             context::Context,
             ecs::ECS,
             input::Input,
             registry::{AssetRegistry, ComponentRegistry, SystemRegistry},
+            resource::Resource,
             runtime::Runtime,
         },
         scheduler::Invocation,
@@ -29,8 +29,8 @@ use mini3d::{
     info,
     platform::event::ImportAssetEvent,
     registry::{
-        asset::StaticAssetType,
         component::{ComponentStorage, StaticComponentType},
+        resource::StaticResourceType,
         system::{ExclusiveSystem, SystemOrder, SystemStage},
     },
     renderer::{SCREEN_HEIGHT, SCREEN_RESOLUTION, SCREEN_WIDTH},
@@ -90,10 +90,13 @@ impl OSInitialize {
 }
 
 impl OSInitialize {
-    fn setup_assets(&self, ctx: &mut Context) {
+    fn setup_resources(&self, ctx: &mut Context) {
         // Register default font
-        let font: StaticAssetType<Font> = AssetRegistry::find(ctx, Font::NAME).unwrap();
-        expect!(ctx, Asset::persist(ctx, font, "default", Font::default()));
+        let font: StaticResourceType<Font> = AssetRegistry::find(ctx, Font::NAME).unwrap();
+        expect!(
+            ctx,
+            Resource::persist(ctx, font, "default", Font::default())
+        );
 
         // Register inputs
         expect!(
@@ -403,60 +406,61 @@ impl OSInitialize {
             )
         );
 
-        let texture: StaticAssetType<Texture> =
+        let texture: StaticResourceType<Texture> =
             expect!(ctx, AssetRegistry::find(ctx, Texture::NAME));
-        let mesh: StaticAssetType<Mesh> = expect!(ctx, AssetRegistry::find(ctx, Mesh::NAME));
-        let model: StaticAssetType<Model> = expect!(ctx, AssetRegistry::find(ctx, Model::NAME));
-        let material: StaticAssetType<Material> =
+        let mesh: StaticResourceType<Mesh> = expect!(ctx, AssetRegistry::find(ctx, Mesh::NAME));
+        let model: StaticResourceType<Model> = expect!(ctx, AssetRegistry::find(ctx, Model::NAME));
+        let material: StaticResourceType<Material> =
             expect!(ctx, AssetRegistry::find(ctx, Material::NAME));
-        let script: StaticAssetType<Script> = expect!(ctx, AssetRegistry::find(ctx, Script::NAME));
+        let script: StaticResourceType<Script> =
+            expect!(ctx, AssetRegistry::find(ctx, Script::NAME));
 
-        // Import assets
+        // Import resources
         while let Some(import) = Runtime::next_import(ctx) {
             match import {
                 ImportAssetEvent::Material(entry) => {
                     expect!(
                         ctx,
-                        Asset::persist(ctx, material, &entry.name, entry.data.clone())
+                        Resource::persist(ctx, material, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Mesh(entry) => {
                     info!(ctx, "Importing mesh: {}", entry.name);
                     expect!(
                         ctx,
-                        Asset::persist(ctx, mesh, &entry.name, entry.data.clone())
+                        Resource::persist(ctx, mesh, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Model(entry) => {
                     expect!(
                         ctx,
-                        Asset::persist(ctx, model, &entry.name, entry.data.clone())
+                        Resource::persist(ctx, model, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Script(entry) => {
                     expect!(
                         ctx,
-                        Asset::persist(ctx, script, &entry.name, entry.data.clone())
+                        Resource::persist(ctx, script, &entry.name, entry.data.clone())
                     );
                 }
                 ImportAssetEvent::Texture(entry) => {
                     expect!(
                         ctx,
-                        Asset::persist(ctx, texture, &entry.name, entry.data.clone())
+                        Resource::persist(ctx, texture, &entry.name, entry.data.clone())
                     );
                 }
                 _ => {}
             }
         }
 
-        // Non default assets
-        let alfred_texture = expect!(ctx, Asset::find(ctx, "alfred_tex"));
-        let alfred_mesh = expect!(ctx, Asset::find(ctx, "alfred_mesh"));
-        let car_texture = expect!(ctx, Asset::find(ctx, "car_tex"));
-        let car_mesh = expect!(ctx, Asset::find(ctx, "car_mesh"));
+        // Non default resources
+        let alfred_texture = expect!(ctx, Resource::find(ctx, "alfred_tex"));
+        let alfred_mesh = expect!(ctx, Resource::find(ctx, "alfred_mesh"));
+        let car_texture = expect!(ctx, Resource::find(ctx, "car_tex"));
+        let car_mesh = expect!(ctx, Resource::find(ctx, "car_mesh"));
         let alfred_material = expect!(
             ctx,
-            Asset::persist(
+            Resource::persist(
                 ctx,
                 material,
                 "alfred_mat",
@@ -467,7 +471,7 @@ impl OSInitialize {
         );
         let car_material = expect!(
             ctx,
-            Asset::persist(
+            Resource::persist(
                 ctx,
                 material,
                 "car_mat",
@@ -478,7 +482,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            Asset::persist(
+            Resource::persist(
                 ctx,
                 model,
                 "car_model",
@@ -490,7 +494,7 @@ impl OSInitialize {
         );
         expect!(
             ctx,
-            Asset::persist(
+            Resource::persist(
                 ctx,
                 model,
                 "alfred_model",
@@ -525,11 +529,11 @@ impl OSInitialize {
             expect!(ctx, ComponentRegistry::find(ctx, FreeFly::NAME));
         let os: StaticComponentType<OS> = expect!(ctx, ComponentRegistry::find(ctx, OS::NAME));
 
-        let alfred_model = expect!(ctx, Asset::find(ctx, "alfred_model"));
-        // let alfred_texture = expect!(ctx, ctx.asset.find("alfred_tex"));
-        let car_model = expect!(ctx, Asset::find(ctx, "car_model"));
-        // let gui_texture = expect!(ctx, ctx.asset.find("GUI"));
-        // let font = expect!(ctx, ctx.asset.find("default"));
+        let alfred_model = expect!(ctx, Resource::find(ctx, "alfred_model"));
+        // let alfred_texture = expect!(ctx, ctx.resource.find("alfred_tex"));
+        let car_model = expect!(ctx, Resource::find(ctx, "car_model"));
+        // let gui_texture = expect!(ctx, ctx.resource.find("GUI"));
+        // let font = expect!(ctx, ctx.resource.find("default"));
         {
             let e = ecs
                 .add()
@@ -804,22 +808,27 @@ impl OSInitialize {
 
 impl ExclusiveSystem for OSInitialize {
     fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
-        // Setup assets
-        self.setup_assets(ctx);
+        // Setup resources
+        self.setup_resources(ctx);
         // Setup scene
         self.setup_scene(ecs, ctx);
 
-        let main_script = Asset::find(ctx, "main_script").expect("Script 'main' not found");
-        let utils_script = Asset::find(ctx, "utils_script").expect("Script 'utils' not found");
-        let script = expect!(ctx, Asset::read::<Script>(ctx, main_script));
+        let main_script = Resource::find(ctx, "main_script").expect("Script 'main' not found");
+        let utils_script = Resource::find(ctx, "utils_script").expect("Script 'utils' not found");
+        let script = expect!(ctx, Resource::read::<Script>(ctx, main_script));
 
         println!("Script: {:?}", script.source);
         let mut compiler = Compiler::default();
-        let entry = compiler.add_module("main_script", Module::Source { asset: main_script });
+        let entry = compiler.add_module(
+            "main_script",
+            Module::Source {
+                resource: main_script,
+            },
+        );
         compiler.add_module(
             "utils_script",
             Module::Source {
-                asset: utils_script,
+                resource: utils_script,
             },
         );
         if let Result::Err(e) = compiler.compile(entry, ctx) {

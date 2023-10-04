@@ -1,4 +1,4 @@
-use mini3d::{uid::UID, feature::{asset::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_group::{SystemScheduleAsset, SystemScheduleType}, texture::Texture}, component::{lifecycle::Lifecycle, local_to_world::{Transform, LocalToWorld}, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, camera::Camera, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, ui::{UIComponent, UIRenderTarget}, viewport::Viewport, hierarchy::Hierarchy}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, ecs::{Scene, world::World, container::TestComponent}, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
+use mini3d::{uid::UID, feature::{resource::{font::Font, input_action::InputAction, input_axis::{InputAxis, InputAxisRange}, input_table::InputTable, material::Material, model::Model, mesh::Mesh, rhai_script::RhaiScript, system_group::{SystemScheduleAsset, SystemScheduleType}, texture::Texture}, component::{lifecycle::Lifecycle, local_to_world::{Transform, LocalToWorld}, rotator::Rotator, static_mesh::StaticMesh, free_fly::FreeFly, camera::Camera, script_storage::ScriptStorage, rhai_scripts::RhaiScripts, ui::{UIComponent, UIRenderTarget}, viewport::Viewport, hierarchy::Hierarchy}, process::profiler::ProfilerProcess}, renderer::{SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_CENTER, SCREEN_RESOLUTION, color::Color}, anyhow::{Result, Context}, glam::{Vec3, Quat, IVec2}, rand, math::rect::IRect, ecs::{Scene, world::World, container::TestComponent}, ui::{interaction_layout::{InteractionLayout, InteractionInputs}, UI, viewport::Viewport, checkbox::Checkbox, label::Label}};
 use serde::{Serialize, Deserialize};
 
 use crate::{input::{CommonAxis, CommonAction}};
@@ -18,54 +18,54 @@ impl Process for OSProcess {
 
         // Register default bundle
         {
-            self.setup_assets(ctx)?;
+            self.setup_resources(ctx)?;
         
-            // let file = File::create("assets/dump.json").unwrap();
+            // let file = File::create("resources/dump.json").unwrap();
             // let mut json_serializer = serde_json::Serializer::new(file);
-            // ctx.asset.serialize_bundle("default".into(), &mut json_serializer)?;
+            // ctx.resource.serialize_bundle("default".into(), &mut json_serializer)?;
 
-            // let mut file = File::create("assets/rom.bin").unwrap();
+            // let mut file = File::create("resources/rom.bin").unwrap();
             // let mut bytes: Vec<u8> = Default::default();
             // let mut bincode_serializer = bincode::Serializer::new(&mut bytes, bincode::options());
-            // ctx.asset.serialize_bundle("default".into(), &mut bincode_serializer)?;
+            // ctx.resource.serialize_bundle("default".into(), &mut bincode_serializer)?;
             // bytes = miniz_oxide::deflate::compress_to_vec_zlib(bytes.as_slice(), 10);
             // use std::io::Write;
             // file.write_all(&bytes).unwrap();
 
 
-            // let mut file = File::open("assets/rom.bin").with_context(|| "Failed to open file")?;
+            // let mut file = File::open("resources/rom.bin").with_context(|| "Failed to open file")?;
             // let mut bytes: Vec<u8> = Default::default();
             // file.read_to_end(&mut bytes).with_context(|| "Failed to read to end")?;
             // let bytes = miniz_oxide::inflate::decompress_to_vec_zlib(&bytes).expect("Failed to decompress");
             // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
-            // let import = ctx.asset.deserialize_bundle(&mut deserializer)?;
-            // ctx.asset.import_bundle(import)?;
+            // let import = ctx.resource.deserialize_bundle(&mut deserializer)?;
+            // ctx.resource.import_bundle(import)?;
 
-            // let file = File::open("assets/dump.json").unwrap();
+            // let file = File::open("resources/dump.json").unwrap();
             // let mut json_deserializer = serde_json::Deserializer::from_reader(file);
-            // let import = ctx.asset.deserialize_bundle(&mut json_deserializer)?;
-            // ctx.asset.import_bundle(import)?;
+            // let import = ctx.resource.deserialize_bundle(&mut json_deserializer)?;
+            // ctx.resource.import_bundle(import)?;
         }
 
-        ctx.input.reload_input_tables(ctx.asset)?;
+        ctx.input.reload_input_tables(ctx.resource)?;
 
         {
             // Initialize world
             self.setup_world(ctx)?;
 
-            // let file = File::create("assets/world.json")?;
+            // let file = File::create("resources/world.json")?;
             // let mut serializer = serde_json::Serializer::new(file);
             // self.scene.serialize(ctx.scene, &mut serializer)?;
 
-            // let file = File::create("assets/world.bin")?;
+            // let file = File::create("resources/world.bin")?;
             // let mut serializer = bincode::Serializer::new(file, bincode::options());
             // self.scene.serialize(ctx.scene, &mut serializer)?;
 
-            // let file = File::open("assets/world.json")?;
+            // let file = File::open("resources/world.json")?;
             // let mut deserializer = serde_json::Deserializer::from_reader(file);
             // self.scene.deserialize(ctx.scene, &mut deserializer)?;
 
-            // let mut file = File::open("assets/world.bin")?;
+            // let mut file = File::open("resources/world.bin")?;
             // let mut bytes: Vec<u8> = Default::default();
             // file.read_to_end(&mut bytes).unwrap();
             // let mut deserializer = bincode::Deserializer::from_slice(&bytes, bincode::options());
@@ -73,7 +73,7 @@ impl Process for OSProcess {
         }
 
         // Configure schedule
-        let schedule = ctx.asset.get::<SystemScheduleAsset>("test_scheduler".into()).unwrap();
+        let schedule = ctx.resource.get::<SystemScheduleAsset>("test_scheduler".into()).unwrap();
         ctx.scene.set_schedule(self.scene, schedule)?;
 
         // Run profiler

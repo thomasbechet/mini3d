@@ -19,7 +19,7 @@ if player.transform.position.y > 100.0 then
     if input.action('move').pressed then
         let v = vec3(0)
     elif player.life.value != 0 then
-        let font = asset.get('font', 'default') -- return obj (as handle)
+        let font = resource.get('font', 'default') -- return obj (as handle)
         gfx.print(0, 1, 'Hello World !', font)
     end
     check_player_mode(player)
@@ -50,7 +50,7 @@ function
 -- reserved identifiers
 log
 gfx
-asset
+resource
 network
 disk
 registry

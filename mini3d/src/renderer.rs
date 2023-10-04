@@ -1,5 +1,3 @@
-use crate::asset::handle::AssetHandle;
-use crate::asset::AssetManager;
 use crate::ecs::container::ContainerTable;
 use crate::feature::common::local_to_world::LocalToWorld;
 use crate::feature::renderer::camera::Camera;
@@ -11,10 +9,12 @@ use crate::feature::renderer::model::Model;
 use crate::feature::renderer::static_mesh::StaticMesh;
 use crate::feature::renderer::texture::Texture;
 use crate::feature::renderer::viewport::Viewport;
-use crate::registry::asset::StaticAssetType;
 use crate::registry::component::StaticComponentType;
 use crate::registry::error::RegistryError;
+use crate::registry::resource::StaticResourceType;
 use crate::registry::RegistryManager;
+use crate::resource::handle::ResourceHandle;
+use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::slotmap::SecondaryMap;
 use crate::utils::uid::UID;
@@ -111,44 +111,44 @@ pub(crate) struct RendererResourceManager {
 }
 
 fn load_font(
-    handle: AssetHandle,
+    handle: ResourceHandle,
     provider: &mut dyn RendererProvider,
-    asset: &AssetManager,
+    resource: &ResourceManager,
 ) -> Result<RendererFont, RendererProviderError> {
-    let font = asset.read::<Font>(handle).unwrap();
+    let font = resource.read::<Font>(handle).unwrap();
     let atlas = FontAtlas::new(font);
     let handle = provider.texture_add(&atlas.texture)?;
     Ok(RendererFont { atlas, handle })
 }
 
 fn load_mesh(
-    handle: AssetHandle,
+    handle: ResourceHandle,
     provider: &mut dyn RendererProvider,
-    asset: &AssetManager,
+    resource: &ResourceManager,
 ) -> Result<RendererMesh, RendererProviderError> {
-    let mesh = asset.read::<Mesh>(handle).unwrap();
+    let mesh = resource.read::<Mesh>(handle).unwrap();
     let handle = provider.mesh_add(mesh)?;
     Ok(RendererMesh { handle })
 }
 
 fn load_texture(
-    handle: AssetHandle,
+    handle: ResourceHandle,
     provider: &mut dyn RendererProvider,
-    asset: &AssetManager,
+    resource: &ResourceManager,
 ) -> Result<RendererTexture, RendererProviderError> {
-    let texture = asset.read::<Texture>(handle).unwrap();
+    let texture = resource.read::<Texture>(handle).unwrap();
     let handle = provider.texture_add(texture)?;
     Ok(RendererTexture { handle })
 }
 
 fn load_material(
-    handle: AssetHandle,
+    handle: ResourceHandle,
     textures: &SecondaryMap<RendererTexture>,
     provider: &mut dyn RendererProvider,
-    asset: &AssetManager,
+    resource: &ResourceManager,
 ) -> Result<RendererMaterial, RendererProviderError> {
-    let material = asset.read::<Material>(handle).unwrap();
-    let info = asset.info(handle).unwrap();
+    let material = resource.read::<Material>(handle).unwrap();
+    let info = resource.info(handle).unwrap();
     let diffuse = textures.get(material.diffuse.id).unwrap().handle;
     let handle = provider.material_add(ProviderMaterialDescriptor {
         diffuse,
@@ -167,63 +167,63 @@ impl RendererResourceManager {
 
     pub(crate) fn request_font(
         &mut self,
-        handle: AssetHandle,
+        handle: ResourceHandle,
         provider: &mut dyn RendererProvider,
-        asset: &AssetManager,
+        resource: &ResourceManager,
     ) -> Result<&RendererFont, RendererProviderError> {
         if self.fonts.contains(handle.id) {
             return Ok(self.fonts.get(handle.id).unwrap());
         }
-        let font = load_font(handle, provider, asset)?;
+        let font = load_font(handle, provider, resource)?;
         self.fonts.insert(handle.id, font);
         Ok(self.fonts.get(handle.id).unwrap())
     }
 
     pub(crate) fn request_mesh(
         &mut self,
-        handle: AssetHandle,
+        handle: ResourceHandle,
         provider: &mut dyn RendererProvider,
-        asset: &AssetManager,
+        resource: &ResourceManager,
     ) -> Result<&RendererMesh, RendererProviderError> {
         if self.meshes.contains(handle.id) {
             return Ok(self.meshes.get(handle.id).unwrap());
         }
         self.meshes
-            .insert(handle.id, load_mesh(handle, provider, asset)?);
+            .insert(handle.id, load_mesh(handle, provider, resource)?);
         Ok(self.meshes.get(handle.id).unwrap())
     }
 
     pub(crate) fn request_texture(
         &mut self,
-        handle: AssetHandle,
+        handle: ResourceHandle,
         provider: &mut dyn RendererProvider,
-        asset: &AssetManager,
+        resource: &ResourceManager,
     ) -> Result<&RendererTexture, RendererProviderError> {
         if self.textures.contains(handle.id) {
             return Ok(self.textures.get(handle.id).unwrap());
         }
         self.textures
-            .insert(handle.id, load_texture(handle, provider, asset)?);
+            .insert(handle.id, load_texture(handle, provider, resource)?);
         Ok(self.textures.get(handle.id).unwrap())
     }
 
     pub(crate) fn request_material(
         &mut self,
-        handle: AssetHandle,
+        handle: ResourceHandle,
         provider: &mut dyn RendererProvider,
-        asset: &AssetManager,
+        resource: &ResourceManager,
     ) -> Result<&RendererMaterial, RendererProviderError> {
         if self.materials.contains(handle.id) {
             return Ok(self.materials.get(handle.id).unwrap());
         }
-        let material = asset.read::<Material>(handle).unwrap();
+        let material = resource.read::<Material>(handle).unwrap();
         if !self.textures.contains(material.diffuse.id) {
-            let diffuse = load_texture(material.diffuse, provider, asset)?;
+            let diffuse = load_texture(material.diffuse, provider, resource)?;
             self.textures.insert(material.diffuse.id, diffuse);
         }
         self.materials.insert(
             handle.id,
-            load_material(handle, &self.textures, provider, asset)?,
+            load_material(handle, &self.textures, provider, resource)?,
         );
         Ok(self.materials.get(handle.id).unwrap())
     }
@@ -247,7 +247,7 @@ pub struct RendererManager {
     canvas: StaticComponentType<Canvas>,
     local_to_world: StaticComponentType<LocalToWorld>,
     viewport: StaticComponentType<Viewport>,
-    model: StaticAssetType<Model>,
+    model: StaticResourceType<Model>,
 }
 
 impl RendererManager {
@@ -257,7 +257,7 @@ impl RendererManager {
         self.provider.on_connect();
     }
 
-    pub(crate) fn reload_components_and_assets(
+    pub(crate) fn reload_components_and_resources(
         &mut self,
         registry: &RegistryManager,
     ) -> Result<(), RegistryError> {
@@ -272,7 +272,7 @@ impl RendererManager {
             .find(LocalToWorld::NAME)
             .unwrap_or_default();
         self.viewport = registry.component.find(Viewport::NAME).unwrap_or_default();
-        self.model = registry.asset.find(Model::NAME).unwrap_or_default();
+        self.model = registry.resource.find(Model::NAME).unwrap_or_default();
         Ok(())
     }
 
@@ -301,7 +301,7 @@ impl RendererManager {
 
     pub(crate) fn submit_graphics(
         &mut self,
-        asset: &mut AssetManager,
+        resource: &mut ResourceManager,
         containers: &ContainerTable,
     ) -> Result<(), RendererProviderError> {
         // Acquire active scene
@@ -313,7 +313,7 @@ impl RendererManager {
             None,
             Color::TRANSPARENT,
             &mut self.resources,
-            asset,
+            resource,
             &viewports,
             self.provider.as_mut(),
         )

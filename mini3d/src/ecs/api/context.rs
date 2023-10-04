@@ -1,12 +1,12 @@
 use crate::{
-    asset::AssetManager, input::InputManager, logger::LoggerManager, platform::PlatformManager,
-    registry::RegistryManager, renderer::RendererManager,
+    input::InputManager, logger::LoggerManager, platform::PlatformManager,
+    registry::RegistryManager, renderer::RendererManager, resource::ResourceManager,
 };
 
 use super::time::TimeAPI;
 
 pub struct Context<'a> {
-    pub(crate) asset: &'a mut AssetManager,
+    pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) registry: &'a mut RegistryManager,
     pub(crate) renderer: &'a mut RendererManager,

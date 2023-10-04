@@ -8,21 +8,21 @@ use crate::{
 };
 
 #[derive(Default, Serialize, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct AssetHandle {
+pub struct ResourceHandle {
     #[serialize(skip)]
     pub(crate) id: SlotId,
     pub(crate) key: UID,
 }
 
-impl AssetHandle {
+impl ResourceHandle {
     pub fn resolve(&mut self, resolver: &mut ReferenceResolver) {
         if !self.key.is_null() {
             if self.id.is_null() {
                 // Find entry
-                self.id = resolver.resolve_asset_id(self.key);
+                self.id = resolver.resolve_resource_id(self.key);
             } else {
                 // The entry's key has changed
-                self.key = resolver.remap_asset_key(self.id);
+                self.key = resolver.remap_resource_key(self.id);
             }
         }
     }

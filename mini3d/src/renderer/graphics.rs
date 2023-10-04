@@ -2,13 +2,13 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    asset::{handle::AssetHandle, AssetManager},
     ecs::{
         entity::Entity,
         view::single::{StaticSingleView, StaticSingleViewRef},
     },
     feature::renderer::viewport::Viewport,
     math::rect::IRect,
+    resource::{handle::ResourceHandle, ResourceManager},
 };
 
 use super::{
@@ -30,10 +30,10 @@ enum Command {
         position: IVec2,
         start: usize,
         stop: usize,
-        font: AssetHandle,
+        font: ResourceHandle,
     },
     BlitTexture {
-        texture: AssetHandle,
+        texture: ResourceHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
@@ -91,7 +91,7 @@ impl Graphics {
         canvas: Option<SceneCanvasHandle>,
         clear_color: Color,
         resources: &mut RendererResourceManager,
-        asset: &mut AssetManager,
+        resource: &mut ResourceManager,
         viewports: &StaticSingleViewRef<Viewport>,
         provider: &mut dyn RendererProvider,
     ) -> Result<(), RendererProviderError> {
@@ -108,7 +108,7 @@ impl Graphics {
                     stop,
                     font,
                 } => {
-                    let font = resources.request_font(*font, provider, asset)?;
+                    let font = resources.request_font(*font, provider, resource)?;
                     let mut position = *position;
                     for c in self.text_buffer[*start..*stop].chars() {
                         let char_extent = font
@@ -141,7 +141,7 @@ impl Graphics {
                     wrap_mode,
                     alpha_threshold,
                 } => {
-                    let texture = resources.request_texture(*texture, provider, asset)?;
+                    let texture = resources.request_texture(*texture, provider, resource)?;
                     provider.canvas_blit_texture(
                         texture.handle,
                         *extent,
@@ -179,7 +179,7 @@ impl Graphics {
         Ok(())
     }
 
-    pub fn print(&mut self, position: IVec2, text: &str, font: AssetHandle) {
+    pub fn print(&mut self, position: IVec2, text: &str, font: ResourceHandle) {
         let start = self.text_buffer.len();
         self.text_buffer.push_str(text);
         let stop = self.text_buffer.len();
@@ -193,7 +193,7 @@ impl Graphics {
 
     pub fn blit_texture(
         &mut self,
-        texture: AssetHandle,
+        texture: ResourceHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,

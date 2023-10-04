@@ -124,14 +124,14 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         }
         for e in ecs.filter_query(self.added_static_mesh) {
             let s = &mut static_meshes[e];
-            let model = expect!(ctx, ctx.asset.read::<Model>(s.model));
+            let model = expect!(ctx, ctx.resource.read::<Model>(s.model));
             // Load mesh
             let mesh_handle = expect!(
                 ctx,
                 ctx.renderer.resources.request_mesh(
                     model.mesh,
                     ctx.renderer.provider.as_mut(),
-                    ctx.asset
+                    ctx.resource
                 )
             )
             .handle;
@@ -143,7 +143,7 @@ impl ExclusiveSystem for SynchronizeRendererResources {
                     ctx.renderer.resources.request_material(
                         *material,
                         ctx.renderer.provider.as_mut(),
-                        ctx.asset
+                        ctx.resource
                     )
                 )
                 .handle;

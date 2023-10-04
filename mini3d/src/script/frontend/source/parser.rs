@@ -893,7 +893,7 @@ mod test {
         let module = modules.add(
             UID::null(),
             Module::Source {
-                asset: Default::default(),
+                resource: Default::default(),
             },
         );
         let mut stream = SourceStream::new(
@@ -926,7 +926,7 @@ mod test {
         let module = modules.add(
             UID::null(),
             Module::Source {
-                asset: Default::default(),
+                resource: Default::default(),
             },
         );
         let mut source = SourceStream::new(

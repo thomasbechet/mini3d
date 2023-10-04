@@ -4,7 +4,7 @@ use crate::utils::uid::UID;
 pub struct InterfaceId(u32);
 
 pub(crate) struct Interface {
-    pub(crate) asset: UID,
+    pub(crate) resource: UID,
 }
 
 #[derive(Default)]

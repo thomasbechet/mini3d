@@ -1,16 +1,17 @@
 use self::{
-    asset::AssetRegistryManager, component::ComponentRegistryManager, system::SystemRegistryManager,
+    component::ComponentRegistryManager, resource::ResourceRegistryManager,
+    system::SystemRegistryManager,
 };
 
-pub mod asset;
 pub mod component;
 pub mod datatype;
 pub mod error;
+pub mod resource;
 pub mod system;
 
 #[derive(Default)]
 pub struct RegistryManager {
-    pub(crate) asset: AssetRegistryManager,
+    pub(crate) resource: ResourceRegistryManager,
     pub(crate) component: ComponentRegistryManager,
     pub(crate) system: SystemRegistryManager,
 }

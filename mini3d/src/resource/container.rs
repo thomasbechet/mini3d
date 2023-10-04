@@ -9,15 +9,15 @@ use crate::{
     },
 };
 
-use super::error::AssetError;
+use super::error::ResourceError;
 
-pub struct PrivateAnyAssetContainerRef<'a>(pub(crate) &'a dyn AnyAssetContainer);
-pub struct PrivateAnyAssetContainerMut<'a>(pub(crate) &'a mut dyn AnyAssetContainer);
+pub struct PrivateAnyResourceContainerRef<'a>(pub(crate) &'a dyn AnyResourceContainer);
+pub struct PrivateAnyResourceContainerMut<'a>(pub(crate) &'a mut dyn AnyResourceContainer);
 
 #[derive(Default)]
-pub(crate) struct StaticAssetContainer<D: StaticDataType>(pub(crate) SlotMap<D>);
+pub(crate) struct StaticResourceContainer<D: StaticDataType>(pub(crate) SlotMap<D>);
 
-pub(crate) trait AnyAssetContainer: Any {
+pub(crate) trait AnyResourceContainer: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn remove(&mut self, slot: SlotId);
@@ -26,15 +26,15 @@ pub(crate) trait AnyAssetContainer: Any {
         &self,
         set: &HashSet<UID>,
         encoder: &mut dyn Encoder,
-    ) -> Result<(), AssetError>;
+    ) -> Result<(), ResourceError>;
     fn deserialize_entries(
         &mut self,
         bundle: UID,
         decoder: &mut dyn Decoder,
-    ) -> Result<(), AssetError>;
+    ) -> Result<(), ResourceError>;
 }
 
-impl<D: StaticDataType> AnyAssetContainer for StaticAssetContainer<D> {
+impl<D: StaticDataType> AnyResourceContainer for StaticResourceContainer<D> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -55,7 +55,7 @@ impl<D: StaticDataType> AnyAssetContainer for StaticAssetContainer<D> {
         &self,
         set: &HashSet<UID>,
         mut encoder: &mut dyn Encoder,
-    ) -> Result<(), AssetError> {
+    ) -> Result<(), ResourceError> {
         // C::Header::default()
         //     .serialize(&mut encoder)
         //     .map_err(|_| AssetError::SerializationError)?;
@@ -78,7 +78,7 @@ impl<D: StaticDataType> AnyAssetContainer for StaticAssetContainer<D> {
         &mut self,
         bundle: UID,
         mut decoder: &mut dyn Decoder,
-    ) -> Result<(), AssetError> {
+    ) -> Result<(), ResourceError> {
         // let header = C::Header::deserialize(&mut decoder, &Default::default())
         //     .map_err(|_| AssetError::DeserializationError)?;
         // let len = decoder

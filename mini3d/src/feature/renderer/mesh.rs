@@ -1,5 +1,5 @@
 use glam::{Vec2, Vec3, Vec4};
-use mini3d_derive::{Asset, Reflect, Serialize};
+use mini3d_derive::{Reflect, Resource, Serialize};
 
 #[derive(Clone, Serialize)]
 pub struct Vertex {
@@ -15,7 +15,7 @@ pub struct SubMesh {
     pub vertices: Vec<Vertex>,
 }
 
-#[derive(Default, Clone, Asset, Serialize, Reflect)]
+#[derive(Default, Clone, Resource, Serialize, Reflect)]
 pub struct Mesh {
     pub submeshes: Vec<SubMesh>,
 }

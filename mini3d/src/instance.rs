@@ -1,6 +1,5 @@
 use mini3d_derive::Error;
 
-use crate::asset::AssetManager;
 use crate::disk::provider::DiskProvider;
 use crate::disk::StorageManager;
 use crate::ecs::scheduler::Invocation;
@@ -19,6 +18,7 @@ use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
+use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 use crate::utils::uid::ToUID;
 
@@ -72,7 +72,7 @@ impl Default for InstanceFeatures {
 pub struct Instance {
     pub(crate) registry: RegistryManager,
     pub(crate) storage: StorageManager,
-    pub(crate) asset: AssetManager,
+    pub(crate) resource: ResourceManager,
     pub(crate) input: InputManager,
     pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
@@ -84,9 +84,11 @@ pub struct Instance {
 
 impl Instance {
     fn register_core_features(&mut self, features: &InstanceFeatures) -> Result<(), RegistryError> {
-        macro_rules! define_asset {
-            ($asset: ty) => {
-                self.registry.asset.add_static::<$asset>(<$asset>::NAME)?;
+        macro_rules! define_resource {
+            ($resource: ty) => {
+                self.registry
+                    .resource
+                    .add_static::<$resource>(<$resource>::NAME)?;
             };
         }
 
@@ -121,8 +123,8 @@ impl Instance {
         // Define features
 
         if features.common {
-            define_asset!(common::script::Script);
-            define_asset!(common::program::Program);
+            define_resource!(common::script::Script);
+            define_resource!(common::program::Program);
             define_component!(common::free_fly::FreeFly, ComponentStorage::Single);
             define_component!(common::rotator::Rotator, ComponentStorage::Single);
             define_component!(common::transform::Transform, ComponentStorage::Single);
@@ -137,8 +139,8 @@ impl Instance {
         }
 
         if features.input {
-            define_asset!(input::action::InputAction);
-            define_asset!(input::axis::InputAxis);
+            define_resource!(input::action::InputAction);
+            define_resource!(input::axis::InputAxis);
         }
 
         if features.physics {
@@ -146,11 +148,11 @@ impl Instance {
         }
 
         if features.renderer {
-            define_asset!(renderer::font::Font);
-            define_asset!(renderer::material::Material);
-            define_asset!(renderer::mesh::Mesh);
-            define_asset!(renderer::model::Model);
-            define_asset!(renderer::texture::Texture);
+            define_resource!(renderer::font::Font);
+            define_resource!(renderer::material::Material);
+            define_resource!(renderer::mesh::Mesh);
+            define_resource!(renderer::model::Model);
+            define_resource!(renderer::texture::Texture);
             define_component!(renderer::camera::Camera, ComponentStorage::Single);
             define_component!(renderer::static_mesh::StaticMesh, ComponentStorage::Single);
             define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
@@ -182,12 +184,12 @@ impl Instance {
         self.ecs
             .scheduler
             .set_periodic_invoke(SystemStage::FIXED_UPDATE_60HZ, 1.0 / 60.0);
-        // Update ECS and assets
+        // Update ECS and resources
         self.ecs.scheduler.on_registry_update(&self.registry.system);
-        self.asset.on_registry_update(&self.registry.asset);
+        self.resource.on_registry_update(&self.registry.resource);
         // Setup managers
         self.renderer
-            .reload_components_and_assets(&self.registry)
+            .reload_components_and_resources(&self.registry)
             .expect("Failed to reload component handles");
     }
 
@@ -195,7 +197,7 @@ impl Instance {
         let mut instance = Self {
             registry: Default::default(),
             storage: Default::default(),
-            asset: Default::default(),
+            resource: Default::default(),
             input: Default::default(),
             ecs: Default::default(),
             renderer: Default::default(),
@@ -249,7 +251,8 @@ impl Instance {
     }
 
     pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.asset.save_state(&self.registry.component, encoder)?;
+        self.resource
+            .save_state(&self.registry.component, encoder)?;
         self.renderer.save_state(encoder)?;
         self.ecs.save_state(&self.registry.component, encoder)?;
         self.input.save_state(encoder)?;
@@ -258,7 +261,8 @@ impl Instance {
     }
 
     pub fn load(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        self.asset.load_state(&self.registry.component, decoder)?;
+        self.resource
+            .load_state(&self.registry.component, decoder)?;
         self.renderer.load_state(decoder)?;
         self.ecs.load_state(&self.registry.component, decoder)?;
         self.input.load_state(decoder)?;
@@ -301,7 +305,7 @@ impl Instance {
         self.ecs
             .update(ECSUpdateContext {
                 registry: &mut self.registry,
-                asset: &mut self.asset,
+                resource: &mut self.resource,
                 input: &mut self.input,
                 renderer: &mut self.renderer,
                 system: &mut self.system,
@@ -313,7 +317,7 @@ impl Instance {
 
         // ================= POST-UPDATE STAGE ================== //
         self.renderer
-            .submit_graphics(&mut self.asset, &self.ecs.containers);
+            .submit_graphics(&mut self.resource, &self.ecs.containers);
 
         Ok(())
     }

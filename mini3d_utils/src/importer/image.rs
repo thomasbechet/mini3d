@@ -39,7 +39,7 @@ impl ImageImporter {
     }
 
     pub fn import(&self) -> Result<ImageImport, String> {
-        // Find the asset name either from the user defined name or the source
+        // Find the resource name either from the user defined name or the source
         let filename = self
             .name
             .clone()

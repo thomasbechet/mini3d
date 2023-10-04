@@ -32,8 +32,8 @@ pub struct ModelImport {
 
 impl ModelImport {
     pub fn push(self, events: &mut Vec<ImportAssetEvent>) {
-        self.meshes.into_iter().for_each(|asset| {
-            events.push(ImportAssetEvent::Mesh(asset));
+        self.meshes.into_iter().for_each(|resource| {
+            events.push(ImportAssetEvent::Mesh(resource));
         });
         self.materials.into_iter().for_each(|material| {
             events.push(ImportAssetEvent::Material(material));

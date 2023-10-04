@@ -1,12 +1,12 @@
 use crate::{
     registry::{
-        asset::{AssetTypeTrait, StaticAssetType},
         component::{
             ComponentEntry, ComponentStorage, ComponentType, ComponentTypeTrait,
             StaticComponentType,
         },
         datatype::StaticDataType,
         error::RegistryError,
+        resource::{ResourceTypeTrait, StaticResourceType},
         system::{ExclusiveSystem, ParallelSystem, System, SystemOrder},
     },
     utils::uid::ToUID,
@@ -20,16 +20,16 @@ impl AssetRegistry {
     pub fn add_static<D: StaticDataType>(
         ctx: &mut Context,
         name: &str,
-    ) -> Result<StaticAssetType<D>, RegistryError> {
-        ctx.registry.asset.add_static(name)
+    ) -> Result<StaticResourceType<D>, RegistryError> {
+        ctx.registry.resource.add_static(name)
     }
 
-    pub fn find<H: AssetTypeTrait>(ctx: &Context, asset: impl ToUID) -> Option<H> {
-        ctx.registry.asset.find(asset)
+    pub fn find<H: ResourceTypeTrait>(ctx: &Context, resource: impl ToUID) -> Option<H> {
+        ctx.registry.resource.find(resource)
     }
 
-    pub fn contains(ctx: &Context, asset: impl ToUID) -> bool {
-        ctx.registry.asset.contains(asset)
+    pub fn contains(ctx: &Context, resource: impl ToUID) -> bool {
+        ctx.registry.resource.contains(resource)
     }
 }
 

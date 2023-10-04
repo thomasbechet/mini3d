@@ -7,7 +7,7 @@ for e in scene.query(@player) do
     let t: @transform = e.transform
 end
 let transform = player.transform
-let texture = asset.get(@texture, 'alfred')
+let texture = resource.get(@texture, 'alfred')
 
 print('{}')
 

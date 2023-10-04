@@ -8,9 +8,9 @@ use crate::utils::{
 pub(crate) const MAX_RESOURCE_PATH_LEN: usize = 64;
 
 #[derive(Default, Serialize)]
-pub struct AssetKey(AsciiArray<MAX_RESOURCE_PATH_LEN>);
+pub struct ResourceKey(AsciiArray<MAX_RESOURCE_PATH_LEN>);
 
-impl AssetKey {
+impl ResourceKey {
     pub(crate) fn new(path: &str) -> Self {
         let mut p = Self(Default::default());
         p.0.set(path).unwrap();
@@ -22,13 +22,13 @@ impl AssetKey {
     }
 }
 
-impl ToUID for AssetKey {
+impl ToUID for ResourceKey {
     fn to_uid(&self) -> UID {
         self.0.as_str().to_uid()
     }
 }
 
-impl AsRef<str> for AssetKey {
+impl AsRef<str> for ResourceKey {
     fn as_ref(&self) -> &str {
         self.0.as_str()
     }

@@ -1,20 +1,20 @@
 use core::result::Result;
 
 use crate::io::IOManager;
-use crate::registry::asset::{
-    AssetReferenceTrait, AssetRegistryManager, AssetType, AssetTypeTrait,
-};
 use crate::registry::component::ComponentRegistryManager;
+use crate::registry::resource::{
+    ResourceReferenceTrait, ResourceRegistryManager, ResourceType, ResourceTypeTrait,
+};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::uid::ToUID;
 
 use self::container::{
-    AnyAssetContainer, PrivateAnyAssetContainerMut, PrivateAnyAssetContainerRef,
+    AnyResourceContainer, PrivateAnyResourceContainerMut, PrivateAnyResourceContainerRef,
 };
-use self::error::AssetError;
-use self::handle::AssetHandle;
-use self::key::AssetKey;
+use self::error::ResourceError;
+use self::handle::ResourceHandle;
+use self::key::ResourceKey;
 
 pub mod container;
 pub mod error;
@@ -26,24 +26,24 @@ pub(crate) enum AssetSource {
     IO,
 }
 
-pub struct AssetInfo<'a> {
+pub struct ResourceInfo<'a> {
     pub path: &'a str,
 }
 
-struct AssetEntry {
-    key: AssetKey,
-    ty: AssetType,
+struct ResourceEntry {
+    key: ResourceKey,
+    ty: ResourceType,
     slot: SlotId, // Null if not loaded
     source: AssetSource,
 }
 
 #[derive(Default)]
-pub struct AssetManager {
-    containers: SparseSecondaryMap<Box<dyn AnyAssetContainer>>, // AssetType -> Container
-    entries: DenseSlotMap<AssetEntry>,                          // AssetType -> AssetEntry
+pub struct ResourceManager {
+    containers: SparseSecondaryMap<Box<dyn AnyResourceContainer>>, // AssetType -> Container
+    entries: DenseSlotMap<ResourceEntry>,                          // AssetType -> AssetEntry
 }
 
-impl AssetManager {
+impl ResourceManager {
     pub(crate) fn save_state(
         &self,
         registry: &ComponentRegistryManager,
@@ -88,56 +88,56 @@ impl AssetManager {
         //     }
         // }
 
-        // // Check that all assets have a default value
-        // for (asset, _) in self.defaults.iter() {
-        //     if self.containers.get(asset).is_none() {
+        // // Check that all resources have a default value
+        // for (resource, _) in self.defaults.iter() {
+        //     if self.containers.get(resource).is_none() {
         //         return Err(DecoderError::CorruptedData);
         //     }
         // }
         Ok(())
     }
 
-    pub(crate) fn on_registry_update(&mut self, registry: &AssetRegistryManager) {
+    pub(crate) fn on_registry_update(&mut self, registry: &ResourceRegistryManager) {
         for (id, entry) in registry.entries.iter() {
             if !self.containers.contains(id) {
-                let container = entry.reflection.create_asset_container();
+                let container = entry.reflection.create_resource_container();
                 self.containers.insert(id, container);
             }
         }
     }
 
-    pub(crate) fn persist<T: AssetTypeTrait>(
+    pub(crate) fn persist<T: ResourceTypeTrait>(
         &mut self,
         ty: T,
         key: &str,
         data: T::Data,
-    ) -> Result<AssetHandle, AssetError> {
+    ) -> Result<ResourceHandle, ResourceError> {
         if self.find(key).is_some() {
-            return Err(AssetError::DuplicatedAssetEntry);
+            return Err(ResourceError::DuplicatedAssetEntry);
         }
-        let id = self.entries.add(AssetEntry {
-            key: AssetKey::new(key),
-            ty: AssetType(ty.id()),
+        let id = self.entries.add(ResourceEntry {
+            key: ResourceKey::new(key),
+            ty: ResourceType(ty.id()),
             slot: SlotId::null(),
             source: AssetSource::Persistent,
         });
-        // TODO: preload asset in container ? wait for read ? define proper strategy
+        // TODO: preload resource in container ? wait for read ? define proper strategy
         if let Some(container) = self.containers.get_mut(ty.id()) {
             self.entries[id].slot =
-                T::insert_container(PrivateAnyAssetContainerMut(container.as_mut()), data);
-            Ok(AssetHandle {
+                T::insert_container(PrivateAnyResourceContainerMut(container.as_mut()), data);
+            Ok(ResourceHandle {
                 id,
                 key: key.to_uid(),
             })
         } else {
             // TODO: report proper error (not sync with registry ?)
-            Err(AssetError::AssetTypeNotFound)
+            Err(ResourceError::ResourceTypeNotFound)
         }
     }
 
-    pub(crate) fn remove(&mut self, handle: AssetHandle) -> Result<(), AssetError> {
+    pub(crate) fn remove(&mut self, handle: ResourceHandle) -> Result<(), ResourceError> {
         if !self.entries.contains(handle.id) {
-            return Err(AssetError::AssetNotFound);
+            return Err(ResourceError::ResourceNotFound);
         }
         // TODO: remove cached data from container
         if !self.entries[handle.id].slot.is_null() {
@@ -151,59 +151,59 @@ impl AssetManager {
         Ok(())
     }
 
-    pub(crate) fn load<T: AssetTypeTrait>(
+    pub(crate) fn load<T: ResourceTypeTrait>(
         &mut self,
         io: &mut IOManager,
-        handle: AssetHandle,
-    ) -> Result<T::Ref<'_>, AssetError> {
+        handle: ResourceHandle,
+    ) -> Result<T::Ref<'_>, ResourceError> {
         let entry = self
             .entries
             .get(handle.id)
-            .ok_or(AssetError::AssetNotFound)?;
+            .ok_or(ResourceError::ResourceNotFound)?;
         if !entry.slot.is_null() {
-            Ok(T::asset_ref(
-                PrivateAnyAssetContainerRef(self.containers[entry.ty.0].as_ref()),
+            Ok(T::resource_ref(
+                PrivateAnyResourceContainerRef(self.containers[entry.ty.0].as_ref()),
                 entry.slot,
             ))
         } else {
-            todo!("Load asset from source")
+            todo!("Load resource from source")
         }
     }
 
-    pub(crate) fn read<T: AssetReferenceTrait>(
+    pub(crate) fn read<T: ResourceReferenceTrait>(
         &self,
-        handle: AssetHandle,
-    ) -> Result<<T::AssetType as AssetTypeTrait>::Ref<'_>, AssetError> {
+        handle: ResourceHandle,
+    ) -> Result<<T::AssetType as ResourceTypeTrait>::Ref<'_>, ResourceError> {
         let entry = self
             .entries
             .get(handle.id)
-            .ok_or(AssetError::AssetNotFound)?;
+            .ok_or(ResourceError::ResourceNotFound)?;
         if !entry.slot.is_null() {
-            Ok(<T::AssetType as AssetTypeTrait>::asset_ref(
-                PrivateAnyAssetContainerRef(self.containers[entry.ty.0].as_ref()),
+            Ok(<T::AssetType as ResourceTypeTrait>::resource_ref(
+                PrivateAnyResourceContainerRef(self.containers[entry.ty.0].as_ref()),
                 entry.slot,
             ))
         } else {
-            Err(AssetError::AssetNotLoaded)
+            Err(ResourceError::ResourceNotLoaded)
         }
     }
 
-    pub(crate) fn find(&self, key: impl ToUID) -> Option<AssetHandle> {
+    pub(crate) fn find(&self, key: impl ToUID) -> Option<ResourceHandle> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.key.to_uid() == key.to_uid())
-            .map(|(id, entry)| AssetHandle {
+            .map(|(id, entry)| ResourceHandle {
                 id,
                 key: entry.key.to_uid(),
             })
     }
 
-    pub(crate) fn info(&self, handle: AssetHandle) -> Result<AssetInfo, AssetError> {
+    pub(crate) fn info(&self, handle: ResourceHandle) -> Result<ResourceInfo, ResourceError> {
         self.entries
             .get(handle.id)
-            .map(|entry| AssetInfo {
+            .map(|entry| ResourceInfo {
                 path: entry.key.as_str(),
             })
-            .ok_or(AssetError::AssetNotFound)
+            .ok_or(ResourceError::ResourceNotFound)
     }
 }

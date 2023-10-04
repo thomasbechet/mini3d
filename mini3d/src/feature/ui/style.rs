@@ -1,13 +1,13 @@
 use mini3d_derive::{Error, Serialize};
 
 use crate::{
-    asset::handle::StaticAsset,
     feature::renderer::texture::Texture,
     math::rect::IRect,
     renderer::{
         color::Color,
         graphics::{Graphics, TextureWrapMode},
     },
+    resource::handle::StaticAsset,
 };
 
 #[derive(Debug, Error)]

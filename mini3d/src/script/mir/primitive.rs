@@ -6,7 +6,7 @@ use crate::script::frontend::{
 pub(crate) enum ReferenceType {
     Function,
     Component,
-    Asset,
+    Resource,
     Query,
 }
 

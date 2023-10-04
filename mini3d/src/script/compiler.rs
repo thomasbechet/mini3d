@@ -1,7 +1,7 @@
 use crate::{
-    asset::AssetManager,
-    ecs::api::{asset::Asset, context::Context},
+    ecs::api::{context::Context, resource::Resource},
     feature::common::script::Script,
+    resource::ResourceManager,
     utils::uid::ToUID,
 };
 
@@ -63,7 +63,7 @@ impl Compiler {
     fn fetch_modules(&mut self, ctx: &Context) -> Result<(), CompileError> {
         // Insert builtin modules
         self.modules.add("scene", Module::Builtin);
-        self.modules.add("asset", Module::Builtin);
+        self.modules.add("resource", Module::Builtin);
         self.modules.add("input", Module::Builtin);
         self.modules.add("renderer", Module::Builtin);
         self.modules.add("physics", Module::Builtin);
@@ -84,8 +84,8 @@ impl Compiler {
         while i < self.compilation_unit.len() {
             let module = self.compilation_unit.get(i);
             match self.modules.get(module).unwrap() {
-                Module::Source { asset } => {
-                    let script = Asset::read::<Script>(ctx, *asset).unwrap();
+                Module::Source { resource } => {
+                    let script = Resource::read::<Script>(ctx, *resource).unwrap();
                     self.source_compiler.resolve_cu_and_exports(
                         script,
                         &mut self.modules,
@@ -107,8 +107,8 @@ impl Compiler {
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
-                Module::Source { asset } => {
-                    let script = Asset::read::<Script>(ctx, *asset).unwrap();
+                Module::Source { resource } => {
+                    let script = Resource::read::<Script>(ctx, *resource).unwrap();
                     self.source_compiler
                         .generate_mir(script, &self.modules, *module, mir)?;
                 }
@@ -126,7 +126,7 @@ impl Compiler {
     }
 
     pub fn compile(&mut self, entry: ModuleId, ctx: &Context) -> Result<(), CompileError> {
-        // Fetch all modules from the asset manager (sequential, acquire cached modules)
+        // Fetch all modules from the resource manager (sequential, acquire cached modules)
         self.fetch_modules(ctx)?;
         // Resolve compilation unit and exports (sequential, fast if cached)
         self.resolve_cu_and_exports(entry, ctx)?;

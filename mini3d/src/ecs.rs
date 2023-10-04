@@ -1,8 +1,8 @@
 use crate::{
-    asset::AssetManager,
     logger::LoggerManager,
     platform::PlatformManager,
     registry::error::RegistryError,
+    resource::ResourceManager,
     serialize::{Decoder, DecoderError, EncoderError},
 };
 
@@ -45,7 +45,7 @@ pub(crate) struct ECSManager {
 
 pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) registry: &'a mut RegistryManager,
-    pub(crate) asset: &'a mut AssetManager,
+    pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,
     pub(crate) system: &'a mut PlatformManager,
@@ -100,9 +100,11 @@ impl ECSManager {
         // TODO: protect against infinite loops
         loop {
             // Check registry update
-            if context.registry.asset.changed {
-                context.asset.on_registry_update(&context.registry.asset);
-                context.registry.asset.changed = false;
+            if context.registry.resource.changed {
+                context
+                    .resource
+                    .on_registry_update(&context.registry.resource);
+                context.registry.resource.changed = false;
             }
             if context.registry.system.changed || context.registry.component.changed {
                 // Update ECS
@@ -128,7 +130,7 @@ impl ECSManager {
                 match &instance.system {
                     SystemInstance::Exclusive(instance) => {
                         let ctx = &mut Context {
-                            asset: context.asset,
+                            resource: context.resource,
                             input: context.input,
                             registry: context.registry,
                             renderer: context.renderer,
@@ -151,7 +153,7 @@ impl ECSManager {
                     }
                     SystemInstance::Parallel(instance) => {
                         let ctx = &Context {
-                            asset: context.asset,
+                            resource: context.resource,
                             input: context.input,
                             registry: context.registry,
                             renderer: context.renderer,

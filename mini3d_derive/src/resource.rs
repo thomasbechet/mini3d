@@ -38,7 +38,7 @@ pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
     }
 }
 
-struct AssetMeta {
+struct ResourceMeta {
     name: String,
 }
 
@@ -64,16 +64,16 @@ pub(crate) fn camelcase_to_snakecase(name: &str) -> String {
     result
 }
 
-impl AssetMeta {
+impl ResourceMeta {
     fn new(ident: &Ident) -> Self {
         Self {
             name: camelcase_to_snakecase(&ident.to_string()),
         }
     }
 
-    fn merge(&mut self, attribute: AssetAttribute) -> Result<()> {
+    fn merge(&mut self, attribute: ResourceAttribute) -> Result<()> {
         match attribute {
-            AssetAttribute::Name(name) => {
+            ResourceAttribute::Name(name) => {
                 self.name = name.value();
             }
         }
@@ -81,16 +81,16 @@ impl AssetMeta {
     }
 }
 
-enum AssetAttribute {
+enum ResourceAttribute {
     Name(syn::LitStr),
 }
 
-impl syn::parse::Parse for AssetAttribute {
+impl syn::parse::Parse for ResourceAttribute {
     fn parse(input: syn::parse::ParseStream) -> Result<Self> {
         let arg_name: Ident = input.parse()?;
         if arg_name == "name" {
             let _: Token![=] = input.parse()?;
-            Ok(AssetAttribute::Name(input.parse()?))
+            Ok(ResourceAttribute::Name(input.parse()?))
         } else {
             Err(Error::new_spanned(
                 arg_name,
@@ -109,20 +109,20 @@ fn derive_struct(
 ) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
-    let mut meta = AssetMeta::new(ident);
+    let mut meta = ResourceMeta::new(ident);
     for attribute in attrs {
-        if attribute.path().is_ident("asset") {
-            meta.merge(attribute.parse_args::<AssetAttribute>()?)?;
+        if attribute.path().is_ident("resource") {
+            meta.merge(attribute.parse_args::<ResourceAttribute>()?)?;
         }
     }
 
-    let asset_name = meta.name;
+    let resource_name = meta.name;
 
     let q = quote! {
         impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #asset_name;
+            pub const NAME: &'static str = #resource_name;
         }
     };
     Ok(q)
@@ -137,20 +137,20 @@ pub(crate) fn derive_tuple(
 ) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
-    let mut meta = AssetMeta::new(ident);
+    let mut meta = ResourceMeta::new(ident);
     for attribute in attrs {
-        if attribute.path().is_ident("asset") {
-            meta.merge(attribute.parse_args::<AssetAttribute>()?)?;
+        if attribute.path().is_ident("resource") {
+            meta.merge(attribute.parse_args::<ResourceAttribute>()?)?;
         }
     }
 
-    let asset_name = meta.name;
+    let resource_name = meta.name;
 
     let q = quote! {
         impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #asset_name;
+            pub const NAME: &'static str = #resource_name;
         }
     };
     Ok(q)
@@ -165,20 +165,20 @@ fn derive_enum(
 ) -> Result<TokenStream> {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
 
-    let mut meta = AssetMeta::new(ident);
+    let mut meta = ResourceMeta::new(ident);
     for attribute in attrs {
-        if attribute.path().is_ident("asset") {
-            meta.merge(attribute.parse_args::<AssetAttribute>()?)?;
+        if attribute.path().is_ident("resource") {
+            meta.merge(attribute.parse_args::<ResourceAttribute>()?)?;
         }
     }
 
-    let asset_name = meta.name;
+    let resource_name = meta.name;
 
     let q = quote! {
         impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #asset_name;
+            pub const NAME: &'static str = #resource_name;
         }
     };
     Ok(q)

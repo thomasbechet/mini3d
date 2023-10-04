@@ -1,9 +1,9 @@
-use mini3d_derive::{Asset, Reflect, Serialize};
+use mini3d_derive::{Reflect, Resource, Serialize};
 
-use crate::asset::handle::AssetHandle;
+use crate::resource::handle::ResourceHandle;
 
-#[derive(Default, Clone, Asset, Serialize, Reflect)]
+#[derive(Default, Clone, Resource, Serialize, Reflect)]
 pub struct Model {
-    pub mesh: AssetHandle,
-    pub materials: Vec<AssetHandle>,
+    pub mesh: ResourceHandle,
+    pub materials: Vec<ResourceHandle>,
 }

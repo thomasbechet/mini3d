@@ -457,7 +457,7 @@ impl RendererProvider for WGPURenderer {
         let handle: TextureHandle = self.generator.next().into();
         self.textures.insert(
             handle,
-            Texture::from_asset(
+            Texture::from_resource(
                 &self.context,
                 texture,
                 wgpu::TextureUsages::TEXTURE_BINDING,

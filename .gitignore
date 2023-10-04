@@ -3,5 +3,5 @@ Cargo.lock
 .vscode
 fleet.toml
 .cargo/**
-assets/state.bin
-assets/Sprites/**
+resources/state.bin
+resources/Sprites/**

@@ -2,13 +2,13 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    asset::handle::StaticAsset,
     feature::{renderer::texture::Texture, ui::ui_stylesheet::UIStyleSheet},
     math::rect::IRect,
     renderer::{
         color::Color,
         graphics::{Graphics, TextureWrapMode},
     },
+    resource::handle::StaticAsset,
     ui::event::{Event, EventContext},
 };
 

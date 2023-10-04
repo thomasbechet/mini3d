@@ -9,7 +9,7 @@ pub(crate) struct Texture {
 }
 
 impl Texture {
-    pub(crate) fn from_asset(
+    pub(crate) fn from_resource(
         context: &WGPUContext,
         texture: &renderer::texture::Texture,
         usage: wgpu::TextureUsages,

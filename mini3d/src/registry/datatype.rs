@@ -13,12 +13,12 @@ impl ReferenceResolver {
         entity
     }
 
-    pub(crate) fn resolve_asset_id(&self, uid: UID) -> SlotId {
+    pub(crate) fn resolve_resource_id(&self, uid: UID) -> SlotId {
         // TODO: resolve asse tor log error ? panic in runtime ?
         SlotId::null()
     }
 
-    pub(crate) fn remap_asset_key(&self, id: SlotId) -> UID {
+    pub(crate) fn remap_resource_key(&self, id: SlotId) -> UID {
         UID::null()
     }
 }

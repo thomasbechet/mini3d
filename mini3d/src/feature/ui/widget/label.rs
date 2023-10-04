@@ -2,10 +2,10 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    asset::handle::StaticAsset,
     feature::{renderer::font::Font, ui::ui_stylesheet::UIStyleSheet},
     math::rect::IRect,
     renderer::graphics::Graphics,
+    resource::handle::StaticAsset,
     ui::event::{Event, EventContext},
 };
 
