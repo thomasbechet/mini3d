@@ -269,8 +269,6 @@ impl<D: StaticDataType> AnyComponentReflection for StaticComponentReflection<D> 
     }
 }
 
-pub(crate) const MAX_COMPONENT_NAME_LEN: usize = 64;
-
 pub struct ComponentEntry {
     pub(crate) name: AsciiArray<MAX_COMPONENT_NAME_LEN>,
     pub(crate) reflection: Box<dyn AnyComponentReflection>,
