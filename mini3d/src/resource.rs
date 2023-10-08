@@ -1,6 +1,7 @@
 use core::result::Result;
 
 use crate::io::IOManager;
+use crate::program::ProgramId;
 use crate::registry::component::ComponentRegistryManager;
 use crate::registry::resource::{
     ResourceReferenceTrait, ResourceRegistryManager, ResourceType, ResourceTypeTrait,
@@ -21,10 +22,7 @@ pub mod error;
 pub mod handle;
 pub mod key;
 
-pub(crate) enum AssetSource {
-    Persistent,
-    IO,
-}
+pub enum ResourceSharingMode {}
 
 pub struct ResourceInfo<'a> {
     pub path: &'a str,
@@ -33,14 +31,15 @@ pub struct ResourceInfo<'a> {
 struct ResourceEntry {
     key: ResourceKey,
     ty: ResourceType,
+    owner: ProgramId,
+    ref_count: usize,
     slot: SlotId, // Null if not loaded
-    source: AssetSource,
 }
 
 #[derive(Default)]
 pub struct ResourceManager {
-    containers: SparseSecondaryMap<Box<dyn AnyResourceContainer>>, // AssetType -> Container
-    entries: DenseSlotMap<ResourceEntry>,                          // AssetType -> AssetEntry
+    containers: SparseSecondaryMap<Box<dyn AnyResourceContainer>>,
+    entries: DenseSlotMap<ResourceEntry>,
 }
 
 impl ResourceManager {
@@ -127,7 +126,7 @@ impl ResourceManager {
                 T::insert_container(PrivateAnyResourceContainerMut(container.as_mut()), data);
             Ok(ResourceHandle {
                 id,
-                key: key.to_uid(),
+                uid: key.to_uid(),
             })
         } else {
             // TODO: report proper error (not sync with registry ?)
@@ -194,7 +193,7 @@ impl ResourceManager {
             .find(|(_, entry)| entry.key.to_uid() == key.to_uid())
             .map(|(id, entry)| ResourceHandle {
                 id,
-                key: entry.key.to_uid(),
+                uid: entry.key.to_uid(),
             })
     }
 

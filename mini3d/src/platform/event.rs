@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[derive(Serialize)]
-pub struct AssetImportEntry<D: StaticDataType> {
+pub struct AssetImportEntry<C: Component> {
     pub name: String,
     pub data: D,
 }

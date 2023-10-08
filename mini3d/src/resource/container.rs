@@ -15,7 +15,7 @@ pub struct PrivateAnyResourceContainerRef<'a>(pub(crate) &'a dyn AnyResourceCont
 pub struct PrivateAnyResourceContainerMut<'a>(pub(crate) &'a mut dyn AnyResourceContainer);
 
 #[derive(Default)]
-pub(crate) struct StaticResourceContainer<D: StaticDataType>(pub(crate) SlotMap<D>);
+pub(crate) struct StaticResourceContainer<C: Component>(pub(crate) SlotMap<D>);
 
 pub(crate) trait AnyResourceContainer: Any {
     fn as_any(&self) -> &dyn Any;
@@ -34,7 +34,7 @@ pub(crate) trait AnyResourceContainer: Any {
     ) -> Result<(), ResourceError>;
 }
 
-impl<D: StaticDataType> AnyResourceContainer for StaticResourceContainer<D> {
+impl<C: Component> AnyResourceContainer for StaticResourceContainer<D> {
     fn as_any(&self) -> &dyn Any {
         self
     }

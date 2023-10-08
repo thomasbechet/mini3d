@@ -1,9 +1,8 @@
 use crate::{
     feature::common::program::Program,
     registry::{
-        component::{ComponentRegistryManager, ComponentType, ComponentTypeTrait},
+        component::{ComponentRegistryManager, ComponentTypeTrait},
         error::RegistryError,
-        system::{System, SystemRegistryManager},
         RegistryManager,
     },
     utils::{slotmap::SparseSecondaryMap, uid::ToUID},

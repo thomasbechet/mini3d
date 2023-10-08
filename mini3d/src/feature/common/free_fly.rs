@@ -9,7 +9,7 @@ use crate::{
     },
     expect,
     input::handle::{InputActionHandle, InputAxisHandle},
-    registry::{component::StaticComponentType, error::RegistryError, system::ParallelSystem},
+    registry::{component_type::ComponentType, error::RegistryError},
 };
 
 use super::transform::Transform;
@@ -51,8 +51,8 @@ impl FreeFly {
 
 #[derive(Default)]
 pub struct FreeFlySystem {
-    free_fly: StaticComponentType<FreeFly>,
-    transform: StaticComponentType<Transform>,
+    free_fly: ComponentType,
+    transform: ComponentType,
     query: Query,
 }
 

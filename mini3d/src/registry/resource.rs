@@ -61,12 +61,12 @@ impl ResourceTypeTrait for ResourceType {
     }
 }
 
-pub struct StaticResourceType<D: StaticDataType> {
+pub struct StaticResourceType<C: Component> {
     _marker: std::marker::PhantomData<D>,
     pub(crate) id: ResourceType,
 }
 
-impl<D: StaticDataType> Clone for StaticResourceType<D> {
+impl<C: Component> Clone for StaticResourceType<D> {
     fn clone(&self) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -75,9 +75,9 @@ impl<D: StaticDataType> Clone for StaticResourceType<D> {
     }
 }
 
-impl<D: StaticDataType> Copy for StaticResourceType<D> {}
+impl<C: Component> Copy for StaticResourceType<D> {}
 
-impl<D: StaticDataType> Default for StaticResourceType<D> {
+impl<C: Component> Default for StaticResourceType<D> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -86,7 +86,7 @@ impl<D: StaticDataType> Default for StaticResourceType<D> {
     }
 }
 
-impl<D: StaticDataType> ResourceTypeTrait for StaticResourceType<D> {
+impl<C: Component> ResourceTypeTrait for StaticResourceType<D> {
     type Ref<'a> = &'a D;
     type Data = D;
 
@@ -141,11 +141,11 @@ pub(crate) trait AnyResourceReflection {
     fn type_id(&self) -> TypeId;
 }
 
-pub(crate) struct StaticResourceReflection<D: StaticDataType> {
+pub(crate) struct StaticResourceReflection<C: Component> {
     _phantom: std::marker::PhantomData<D>,
 }
 
-impl<D: StaticDataType> AnyResourceReflection for StaticResourceReflection<D> {
+impl<C: Component> AnyResourceReflection for StaticResourceReflection<D> {
     fn create_resource_container(&self) -> Box<dyn AnyResourceContainer> {
         Box::<StaticResourceContainer<D>>::default()
     }
@@ -194,7 +194,7 @@ impl ResourceRegistryManager {
         }))
     }
 
-    pub(crate) fn add_static<D: StaticDataType>(
+    pub(crate) fn add_static<C: Component>(
         &mut self,
         name: &str,
     ) -> Result<StaticResourceType<D>, RegistryError> {

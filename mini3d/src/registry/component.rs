@@ -1,279 +1,66 @@
-use std::{
-    any::TypeId,
-    cell::{Ref, RefMut},
-};
+use std::any::TypeId;
 
 use crate::{
-    ecs::{
-        api::context::Context,
-        container::{
-            single::{AnySingleContainer, StaticSingleContainer},
-            ContainerTable,
-        },
-        entity::Entity,
-        error::ECSError,
-        view::single::{SingleViewMut, SingleViewRef, StaticSingleViewMut, StaticSingleViewRef},
+    ecs::container::{
+        native::single::{NativeSingleContainer, SingleContainer},
+        ContainerTable,
     },
-    reflection::Property,
+    feature::common::component_definition::ComponentDefinition,
+    program::{ProgramId, ProgramManager},
+    reflection::{Property, Reflect},
+    resource::{handle::ResourceHandle, ResourceManager},
+    serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{
         slotmap::{SlotId, SlotMap},
-        string::AsciiArray,
         uid::{ToUID, UID},
     },
 };
 
-use super::{datatype::StaticDataType, error::RegistryError};
+use super::{component_type::ComponentType, error::RegistryError};
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ComponentType(pub(crate) SlotId);
+pub struct ReferenceResolver;
+
+pub trait Component: 'static + Default + Reflect {
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;
+    fn deserialize(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError>;
+    fn resolve_references(&mut self, references: &mut ReferenceResolver);
+}
 
 pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
 pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
 
-pub trait ComponentTypeTrait: Copy {
-    type SingleViewRef<'a>;
-    type SingleViewMut<'a>;
-    // type ArrayViewRef<'a>;
-    // type ArrayViewMut<'a>;
-    type Data: Default;
-    fn new(id: ComponentType) -> Self;
-    fn id(&self) -> ComponentType;
-    fn single_view_ref<'a>(
-        &self,
-        components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::SingleViewRef<'a>, ECSError>;
-    fn single_view_mut<'a>(
-        &self,
-        components: PrivateComponentTableRef<'a>,
-        cycle: u32,
-    ) -> Result<Self::SingleViewMut<'a>, ECSError>;
-    fn check_type_id(id: TypeId) -> bool;
-    fn insert_single_container(
-        &self,
-        components: PrivateComponentTableMut,
-        entity: Entity,
-        data: Self::Data,
-        cycle: u32,
-    );
-}
-
-pub struct StaticComponentType<D: StaticDataType> {
-    _marker: std::marker::PhantomData<D>,
-    pub(crate) id: ComponentType,
-}
-
-impl<D: StaticDataType> Clone for StaticComponentType<D> {
-    fn clone(&self) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            id: self.id,
-        }
-    }
-}
-
-impl<D: StaticDataType> Copy for StaticComponentType<D> {}
-
-impl<D: StaticDataType> Default for StaticComponentType<D> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            id: ComponentType::default(),
-        }
-    }
-}
-
-impl<D: StaticDataType> ComponentTypeTrait for StaticComponentType<D> {
-    type SingleViewRef<'a> = StaticSingleViewRef<'a, D>;
-    type SingleViewMut<'a> = StaticSingleViewMut<'a, D>;
-    type Data = D;
-
-    fn new(id: ComponentType) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            id,
-        }
-    }
-
-    fn id(&self) -> ComponentType {
-        self.id
-    }
-
-    fn single_view_ref<'a>(
-        &self,
-        components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::SingleViewRef<'a>, ECSError> {
-        Ok(StaticSingleViewRef {
-            container: Ref::map(
-                components
-                    .0
-                    .containers
-                    .get(self.id.0)
-                    .unwrap()
-                    .try_borrow()
-                    .map_err(|_| ECSError::ContainerBorrowMut)?,
-                |r| {
-                    r.as_any()
-                        .downcast_ref::<StaticSingleContainer<D>>()
-                        .unwrap()
-                },
-            ),
-        })
-    }
-
-    fn single_view_mut<'a>(
-        &self,
-        components: PrivateComponentTableRef<'a>,
-        cycle: u32,
-    ) -> Result<Self::SingleViewMut<'a>, ECSError> {
-        Ok(StaticSingleViewMut {
-            container: RefMut::map(
-                components
-                    .0
-                    .containers
-                    .get(self.id.0)
-                    .unwrap()
-                    .try_borrow_mut()
-                    .map_err(|_| ECSError::ContainerBorrowMut)?,
-                |r| {
-                    r.as_any_mut()
-                        .downcast_mut::<StaticSingleContainer<D>>()
-                        .unwrap()
-                },
-            ),
-            cycle,
-        })
-    }
-
-    fn check_type_id(id: TypeId) -> bool {
-        id == TypeId::of::<D>()
-    }
-
-    fn insert_single_container(
-        &self,
-        components: PrivateComponentTableMut,
-        entity: Entity,
-        data: Self::Data,
-        cycle: u32,
-    ) {
-        components
-            .0
-            .containers
-            .get_mut(self.id.0)
-            .expect("Component container not found while adding entity")
-            .get_mut()
-            .as_any_mut()
-            .downcast_mut::<StaticSingleContainer<D>>()
-            .expect("Component type mismatch while adding static component")
-            .add(entity, data, cycle);
-    }
-}
-
-impl ComponentTypeTrait for ComponentType {
-    type SingleViewRef<'a> = SingleViewRef<'a>;
-    type SingleViewMut<'a> = SingleViewMut<'a>;
-    type Data = ();
-
-    fn new(id: ComponentType) -> Self {
-        id
-    }
-
-    fn id(&self) -> ComponentType {
-        *self
-    }
-
-    fn single_view_ref<'a>(
-        &self,
-        components: PrivateComponentTableRef<'a>,
-    ) -> Result<Self::SingleViewRef<'a>, ECSError> {
-        Ok(SingleViewRef {
-            container: components
-                .0
-                .containers
-                .get(self.0)
-                .unwrap()
-                .try_borrow()
-                .map_err(|_| ECSError::ContainerBorrowMut)?,
-        })
-    }
-
-    fn single_view_mut<'a>(
-        &self,
-        components: PrivateComponentTableRef<'a>,
-        cycle: u32,
-    ) -> Result<Self::SingleViewMut<'a>, ECSError> {
-        Ok(SingleViewMut {
-            container: components
-                .0
-                .containers
-                .get(self.0)
-                .unwrap()
-                .try_borrow_mut()
-                .map_err(|_| ECSError::ContainerBorrowMut)?,
-            cycle,
-        })
-    }
-
-    fn check_type_id(_id: TypeId) -> bool {
-        true // Dynamic handle is valid for both static and dynamic components
-    }
-
-    fn insert_single_container(
-        &self,
-        components: PrivateComponentTableMut,
-        entity: Entity,
-        data: Self::Data,
-        cycle: u32,
-    ) {
-    }
-}
-
-pub(crate) enum ComponentKind {
-    Static,
-    Dynamic,
-    Tag,
-}
-
-pub enum ComponentStorage {
-    Single,
-    Array(usize),
-    List,
-    Map,
-}
-
-pub(crate) trait AnyComponentReflection {
-    fn create_scene_container(&self) -> Box<dyn AnySingleContainer>;
+pub(crate) trait ComponentReflection {
+    fn create_scene_container(&self) -> Box<dyn SingleContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
     fn type_id(&self) -> TypeId;
 }
 
-pub(crate) struct StaticComponentReflection<D: StaticDataType> {
-    _phantom: std::marker::PhantomData<D>,
+pub(crate) struct NativeComponentReflection<C: Component> {
+    pub(crate) _phantom: std::marker::PhantomData<C>,
 }
 
-impl<D: StaticDataType> AnyComponentReflection for StaticComponentReflection<D> {
-    fn create_scene_container(&self) -> Box<dyn AnySingleContainer> {
-        Box::new(StaticSingleContainer::<D>::with_capacity(128))
+impl<C: Component> ComponentReflection for NativeComponentReflection<C> {
+    fn create_scene_container(&self) -> Box<dyn SingleContainer> {
+        Box::new(NativeSingleContainer::<C>::with_capacity(128))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {
-        D::PROPERTIES.iter().find(|p| p.name == name)
+        C::PROPERTIES.iter().find(|p| p.name == name)
     }
 
     fn properties(&self) -> &[Property] {
-        D::PROPERTIES
+        C::PROPERTIES
     }
 
     fn type_id(&self) -> TypeId {
-        TypeId::of::<D>()
+        TypeId::of::<C>()
     }
 }
 
 pub struct ComponentEntry {
-    pub(crate) name: AsciiArray<MAX_COMPONENT_NAME_LEN>,
-    pub(crate) reflection: Box<dyn AnyComponentReflection>,
-    pub(crate) kind: ComponentKind,
-    pub(crate) storage: ComponentStorage,
+    definition: ResourceHandle,
+    owner: ProgramId,
 }
 
 #[derive(Default)]
@@ -283,80 +70,46 @@ pub struct ComponentRegistryManager {
 }
 
 impl ComponentRegistryManager {
-    fn add(
+    pub(crate) fn add(
         &mut self,
-        name: &str,
-        storage: ComponentStorage,
-        kind: ComponentKind,
-        reflection: Box<dyn AnyComponentReflection>,
+        definition: ComponentDefinition,
+        owner: ProgramId,
+        programs: &ProgramManager,
+        resources: &ResourceManager,
     ) -> Result<SlotId, RegistryError> {
-        let uid: UID = name.into();
-        if self.contains(uid) {
+        let uid: UID = definition.name.into();
+        let mut current = owner;
+        if self.find(uid, owner, programs, resources).is_some() {
             return Err(RegistryError::DuplicatedComponent);
         }
         self.changed = true;
-        Ok(self.entries.add(ComponentEntry {
-            name: name.into(),
-            kind,
-            storage,
-            reflection,
-        }))
+        Ok(self.entries.add(ComponentEntry { definition, owner }))
     }
 
-    pub(crate) fn add_static<D: StaticDataType>(
-        &mut self,
-        name: &str,
-        storage: ComponentStorage,
-    ) -> Result<StaticComponentType<D>, RegistryError> {
-        let reflection = StaticComponentReflection::<D> {
-            _phantom: std::marker::PhantomData,
-        };
-        let id = self.add(name, storage, ComponentKind::Static, Box::new(reflection))?;
-        Ok(StaticComponentType {
-            _marker: std::marker::PhantomData,
-            id: ComponentType(id),
-        })
-    }
-
-    pub(crate) fn add_dynamic(
-        &mut self,
-        name: &str,
-        storage: ComponentStorage,
-    ) -> Result<ComponentType, RegistryError> {
-        unimplemented!()
-    }
-
-    pub(crate) fn definition<H: ComponentTypeTrait>(
+    pub(crate) fn find(
         &self,
-        handle: H,
-    ) -> Result<&ComponentEntry, RegistryError> {
-        self.entries
-            .get(handle.id().0)
-            .ok_or(RegistryError::ComponentNotFound)
-    }
-
-    pub(crate) fn find<H: ComponentTypeTrait>(&self, component: impl ToUID) -> Option<H> {
+        component: impl ToUID,
+        owner: ProgramId,
+        programs: &ProgramManager,
+        resources: &ResourceManager,
+    ) -> Option<ComponentType> {
         // Find entry
-        let component = component.to_uid();
-        let component = self
-            .entries
-            .iter()
-            .find(|(_, def)| UID::new(&def.name) == component)
-            .map(|(id, _)| ComponentType(id));
-        // Check type
-        if let Some(id) = component {
-            if !H::check_type_id(self.entries[id.0].reflection.type_id()) {
-                None
-            } else {
-                Some(H::new(id))
+        let uid = component.to_uid();
+        let mut current = owner;
+        while !current.0.is_null() {
+            if let Some((id, e)) = self.entries.iter().find(|(_, e)| {
+                e.owner == current
+                    && resources
+                        .read::<ComponentDefinition>(e.definition)
+                        .unwrap()
+                        .name
+                        .to_uid()
+                        == uid
+            }) {
+                return Some(ComponentType(id));
             }
-        } else {
-            None
+            current = programs.entries[current.0].parent;
         }
-    }
-
-    pub(crate) fn contains(&self, component: impl ToUID) -> bool {
-        let component = component.to_uid();
-        self.find::<ComponentType>(component).is_some()
+        return None;
     }
 }

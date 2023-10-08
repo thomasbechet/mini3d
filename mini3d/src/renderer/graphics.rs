@@ -4,7 +4,7 @@ use mini3d_derive::Serialize;
 use crate::{
     ecs::{
         entity::Entity,
-        view::single::{StaticSingleView, StaticSingleViewRef},
+        view::single::{NativeSingleView, NativeSingleViewRef},
     },
     feature::renderer::viewport::Viewport,
     math::rect::IRect,
@@ -92,7 +92,7 @@ impl Graphics {
         clear_color: Color,
         resources: &mut RendererResourceManager,
         resource: &mut ResourceManager,
-        viewports: &StaticSingleViewRef<Viewport>,
+        viewports: &NativeSingleViewRef<Viewport>,
         provider: &mut dyn RendererProvider,
     ) -> Result<(), RendererProviderError> {
         if let Some(canvas) = canvas {

@@ -17,7 +17,7 @@ use super::context::Context;
 pub struct ResourceRegistry;
 
 impl ResourceRegistry {
-    pub fn add_static<D: StaticDataType>(
+    pub fn add_static<C: Component>(
         ctx: &mut Context,
         name: &str,
     ) -> Result<StaticResourceType<D>, RegistryError> {
@@ -36,11 +36,11 @@ impl ResourceRegistry {
 pub struct ComponentRegistry;
 
 impl ComponentRegistry {
-    pub fn add_static<D: StaticDataType>(
+    pub fn add_static<C: Component>(
         ctx: &mut Context,
         name: &str,
         storage: ComponentStorage,
-    ) -> Result<StaticComponentType<D>, RegistryError> {
+    ) -> Result<StaticComponentType<C>, RegistryError> {
         ctx.registry.component.add_static(name, storage)
     }
 

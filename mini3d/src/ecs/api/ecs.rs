@@ -5,8 +5,11 @@ use crate::{
         error::ECSError,
         query::{FilterQuery, Query, QueryTable},
         scheduler::{Invocation, Scheduler},
+        view::{ComponentViewMut, ComponentViewRef, IntoView},
     },
-    registry::{component::ComponentTypeTrait, error::RegistryError},
+    registry::{
+        component::ComponentTypeTrait, component_type::ComponentType, error::RegistryError,
+    },
     resource::handle::ResourceHandle,
     utils::uid::{ToUID, UID},
 };
@@ -28,16 +31,12 @@ impl<'a> ECS<'a> {
         self.entities.remove(entity, self.containers)
     }
 
-    pub fn view<H: ComponentTypeTrait>(&self, component: H) -> H::SingleViewRef<'_> {
-        self.containers
-            .view(component)
-            .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
+    pub fn view<V: ComponentViewRef>(&self, ty: ComponentType) -> V {
+        self.containers.view(ty)
     }
 
-    pub fn view_mut<H: ComponentTypeTrait>(&self, component: H) -> H::SingleViewMut<'_> {
-        self.containers
-            .view_mut(component, self.cycle)
-            .unwrap_or_else(|_| panic!("{}", ECSError::ContainerBorrowMut.to_string()))
+    pub fn view_mut<V: ComponentViewMut>(&self, ty: ComponentType) -> V {
+        self.containers.view_mut(ty, self.cycle)
     }
 
     pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) {

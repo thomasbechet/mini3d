@@ -119,7 +119,7 @@ fn derive_struct(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
+        impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #component_name;
@@ -147,7 +147,7 @@ pub(crate) fn derive_tuple(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
+        impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #component_name;
@@ -175,7 +175,7 @@ fn derive_enum(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::registry::datatype::StaticDataType for #ident #ty_generics #where_clause {}
+        impl mini3d::registry::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #component_name;

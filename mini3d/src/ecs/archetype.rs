@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut, Range};
 
 use crate::{
-    registry::component::ComponentType,
+    registry::component_type::ComponentType,
     utils::slotmap::{SlotId, SlotMap},
 };
 

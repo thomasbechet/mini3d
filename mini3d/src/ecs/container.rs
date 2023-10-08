@@ -3,21 +3,22 @@ use std::cell::RefCell;
 use mini3d_derive::Serialize;
 
 use crate::{
-    registry::component::{
-        ComponentRegistryManager, ComponentType, ComponentTypeTrait, PrivateComponentTableRef,
+    registry::{
+        component::{ComponentRegistryManager, ComponentTypeTrait, PrivateComponentTableRef},
+        component_type::ComponentType,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
 };
 
-use self::single::AnySingleContainer;
+use super::{
+    entity::Entity,
+    view::{ComponentViewMut, ComponentViewRef},
+};
 
-use super::{entity::Entity, error::ECSError};
+pub mod native;
 
-pub mod array;
-pub mod list;
-pub mod map;
-pub mod single;
+pub(crate) trait Container {}
 
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ComponentStatus {
@@ -59,7 +60,7 @@ impl ComponentFlags {
 
 #[derive(Default)]
 pub(crate) struct ContainerTable {
-    pub(crate) containers: SparseSecondaryMap<RefCell<Box<dyn AnySingleContainer>>>,
+    pub(crate) containers: SparseSecondaryMap<RefCell<Box<dyn Container>>>,
 }
 
 impl ContainerTable {
@@ -114,18 +115,11 @@ impl ContainerTable {
             .remove(entity);
     }
 
-    pub(crate) fn view<H: ComponentTypeTrait>(
-        &self,
-        component: H,
-    ) -> Result<H::SingleViewRef<'_>, ECSError> {
-        component.single_view_ref(PrivateComponentTableRef(self))
+    pub(crate) fn view<V: ComponentViewRef>(&self, ty: ComponentType) -> V {
+        V::view(PrivateComponentTableRef(self), ty)
     }
 
-    pub(crate) fn view_mut<H: ComponentTypeTrait>(
-        &self,
-        component: H,
-        cycle: u32,
-    ) -> Result<H::SingleViewMut<'_>, ECSError> {
-        component.single_view_mut(PrivateComponentTableRef(self), cycle)
+    pub(crate) fn view_mut<V: ComponentViewMut>(&self, ty: ComponentType, cycle: u32) -> V {
+        V::view_mut(PrivateComponentTableRef(self), ty, cycle)
     }
 }

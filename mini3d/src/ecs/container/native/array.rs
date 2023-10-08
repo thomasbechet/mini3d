@@ -1,14 +1,16 @@
 use std::any::Any;
 
 use crate::{
-    ecs::{entity::Entity, sparse::PagedVector},
-    registry::datatype::StaticDataType,
+    ecs::{
+        container::{ComponentFlags, ComponentStatus},
+        entity::Entity,
+        sparse::PagedVector,
+    },
+    registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
-use super::{ComponentFlags, ComponentStatus};
-
-pub(crate) trait AnyArrayContainer {
+pub(crate) trait ArrayContainer {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn remove(&mut self, entity: Entity);
@@ -17,21 +19,21 @@ pub(crate) trait AnyArrayContainer {
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
 }
 
-struct StaticArrayEntry {
+struct NativeArrayEntry {
     entity: Entity,
     flags: ComponentFlags,
     chunk_index: usize,
 }
 
-pub(crate) struct StaticArrayContainer<D: StaticDataType> {
+pub(crate) struct NativeArrayContainer<C: Component> {
     chunk_size: usize,
-    data: Vec<D>,
-    entries: Vec<StaticArrayEntry>,
+    data: Vec<C>,
+    entries: Vec<NativeArrayEntry>,
     indices: PagedVector<usize>, // Entity -> Entry Index
     changed: Vec<Entity>,
 }
 
-impl<D: StaticDataType> StaticArrayContainer<D> {
+impl<C: Component> NativeArrayContainer<C> {
     pub(crate) fn with_capacity(size: usize, chunk_size: usize) -> Self {
         Self {
             chunk_size,
@@ -42,7 +44,7 @@ impl<D: StaticDataType> StaticArrayContainer<D> {
         }
     }
 
-    pub(crate) fn get(&self, entity: Entity) -> Option<&[D]> {
+    pub(crate) fn get(&self, entity: Entity) -> Option<&[C]> {
         self.indices.get(entity.key()).and_then(|index| {
             if self.entries[*index].entity == entity
                 && self.entries[*index].flags.status() != ComponentStatus::Removed
@@ -55,7 +57,7 @@ impl<D: StaticDataType> StaticArrayContainer<D> {
         })
     }
 
-    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut [D]> {
+    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut [C]> {
         self.indices.get(entity.key()).and_then(|index| {
             let entry = &mut self.entries[*index];
             if entry.entity == entity {
@@ -79,7 +81,7 @@ impl<D: StaticDataType> StaticArrayContainer<D> {
         })
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &[D]> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &[C]> {
         let chunks = self.data.chunks_exact(self.chunk_size);
         self.entries
             .iter()
@@ -88,7 +90,7 @@ impl<D: StaticDataType> StaticArrayContainer<D> {
             .map(|(_, data)| data)
     }
 
-    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut [D]> {
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut [C]> {
         let chunks = self.data.chunks_exact_mut(self.chunk_size);
         self.entries
             .iter()
@@ -97,13 +99,13 @@ impl<D: StaticDataType> StaticArrayContainer<D> {
             .map(|(_, data)| data)
     }
 
-    pub(crate) fn add<const S: usize>(&mut self, entity: Entity, components: [D; S], cycle: u32) {
+    pub(crate) fn add<const S: usize>(&mut self, entity: Entity, components: [C; S], cycle: u32) {
         // Allocate chunk
         let chunk_index = self.data.len() / self.chunk_size;
         // Fill chunk
         self.data.extend(components);
         // Append entry
-        self.entries.push(StaticArrayEntry {
+        self.entries.push(NativeArrayEntry {
             entity,
             flags: ComponentFlags::added(cycle),
             chunk_index,
@@ -113,7 +115,7 @@ impl<D: StaticDataType> StaticArrayContainer<D> {
     }
 }
 
-impl<D: StaticDataType> AnyArrayContainer for StaticArrayContainer<D> {
+impl<C: Component> ArrayContainer for NativeArrayContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -161,7 +163,7 @@ pub(crate) struct DynamicArrayContainer {
     pub(crate) indices: PagedVector<usize>,
 }
 
-impl AnyArrayContainer for DynamicArrayContainer {
+impl ArrayContainer for DynamicArrayContainer {
     fn as_any(&self) -> &dyn Any {
         self
     }

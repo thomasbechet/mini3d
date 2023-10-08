@@ -1,7 +1,7 @@
 use mini3d_derive::Error;
 
 use crate::disk::provider::DiskProvider;
-use crate::disk::StorageManager;
+use crate::disk::DiskManager;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::{common, input, physics, renderer};
@@ -12,6 +12,8 @@ use crate::logger::LoggerManager;
 use crate::physics::PhysicsManager;
 use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
+use crate::processor::Processor;
+use crate::program::ProgramManager;
 use crate::registry::component::ComponentStorage;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
@@ -70,11 +72,12 @@ impl Default for InstanceFeatures {
 }
 
 pub struct Instance {
+    pub(crate) program: ProgramManager,
+    pub(crate) processor: Processor,
     pub(crate) registry: RegistryManager,
-    pub(crate) storage: StorageManager,
     pub(crate) resource: ResourceManager,
+    pub(crate) storage: DiskManager,
     pub(crate) input: InputManager,
-    pub(crate) ecs: ECSManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
     pub(crate) system: PlatformManager,

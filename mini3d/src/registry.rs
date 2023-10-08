@@ -4,10 +4,10 @@ use self::{
 };
 
 pub mod component;
-pub mod datatype;
+pub mod component_type;
 pub mod error;
 pub mod resource;
-pub mod system;
+pub mod resource_type;
 
 #[derive(Default)]
 pub struct RegistryManager {

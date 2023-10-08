@@ -3,11 +3,11 @@ use self::provider::DiskProvider;
 pub mod provider;
 
 #[derive(Default)]
-pub struct StorageManager {
+pub struct DiskManager {
     provider: Box<dyn DiskProvider>,
 }
 
-impl StorageManager {
+impl DiskManager {
     pub(crate) fn set_provider(&mut self, provider: Box<dyn DiskProvider>) {
         self.provider.on_disconnect();
         self.provider = provider;
