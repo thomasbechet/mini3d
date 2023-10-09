@@ -1,11 +1,16 @@
 use crate::{
     registry::component::{Component, ComponentReflection, NativeComponentReflection},
+    resource::handle::ResourceRef,
     utils::string::AsciiArray,
 };
 
 pub(crate) enum ComponentKind {
-    Native,
-    Struct,
+    Native {
+        reflection: Box<dyn ComponentReflection>,
+    },
+    Struct {
+        structure: ResourceRef,
+    },
     Raw,
     Tag,
 }
@@ -24,7 +29,6 @@ pub struct ComponentDefinition {
     pub(crate) name: AsciiArray<MAX_COMPONENT_NAME_LEN>,
     pub(crate) kind: ComponentKind,
     pub(crate) storage: ComponentStorage,
-    pub(crate) reflection: Box<dyn ComponentReflection>,
 }
 
 impl ComponentDefinition {
@@ -34,9 +38,18 @@ impl ComponentDefinition {
         };
         Self {
             name: AsciiArray::from_str(name),
-            kind: ComponentKind::Native,
+            kind: ComponentKind::Native {
+                reflection: Box::new(reflection),
+            },
             storage,
-            reflection: Box::new(reflection),
+        }
+    }
+
+    pub fn structure(name: &str, storage: ComponentStorage, structure: ResourceRef) -> Self {
+        Self {
+            name: AsciiArray::from_str(name),
+            kind: ComponentKind::Struct { structure },
+            storage,
         }
     }
 }

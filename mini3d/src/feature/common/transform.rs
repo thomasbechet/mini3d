@@ -7,9 +7,8 @@ use crate::{
         entity::Entity,
         instance::ParallelResolver,
         query::Query,
-        view::single::{NativeSingleView, NativeSingleViewMut, NativeSingleViewRef},
     },
-    registry::{component::StaticComponentType, error::RegistryError, system::ParallelSystem},
+    registry::error::RegistryError,
 };
 
 use super::{hierarchy::Hierarchy, local_to_world::LocalToWorld};
@@ -90,9 +89,9 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: StaticComponentType<Transform>,
-    hierarchy: StaticComponentType<Hierarchy>,
-    local_to_world: StaticComponentType<LocalToWorld>,
+    transform: ComponentType,
+    hierarchy: ComponentType,
+    local_to_world: ComponentType,
     query: Query,
 }
 

@@ -2,19 +2,24 @@ use std::fmt::Debug;
 
 use mini3d_derive::Serialize;
 
-use crate::{
-    registry::datatype::ReferenceResolver,
-    utils::{slotmap::SlotId, uid::UID},
-};
+use crate::utils::{slotmap::SlotId, uid::UID};
 
-#[derive(Default, Serialize, Hash, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct ReferenceResolver;
+
+#[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct ResourceHandle {
+    pub(crate) id: SlotId,
+    pub(crate) uid: UID,
+}
+
+#[derive(Default, Serialize)]
+pub struct ResourceRef {
     #[serialize(skip)]
     pub(crate) id: SlotId,
     pub(crate) uid: UID,
 }
 
-impl ResourceHandle {
+impl ResourceRef {
     pub fn resolve(&mut self, resolver: &mut ReferenceResolver) {
         if !self.uid.is_null() {
             if self.id.is_null() {

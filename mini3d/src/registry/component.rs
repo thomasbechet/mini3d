@@ -8,7 +8,10 @@ use crate::{
     feature::common::component_definition::ComponentDefinition,
     program::{ProgramId, ProgramManager},
     reflection::{Property, Reflect},
-    resource::{handle::ResourceHandle, ResourceManager},
+    resource::{
+        handle::{ReferenceResolver, ResourceHandle},
+        ResourceManager,
+    },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -17,8 +20,6 @@ use crate::{
 };
 
 use super::{component_type::ComponentType, error::RegistryError};
-
-pub struct ReferenceResolver;
 
 pub trait Component: 'static + Default + Reflect {
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;

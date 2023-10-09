@@ -9,7 +9,6 @@ use crate::feature::renderer::model::Model;
 use crate::feature::renderer::static_mesh::StaticMesh;
 use crate::feature::renderer::texture::Texture;
 use crate::feature::renderer::viewport::Viewport;
-use crate::registry::component::StaticComponentType;
 use crate::registry::error::RegistryError;
 use crate::registry::resource::StaticResourceType;
 use crate::registry::RegistryManager;
@@ -242,7 +241,7 @@ pub struct RendererManager {
     clear_color: Color,
 
     // Components
-    camera: StaticComponentType<Camera>,
+    camera: ComponentType,
     static_mesh: StaticComponentType<StaticMesh>,
     canvas: StaticComponentType<Canvas>,
     local_to_world: StaticComponentType<LocalToWorld>,

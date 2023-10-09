@@ -28,6 +28,7 @@ pub(crate) enum PrimitiveType {
     Entity,
     Object,
     UID,
+    ResourceRef,
 }
 
 impl PrimitiveType {

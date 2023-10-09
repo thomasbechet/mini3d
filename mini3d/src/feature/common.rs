@@ -1,8 +1,8 @@
 pub mod component_definition;
-pub mod component_type;
 pub mod free_fly;
 pub mod hierarchy;
 pub mod local_to_world;
+pub mod structure;
 // pub mod profiler;
 pub mod program;
 pub mod rotator;
