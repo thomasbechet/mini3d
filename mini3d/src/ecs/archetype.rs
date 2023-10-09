@@ -1,13 +1,13 @@
 use std::ops::{Index, IndexMut, Range};
 
 use crate::{
-    registry::component_type::ComponentType,
+    registry::component::ComponentType,
     utils::slotmap::{SlotId, SlotMap},
 };
 
 use super::{
     entity::Entity,
-    query::{query_archetype_match, FilterKind, FilterQuery, QueryTable},
+    query::{query_archetype_match, QueryTable},
 };
 
 pub(crate) type Archetype = SlotId;
@@ -16,8 +16,6 @@ pub(crate) type Archetype = SlotId;
 pub(crate) struct ArchetypeEntry {
     pub(crate) component_range: Range<usize>,
     last_edge: Option<ArchetypeEdgeId>,
-    pub(crate) added_filter_queries: Vec<FilterQuery>,
-    pub(crate) removed_filter_queries: Vec<FilterQuery>,
     pub(crate) pool: Vec<Entity>,
 }
 
@@ -37,8 +35,6 @@ impl ArchetypeEntry {
         Self {
             component_range: 0..0,
             last_edge: None,
-            added_filter_queries: Vec::new(),
-            removed_filter_queries: Vec::new(),
             pool: Default::default(),
         }
     }
@@ -160,8 +156,6 @@ impl ArchetypeTable {
         let new_archetype = self.entries.add(ArchetypeEntry {
             component_range: component_start..self.components.len(),
             last_edge: None,
-            added_filter_queries: Default::default(),
-            removed_filter_queries: Default::default(),
             pool: Default::default(),
         });
         // Link new archetype to existing archetypes
@@ -182,30 +176,6 @@ impl ArchetypeTable {
                 &self.components,
             ) {
                 query_entry.archetypes.push(new_archetype);
-            }
-        }
-        // Bind new archetype to existing filter queries
-        for (filter_id, filter_query_entry) in queries.filter_queries.iter() {
-            let archetype_entry = &mut self.entries[new_archetype];
-            if query_archetype_match(
-                &queries.entries[filter_query_entry.query.0],
-                &queries.components,
-                archetype_entry,
-                &self.components,
-            ) {
-                match filter_query_entry.kind {
-                    FilterKind::Added => {
-                        archetype_entry
-                            .added_filter_queries
-                            .push(FilterQuery(filter_id));
-                    }
-                    FilterKind::Removed => {
-                        archetype_entry
-                            .removed_filter_queries
-                            .push(FilterQuery(filter_id));
-                    }
-                    _ => todo!(),
-                }
             }
         }
         new_archetype

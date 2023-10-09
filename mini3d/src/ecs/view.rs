@@ -1,10 +1,9 @@
-use crate::registry::{
-    component::{PrivateComponentTableMut, PrivateComponentTableRef},
-    component_type::ComponentType,
+use crate::registry::component::{
+    ComponentType, PrivateComponentTableMut, PrivateComponentTableRef,
 };
 
+pub mod any;
 pub mod native;
-pub mod property;
 
 pub trait ComponentViewRef {
     fn view(table: PrivateComponentTableRef, ty: ComponentType) -> Self;

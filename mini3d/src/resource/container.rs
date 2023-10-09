@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    registry::datatype::StaticDataType,
+    registry::resource::Resource,
     serialize::{Decoder, Encoder},
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -11,13 +11,13 @@ use crate::{
 
 use super::error::ResourceError;
 
-pub struct PrivateAnyResourceContainerRef<'a>(pub(crate) &'a dyn AnyResourceContainer);
-pub struct PrivateAnyResourceContainerMut<'a>(pub(crate) &'a mut dyn AnyResourceContainer);
+pub struct PrivateResourceContainerRef<'a>(pub(crate) &'a dyn ResourceContainer);
+pub struct PrivateResourceContainerMut<'a>(pub(crate) &'a mut dyn ResourceContainer);
 
 #[derive(Default)]
-pub(crate) struct StaticResourceContainer<C: Component>(pub(crate) SlotMap<D>);
+pub(crate) struct NativeResourceContainer<R: Resource>(pub(crate) SlotMap<R>);
 
-pub(crate) trait AnyResourceContainer: Any {
+pub(crate) trait ResourceContainer: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn remove(&mut self, slot: SlotId);
@@ -34,7 +34,7 @@ pub(crate) trait AnyResourceContainer: Any {
     ) -> Result<(), ResourceError>;
 }
 
-impl<C: Component> AnyResourceContainer for StaticResourceContainer<D> {
+impl<R: Resource> ResourceContainer for NativeResourceContainer<R> {
     fn as_any(&self) -> &dyn Any {
         self
     }

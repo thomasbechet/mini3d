@@ -1,10 +1,6 @@
-use self::{
-    component::ComponentRegistryManager, resource::ResourceRegistryManager,
-    system::SystemRegistryManager,
-};
+use self::{component::ComponentRegistryManager, resource::ResourceRegistryManager};
 
 pub mod component;
-pub mod component_type;
 pub mod error;
 pub mod resource;
 pub mod resource_type;
@@ -13,7 +9,6 @@ pub mod resource_type;
 pub struct RegistryManager {
     pub(crate) resource: ResourceRegistryManager,
     pub(crate) component: ComponentRegistryManager,
-    pub(crate) system: SystemRegistryManager,
 }
 
 impl RegistryManager {

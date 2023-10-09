@@ -9,9 +9,8 @@ use crate::{
         entity::Entity,
         view::{ComponentViewMut, ComponentViewRef},
     },
-    registry::{
-        component::{Component, PrivateComponentTableMut, PrivateComponentTableRef},
-        component_type::ComponentType,
+    registry::component::{
+        Component, ComponentType, PrivateComponentTableMut, PrivateComponentTableRef,
     },
 };
 

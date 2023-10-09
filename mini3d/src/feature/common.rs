@@ -2,6 +2,7 @@ pub mod component_definition;
 pub mod free_fly;
 pub mod hierarchy;
 pub mod local_to_world;
+pub mod resource_definition;
 pub mod structure;
 // pub mod profiler;
 pub mod program;

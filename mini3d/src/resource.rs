@@ -3,15 +3,14 @@ use core::result::Result;
 use crate::io::IOManager;
 use crate::program::ProgramId;
 use crate::registry::component::ComponentRegistryManager;
-use crate::registry::resource::{
-    ResourceReferenceTrait, ResourceRegistryManager, ResourceType, ResourceTypeTrait,
-};
+use crate::registry::resource::{Resource, ResourceRegistryManager, ResourceType};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
 use crate::utils::uid::ToUID;
 
 use self::container::{
-    AnyResourceContainer, PrivateAnyResourceContainerMut, PrivateAnyResourceContainerRef,
+    NativeResourceContainer, PrivateResourceContainerMut, PrivateResourceContainerRef,
+    ResourceContainer,
 };
 use self::error::ResourceError;
 use self::handle::ResourceHandle;
@@ -38,7 +37,7 @@ struct ResourceEntry {
 
 #[derive(Default)]
 pub struct ResourceManager {
-    containers: SparseSecondaryMap<Box<dyn AnyResourceContainer>>,
+    containers: SparseSecondaryMap<Box<dyn ResourceContainer>>,
     entries: DenseSlotMap<ResourceEntry>,
 }
 
@@ -123,7 +122,7 @@ impl ResourceManager {
         // TODO: preload resource in container ? wait for read ? define proper strategy
         if let Some(container) = self.containers.get_mut(ty.id()) {
             self.entries[id].slot =
-                T::insert_container(PrivateAnyResourceContainerMut(container.as_mut()), data);
+                T::insert_container(PrivateResourceContainerMut(container.as_mut()), data);
             Ok(ResourceHandle {
                 id,
                 uid: key.to_uid(),
@@ -150,18 +149,18 @@ impl ResourceManager {
         Ok(())
     }
 
-    pub(crate) fn load<T: ResourceTypeTrait>(
+    pub(crate) fn load<R: Resource>(
         &mut self,
         io: &mut IOManager,
         handle: ResourceHandle,
-    ) -> Result<T::Ref<'_>, ResourceError> {
+    ) -> Result<&R, ResourceError> {
         let entry = self
             .entries
             .get(handle.id)
             .ok_or(ResourceError::ResourceNotFound)?;
         if !entry.slot.is_null() {
             Ok(T::resource_ref(
-                PrivateAnyResourceContainerRef(self.containers[entry.ty.0].as_ref()),
+                PrivateResourceContainerRef(self.containers[entry.ty.0].as_ref()),
                 entry.slot,
             ))
         } else {
@@ -169,19 +168,21 @@ impl ResourceManager {
         }
     }
 
-    pub(crate) fn read<T: ResourceReferenceTrait>(
-        &self,
-        handle: ResourceHandle,
-    ) -> Result<<T::AssetType as ResourceTypeTrait>::Ref<'_>, ResourceError> {
+    pub(crate) fn read<R: Resource>(&self, handle: ResourceHandle) -> Result<&R, ResourceError> {
         let entry = self
             .entries
             .get(handle.id)
             .ok_or(ResourceError::ResourceNotFound)?;
         if !entry.slot.is_null() {
-            Ok(<T::AssetType as ResourceTypeTrait>::resource_ref(
-                PrivateAnyResourceContainerRef(self.containers[entry.ty.0].as_ref()),
-                entry.slot,
-            ))
+            Ok(self
+                .containers
+                .get(entry.ty.0)
+                .ok_or(ResourceError::ResourceTypeNotFound)?
+                .as_any()
+                .downcast_ref::<NativeResourceContainer<R>>()
+                .expect("Invalid native resource container")
+                .get(entry.slot)
+                .expect("native static resource slot"))
         } else {
             Err(ResourceError::ResourceNotLoaded)
         }

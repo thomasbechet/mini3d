@@ -1,12 +1,8 @@
-use crate::{
-    registry::component::{ComponentTypeTrait, PrivateComponentTableMut},
-    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 use super::{
     archetype::{Archetype, ArchetypeTable},
     container::ContainerTable,
-    query::QueryTable,
     sparse::PagedVector,
 };
 
@@ -71,7 +67,7 @@ pub(crate) struct EntityTable {
 }
 
 impl EntityTable {
-    fn next_entity(&mut self) -> Entity {
+    pub(crate) fn next_entity(&mut self) -> Entity {
         if let Some(entity) = self.free_entities.pop() {
             return entity;
         }
@@ -134,94 +130,5 @@ impl Default for EntityTable {
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
         }
-    }
-}
-
-pub struct EntityBuilder<'a> {
-    entity: Entity,
-    archetype: Archetype,
-    entities: &'a mut EntityTable,
-    containers: &'a mut ContainerTable,
-    queries: &'a mut QueryTable,
-    cycle: u32,
-}
-
-impl<'a> EntityBuilder<'a> {
-    pub(crate) fn new(
-        entities: &'a mut EntityTable,
-        containers: &'a mut ContainerTable,
-        queries: &'a mut QueryTable,
-        cycle: u32,
-    ) -> Self {
-        // Find next entity
-        let entity = entities.next_entity();
-        Self {
-            entity,
-            archetype: entities.archetypes.empty,
-            entities,
-            containers,
-            queries,
-            cycle,
-        }
-    }
-
-    pub fn with<H: ComponentTypeTrait>(mut self, component: H, data: H::Data) -> Self {
-        self.archetype =
-            self.entities
-                .archetypes
-                .find_add(self.queries, self.archetype, component.id());
-        component.insert_single_container(
-            PrivateComponentTableMut(self.containers),
-            self.entity,
-            data,
-            self.cycle,
-        );
-        self
-    }
-
-    pub fn with_array<H: ComponentTypeTrait>(mut self, component: H, data: &[H::Data]) -> Self {
-        self
-    }
-
-    pub fn with_list<H: ComponentTypeTrait>(mut self, component: H, data: &[H::Data]) -> Self {
-        self
-    }
-
-    pub fn with_map<H: ComponentTypeTrait>(
-        mut self,
-        component: H,
-        data: &[(Entity, H::Data)],
-    ) -> Self {
-        self
-    }
-
-    pub fn with_default<H: ComponentTypeTrait>(self, component: H) -> Self {
-        self.with(component, H::Data::default())
-    }
-
-    pub fn build(self) -> Entity {
-        self.entity
-    }
-}
-
-impl<'a> Drop for EntityBuilder<'a> {
-    fn drop(&mut self) {
-        // Add to pool
-        let archetype = &mut self.entities.archetypes[self.archetype];
-        let pool_index = archetype.pool.len();
-        archetype.pool.push(self.entity);
-        // Add to added filter queries
-        for added in &archetype.added_filter_queries {
-            self.queries.filter_queries[added.0].pool.push(self.entity);
-        }
-        // Update entity info
-        self.entities.entries.set(
-            self.entity.key(),
-            EntityEntry {
-                archetype: self.archetype,
-                pool_index: pool_index as u32,
-                pending_remove_counter: 0,
-            },
-        );
     }
 }

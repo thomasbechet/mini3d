@@ -29,7 +29,7 @@ impl ExclusiveSystem for SpawnSystem {
         let transforms: StaticComponentType<Transform> =
             ComponentRegistry::find(ctx, Transform::NAME).unwrap();
         let entity = ecs
-            .add()
+            .create()
             .with(
                 transforms,
                 Transform::from_translation([0.0, 0.0, 0.0].into()),

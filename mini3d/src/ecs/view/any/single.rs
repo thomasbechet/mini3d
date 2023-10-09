@@ -1,6 +1,6 @@
 use crate::ecs::view::ComponentViewMut;
 use crate::reflection::PropertyId;
-use crate::registry::component::PrivateComponentTableMut;
+use crate::registry::component::{ComponentType, PrivateComponentTableMut};
 use crate::{ecs::entity::Entity, utils::uid::UID};
 
 use std::cell::{Ref, RefMut};
@@ -9,7 +9,7 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
     ecs::{container::native::single::SingleContainer, view::ComponentViewRef},
-    registry::{component::PrivateComponentTableRef, component_type::ComponentType},
+    registry::component::PrivateComponentTableRef,
 };
 
 macro_rules! trait_property_ref_impl {

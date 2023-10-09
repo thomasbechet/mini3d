@@ -537,7 +537,7 @@ impl OSInitialize {
         // let font = expect!(ctx, ctx.resource.find("default"));
         {
             let e = ecs
-                .add()
+                .create()
                 .with(
                     transform,
                     Transform {
@@ -553,7 +553,7 @@ impl OSInitialize {
         }
         {
             let e = ecs
-                .add()
+                .create()
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, -7.0, 9.0)),
@@ -565,7 +565,7 @@ impl OSInitialize {
         {
             let mut prng = PCG32::new(12345);
             for i in 0..100 {
-                ecs.add()
+                ecs.create()
                     .with(
                         transform,
                         Transform::from_translation(Vec3::new(
@@ -584,7 +584,7 @@ impl OSInitialize {
                     )
                     .build();
 
-                ecs.add()
+                ecs.create()
                     .with(
                         transform,
                         Transform::from_translation(Vec3::new(
@@ -605,7 +605,7 @@ impl OSInitialize {
             }
         }
         {
-            ecs.add()
+            ecs.create()
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, 0.0, 4.0)),
@@ -617,7 +617,7 @@ impl OSInitialize {
         }
         {
             let e = ecs
-                .add()
+                .create()
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, 0.0, -10.0)),
@@ -650,7 +650,7 @@ impl OSInitialize {
                 .build();
 
             let cam = ecs
-                .add()
+                .create()
                 .with(
                     transform,
                     Transform::from_translation(Vec3::new(0.0, -1.0, 0.0)),
@@ -663,7 +663,7 @@ impl OSInitialize {
             expect!(ctx, Hierarchy::attach(e, cam, &mut ecs.view_mut(hierarchy)));
 
             let viewport = ecs
-                .add()
+                .create()
                 .with(viewport, Viewport::new(SCREEN_RESOLUTION, Some(cam)))
                 .build();
 

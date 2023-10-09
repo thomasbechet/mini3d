@@ -4,6 +4,8 @@ use mini3d_derive::Error;
 pub enum RegistryError {
     #[error("Duplicated component")]
     DuplicatedComponent,
+    #[error("Duplicated resource")]
+    DuplicatedResource,
     #[error("Duplicated system")]
     DuplicatedSystem,
     #[error("Component not found")]

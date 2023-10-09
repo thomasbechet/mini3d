@@ -1,14 +1,15 @@
 use crate::{
     ecs::{
+        builder::EntityBuilder,
         container::ContainerTable,
-        entity::{Entity, EntityBuilder, EntityTable},
-        error::ECSError,
-        query::{FilterQuery, Query, QueryTable},
+        entity::{Entity, EntityTable},
+        query::{Query, QueryTable},
         scheduler::{Invocation, Scheduler},
-        view::{ComponentViewMut, ComponentViewRef, IntoView},
+        view::{ComponentViewMut, ComponentViewRef},
     },
     registry::{
-        component::ComponentTypeTrait, component_type::ComponentType, error::RegistryError,
+        component::{Component, ComponentType},
+        error::RegistryError,
     },
     resource::handle::ResourceHandle,
     utils::uid::{ToUID, UID},
@@ -23,13 +24,17 @@ pub struct ECS<'a> {
 }
 
 impl<'a> ECS<'a> {
-    pub fn add(&mut self) -> EntityBuilder<'_> {
+    pub fn create(&mut self) -> EntityBuilder<'_> {
         EntityBuilder::new(self.entities, self.containers, self.queries, self.cycle)
     }
 
-    pub fn remove(&mut self, entity: Entity) {
+    pub fn destroy(&mut self, entity: Entity) {
         self.entities.remove(entity, self.containers)
     }
+
+    pub fn add<C: Component>(&mut self, entity: Entity, component: ComponentType, data: C) {}
+
+    pub fn remove(&mut self, entity: Entity, component: ComponentType) {}
 
     pub fn view<V: ComponentViewRef>(&self, ty: ComponentType) -> V {
         self.containers.view(ty)
@@ -56,10 +61,6 @@ impl<'a> ECS<'a> {
             .archetypes
             .iter()
             .flat_map(|archetype| self.entities.iter_pool_entities(*archetype))
-    }
-
-    pub fn query_filter(&self, query: FilterQuery) -> impl Iterator<Item = Entity> + '_ {
-        self.queries.filter_queries[query.0].pool.iter().copied()
     }
 
     pub fn add_system(&mut self, system: ResourceHandle) -> Result<(), RegistryError> {

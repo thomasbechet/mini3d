@@ -1,10 +1,10 @@
 use std::ops::Range;
 
 use crate::{
+    feature::common::system::System,
     registry::{
         component::{ComponentRegistryManager, ComponentType},
         error::RegistryError,
-        system::System,
     },
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -14,21 +14,11 @@ use crate::{
 
 use super::{
     archetype::{Archetype, ArchetypeEntry},
-    entity::{Entity, EntityTable},
+    entity::EntityTable,
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub struct Query(pub(crate) SlotId);
-
-#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
-pub struct FilterQuery(pub(crate) SlotId);
-
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub(crate) enum FilterKind {
-    Added,
-    Removed,
-    Changed,
-}
 
 #[derive(Default)]
 pub(crate) struct QueryEntry {
@@ -38,19 +28,10 @@ pub(crate) struct QueryEntry {
     pub(crate) archetypes: Vec<Archetype>,
 }
 
-pub(crate) struct FilterQueryEntry {
-    pub(crate) query: Query,
-    pub(crate) cycle: usize,
-    pub(crate) kind: FilterKind,
-    pub(crate) pool: Vec<Entity>,
-    system: System,
-}
-
 #[derive(Default)]
 pub(crate) struct QueryTable {
     pub(crate) components: Vec<ComponentType>,
     pub(crate) entries: SlotMap<QueryEntry>,
-    pub(crate) filter_queries: SlotMap<FilterQueryEntry>,
 }
 
 pub(crate) fn query_archetype_match(
@@ -160,41 +141,6 @@ impl QueryTable {
         }
         id
     }
-
-    fn add_filter_query(
-        &mut self,
-        entities: &mut EntityTable,
-        kind: FilterKind,
-        query: Query,
-        system: System,
-    ) -> FilterQuery {
-        let id = FilterQuery(self.filter_queries.add(FilterQueryEntry {
-            query,
-            cycle: 0,
-            kind,
-            pool: Vec::new(),
-            system,
-        }));
-        // Bind existing archetypes to new filter
-        match kind {
-            FilterKind::Added => {
-                for archetype in self.entries[query.0].archetypes.iter() {
-                    entities.archetypes.entries[*archetype]
-                        .added_filter_queries
-                        .push(id);
-                }
-            }
-            FilterKind::Removed => {
-                for archetype in self.entries[query.0].archetypes.iter() {
-                    entities.archetypes.entries[*archetype]
-                        .removed_filter_queries
-                        .push(id);
-                }
-            }
-            FilterKind::Changed => todo!(),
-        }
-        id
-    }
 }
 
 pub struct QueryBuilder<'a> {
@@ -205,7 +151,6 @@ pub struct QueryBuilder<'a> {
     pub(crate) not: &'a mut Vec<ComponentType>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
-    pub(crate) filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> QueryBuilder<'a> {
@@ -248,39 +193,11 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    fn build_query(&mut self) -> Query {
+    pub fn build(mut self) -> Query {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
             return id;
         }
         self.queries
             .add_query(self.entities, self.all, self.any, self.not)
-    }
-
-    pub fn build(mut self) -> Query {
-        self.build_query()
-    }
-
-    fn add_filter_query(mut self, kind: FilterKind) -> FilterQuery {
-        // Build base query
-        let query = self.build_query();
-        // Add filtered query
-        let id = self
-            .queries
-            .add_filter_query(self.entities, kind, query, self.system);
-        // Keep reference of filter in instance
-        self.filter_queries.push(id);
-        id
-    }
-
-    pub fn added(self) -> FilterQuery {
-        self.add_filter_query(FilterKind::Added)
-    }
-
-    pub fn removed(self) -> FilterQuery {
-        self.add_filter_query(FilterKind::Removed)
-    }
-
-    pub fn changed(self, component: ComponentType) -> FilterQuery {
-        self.add_filter_query(FilterKind::Changed)
     }
 }

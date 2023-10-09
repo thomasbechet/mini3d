@@ -1,8 +1,7 @@
 use crate::{
-    feature::common::program::Program,
+    feature::common::{program::Program, system::System},
     registry::{
-        component::{ComponentRegistryManager, ComponentTypeTrait},
-        error::RegistryError,
+        component::ComponentRegistryManager, component_type::ComponentType, error::RegistryError,
         RegistryManager,
     },
     utils::{slotmap::SparseSecondaryMap, uid::ToUID},
@@ -11,7 +10,7 @@ use crate::{
 use super::{
     api::{context::Context, ecs::ECS},
     entity::EntityTable,
-    query::{FilterQuery, QueryBuilder, QueryTable},
+    query::{QueryBuilder, QueryTable},
 };
 
 pub struct ExclusiveResolver<'a> {
@@ -22,7 +21,6 @@ pub struct ExclusiveResolver<'a> {
     not: &'a mut Vec<ComponentType>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
-    filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> ExclusiveResolver<'a> {
@@ -49,7 +47,6 @@ impl<'a> ExclusiveResolver<'a> {
             not: self.not,
             entities: self.entities,
             queries: self.queries,
-            filter_queries: self.filter_queries,
         }
     }
 }
@@ -64,14 +61,10 @@ pub struct ParallelResolver<'a> {
     not: &'a mut Vec<ComponentType>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
-    filter_queries: &'a mut Vec<FilterQuery>,
 }
 
 impl<'a> ParallelResolver<'a> {
-    pub fn read<H: ComponentTypeTrait>(
-        &mut self,
-        component: impl ToUID,
-    ) -> Result<H, RegistryError> {
+    pub fn read(&mut self, component: impl ToUID) -> Result<ComponentType, RegistryError> {
         let handle: H = self
             .registry
             .find(component)
@@ -83,10 +76,7 @@ impl<'a> ParallelResolver<'a> {
         Ok(H::new(id))
     }
 
-    pub fn write<H: ComponentTypeTrait>(
-        &mut self,
-        component: impl ToUID,
-    ) -> Result<H, RegistryError> {
+    pub fn write(&mut self, component: impl ToUID) -> Result<ComponentType, RegistryError> {
         let handle: H = self
             .registry
             .find(component)
@@ -113,7 +103,6 @@ impl<'a> ParallelResolver<'a> {
             not: self.not,
             entities: self.entities,
             queries: self.queries,
-            filter_queries: self.filter_queries,
         }
     }
 }

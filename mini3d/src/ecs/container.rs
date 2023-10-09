@@ -3,10 +3,7 @@ use std::cell::RefCell;
 use mini3d_derive::Serialize;
 
 use crate::{
-    registry::{
-        component::{ComponentRegistryManager, ComponentTypeTrait, PrivateComponentTableRef},
-        component_type::ComponentType,
-    },
+    registry::component::{ComponentRegistryManager, ComponentType, PrivateComponentTableRef},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
 };

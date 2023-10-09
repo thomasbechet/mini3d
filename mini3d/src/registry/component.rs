@@ -1,9 +1,12 @@
 use std::any::TypeId;
 
 use crate::{
-    ecs::container::{
-        native::single::{NativeSingleContainer, SingleContainer},
-        ContainerTable,
+    ecs::{
+        api::context::Context,
+        container::{
+            native::single::{NativeSingleContainer, SingleContainer},
+            ContainerTable,
+        },
     },
     feature::common::component_definition::ComponentDefinition,
     program::{ProgramId, ProgramManager},
@@ -19,11 +22,16 @@ use crate::{
     },
 };
 
-use super::{component_type::ComponentType, error::RegistryError};
+use super::error::RegistryError;
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ComponentType(pub(crate) SlotId);
 
 pub trait Component: 'static + Default + Reflect {
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError>;
+    fn on_create(&mut self, ctx: &mut Context);
+    fn on_destroy(&mut self, ctx: &mut Context);
     fn resolve_references(&mut self, references: &mut ReferenceResolver);
 }
 
@@ -79,7 +87,6 @@ impl ComponentRegistryManager {
         resources: &ResourceManager,
     ) -> Result<SlotId, RegistryError> {
         let uid: UID = definition.name.into();
-        let mut current = owner;
         if self.find(uid, owner, programs, resources).is_some() {
             return Err(RegistryError::DuplicatedComponent);
         }
@@ -94,7 +101,6 @@ impl ComponentRegistryManager {
         programs: &ProgramManager,
         resources: &ResourceManager,
     ) -> Option<ComponentType> {
-        // Find entry
         let uid = component.to_uid();
         let mut current = owner;
         while !current.0.is_null() {
