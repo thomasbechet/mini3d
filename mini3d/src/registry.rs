@@ -3,7 +3,6 @@ use self::{component::ComponentRegistryManager, resource::ResourceRegistryManage
 pub mod component;
 pub mod error;
 pub mod resource;
-pub mod resource_type;
 
 #[derive(Default)]
 pub struct RegistryManager {
