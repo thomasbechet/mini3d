@@ -1,5 +1,5 @@
 use crate::{
-    registry::resource::{Resource, ResourceReflection},
+    registry::resource::{NativeResourceReflection, Resource, ResourceReflection},
     resource::handle::ResourceRef,
     utils::string::AsciiArray,
 };

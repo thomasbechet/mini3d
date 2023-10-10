@@ -7,10 +7,7 @@ use crate::utils::{slotmap::SlotId, uid::UID};
 pub struct ReferenceResolver;
 
 #[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct ResourceHandle {
-    pub(crate) id: SlotId,
-    pub(crate) uid: UID,
-}
+pub struct ResourceHandle(pub(crate) SlotId);
 
 #[derive(Default, Serialize)]
 pub struct ResourceRef {
@@ -30,5 +27,21 @@ impl ResourceRef {
                 self.uid = resolver.remap_resource_key(self.id);
             }
         }
+    }
+}
+
+pub trait ToResourceHandle {
+    fn to_handle(&self) -> ResourceHandle;
+}
+
+impl ToResourceHandle for ResourceHandle {
+    fn to_handle(&self) -> ResourceHandle {
+        *self
+    }
+}
+
+impl ToResourceHandle for ResourceRef {
+    fn to_handle(&self) -> ResourceHandle {
+        ResourceHandle(self.id)
     }
 }

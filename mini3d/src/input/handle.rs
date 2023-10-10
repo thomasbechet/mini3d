@@ -1,9 +1,6 @@
 use mini3d_derive::Serialize;
 
-use crate::{
-    registry::datatype::ReferenceResolver,
-    utils::{slotmap::SlotId, uid::UID},
-};
+use crate::utils::{slotmap::SlotId, uid::UID};
 
 #[derive(Default, Serialize, Clone, Copy)]
 pub struct InputActionHandle {

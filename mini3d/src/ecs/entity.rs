@@ -56,7 +56,6 @@ impl Serialize for Entity {
 pub(crate) struct EntityEntry {
     pub(crate) archetype: Archetype,
     pub(crate) pool_index: u32,
-    pub(crate) pending_remove_counter: u16,
 }
 
 pub(crate) struct EntityTable {
@@ -78,29 +77,17 @@ impl EntityTable {
 
     pub(crate) fn remove(&mut self, entity: Entity, containers: &mut ContainerTable) {
         let info = self.entries.get_mut(entity.key()).unwrap();
-        // Check if entity is already pending removal
-        if info.pending_remove_counter > 0 {
-            return;
-        }
-        // Check if the archetype is watched by any filter queries
-        let archetype = &self.archetypes.entries[info.archetype];
-        if !archetype.removed_filter_queries.is_empty() {
-            // Entity must be removed manually by the filter query
-            info.pending_remove_counter = archetype.removed_filter_queries.len() as u16;
-        } else {
-            // We can safely destroy the entity
-            self.free_entities
-                .push(Entity::new(entity.key(), entity.version() + 1));
-            // Remove components from containers
-            self.archetypes
-                .components(info.archetype)
-                .iter()
-                .for_each(|component| {
-                    containers.remove(entity, *component);
-                });
-        }
+        // We can safely destroy the entity
+        self.free_entities
+            .push(Entity::new(entity.key(), entity.version() + 1));
+        // Remove components from containers
+        self.archetypes
+            .components(info.archetype)
+            .iter()
+            .for_each(|component| {
+                containers.remove(entity, *component);
+            });
         // In all cases, we want to remove the entity from the pool
-        // Filtered queries are not affected as they keep their own list of entities
         let archetype = &mut self.archetypes[info.archetype];
         let last_entity = archetype.pool.last().copied();
         archetype.pool.swap_remove(info.pool_index as usize);

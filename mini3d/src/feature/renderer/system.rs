@@ -2,11 +2,11 @@ use crate::{
     ecs::{
         api::{context::Context, ecs::ECS},
         instance::ExclusiveResolver,
-        query::{FilterQuery, Query},
+        query::Query,
     },
     expect,
     feature::common::local_to_world::LocalToWorld,
-    registry::{component::StaticComponentType, error::RegistryError, system::ExclusiveSystem},
+    registry::error::RegistryError,
 };
 
 use super::{
@@ -22,16 +22,8 @@ pub struct SynchronizeRendererResources {
     static_mesh: StaticComponentType<StaticMesh>,
     local_to_world: StaticComponentType<LocalToWorld>,
     // Queries
-    added_viewport: FilterQuery,
-    removed_viewport: FilterQuery,
     model_query: Query,
-    added_camera: FilterQuery,
-    removed_camera: FilterQuery,
     camera_query: Query,
-    added_static_mesh: FilterQuery,
-    removed_static_mesh: FilterQuery,
-    added_canvas: FilterQuery,
-    removed_canvas: FilterQuery,
     scene_canvas_query: Query,
 }
 
@@ -46,34 +38,14 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         self.canvas = resolver.find(Canvas::NAME)?;
         self.static_mesh = resolver.find(StaticMesh::NAME)?;
         self.local_to_world = resolver.find(LocalToWorld::NAME)?;
-        self.added_viewport = resolver.query().all(&[Viewport::NAME])?.added();
-        self.removed_viewport = resolver.query().all(&[Viewport::NAME])?.removed();
-        self.added_camera = resolver
-            .query()
-            .all(&[LocalToWorld::NAME, Camera::NAME])?
-            .added();
-        self.removed_camera = resolver
-            .query()
-            .all(&[LocalToWorld::NAME, Camera::NAME])?
-            .removed();
         self.camera_query = resolver
             .query()
             .all(&[LocalToWorld::NAME, Camera::NAME])?
             .build();
-        self.added_static_mesh = resolver
-            .query()
-            .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
-            .added();
-        self.removed_static_mesh = resolver
-            .query()
-            .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
-            .removed();
         self.model_query = resolver
             .query()
             .all(&[LocalToWorld::NAME, StaticMesh::NAME])?
             .build();
-        self.added_canvas = resolver.query().all(&[Canvas::NAME])?.added();
-        self.removed_canvas = resolver.query().all(&[Canvas::NAME])?.removed();
         self.scene_canvas_query = resolver
             .query()
             .all(&[LocalToWorld::NAME, Canvas::NAME])?

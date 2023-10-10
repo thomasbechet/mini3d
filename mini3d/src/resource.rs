@@ -13,7 +13,7 @@ use self::container::{
     ResourceContainer,
 };
 use self::error::ResourceError;
-use self::handle::ResourceHandle;
+use self::handle::{ResourceHandle, ResourceRef, ToResourceHandle};
 use self::key::ResourceKey;
 
 pub mod container;
@@ -133,30 +133,32 @@ impl ResourceManager {
         }
     }
 
-    pub(crate) fn remove(&mut self, handle: ResourceHandle) -> Result<(), ResourceError> {
-        if !self.entries.contains(handle.id) {
+    pub(crate) fn remove(&mut self, handle: impl ToResourceHandle) -> Result<(), ResourceError> {
+        let id = handle.to_handle().0;
+        if !self.entries.contains(id) {
             return Err(ResourceError::ResourceNotFound);
         }
         // TODO: remove cached data from container
-        if !self.entries[handle.id].slot.is_null() {
+        if !self.entries[id].slot.is_null() {
             self.containers
-                .get_mut(handle.id)
+                .get_mut(id)
                 .unwrap()
-                .remove(self.entries[handle.id].slot);
+                .remove(self.entries[id].slot);
         }
         // Remove entry
-        self.entries.remove(handle.id);
+        self.entries.remove(id);
         Ok(())
     }
 
     pub(crate) fn load<R: Resource>(
         &mut self,
         io: &mut IOManager,
-        handle: ResourceHandle,
+        handle: impl ToResourceHandle,
     ) -> Result<&R, ResourceError> {
+        let id = handle.to_handle().0;
         let entry = self
             .entries
-            .get(handle.id)
+            .get(id)
             .ok_or(ResourceError::ResourceNotFound)?;
         if !entry.slot.is_null() {
             Ok(T::resource_ref(
@@ -168,10 +170,14 @@ impl ResourceManager {
         }
     }
 
-    pub(crate) fn read<R: Resource>(&self, handle: ResourceHandle) -> Result<&R, ResourceError> {
+    pub(crate) fn read<R: Resource>(
+        &self,
+        handle: impl ToResourceHandle,
+    ) -> Result<&R, ResourceError> {
+        let id = handle.to_handle().0;
         let entry = self
             .entries
-            .get(handle.id)
+            .get(id)
             .ok_or(ResourceError::ResourceNotFound)?;
         if !entry.slot.is_null() {
             Ok(self
@@ -192,18 +198,47 @@ impl ResourceManager {
         self.entries
             .iter()
             .find(|(_, entry)| entry.key.to_uid() == key.to_uid())
-            .map(|(id, entry)| ResourceHandle {
-                id,
-                uid: entry.key.to_uid(),
-            })
+            .map(|(id, entry)| ResourceHandle(id))
     }
 
-    pub(crate) fn info(&self, handle: ResourceHandle) -> Result<ResourceInfo, ResourceError> {
+    pub(crate) fn info(
+        &self,
+        handle: impl ToResourceHandle,
+    ) -> Result<ResourceInfo, ResourceError> {
+        let id = handle.to_handle().0;
         self.entries
-            .get(handle.id)
+            .get(id)
             .map(|entry| ResourceInfo {
                 path: entry.key.as_str(),
             })
             .ok_or(ResourceError::ResourceNotFound)
+    }
+
+    pub(crate) fn acquire(
+        &mut self,
+        handle: impl ToResourceHandle,
+    ) -> Result<ResourceRef, ResourceError> {
+        let id = handle.to_handle().0;
+        let entry = self
+            .entries
+            .get_mut(id)
+            .ok_or(ResourceError::ResourceNotFound)?;
+        entry.ref_count += 1;
+        Ok(ResourceRef {
+            id,
+            uid: entry.key.to_uid(),
+        })
+    }
+
+    pub(crate) fn release(&mut self, reference: ResourceRef) -> Result<(), ResourceError> {
+        let id = reference.id;
+        let entry = self
+            .entries
+            .get_mut(id)
+            .ok_or(ResourceError::ResourceNotFound)?;
+        if entry.ref_count > 0 {
+            entry.ref_count -= 1;
+        }
+        Ok(())
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     },
     expect,
     input::handle::{InputActionHandle, InputAxisHandle},
-    registry::{component_type::ComponentType, error::RegistryError},
+    registry::{component::ComponentType, error::RegistryError},
 };
 
 use super::transform::Transform;

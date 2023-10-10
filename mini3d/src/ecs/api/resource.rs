@@ -1,5 +1,4 @@
 use crate::{
-    registry::resource::{ResourceReferenceTrait, ResourceTypeTrait},
     resource::{error::ResourceError, handle::ResourceHandle, ResourceInfo},
     utils::uid::ToUID,
 };

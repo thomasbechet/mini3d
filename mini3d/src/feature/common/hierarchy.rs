@@ -2,7 +2,7 @@ use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::ecs::{
     entity::Entity,
-    view::single::{NativeSingleView, NativeSingleViewMut},
+    view::native::single::{NativeSingleView, NativeSingleViewMut},
 };
 
 #[derive(Debug, Error)]

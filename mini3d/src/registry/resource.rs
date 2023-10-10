@@ -5,11 +5,8 @@ use crate::{
     program::{ProgramId, ProgramManager},
     reflection::{Property, Reflect},
     resource::{
-        container::{
-            NativeResourceContainer, PrivateResourceContainerMut, PrivateResourceContainerRef,
-            ResourceContainer,
-        },
-        handle::ResourceRef,
+        container::{NativeResourceContainer, ResourceContainer},
+        handle::{ReferenceResolver, ResourceRef},
         ResourceManager,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
@@ -30,52 +27,33 @@ pub trait Resource: 'static + Default + Reflect {
     fn resolve_references(&mut self, references: &mut ReferenceResolver);
 }
 
-impl<C: Component> ResourceTypeTrait for StaticResourceType<D> {
-    type Ref<'a> = &'a D;
-    type Data = D;
-
-    fn new(id: SlotId) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            id: ResourceType(id),
-        }
-    }
-
-    fn id(&self) -> SlotId {
-        self.id.0
-    }
-
-    fn insert_container(container: PrivateResourceContainerMut, resource: Self::Data) -> SlotId {
-        container
-            .0
-            .as_any_mut()
-            .downcast_mut::<NativeResourceContainer<D>>()
-            .expect("Invalid static resource container")
-            .0
-            .add(resource)
-    }
-
-    fn resource_ref(container: PrivateResourceContainerRef, slot: SlotId) -> Self::Ref<'_> {
-        container
-            .0
-            .as_any()
-            .downcast_ref::<NativeResourceContainer<D>>()
-            .expect("Invalid static resource container")
-            .0
-            .get(slot)
-            .expect("Invalid static resource slot")
-    }
-
-    fn check_type_id(id: TypeId) -> bool {
-        id == TypeId::of::<D>()
-    }
-}
-
 pub(crate) trait ResourceReflection {
     fn create_resource_container(&self) -> Box<dyn ResourceContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
     fn type_id(&self) -> TypeId;
+}
+
+pub(crate) struct NativeResourceReflection<R: Resource> {
+    pub(crate) _phantom: std::marker::PhantomData<R>,
+}
+
+impl<R: Resource> ResourceReflection for NativeResourceReflection<R> {
+    fn create_resource_container(&self) -> Box<dyn ResourceContainer> {
+        Box::new(NativeResourceContainer::<R>::with_capacity(128))
+    }
+
+    fn find_property(&self, name: &str) -> Option<&Property> {
+        R::PROPERTIES.iter().find(|p| p.name == name)
+    }
+
+    fn properties(&self) -> &[Property] {
+        R::PROPERTIES
+    }
+
+    fn type_id(&self) -> TypeId {
+        TypeId::of::<R>()
+    }
 }
 
 pub(crate) struct ResourceEntry {

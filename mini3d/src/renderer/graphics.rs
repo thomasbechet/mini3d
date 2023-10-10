@@ -2,10 +2,7 @@ use glam::IVec2;
 use mini3d_derive::Serialize;
 
 use crate::{
-    ecs::{
-        entity::Entity,
-        view::single::{NativeSingleView, NativeSingleViewRef},
-    },
+    ecs::{entity::Entity, view::native::single::NativeSingleViewRef},
     feature::renderer::viewport::Viewport,
     math::rect::IRect,
     resource::{handle::ResourceHandle, ResourceManager},

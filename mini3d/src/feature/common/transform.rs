@@ -7,8 +7,9 @@ use crate::{
         entity::Entity,
         instance::ParallelResolver,
         query::Query,
+        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
-    registry::error::RegistryError,
+    registry::{component::ComponentType, error::RegistryError},
 };
 
 use super::{hierarchy::Hierarchy, local_to_world::LocalToWorld};
