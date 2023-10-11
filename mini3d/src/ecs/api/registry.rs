@@ -1,13 +1,7 @@
 use crate::{
     registry::{
-        component::{
-            ComponentEntry, ComponentStorage, ComponentType, ComponentTypeTrait,
-            StaticComponentType,
-        },
-        datatype::StaticDataType,
+        component::{ComponentEntry, ComponentType},
         error::RegistryError,
-        resource::{ResourceTypeTrait, StaticResourceType},
-        system::{ExclusiveSystem, ParallelSystem, System, SystemOrder},
     },
     utils::uid::ToUID,
 };
