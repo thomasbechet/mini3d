@@ -1,6 +1,7 @@
 use std::any::TypeId;
 
 use crate::{
+    activity::{ActivityId, ActivityManager},
     ecs::{
         api::context::Context,
         container::{
@@ -9,7 +10,6 @@ use crate::{
         },
     },
     feature::common::component_definition::ComponentDefinition,
-    program::{ProgramId, ProgramManager},
     reflection::{Property, Reflect},
     resource::{
         handle::{ReferenceResolver, ResourceHandle},
@@ -69,7 +69,7 @@ impl<C: Component> ComponentReflection for NativeComponentReflection<C> {
 
 pub struct ComponentEntry {
     definition: ResourceHandle,
-    owner: ProgramId,
+    owner: ActivityId,
 }
 
 #[derive(Default)]
@@ -82,12 +82,12 @@ impl ComponentRegistryManager {
     pub(crate) fn add(
         &mut self,
         definition: ComponentDefinition,
-        owner: ProgramId,
-        programs: &ProgramManager,
+        owner: ActivityId,
+        activities: &ActivityManager,
         resources: &ResourceManager,
     ) -> Result<SlotId, RegistryError> {
         let uid: UID = definition.name.into();
-        if self.find(uid, owner, programs, resources).is_some() {
+        if self.find(uid, owner, activities, resources).is_some() {
             return Err(RegistryError::DuplicatedComponent);
         }
         self.changed = true;
@@ -97,8 +97,8 @@ impl ComponentRegistryManager {
     pub(crate) fn find(
         &self,
         component: impl ToUID,
-        owner: ProgramId,
-        programs: &ProgramManager,
+        owner: ActivityId,
+        activities: &ActivityManager,
         resources: &ResourceManager,
     ) -> Option<ComponentType> {
         let uid = component.to_uid();
@@ -115,7 +115,7 @@ impl ComponentRegistryManager {
             }) {
                 return Some(ComponentType(id));
             }
-            current = programs.entries[current.0].parent;
+            current = activities.entries[current.0].parent;
         }
         return None;
     }

@@ -1,7 +1,7 @@
-use crate::program::ProgramId;
+use crate::activity::ActivityId;
 
 pub(crate) struct Processor {
-    active_program: ProgramId,
+    active: ActivityId,
 }
 
 impl Processor {}

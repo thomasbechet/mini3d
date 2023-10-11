@@ -1,5 +1,6 @@
 use mini3d_derive::Error;
 
+use crate::activity::ActivityManager;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
 use crate::ecs::scheduler::Invocation;
@@ -13,7 +14,6 @@ use crate::physics::PhysicsManager;
 use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
 use crate::processor::Processor;
-use crate::program::ProgramManager;
 use crate::registry::component::ComponentStorage;
 use crate::registry::error::RegistryError;
 use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
@@ -72,7 +72,7 @@ impl Default for InstanceFeatures {
 }
 
 pub struct Instance {
-    pub(crate) program: ProgramManager,
+    pub(crate) activity: ActivityManager,
     pub(crate) processor: Processor,
     pub(crate) registry: RegistryManager,
     pub(crate) resource: ResourceManager,

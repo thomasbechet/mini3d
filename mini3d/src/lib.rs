@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod disk;
 pub mod ecs;
 pub mod feature;
@@ -10,7 +11,6 @@ pub mod network;
 pub mod physics;
 pub mod platform;
 pub mod processor;
-pub mod program;
 pub mod recorder;
 pub mod reflection;
 pub mod registry;

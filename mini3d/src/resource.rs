@@ -1,7 +1,7 @@
 use core::result::Result;
 
+use crate::activity::ActivityId;
 use crate::io::IOManager;
-use crate::program::ProgramId;
 use crate::registry::component::ComponentRegistryManager;
 use crate::registry::resource::{Resource, ResourceRegistryManager, ResourceType};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
@@ -30,7 +30,7 @@ pub struct ResourceInfo<'a> {
 struct ResourceEntry {
     key: ResourceKey,
     ty: ResourceType,
-    owner: ProgramId,
+    owner: ActivityId,
     ref_count: usize,
     slot: SlotId, // Null if not loaded
 }

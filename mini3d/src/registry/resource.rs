@@ -1,8 +1,8 @@
 use std::any::TypeId;
 
 use crate::{
+    activity::{ActivityId, ActivityManager},
     feature::common::resource_definition::ResourceDefinition,
-    program::{ProgramId, ProgramManager},
     reflection::{Property, Reflect},
     resource::{
         container::{NativeResourceContainer, ResourceContainer},
@@ -58,7 +58,7 @@ impl<R: Resource> ResourceReflection for NativeResourceReflection<R> {
 
 pub(crate) struct ResourceEntry {
     pub(crate) definition: ResourceRef,
-    pub(crate) owner: ProgramId,
+    pub(crate) owner: ActivityId,
 }
 
 #[derive(Default)]
@@ -71,12 +71,12 @@ impl ResourceRegistryManager {
     fn add(
         &mut self,
         definition: ResourceDefinition,
-        owner: ProgramId,
-        programs: &ProgramManager,
+        owner: ActivityId,
+        activities: &ActivityManager,
         resources: &ResourceManager,
     ) -> Result<SlotId, RegistryError> {
         let uid: UID = definition.name.into();
-        if self.find(uid, owner, programs, resources).is_some() {
+        if self.find(uid, owner, activities, resources).is_some() {
             return Err(RegistryError::DuplicatedResource);
         }
         self.changed = true;
@@ -86,8 +86,8 @@ impl ResourceRegistryManager {
     pub(crate) fn find(
         &self,
         resource: impl ToUID,
-        owner: ProgramId,
-        programs: &ProgramManager,
+        owner: ActivityId,
+        activities: &ActivityManager,
         resources: &ResourceManager,
     ) -> Option<ResourceType> {
         let uid = resource.to_uid();
@@ -104,7 +104,7 @@ impl ResourceRegistryManager {
             }) {
                 return Some(ResourceType(id));
             }
-            current = programs.entries[current.0].parent;
+            current = activities.entries[current.0].parent;
         }
         return None;
     }
