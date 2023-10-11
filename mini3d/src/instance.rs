@@ -4,7 +4,7 @@ use crate::activity::ActivityManager;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
 use crate::ecs::scheduler::Invocation;
-use crate::ecs::{ECSManager, ECSUpdateContext};
+use crate::ecs::ECSUpdateContext;
 use crate::feature::{common, input, physics, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
@@ -14,9 +14,7 @@ use crate::physics::PhysicsManager;
 use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
 use crate::processor::Processor;
-use crate::registry::component::ComponentStorage;
 use crate::registry::error::RegistryError;
-use crate::registry::system::{ExclusiveSystem, SystemOrder, SystemStage};
 use crate::registry::RegistryManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
@@ -202,7 +200,8 @@ impl Instance {
             storage: Default::default(),
             resource: Default::default(),
             input: Default::default(),
-            ecs: Default::default(),
+            activity: Default::default(),
+            processor: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
             system: Default::default(),

@@ -6,6 +6,7 @@ use crate::{
 use super::time::TimeAPI;
 
 pub struct Context<'a> {
+    pub(crate) activity: ActivityId,
     pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) registry: &'a mut RegistryManager,

@@ -104,29 +104,31 @@ impl ResourceManager {
         }
     }
 
-    pub(crate) fn persist<T: ResourceTypeTrait>(
+    pub(crate) fn add<R: Resource>(
         &mut self,
-        ty: T,
+        ty: ResourceType,
         key: &str,
-        data: T::Data,
+        owner: ActivityId,
+        data: R,
     ) -> Result<ResourceHandle, ResourceError> {
         if self.find(key).is_some() {
             return Err(ResourceError::DuplicatedAssetEntry);
         }
         let id = self.entries.add(ResourceEntry {
             key: ResourceKey::new(key),
-            ty: ResourceType(ty.id()),
+            ty,
             slot: SlotId::null(),
-            source: AssetSource::Persistent,
+            owner,
+            ref_count: 0,
         });
         // TODO: preload resource in container ? wait for read ? define proper strategy
         if let Some(container) = self.containers.get_mut(ty.id()) {
-            self.entries[id].slot =
-                T::insert_container(PrivateResourceContainerMut(container.as_mut()), data);
-            Ok(ResourceHandle {
-                id,
-                uid: key.to_uid(),
-            })
+            self.entries[id].slot = container
+                .as_any_mut()
+                .downcast_mut::<NativeResourceContainer<R>>()
+                .expect("Invalid native resource container")
+                .insert(data);
+            Ok(ResourceHandle(id))
         } else {
             // TODO: report proper error (not sync with registry ?)
             Err(ResourceError::ResourceTypeNotFound)
