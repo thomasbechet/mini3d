@@ -33,7 +33,7 @@ pub enum ProgressError {
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 #[derive(Clone)]
-pub struct InstanceFeatures {
+pub struct EngineFeatures {
     common: bool,
     input: bool,
     physics: bool,
@@ -41,7 +41,7 @@ pub struct InstanceFeatures {
     ui: bool,
 }
 
-impl InstanceFeatures {
+impl EngineFeatures {
     pub fn all() -> Self {
         Self {
             common: true,
@@ -63,13 +63,13 @@ impl InstanceFeatures {
     }
 }
 
-impl Default for InstanceFeatures {
+impl Default for EngineFeatures {
     fn default() -> Self {
         Self::all()
     }
 }
 
-pub struct Instance {
+pub struct Engine {
     pub(crate) activity: ActivityManager,
     pub(crate) processor: Processor,
     pub(crate) registry: RegistryManager,
@@ -83,8 +83,8 @@ pub struct Instance {
     global_time: f64,
 }
 
-impl Instance {
-    fn register_core_features(&mut self, features: &InstanceFeatures) -> Result<(), RegistryError> {
+impl Engine {
+    fn register_core_features(&mut self, features: &EngineFeatures) -> Result<(), RegistryError> {
         macro_rules! define_resource {
             ($resource: ty) => {
                 self.registry
@@ -177,7 +177,7 @@ impl Instance {
         Ok(())
     }
 
-    fn setup(&mut self, features: &InstanceFeatures) {
+    fn setup(&mut self, features: &EngineFeatures) {
         // Register core features
         self.register_core_features(features)
             .expect("Failed to define core features");
@@ -194,7 +194,7 @@ impl Instance {
             .expect("Failed to reload component handles");
     }
 
-    pub fn new(features: InstanceFeatures) -> Self {
+    pub fn new(features: EngineFeatures) -> Self {
         let mut instance = Self {
             registry: Default::default(),
             storage: Default::default(),

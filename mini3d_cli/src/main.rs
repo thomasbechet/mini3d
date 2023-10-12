@@ -5,9 +5,9 @@ use mini3d::{
         query::Query,
         scheduler::Invocation,
     },
+    engine::{Engine, EngineFeatures},
     feature::common::transform::Transform,
     info,
-    instance::{Instance, InstanceFeatures},
     registry::{
         component::StaticComponentType,
         error::RegistryError,
@@ -69,14 +69,14 @@ impl ExclusiveSystem for TestSystem {
 }
 
 fn main() {
-    let mut instance = Instance::new(InstanceFeatures::all());
-    instance.set_logger_provider(StdoutLogger);
-    instance
+    let mut engine = Engine::new(EngineFeatures::all());
+    engine.set_logger_provider(StdoutLogger);
+    engine
         .register_system::<TestSystem>("test_system", SystemStage::FIXED_UPDATE_60HZ)
         .unwrap();
-    instance
+    engine
         .register_system::<SpawnSystem>("spawn_system", "startup")
         .unwrap();
-    instance.invoke("startup", Invocation::NextFrame).unwrap();
-    instance.progress(1.0 / 120.0).expect("Instance error");
+    engine.invoke("startup", Invocation::NextFrame).unwrap();
+    engine.progress(1.0 / 120.0).expect("Instance error");
 }

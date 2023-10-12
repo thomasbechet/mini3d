@@ -9,3 +9,11 @@ Resources represents data that can be shared across multiple activities. A resou
 # Activities
 
 An activity can be considered as an ECS.
+
+Starting an activity requires :
+- Set of resource types
+- Set of component types
+- Set of system
+- Prefab (optional)
+
+=> Interpreted data oriented game engine

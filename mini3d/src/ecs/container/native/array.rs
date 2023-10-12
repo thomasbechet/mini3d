@@ -30,7 +30,6 @@ pub(crate) struct NativeArrayContainer<C: Component> {
     data: Vec<C>,
     entries: Vec<NativeArrayEntry>,
     indices: PagedVector<usize>, // Entity -> Entry Index
-    changed: Vec<Entity>,
 }
 
 impl<C: Component> NativeArrayContainer<C> {
@@ -40,7 +39,6 @@ impl<C: Component> NativeArrayContainer<C> {
             data: Vec::with_capacity(size * chunk_size),
             entries: Vec::with_capacity(size),
             indices: PagedVector::new(),
-            changed: Vec::with_capacity(size),
         }
     }
 

@@ -58,7 +58,6 @@ pub(crate) trait SingleContainer {
 pub(crate) struct NativeSingleContainer<C: Component> {
     data: Vec<(C, Entity, ComponentFlags)>,
     indices: PagedVector<usize>, // Entity -> Index
-    changed: Vec<Entity>,
 }
 
 impl<C: Component> NativeSingleContainer<C> {
@@ -66,7 +65,6 @@ impl<C: Component> NativeSingleContainer<C> {
         Self {
             data: Vec::with_capacity(size),
             indices: PagedVector::new(),
-            changed: Vec::with_capacity(size),
         }
     }
 
