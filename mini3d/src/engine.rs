@@ -14,8 +14,6 @@ use crate::physics::PhysicsManager;
 use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
 use crate::processor::Processor;
-use crate::registry::error::RegistryError;
-use crate::registry::RegistryManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
 use crate::resource::ResourceManager;
@@ -72,7 +70,6 @@ impl Default for EngineFeatures {
 pub struct Engine {
     pub(crate) activity: ActivityManager,
     pub(crate) processor: Processor,
-    pub(crate) registry: RegistryManager,
     pub(crate) resource: ResourceManager,
     pub(crate) storage: DiskManager,
     pub(crate) input: InputManager,

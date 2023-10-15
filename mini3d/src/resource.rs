@@ -1,24 +1,21 @@
 use core::result::Result;
 
-use crate::activity::{ActivityId, ProgramId};
-use crate::io::IOManager;
-use crate::registry::component::ComponentRegistryManager;
-use crate::registry::resource::{Resource, ResourceRegistryManager, ResourceType};
+use crate::activity::ActivityId;
+use crate::feature::core::resource_type::{Resource, ResourceType};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
-use crate::utils::slotmap::{DenseSlotMap, SlotId, SparseSecondaryMap};
+use crate::utils::slotmap::{DenseSlotMap, SlotId, SlotMap};
 use crate::utils::uid::ToUID;
 
-use self::container::{
-    NativeResourceContainer, PrivateResourceContainerMut, PrivateResourceContainerRef,
-    ResourceContainer,
-};
+use self::container::{NativeResourceContainer, ResourceContainer};
 use self::error::ResourceError;
 use self::handle::{ResourceHandle, ResourceRef, ToResourceHandle};
+use self::hook::ResourceAddedHook;
 use self::key::ResourceKey;
 
 pub mod container;
 pub mod error;
 pub mod handle;
+pub mod hook;
 pub mod key;
 
 pub enum ResourceSharingMode {}
@@ -29,24 +26,42 @@ pub struct ResourceInfo<'a> {
 
 struct ResourceEntry {
     key: ResourceKey,
-    ty: ResourceType,
+    ty: ResourceRef,
     owner: ActivityId,
     ref_count: usize,
     slot: SlotId, // Null if not loaded
 }
 
-#[derive(Default)]
 pub struct ResourceManager {
-    containers: SparseSecondaryMap<Box<dyn ResourceContainer>>,
+    containers: SlotMap<Box<dyn ResourceContainer>>,
+    type_container: SlotId,
     entries: DenseSlotMap<ResourceEntry>,
 }
 
 impl ResourceManager {
-    pub(crate) fn save_state(
-        &self,
-        registry: &ComponentRegistryManager,
-        encoder: &mut impl Encoder,
-    ) -> Result<(), EncoderError> {
+    pub(crate) fn new(root_activity: ActivityId) -> Self {
+        let mut manager = Self {
+            containers: Default::default(),
+            type_container: SlotId::null(),
+            entries: Default::default(),
+        };
+        // Define core resource type
+        manager.type_container = manager
+            .containers
+            .add(Box::new(NativeResourceContainer::<ResourceType>::default()));
+        manager.entries.add(ResourceEntry {
+            key: "_ty_resource_type",
+            ty: ResourceRef::default(),
+            owner: root_activity,
+            ref_count: 0,
+            slot: SlotId::null(),
+        });
+        manager
+    }
+}
+
+impl ResourceManager {
+    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         // encoder.write_u32(self.bundles.len() as u32)?;
         // for uid in self.bundles.keys() {
         //     self.serialize_bundle(*uid, registry, encoder)
@@ -55,11 +70,7 @@ impl ResourceManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(
-        &mut self,
-        registry: &ComponentRegistryManager,
-        decoder: &mut impl Decoder,
-    ) -> Result<(), DecoderError> {
+    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         // // Clear all data
         // self.bundles.clear();
         // self.containers.clear();
@@ -95,92 +106,101 @@ impl ResourceManager {
         Ok(())
     }
 
-    pub(crate) fn on_registry_update(&mut self, registry: &ResourceRegistryManager) {
-        for (id, entry) in registry.entries.iter() {
-            if !self.containers.contains(id) {
-                let container = entry.reflection.create_resource_container();
-                self.containers.insert(id, container);
-            }
-        }
-    }
-
     pub(crate) fn add<R: Resource>(
         &mut self,
-        ty: ResourceType,
+        ty: impl ToResourceHandle,
         key: &str,
         owner: ActivityId,
         data: R,
+        hook: &mut Option<ResourceAddedHook>,
     ) -> Result<ResourceHandle, ResourceError> {
+        // Check duplicated entry
         if self.find(key).is_some() {
             return Err(ResourceError::DuplicatedAssetEntry);
         }
+        // Find resource type reference
+        let ty_handle = ty.to_handle();
+        let ty_reference = self
+            .acquire(ty_handle)
+            .expect("Invalid resource type reference");
+        // Allocate container if missing
+        if self
+            .read::<ResourceType>(ty_handle)
+            .unwrap()
+            .container_id
+            .is_null()
+        {
+            let container = self
+                .read::<ResourceType>(ty_handle)
+                .unwrap()
+                .create_container();
+            let container_id = self.containers.add(container);
+            // Force update resource type
+            self.containers
+                .get_mut(self.type_container)
+                .unwrap()
+                .as_any_mut()
+                .downcast_mut::<NativeResourceContainer<ResourceType>>()
+                .unwrap()
+                .0
+                .get_mut(ty_reference.id)
+                .unwrap()
+                .container_id = container_id;
+        }
+        // Create new entry
         let id = self.entries.add(ResourceEntry {
             key: ResourceKey::new(key),
-            ty,
+            ty: ty_reference,
             slot: SlotId::null(),
             owner,
             ref_count: 0,
         });
+        let resource_ty = self.read::<ResourceType>(ty_handle).unwrap();
+        let container_id = resource_ty.container_id;
+        *hook = resource_ty.added_hook;
         // TODO: preload resource in container ? wait for read ? define proper strategy
-        if let Some(container) = self.containers.get_mut(ty.id()) {
-            self.entries[id].slot = container
-                .as_any_mut()
-                .downcast_mut::<NativeResourceContainer<R>>()
-                .expect("Invalid native resource container")
-                .insert(data);
-            Ok(ResourceHandle(id))
-        } else {
-            // TODO: report proper error (not sync with registry ?)
-            Err(ResourceError::ResourceTypeNotFound)
-        }
+        self.entries[id].slot = self
+            .containers
+            .get_mut(container_id)
+            .unwrap()
+            .as_any_mut()
+            .downcast_mut::<NativeResourceContainer<R>>()
+            .expect("Invalid native resource container")
+            .insert(data);
+        Ok(ResourceHandle(id))
     }
 
-    pub(crate) fn remove(&mut self, handle: impl ToResourceHandle) -> Result<(), ResourceError> {
-        let id = handle.to_handle().0;
-        if !self.entries.contains(id) {
-            return Err(ResourceError::ResourceNotFound);
-        }
-        // TODO: remove cached data from container
-        if !self.entries[id].slot.is_null() {
-            self.containers
-                .get_mut(id)
-                .unwrap()
-                .remove(self.entries[id].slot);
-        }
-        // Remove entry
-        self.entries.remove(id);
-        Ok(())
-    }
-
-    pub(crate) fn load<R: Resource>(
-        &mut self,
-        io: &mut IOManager,
-        handle: impl ToResourceHandle,
-    ) -> Result<&R, ResourceError> {
-        let id = handle.to_handle().0;
-        let entry = self
-            .entries
-            .get(id)
-            .ok_or(ResourceError::ResourceNotFound)?;
-        if !entry.slot.is_null() {
-            Ok(T::resource_ref(
-                PrivateResourceContainerRef(self.containers[entry.ty.0].as_ref()),
-                entry.slot,
-            ))
-        } else {
-            todo!("Load resource from source")
-        }
-    }
+    // pub(crate) fn load<R: Resource>(
+    //     &mut self,
+    //     io: &mut IOManager,
+    //     handle: impl ToResourceHandle,
+    // ) -> Result<&R, ResourceError> {
+    //     let id = handle.to_handle().0;
+    //     let entry = self
+    //         .entries
+    //         .get(id)
+    //         .ok_or(ResourceError::ResourceNotFound)?;
+    //     if !entry.slot.is_null() {
+    //         Ok(T::resource_ref(
+    //             PrivateResourceContainerRef(self.containers[entry.ty.0].as_ref()),
+    //             entry.slot,
+    //         ))
+    //     } else {
+    //         todo!("Load resource from source")
+    //     }
+    // }
 
     pub(crate) fn read<R: Resource>(
         &self,
         handle: impl ToResourceHandle,
     ) -> Result<&R, ResourceError> {
+        // Find entry
         let id = handle.to_handle().0;
         let entry = self
             .entries
             .get(id)
             .ok_or(ResourceError::ResourceNotFound)?;
+        // Read resource
         if !entry.slot.is_null() {
             Ok(self
                 .containers
@@ -228,7 +248,7 @@ impl ResourceManager {
         entry.ref_count += 1;
         Ok(ResourceRef {
             id,
-            uid: entry.key.to_uid(),
+            key: entry.key.to_uid(),
         })
     }
 
@@ -241,6 +261,15 @@ impl ResourceManager {
         if entry.ref_count > 0 {
             entry.ref_count -= 1;
         }
+        // TODO: unload ?
+        // if !self.entries[id].slot.is_null() {
+        //     self.containers
+        //         .get_mut(id)
+        //         .unwrap()
+        //         .remove(self.entries[id].slot);
+        // }
+        // // Remove entry
+        // self.entries.remove(id);
         Ok(())
     }
 }

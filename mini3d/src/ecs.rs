@@ -1,23 +1,18 @@
 use crate::{
     logger::LoggerManager,
     platform::PlatformManager,
-    registry::error::RegistryError,
     resource::ResourceManager,
     serialize::{Decoder, DecoderError, EncoderError},
+    utils::slotmap::SlotMap,
 };
 
-use crate::{
-    input::InputManager,
-    registry::{component::ComponentRegistryManager, RegistryManager},
-    renderer::RendererManager,
-    serialize::Encoder,
-};
+use crate::{input::InputManager, renderer::RendererManager, serialize::Encoder};
 
 use self::{
-    api::{context::Context, ecs::ECS, time::TimeAPI},
+    api::{context::Context, time::TimeAPI},
     container::ContainerTable,
     entity::EntityTable,
-    instance::{SystemInstance, SystemInstanceTable},
+    instance::ECSInstance,
     query::QueryTable,
     scheduler::Scheduler,
 };
@@ -32,20 +27,15 @@ pub mod instance;
 pub mod query;
 pub mod scheduler;
 pub mod sparse;
+pub mod system;
 pub mod view;
 
 #[derive(Default)]
 pub(crate) struct ECSManager {
-    pub(crate) containers: ContainerTable,
-    entities: EntityTable,
-    queries: QueryTable,
-    instances: SystemInstanceTable,
-    pub(crate) scheduler: Scheduler,
-    global_cycle: u32,
+    instances: SlotMap<ECSInstance>,
 }
 
 pub(crate) struct ECSUpdateContext<'a> {
-    pub(crate) registry: &'a mut RegistryManager,
     pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,
@@ -56,11 +46,7 @@ pub(crate) struct ECSUpdateContext<'a> {
 }
 
 impl ECSManager {
-    pub(crate) fn save_state(
-        &self,
-        registry: &ComponentRegistryManager,
-        encoder: &mut impl Encoder,
-    ) -> Result<(), EncoderError> {
+    pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         // encoder.write_u32(self.scenes.len() as u32)?;
         // for scene in self.scenes.values() {
         //     scene.serialize(registry, encoder)?;
@@ -68,27 +54,12 @@ impl ECSManager {
         Ok(())
     }
 
-    pub(crate) fn load_state(
-        &mut self,
-        registry: &ComponentRegistryManager,
-        decoder: &mut impl Decoder,
-    ) -> Result<(), DecoderError> {
+    pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         // let scenes_count = decoder.read_u32()?;
         // for _ in 0..scenes_count {
         //     let scene = Scene::deserialize(registry, decoder)?;
         //     self.scenes.add(Box::new(scene));
         // }
-        Ok(())
-    }
-
-    pub(crate) fn on_registry_update(
-        &mut self,
-        registry: &RegistryManager,
-    ) -> Result<(), RegistryError> {
-        self.scheduler.on_registry_update(&registry.system);
-        self.containers.on_registry_update(&registry.component);
-        self.instances
-            .on_registry_update(registry, &mut self.entities, &mut self.queries)?;
         Ok(())
     }
 
@@ -141,8 +112,6 @@ impl ECSManager {
                                 delta: context.delta_time,
                                 global: context.global_time,
                             },
-                        };
-                        let ecs = &mut ECS {
                             containers: &mut self.containers,
                             entities: &mut self.entities,
                             queries: &mut self.queries,
@@ -150,7 +119,7 @@ impl ECSManager {
                             cycle: self.global_cycle,
                         };
                         // TODO: catch unwind
-                        instance.run(ecs, ctx);
+                        instance.run(ctx);
                     }
                     SystemInstance::Parallel(instance) => {
                         let ctx = &Context {
@@ -164,8 +133,6 @@ impl ECSManager {
                                 delta: context.delta_time,
                                 global: context.global_time,
                             },
-                        };
-                        let ecs = &ECS {
                             containers: &mut self.containers,
                             entities: &mut self.entities,
                             queries: &mut self.queries,
@@ -173,13 +140,8 @@ impl ECSManager {
                             cycle: self.global_cycle,
                         };
                         // TODO: catch unwind
-                        instance.run(ecs, ctx);
+                        instance.run(ctx);
                     }
-                }
-
-                // Clear filter queries
-                for id in &instance.filter_queries {
-                    self.queries.filter_queries[id.0].pool.clear();
                 }
             } else {
                 // TODO: use thread pool

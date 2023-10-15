@@ -9,10 +9,8 @@ use crate::feature::renderer::model::Model;
 use crate::feature::renderer::static_mesh::StaticMesh;
 use crate::feature::renderer::texture::Texture;
 use crate::feature::renderer::viewport::Viewport;
-use crate::registry::error::RegistryError;
-use crate::registry::resource::StaticResourceType;
-use crate::registry::RegistryManager;
 use crate::resource::handle::ResourceHandle;
+use crate::resource::hook::RendererResourceHook;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::slotmap::SecondaryMap;
@@ -256,25 +254,6 @@ impl RendererManager {
         self.provider.on_connect();
     }
 
-    pub(crate) fn reload_components_and_resources(
-        &mut self,
-        registry: &RegistryManager,
-    ) -> Result<(), RegistryError> {
-        self.camera = registry.component.find(Camera::NAME).unwrap_or_default();
-        self.static_mesh = registry
-            .component
-            .find(StaticMesh::NAME)
-            .unwrap_or_default();
-        self.canvas = registry.component.find(Canvas::NAME).unwrap_or_default();
-        self.local_to_world = registry
-            .component
-            .find(LocalToWorld::NAME)
-            .unwrap_or_default();
-        self.viewport = registry.component.find(Viewport::NAME).unwrap_or_default();
-        self.model = registry.resource.find(Model::NAME).unwrap_or_default();
-        Ok(())
-    }
-
     pub(crate) fn dispatch_events(&mut self) {
         while let Some(event) = self.provider.next_event() {
             match event {
@@ -328,5 +307,21 @@ impl RendererManager {
 
     pub(crate) fn statistics(&self) -> RendererStatistics {
         self.statistics
+    }
+
+    pub(crate) fn on_resource_added_hook(
+        &mut self,
+        hook: RendererResourceHook,
+        handle: ResourceHandle,
+        resources: &mut ResourceManager,
+    ) {
+    }
+
+    pub(crate) fn on_resource_removed_hook(
+        &mut self,
+        hook: RendererResourceHook,
+        handle: ResourceHandle,
+        resources: &mut ResourceManager,
+    ) {
     }
 }

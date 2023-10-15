@@ -13,18 +13,18 @@ pub struct ResourceHandle(pub(crate) SlotId);
 pub struct ResourceRef {
     #[serialize(skip)]
     pub(crate) id: SlotId,
-    pub(crate) uid: UID,
+    pub(crate) key: UID,
 }
 
 impl ResourceRef {
     pub fn resolve(&mut self, resolver: &mut ReferenceResolver) {
-        if !self.uid.is_null() {
+        if !self.key.is_null() {
             if self.id.is_null() {
                 // Find entry
-                self.id = resolver.resolve_resource_id(self.uid);
+                self.id = resolver.resolve_resource_id(self.key);
             } else {
                 // The entry's key has changed
-                self.uid = resolver.remap_resource_key(self.id);
+                self.key = resolver.remap_resource_key(self.id);
             }
         }
     }
@@ -43,5 +43,14 @@ impl ToResourceHandle for ResourceHandle {
 impl ToResourceHandle for ResourceRef {
     fn to_handle(&self) -> ResourceHandle {
         ResourceHandle(self.id)
+    }
+}
+
+#[cfg(debug_assertions)]
+impl Drop for ResourceRef {
+    fn drop(&mut self) {
+        if !self.id.is_null() {
+            panic!("ResourceRef must be released before dropping")
+        }
     }
 }

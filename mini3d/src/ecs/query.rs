@@ -2,10 +2,6 @@ use std::ops::Range;
 
 use crate::{
     feature::common::system::System,
-    registry::{
-        component::{ComponentRegistryManager, ComponentType},
-        error::RegistryError,
-    },
     utils::{
         slotmap::{SlotId, SlotMap},
         uid::ToUID,

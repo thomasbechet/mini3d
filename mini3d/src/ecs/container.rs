@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use mini3d_derive::Serialize;
 
 use crate::{
-    registry::component::{ComponentRegistryManager, ComponentType, PrivateComponentTableRef},
+    feature::common::component_type::{ComponentId, PrivateComponentTableRef},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
 };
@@ -104,7 +104,7 @@ impl ContainerTable {
         Ok(())
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentType) {
+    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentId) {
         self.containers
             .get_mut(component.0)
             .expect("Component container not found while removing entity")
@@ -112,11 +112,11 @@ impl ContainerTable {
             .remove(entity);
     }
 
-    pub(crate) fn view<V: ComponentViewRef>(&self, ty: ComponentType) -> V {
-        V::view(PrivateComponentTableRef(self), ty)
+    pub(crate) fn view<V: ComponentViewRef>(&self, component: ComponentId) -> V {
+        V::view(PrivateComponentTableRef(self), component)
     }
 
-    pub(crate) fn view_mut<V: ComponentViewMut>(&self, ty: ComponentType, cycle: u32) -> V {
-        V::view_mut(PrivateComponentTableRef(self), ty, cycle)
+    pub(crate) fn view_mut<V: ComponentViewMut>(&self, component: ComponentId, cycle: u32) -> V {
+        V::view_mut(PrivateComponentTableRef(self), component, cycle)
     }
 }

@@ -1,6 +1,11 @@
 use crate::{
-    resource::{error::ResourceError, handle::ResourceHandle, ResourceInfo},
-    utils::uid::ToUID,
+    activity::ActivityId,
+    feature::core::resource_type,
+    resource::{
+        error::ResourceError,
+        handle::{ResourceHandle, ToResourceHandle},
+        hook::ResourceAddedHook,
+    },
 };
 
 use super::context::Context;
@@ -8,42 +13,27 @@ use super::context::Context;
 pub struct Resource;
 
 impl Resource {
-    pub fn persist<T: ResourceTypeTrait>(
+    pub fn add<R: resource_type::Resource>(
         ctx: &mut Context,
-        ty: T,
+        ty: impl ToResourceHandle,
         key: &str,
-        data: T::Data,
+        owner: ActivityId,
+        data: R,
     ) -> Result<ResourceHandle, ResourceError> {
-        ctx.resource.persist(ty, key, data)
+        let mut hook = None;
+        let handle = ctx.resource.add(ty, key, owner, data, &mut hook)?;
+        if let Some(hook) = hook {
+            match hook {
+                ResourceAddedHook::Renderer(hook) => {
+                    ctx.renderer
+                        .on_resource_added_hook(hook, handle, ctx.resource);
+                }
+            }
+        }
+        Ok(handle)
     }
 
-    pub fn remove(ctx: &mut Context, handle: ResourceHandle) -> Result<(), ResourceError> {
-        ctx.resource.remove(handle)
-    }
-
-    pub fn load<'a, T: ResourceTypeTrait>(
-        ctx: &mut Context,
-        handle: ResourceHandle,
-    ) -> Result<T::Ref<'a>, ResourceError> {
-        // ctx.resource.load(handle)
+    pub fn add_any(ctx: &mut Context, ty: impl ToResourceHandle, key: &str, owner: ActivityId) {
         todo!()
-    }
-
-    pub fn read<'a, T: ResourceReferenceTrait>(
-        ctx: &'a Context,
-        handle: ResourceHandle,
-    ) -> Result<<T::AssetType as ResourceTypeTrait>::Ref<'a>, ResourceError> {
-        ctx.resource.read::<T>(handle)
-    }
-
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ResourceHandle> {
-        ctx.resource.find(key)
-    }
-
-    pub fn info<'a>(
-        ctx: &'a Context,
-        handle: ResourceHandle,
-    ) -> Result<ResourceInfo<'a>, ResourceError> {
-        ctx.resource.info(handle)
     }
 }

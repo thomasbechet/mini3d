@@ -2,10 +2,7 @@ use mini3d_derive::Error;
 
 use crate::feature::input::{action::InputAction, axis::InputAxis};
 
-use super::{
-    event::InputEvent,
-    handle::{InputActionHandle, InputAxisHandle},
-};
+use super::event::InputEvent;
 
 #[derive(Debug, Error)]
 pub enum InputProviderError {

@@ -1,10 +1,11 @@
+use std::task::Context;
+
 use crate::{
     ecs::{
         builder::EntityBuilder,
-        container::ContainerTable,
-        entity::{Entity, EntityTable},
-        query::{Query, QueryTable},
-        scheduler::{Invocation, Scheduler},
+        entity::Entity,
+        query::Query,
+        scheduler::Invocation,
         view::{ComponentViewMut, ComponentViewRef},
     },
     registry::{
@@ -15,59 +16,54 @@ use crate::{
     utils::uid::{ToUID, UID},
 };
 
-pub struct ECS<'a> {
-    pub(crate) containers: &'a mut ContainerTable,
-    pub(crate) entities: &'a mut EntityTable,
-    pub(crate) queries: &'a mut QueryTable,
-    pub(crate) scheduler: &'a mut Scheduler,
-    pub(crate) cycle: u32,
-}
+pub struct ECS;
 
-impl<'a> ECS<'a> {
-    pub fn create(&mut self) -> EntityBuilder<'_> {
-        EntityBuilder::new(self.entities, self.containers, self.queries, self.cycle)
+impl ECS {
+    pub fn create<'a>(ctx: &'a mut Context<'a>) -> EntityBuilder<'a> {
+        EntityBuilder::new(ctx.entities, ctx.containers, ctx.queries, ctx.cycle)
     }
 
-    pub fn destroy(&mut self, entity: Entity) {
-        self.entities.remove(entity, self.containers)
+    pub fn destroy(ctx: &mut Context, entity: Entity) {
+        ctx.entities.remove(entity, ctx.containers)
     }
 
-    pub fn add<C: Component>(&mut self, entity: Entity, component: ComponentType, data: C) {}
-
-    pub fn remove(&mut self, entity: Entity, component: ComponentType) {}
-
-    pub fn view<V: ComponentViewRef>(&self, ty: ComponentType) -> V {
-        self.containers.view(ty)
+    pub fn add<C: Component>(ctx: &mut Context, entity: Entity, component: ComponentType, data: C) {
     }
 
-    pub fn view_mut<V: ComponentViewMut>(&self, ty: ComponentType) -> V {
-        self.containers.view_mut(ty, self.cycle)
+    pub fn remove(ctx: &mut Context, entity: Entity, component: ComponentType) {}
+
+    pub fn view<V: ComponentViewRef>(ctx: &Context, ty: ComponentType) -> V {
+        ctx.containers.view(ty)
     }
 
-    pub fn set_periodic_invoke(&mut self, stage: UID, frequency: f64) {
-        self.scheduler.set_periodic_invoke(stage, frequency);
+    pub fn view_mut<V: ComponentViewMut>(ctx: &Context, ty: ComponentType) -> V {
+        ctx.containers.view_mut(ty, ctx.cycle)
+    }
+
+    pub fn set_periodic_invoke(ctx: &Context, stage: UID, frequency: f64) {
+        ctx.scheduler.set_periodic_invoke(stage, frequency);
     }
 
     pub fn invoke(
-        &mut self,
+        ctx: &mut Context,
         stage: impl ToUID,
         invocation: Invocation,
     ) -> Result<(), RegistryError> {
-        self.scheduler.invoke(stage, invocation)
+        ctx.scheduler.invoke(stage, invocation)
     }
 
-    pub fn query(&self, query: Query) -> impl Iterator<Item = Entity> + '_ {
-        self.queries.entries[query.0]
+    pub fn query<'a>(ctx: &'a Context, query: Query) -> impl Iterator<Item = Entity> + 'a {
+        ctx.queries.entries[query.0]
             .archetypes
             .iter()
-            .flat_map(|archetype| self.entities.iter_pool_entities(*archetype))
+            .flat_map(|archetype| ctx.entities.iter_pool_entities(*archetype))
     }
 
-    pub fn add_system(&mut self, system: ResourceHandle) -> Result<(), RegistryError> {
-        self.scheduler.add_system(system)
+    pub fn add_system(ctx: &mut Context, system: ResourceHandle) -> Result<(), RegistryError> {
+        ctx.scheduler.add_system(system)
     }
 
-    pub fn remove_system(&mut self, system: ResourceHandle) -> Result<(), RegistryError> {
-        self.scheduler.remove_system(system)
+    pub fn remove_system(ctx: &mut Context, system: ResourceHandle) -> Result<(), RegistryError> {
+        ctx.scheduler.remove_system(system)
     }
 }

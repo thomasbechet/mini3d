@@ -60,6 +60,8 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         let mut canvases = ecs.view_mut(self.canvas);
         let local_to_worlds = ecs.view_mut(self.local_to_world);
 
+        ECS::query(ctx)
+
         // Camera
         for e in ecs.query_filter(self.removed_camera) {
             expect!(

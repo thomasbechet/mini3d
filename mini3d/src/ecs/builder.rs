@@ -1,4 +1,4 @@
-use crate::registry::component::{Component, ComponentType, PrivateComponentTableMut};
+use crate::feature::common::component_type::{Component, ComponentId, PrivateComponentTableMut};
 
 use super::{
     archetype::Archetype,
@@ -35,7 +35,7 @@ impl<'a> EntityBuilder<'a> {
         }
     }
 
-    pub fn with<C: Component>(mut self, component: ComponentType, data: C) -> Self {
+    pub fn with<C: Component>(mut self, component: ComponentId, data: C) -> Self {
         self.archetype = self
             .entities
             .archetypes
@@ -49,25 +49,21 @@ impl<'a> EntityBuilder<'a> {
         self
     }
 
-    pub fn with_array<C: Component>(mut self, component: ComponentType, data: &[C]) -> Self {
+    pub fn with_array<C: Component>(mut self, component: ComponentId, data: &[C]) -> Self {
         self
     }
 
-    pub fn with_list<C: Component>(mut self, component: ComponentType, data: &[C]) -> Self {
+    pub fn with_list<C: Component>(mut self, component: ComponentId, data: &[C]) -> Self {
         self
     }
 
-    pub fn with_map<C: Component>(
-        mut self,
-        component: ComponentType,
-        data: &[(Entity, C)],
-    ) -> Self {
+    pub fn with_map<C: Component>(mut self, component: ComponentId, data: &[(Entity, C)]) -> Self {
         self
     }
 
-    pub fn with_any(mut self, component: ComponentType) -> AnyComponentBuilder<'a> {}
+    pub fn with_any(mut self, component: ComponentId) -> AnyComponentBuilder<'a> {}
 
-    pub fn with_default(self, component: ComponentType) -> Self {
+    pub fn with_default(self, component: ComponentId) -> Self {
         self
     }
 
@@ -92,7 +88,6 @@ impl<'a> Drop for EntityBuilder<'a> {
             EntityEntry {
                 archetype: self.archetype,
                 pool_index: pool_index as u32,
-                pending_remove_counter: 0,
             },
         );
     }

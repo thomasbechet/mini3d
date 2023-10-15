@@ -4,12 +4,12 @@ use mini3d_derive::{Component, Reflect, Serialize};
 use crate::{
     ecs::{
         api::{context::Context, ecs::ECS, input::Input, time::Time},
-        instance::ParallelResolver,
         query::Query,
+        system::ParallelSystem,
     },
     expect,
+    feature::core::component_type::ComponentId,
     input::handle::{InputActionHandle, InputAxisHandle},
-    registry::{component::ComponentType, error::RegistryError},
 };
 
 use super::transform::Transform;
@@ -51,8 +51,8 @@ impl FreeFly {
 
 #[derive(Default)]
 pub struct FreeFlySystem {
-    free_fly: ComponentType,
-    transform: ComponentType,
+    free_fly: ComponentId,
+    transform: ComponentId,
     query: Query,
 }
 
@@ -74,6 +74,14 @@ impl ParallelSystem for FreeFlySystem {
     fn run(&self, ecs: &ECS, ctx: &Context) {
         let mut transforms = ecs.view_mut(self.transform);
         let mut free_flies = ecs.view_mut(self.free_fly);
+
+        ECS::view_mut(ctx, self.transform);
+
+        for e in ECS::query(ctx, self.query) {
+            ECS::destroy(ctx, e);
+            ECS::add(ctx, e, self.transform, Transform::default());
+            let cmd = ECS::commands(ctx);
+        }
 
         for e in ecs.query(self.query) {
             let transform = transforms.get_mut(e).unwrap();

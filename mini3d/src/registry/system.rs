@@ -15,73 +15,6 @@ use crate::{
 
 use super::error::RegistryError;
 
-pub trait ExclusiveSystem: 'static + Default {
-    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        Ok(())
-    }
-    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {}
-}
-
-pub trait ParallelSystem: 'static + Default {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
-        Ok(())
-    }
-    fn run(&self, ecs: &ECS, ctx: &Context) {}
-}
-
-pub(crate) trait AnySystemReflection {
-    fn create_instance(&self) -> SystemInstance;
-}
-
-struct StaticExclusiveSystemReflection<S: ExclusiveSystem> {
-    _phantom: std::marker::PhantomData<S>,
-}
-
-impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection<S> {
-    fn create_instance(&self) -> SystemInstance {
-        struct InstanceHolder<S: ExclusiveSystem> {
-            system: S,
-        }
-        impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for InstanceHolder<S> {
-            fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-                self.system.setup(resolver)
-            }
-            fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
-                self.system.run(ecs, ctx);
-            }
-        }
-        SystemInstance::Exclusive(ExclusiveSystemInstance::Static(Box::new(InstanceHolder {
-            system: S::default(),
-        })))
-    }
-}
-
-struct StaticParallelSystemReflection<S: ParallelSystem> {
-    _phantom: std::marker::PhantomData<S>,
-}
-
-impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S> {
-    fn create_instance(&self) -> SystemInstance {
-        struct InstanceHolder<S: ParallelSystem> {
-            system: S,
-        }
-        impl<S: ParallelSystem> AnyStaticParallelSystemInstance for InstanceHolder<S> {
-            fn resolve(
-                &mut self,
-                resolver: &mut ParallelResolver<'_>,
-            ) -> Result<(), RegistryError> {
-                self.system.setup(resolver)
-            }
-            fn run(&self, ecs: &ECS, ctx: &Context) {
-                self.system.run(ecs, ctx);
-            }
-        }
-        SystemInstance::Parallel(ParallelSystemInstance::Static(Box::new(InstanceHolder {
-            system: S::default(),
-        })))
-    }
-}
-
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct System(pub(crate) SlotId);
 
@@ -91,9 +24,6 @@ impl SystemStage {
     pub const UPDATE: &'static str = "update";
     pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
 }
-
-pub const MAX_SYSTEM_NAME_LEN: usize = 64;
-pub const MAX_SYSTEM_STAGE_NAME_LEN: usize = 64;
 
 pub(crate) struct SystemStageEntry {
     pub(crate) name: AsciiArray<MAX_SYSTEM_STAGE_NAME_LEN>,

@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    registry::resource::Resource,
+    feature::core::resource_type::Resource,
     serialize::{Decoder, Encoder},
     utils::{
         slotmap::{SlotId, SlotMap},

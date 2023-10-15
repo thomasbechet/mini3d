@@ -13,7 +13,6 @@ pub mod platform;
 pub mod processor;
 pub mod recorder;
 pub mod reflection;
-pub mod registry;
 pub mod renderer;
 pub mod resource;
 pub mod script;
