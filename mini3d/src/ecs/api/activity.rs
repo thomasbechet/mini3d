@@ -5,7 +5,11 @@ use super::context::Context;
 pub struct Activity;
 
 impl Activity {
-    pub fn start(ctx: &mut Context, activity: ResourceHandle) -> ActivityId {
+    pub fn start(ctx: &mut Context, descriptor: ResourceHandle) -> ActivityId {
+        // Check duplicated activity
+        // Add activity
+        // Set status to Starting
+        // Invoke 'on_start' stage
         todo!()
     }
 

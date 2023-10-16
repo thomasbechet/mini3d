@@ -11,7 +11,6 @@ use crate::{input::InputManager, renderer::RendererManager, serialize::Encoder};
 use self::{
     api::{context::Context, time::TimeAPI},
     instance::ECSInstance,
-    scheduler::Scheduler,
 };
 
 pub mod api;
