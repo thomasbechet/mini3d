@@ -13,10 +13,8 @@ pub(crate) enum ActivityStatus {
     Stopping,
 }
 
-pub(crate) const MAX_ACTIVITY_NAME_LEN: usize = 32;
-
 pub(crate) struct ActivityEntry {
-    pub(crate) name: AsciiArray<MAX_ACTIVITY_NAME_LEN>,
+    pub(crate) name: AsciiArray<32>,
     pub(crate) status: ActivityStatus,
     pub(crate) parent: SlotId,
     pub(crate) first_child: SlotId,
@@ -35,7 +33,14 @@ impl Default for ActivityManager {
             root: ActivityId(SlotId::null()),
             entries: SlotMap::new(),
         };
-        // TODO: add root activity
+        manager.root = ActivityId(manager.entries.add(ActivityEntry {
+            name: AsciiArray::from("root"),
+            status: ActivityStatus::Running,
+            parent: SlotId::null(),
+            first_child: SlotId::null(),
+            next_sibling: SlotId::null(),
+            ecs: SlotId::null(),
+        }));
         manager
     }
 }

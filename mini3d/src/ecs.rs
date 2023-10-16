@@ -3,17 +3,14 @@ use crate::{
     platform::PlatformManager,
     resource::ResourceManager,
     serialize::{Decoder, DecoderError, EncoderError},
-    utils::slotmap::SlotMap,
+    utils::slotmap::{SlotId, SlotMap},
 };
 
 use crate::{input::InputManager, renderer::RendererManager, serialize::Encoder};
 
 use self::{
     api::{context::Context, time::TimeAPI},
-    container::ContainerTable,
-    entity::EntityTable,
     instance::ECSInstance,
-    query::QueryTable,
     scheduler::Scheduler,
 };
 
@@ -29,6 +26,8 @@ pub mod scheduler;
 pub mod sparse;
 pub mod system;
 pub mod view;
+
+pub(crate) struct ECSInstanceId(pub(crate) SlotId);
 
 #[derive(Default)]
 pub(crate) struct ECSManager {
@@ -61,6 +60,10 @@ impl ECSManager {
         //     self.scenes.add(Box::new(scene));
         // }
         Ok(())
+    }
+
+    pub(crate) fn add(&mut self) -> ECSInstanceId {
+        ECSInstanceId(self.instances.add(ECSInstance::default()))
     }
 
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> Result<(), RegistryError> {

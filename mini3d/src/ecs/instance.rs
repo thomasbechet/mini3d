@@ -1,3 +1,5 @@
+use super::{container::ContainerTable, entity::EntityTable, query::QueryTable};
+
 pub(crate) struct ECSInstance {
     pub(crate) containers: ContainerTable,
     entities: EntityTable,

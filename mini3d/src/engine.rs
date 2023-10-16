@@ -3,7 +3,6 @@ use mini3d_derive::Error;
 use crate::activity::ActivityManager;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::ecs::scheduler::Invocation;
 use crate::ecs::ECSUpdateContext;
 use crate::feature::{common, input, physics, renderer};
 use crate::input::provider::InputProvider;
@@ -18,7 +17,6 @@ use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
-use crate::utils::uid::ToUID;
 
 #[derive(Error, Debug)]
 pub enum ProgressError {
@@ -229,43 +227,23 @@ impl Engine {
         self.logger.set_provider(Box::new(provider));
     }
 
-    pub fn register_system<S: ExclusiveSystem>(
-        &mut self,
-        name: &str,
-        stage: &str,
-    ) -> Result<(), RegistryError> {
-        self.registry
-            .system
-            .add_static_exclusive::<S>(name, stage, SystemOrder::default())?;
-        self.ecs.on_registry_update(&self.registry)?;
-        Ok(())
-    }
-
-    pub fn invoke(
-        &mut self,
-        stage: impl ToUID,
-        invocation: Invocation,
-    ) -> Result<(), RegistryError> {
-        self.ecs.scheduler.invoke(stage.to_uid(), invocation)
-    }
-
     pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.resource
-            .save_state(&self.registry.component, encoder)?;
-        self.renderer.save_state(encoder)?;
-        self.ecs.save_state(&self.registry.component, encoder)?;
-        self.input.save_state(encoder)?;
-        self.global_time.serialize(encoder)?;
+        // self.resource
+        //     .save_state(&self.registry.component, encoder)?;
+        // self.renderer.save_state(encoder)?;
+        // self.ecs.save_state(&self.registry.component, encoder)?;
+        // self.input.save_state(encoder)?;
+        // self.global_time.serialize(encoder)?;
         Ok(())
     }
 
     pub fn load(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        self.resource
-            .load_state(&self.registry.component, decoder)?;
-        self.renderer.load_state(decoder)?;
-        self.ecs.load_state(&self.registry.component, decoder)?;
-        self.input.load_state(decoder)?;
-        self.global_time = Serialize::deserialize(decoder, &Default::default())?;
+        // self.resource
+        //     .load_state(&self.registry.component, decoder)?;
+        // self.renderer.load_state(decoder)?;
+        // self.ecs.load_state(&self.registry.component, decoder)?;
+        // self.input.load_state(decoder)?;
+        // self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
