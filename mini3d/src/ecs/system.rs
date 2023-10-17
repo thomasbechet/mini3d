@@ -1,4 +1,4 @@
-use crate::{feature::common::component_type::ComponentId, resource::ResourceManager};
+use crate::{feature::core::component_type::ComponentId, resource::ResourceManager};
 
 use super::{api::context::Context, error::ResolverError};
 
@@ -17,7 +17,7 @@ pub trait ParallelSystem: 'static + Default {
 }
 
 use crate::{
-    feature::common::{program::Program, system::System},
+    feature::common::program::Program,
     utils::{slotmap::SparseSecondaryMap, uid::ToUID},
 };
 

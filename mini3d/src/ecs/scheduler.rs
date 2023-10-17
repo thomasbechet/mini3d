@@ -1,11 +1,8 @@
 use std::collections::VecDeque;
 
-use crate::{
-    registry::error::RegistryError,
-    utils::{
-        slotmap::{SlotId, SlotMap},
-        uid::{ToUID, UID},
-    },
+use crate::utils::{
+    slotmap::{SlotId, SlotMap},
+    uid::{ToUID, UID},
 };
 
 pub enum Invocation {

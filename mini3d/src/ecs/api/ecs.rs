@@ -8,10 +8,6 @@ use crate::{
         scheduler::Invocation,
         view::{ComponentViewMut, ComponentViewRef},
     },
-    registry::{
-        component::{Component, ComponentType},
-        error::RegistryError,
-    },
     resource::handle::ResourceHandle,
     utils::uid::{ToUID, UID},
 };

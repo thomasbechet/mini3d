@@ -1,9 +1,8 @@
 use mini3d_derive::Error;
 
-use crate::activity::ActivityManager;
+use crate::activity::{ActivityManager, ActivityUpdateContext};
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::ecs::ECSUpdateContext;
 use crate::feature::{common, input, physics, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
@@ -16,7 +15,7 @@ use crate::processor::Processor;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
 use crate::resource::ResourceManager;
-use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 
 #[derive(Error, Debug)]
 pub enum ProgressError {
@@ -191,7 +190,6 @@ impl Engine {
 
     pub fn new(features: EngineFeatures) -> Self {
         let mut instance = Self {
-            registry: Default::default(),
             storage: Default::default(),
             resource: Default::default(),
             input: Default::default(),
@@ -279,9 +277,8 @@ impl Engine {
 
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
-        self.ecs
-            .update(ECSUpdateContext {
-                registry: &mut self.registry,
+        self.activity
+            .update(ActivityUpdateContext {
                 resource: &mut self.resource,
                 input: &mut self.input,
                 renderer: &mut self.renderer,

@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use crate::{
-    feature::common::system::System,
+    feature::{common::system::System, core::component_type::ComponentId},
     utils::{
         slotmap::{SlotId, SlotMap},
         uid::ToUID,
@@ -26,15 +26,15 @@ pub(crate) struct QueryEntry {
 
 #[derive(Default)]
 pub(crate) struct QueryTable {
-    pub(crate) components: Vec<ComponentType>,
+    pub(crate) components: Vec<ComponentId>,
     pub(crate) entries: SlotMap<QueryEntry>,
 }
 
 pub(crate) fn query_archetype_match(
     query: &QueryEntry,
-    query_components: &[ComponentType],
+    query_components: &[ComponentId],
     archetype: &ArchetypeEntry,
-    archetype_components: &[ComponentType],
+    archetype_components: &[ComponentId],
 ) -> bool {
     let components = &archetype_components[archetype.component_range.clone()];
     let all = &query_components[query.all.clone()];
@@ -109,9 +109,9 @@ impl QueryTable {
     fn add_query(
         &mut self,
         entities: &mut EntityTable,
-        all: &[ComponentType],
-        any: &[ComponentType],
-        not: &[ComponentType],
+        all: &[ComponentId],
+        any: &[ComponentId],
+        not: &[ComponentId],
     ) -> Query {
         let mut query = QueryEntry::default();
         let start = self.components.len();
@@ -142,9 +142,9 @@ impl QueryTable {
 pub struct QueryBuilder<'a> {
     pub(crate) registry: &'a ComponentRegistryManager,
     pub(crate) system: System,
-    pub(crate) all: &'a mut Vec<ComponentType>,
-    pub(crate) any: &'a mut Vec<ComponentType>,
-    pub(crate) not: &'a mut Vec<ComponentType>,
+    pub(crate) all: &'a mut Vec<ComponentId>,
+    pub(crate) any: &'a mut Vec<ComponentId>,
+    pub(crate) not: &'a mut Vec<ComponentId>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
 }

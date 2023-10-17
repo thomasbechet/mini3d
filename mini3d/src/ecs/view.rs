@@ -1,4 +1,4 @@
-use crate::feature::common::component_type::{
+use crate::feature::core::component_type::{
     ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
 };
 

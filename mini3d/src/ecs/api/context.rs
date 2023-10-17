@@ -1,5 +1,4 @@
 use crate::{
-    activity::ActivityId,
     ecs::{
         container::ContainerTable, entity::EntityTable, query::QueryTable, scheduler::Scheduler,
     },
@@ -10,10 +9,10 @@ use crate::{
     resource::ResourceManager,
 };
 
-use super::time::TimeAPI;
+use super::{activity::ActivityContext, time::TimeAPI};
 
 pub struct Context<'a> {
-    pub(crate) activity: ActivityId,
+    pub(crate) activity: &'a mut ActivityContext,
     pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,

@@ -2,19 +2,46 @@ use crate::{activity::ActivityId, resource::handle::ResourceHandle};
 
 use super::context::Context;
 
+pub enum ActivityCommand {
+    Start(ActivityId, ResourceHandle),
+    Stop(ActivityId),
+    InjectSystemSet(ActivityId, ResourceHandle),
+}
+
+pub(crate) struct ActivityContext {
+    pub(crate) active: ActivityId,
+    pub(crate) commands: Vec<ActivityCommand>,
+    pub(crate) next_id: ActivityId,
+}
+
+impl Default for ActivityContext {
+    fn default() -> Self {
+        Self {
+            active: Default::default(),
+            commands: Default::default(),
+            next_id: ActivityId(1),
+        }
+    }
+}
+
 pub struct Activity;
 
 impl Activity {
     pub fn start(ctx: &mut Context, descriptor: ResourceHandle) -> ActivityId {
-        // Check duplicated activity
-        // Add activity
-        // Set status to Starting
-        // Invoke 'on_start' stage
-        todo!()
+        let next = ctx.activity.next_id;
+        ctx.activity.next_id.0 += 1;
+        ctx.activity
+            .commands
+            .push(ActivityCommand::Start(next, descriptor));
+        next
     }
 
-    pub fn stop(ctx: &mut Context, activity: ActivityId) {
-        todo!()
+    pub fn stop(ctx: &mut Context, id: ActivityId) {
+        ctx.activity.commands.push(ActivityCommand::Stop(id));
+    }
+
+    pub fn active(ctx: &Context) -> ActivityId {
+        ctx.activity
     }
 
     pub fn inject_system_set(ctx: &mut Context, activity: ActivityId, set: ResourceHandle) {
