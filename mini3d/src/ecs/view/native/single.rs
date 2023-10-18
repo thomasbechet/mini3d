@@ -9,8 +9,8 @@ use crate::{
         entity::Entity,
         view::{ComponentViewMut, ComponentViewRef},
     },
-    registry::component::{
-        Component, ComponentType, PrivateComponentTableMut, PrivateComponentTableRef,
+    feature::core::component_type::{
+        Component, ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
     },
 };
 
@@ -50,10 +50,10 @@ impl<'a, C: Component> Index<Entity> for NativeSingleViewRef<'a, C> {
 }
 
 impl<'a, C: Component> ComponentViewRef for NativeSingleViewRef<'a, C> {
-    fn view(table: PrivateComponentTableRef, ty: ComponentType) -> Self {
+    fn view(table: PrivateComponentTableRef, id: ComponentId) -> Self {
         Self {
             container: Ref::map(
-                table.0.containers.get(ty.0).unwrap().try_borrow().unwrap(),
+                table.0.containers.get(id.0).unwrap().try_borrow().unwrap(),
                 |r| {
                     r.as_any()
                         .downcast_ref::<NativeSingleContainer<C>>()
@@ -110,13 +110,13 @@ impl<'a, C: Component> IndexMut<Entity> for NativeSingleViewMut<'a, C> {
 }
 
 impl<'a, C: Component> ComponentViewMut for NativeSingleViewMut<'a, C> {
-    fn view_mut(table: PrivateComponentTableMut, ty: ComponentType, cycle: u32) -> Self {
+    fn view_mut(table: PrivateComponentTableMut, id: ComponentId, cycle: u32) -> Self {
         Self {
             container: RefMut::map(
                 table
                     .0
                     .containers
-                    .get_mut(ty.0)
+                    .get_mut(id.0)
                     .unwrap()
                     .try_borrow_mut()
                     .unwrap(),

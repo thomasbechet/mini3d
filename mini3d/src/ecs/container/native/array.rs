@@ -6,7 +6,7 @@ use crate::{
         entity::Entity,
         sparse::PagedVector,
     },
-    registry::component::Component,
+    feature::core::component_type::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 

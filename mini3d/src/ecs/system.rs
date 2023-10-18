@@ -1,6 +1,12 @@
-use crate::{feature::core::component_type::ComponentId, resource::ResourceManager};
+use crate::{
+    feature::core::component_type::ComponentId,
+    resource::{handle::ResourceRef, ResourceManager},
+    utils::slotmap::{SlotId, SlotMap},
+};
 
 use super::{api::context::Context, error::ResolverError};
+
+pub(crate) struct SystemId(pub(crate) SlotId);
 
 pub trait ExclusiveSystem: 'static + Default {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError> {
@@ -16,10 +22,7 @@ pub trait ParallelSystem: 'static + Default {
     fn run(&self, ctx: &Context) {}
 }
 
-use crate::{
-    feature::common::program::Program,
-    utils::{slotmap::SparseSecondaryMap, uid::ToUID},
-};
+use crate::{feature::common::program::Program, utils::uid::ToUID};
 
 use super::{
     entity::EntityTable,
@@ -27,7 +30,7 @@ use super::{
 };
 
 pub struct ExclusiveResolver<'a> {
-    system: System,
+    system: SystemId,
     all: &'a mut Vec<ComponentId>,
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
@@ -177,7 +180,7 @@ pub(crate) enum SystemInstance {
 }
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) handle: System,
+    pub(crate) handle: ResourceRef,
     pub(crate) system: SystemInstance,
     pub(crate) last_execution_cycle: usize,
     pub(crate) active: bool,
@@ -209,7 +212,6 @@ impl SystemInstanceEntry {
         match self.system {
             SystemInstance::Exclusive(ref mut instance) => {
                 instance.resolve(&mut ExclusiveResolver {
-                    registry,
                     system: self.handle,
                     all: &mut Default::default(),
                     any: &mut Default::default(),
@@ -220,7 +222,6 @@ impl SystemInstanceEntry {
             }
             SystemInstance::Parallel(ref mut instance) => {
                 instance.resolve(&mut ParallelResolver {
-                    registry,
                     system: self.handle,
                     reads: Vec::new(),
                     writes: Vec::new(),
@@ -237,11 +238,12 @@ impl SystemInstanceEntry {
 }
 
 #[derive(Default)]
-pub(crate) struct SystemInstanceTable {
-    pub(crate) entries: SparseSecondaryMap<SystemInstanceEntry>,
+pub(crate) struct SystemTable {
+    pub(crate) systems: Vec<(ResourceRef, SystemId)>,
+    pub(crate) instances: SlotMap<SystemInstanceEntry>,
 }
 
-impl SystemInstanceTable {
+impl SystemTable {
     pub(crate) fn on_registry_update(
         &mut self,
         registry: &RegistryManager,

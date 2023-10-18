@@ -6,7 +6,7 @@ use crate::{
         api::{context::Context, ecs::ECS},
         entity::Entity,
         instance::ParallelResolver,
-        query::Query,
+        query::QueryId,
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     registry::{component::ComponentType, error::RegistryError},
@@ -93,7 +93,7 @@ pub struct PropagateTransforms {
     transform: ComponentType,
     hierarchy: ComponentType,
     local_to_world: ComponentType,
-    query: Query,
+    query: QueryId,
 }
 
 impl PropagateTransforms {

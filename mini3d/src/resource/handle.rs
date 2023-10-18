@@ -28,6 +28,10 @@ impl ResourceRef {
             }
         }
     }
+
+    pub fn handle(&self) -> ResourceHandle {
+        ResourceHandle(self.id)
+    }
 }
 
 pub trait ToResourceHandle {
@@ -42,7 +46,7 @@ impl ToResourceHandle for ResourceHandle {
 
 impl ToResourceHandle for ResourceRef {
     fn to_handle(&self) -> ResourceHandle {
-        ResourceHandle(self.id)
+        self.handle()
     }
 }
 

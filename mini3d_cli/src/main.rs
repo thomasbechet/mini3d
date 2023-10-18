@@ -2,7 +2,7 @@ use mini3d::{
     ecs::{
         api::{context::Context, ecs::ECS, registry::ComponentRegistry, time::Time},
         instance::ExclusiveResolver,
-        query::Query,
+        query::QueryId,
         scheduler::Invocation,
     },
     engine::{Engine, EngineFeatures},
@@ -42,7 +42,7 @@ impl ExclusiveSystem for SpawnSystem {
 #[derive(Default)]
 struct TestSystem {
     transforms: StaticComponentType<Transform>,
-    transform_query: Query,
+    transform_query: QueryId,
 }
 
 impl ExclusiveSystem for TestSystem {

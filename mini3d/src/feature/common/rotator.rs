@@ -5,7 +5,7 @@ use crate::{
     ecs::{
         api::{context::Context, ecs::ECS, time::Time},
         instance::ParallelResolver,
-        query::Query,
+        query::QueryId,
     },
     registry::{component::ComponentType, error::RegistryError},
 };
@@ -21,7 +21,7 @@ pub struct Rotator {
 pub struct RotatorSystem {
     transform: ComponentType,
     rotator: ComponentType,
-    query: Query,
+    query: QueryId,
 }
 
 impl RotatorSystem {

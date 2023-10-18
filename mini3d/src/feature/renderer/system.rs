@@ -2,7 +2,7 @@ use crate::{
     ecs::{
         api::{context::Context, ecs::ECS},
         instance::ExclusiveResolver,
-        query::Query,
+        query::QueryId,
     },
     expect,
     feature::common::local_to_world::LocalToWorld,
@@ -22,9 +22,9 @@ pub struct SynchronizeRendererResources {
     static_mesh: StaticComponentType<StaticMesh>,
     local_to_world: StaticComponentType<LocalToWorld>,
     // Queries
-    model_query: Query,
-    camera_query: Query,
-    scene_canvas_query: Query,
+    model_query: QueryId,
+    camera_query: QueryId,
+    scene_canvas_query: QueryId,
 }
 
 impl SynchronizeRendererResources {

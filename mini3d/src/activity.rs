@@ -11,7 +11,7 @@ use crate::{
         entity::EntityTable,
         query::QueryTable,
         scheduler::Scheduler,
-        system::{SystemInstance, SystemInstanceTable},
+        system::{SystemInstance, SystemTable},
     },
     input::InputManager,
     logger::LoggerManager,
@@ -34,7 +34,7 @@ pub(crate) struct ActivityEntry {
     pub(crate) containers: ContainerTable,
     pub(crate) entities: EntityTable,
     pub(crate) queries: QueryTable,
-    pub(crate) instances: SystemInstanceTable,
+    pub(crate) systems: SystemTable,
     pub(crate) scheduler: Scheduler,
     pub(crate) global_cycle: u32,
 }
@@ -77,7 +77,7 @@ impl Default for ActivityManager {
             containers: ContainerTable::new(),
             entities: EntityTable::new(),
             queries: QueryTable::new(),
-            instances: SystemInstanceTable::new(),
+            systems: SystemTable::new(),
             scheduler: Scheduler::default(),
             global_cycle: 0,
         });
@@ -135,7 +135,7 @@ impl ActivityManager {
             if node.count == 1 {
                 // Find instance
                 let instance = activity.scheduler.instances[node.first];
-                let instance = &activity.instances.entries[instance.0];
+                let instance = &activity.systems.instances[instance.0];
 
                 // Run the system
                 match &instance.system {

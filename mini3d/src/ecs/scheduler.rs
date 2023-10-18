@@ -8,6 +8,8 @@ use crate::{
     },
 };
 
+use super::system::SystemId;
+
 pub enum Invocation {
     Immediate,
     EndFrame,
@@ -39,7 +41,7 @@ pub(crate) struct Scheduler {
     // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
     // Instances
-    pub(crate) instances: Vec<System>,
+    pub(crate) instances: Vec<SystemId>,
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next frame stage
@@ -51,22 +53,22 @@ pub(crate) struct Scheduler {
 }
 
 impl Scheduler {
-    pub(crate) fn log(&self, registry: &SystemRegistryManager) {
-        println!("Scheduler:");
-        for stage in self.stages.iter() {
-            println!("  Stage: {}", stage.uid);
-            let mut next = stage.first_node;
-            while !next.is_null() {
-                let node = self.nodes[next];
-                println!("    Node: {} instances", node.count);
-                for i in node.first..node.first + node.count {
-                    let name = registry.get(self.instances[i]).unwrap().name.as_str();
-                    println!("    Instance: {}", name);
-                }
-                next = node.next;
-            }
-        }
-    }
+    // pub(crate) fn log(&self, registry: &SystemRegistryManager) {
+    //     println!("Scheduler:");
+    //     for stage in self.stages.iter() {
+    //         println!("  Stage: {}", stage.uid);
+    //         let mut next = stage.first_node;
+    //         while !next.is_null() {
+    //             let node = self.nodes[next];
+    //             println!("    Node: {} instances", node.count);
+    //             for i in node.first..node.first + node.count {
+    //                 let name = registry.get(self.instances[i]).unwrap().name.as_str();
+    //                 println!("    Instance: {}", name);
+    //             }
+    //             next = node.next;
+    //         }
+    //     }
+    // }
 
     pub(crate) fn on_registry_update(&mut self, registry: &SystemRegistryManager) {
         // Reset baked resources

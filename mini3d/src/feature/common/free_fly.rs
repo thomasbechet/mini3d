@@ -4,7 +4,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 use crate::{
     ecs::{
         api::{context::Context, ecs::ECS, input::Input, time::Time},
-        query::Query,
+        query::QueryId,
         system::ParallelSystem,
     },
     expect,
@@ -53,7 +53,7 @@ impl FreeFly {
 pub struct FreeFlySystem {
     free_fly: ComponentId,
     transform: ComponentId,
-    query: Query,
+    query: QueryId,
 }
 
 impl FreeFlySystem {

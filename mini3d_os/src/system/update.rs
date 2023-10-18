@@ -2,7 +2,7 @@ use mini3d::{
     ecs::{
         api::{context::Context, ecs::ECS, input::Input, renderer::Renderer},
         instance::ExclusiveResolver,
-        query::Query,
+        query::QueryId,
     },
     expect,
     feature::common::free_fly::FreeFly,
@@ -18,7 +18,7 @@ pub struct OSUpdate {
     os: StaticComponentType<OS>,
     free_fly: StaticComponentType<FreeFly>,
     // ui: StaticComponent<UI>,
-    query: Query,
+    query: QueryId,
 }
 
 impl OSUpdate {

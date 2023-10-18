@@ -1,16 +1,15 @@
 use crate::ecs::view::ComponentViewMut;
+use crate::feature::core::component_type::{
+    ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
+};
 use crate::reflection::PropertyId;
-use crate::registry::component::{ComponentType, PrivateComponentTableMut};
 use crate::{ecs::entity::Entity, utils::uid::UID};
 
 use std::cell::{Ref, RefMut};
 
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
-use crate::{
-    ecs::{container::native::single::SingleContainer, view::ComponentViewRef},
-    registry::component::PrivateComponentTableRef,
-};
+use crate::ecs::{container::native::single::SingleContainer, view::ComponentViewRef};
 
 macro_rules! trait_property_ref_impl {
     ($type:ty, $read:ident) => {
@@ -57,10 +56,10 @@ impl<'a> PropertySingleViewRef<'a> {
 }
 
 impl<'a> ComponentViewRef for PropertySingleViewRef<'a> {
-    fn view(table: PrivateComponentTableRef, ty: ComponentType) -> Self {
+    fn view(table: PrivateComponentTableRef, id: ComponentId) -> Self {
         Self {
             container: Ref::map(
-                table.0.containers.get(ty.0).unwrap().try_borrow().unwrap(),
+                table.0.containers.get(id.0).unwrap().try_borrow().unwrap(),
                 |r| r.as_any().downcast_ref::<dyn SingleContainer>().unwrap(),
             ),
         }
@@ -93,13 +92,13 @@ impl<'a> PropertySingleViewMut<'a> {
 }
 
 impl<'a> ComponentViewMut for PropertySingleViewMut<'a> {
-    fn view_mut(table: PrivateComponentTableMut, ty: ComponentType) -> Self {
+    fn view_mut(table: PrivateComponentTableMut, id: ComponentId) -> Self {
         Self {
             container: RefMut::map(
                 table
                     .0
                     .containers
-                    .get_mut(ty.0)
+                    .get_mut(id.0)
                     .unwrap()
                     .try_borrow_mut()
                     .unwrap(),

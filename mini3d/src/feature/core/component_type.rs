@@ -3,7 +3,7 @@ use std::any::TypeId;
 use crate::{
     ecs::container::{
         native::single::{NativeSingleContainer, SingleContainer},
-        ContainerTable,
+        Container, ContainerTable,
     },
     reflection::{Property, Reflect},
     resource::handle::{ReferenceResolver, ResourceRef},
@@ -28,7 +28,7 @@ pub struct PrivateComponentTableRef<'a>(pub(crate) &'a ContainerTable);
 pub struct PrivateComponentTableMut<'a>(pub(crate) &'a mut ContainerTable);
 
 pub(crate) trait ComponentReflection {
-    fn create_scene_container(&self) -> Box<dyn SingleContainer>;
+    fn create_container(&self) -> Box<dyn SingleContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
     fn type_id(&self) -> TypeId;
@@ -39,7 +39,7 @@ pub(crate) struct NativeComponentReflection<C: Component> {
 }
 
 impl<C: Component> ComponentReflection for NativeComponentReflection<C> {
-    fn create_scene_container(&self) -> Box<dyn SingleContainer> {
+    fn create_container(&self) -> Box<dyn SingleContainer> {
         Box::new(NativeSingleContainer::<C>::with_capacity(128))
     }
 
@@ -100,6 +100,13 @@ impl ComponentType {
             access_name: AsciiArray::from_str(access_name),
             kind: ComponentKind::Struct { structure },
             storage,
+        }
+    }
+
+    pub(crate) fn create_container(&self) -> Box<dyn Container> {
+        match &self.kind {
+            ComponentKind::Native { reflection } => reflection.create_container(),
+            _ => unimplemented!(),
         }
     }
 }

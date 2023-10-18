@@ -8,8 +8,8 @@ use crate::{
         entity::Entity,
         sparse::PagedVector,
     },
+    feature::core::component_type::Component,
     reflection::PropertyId,
-    registry::component::Component,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::uid::UID,
 };

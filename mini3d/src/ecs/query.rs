@@ -1,7 +1,10 @@
 use std::ops::Range;
 
+use mini3d_derive::Error;
+
 use crate::{
-    feature::{common::system::System, core::component_type::ComponentId},
+    feature::core::component_type::ComponentId,
+    resource::ResourceManager,
     utils::{
         slotmap::{SlotId, SlotMap},
         uid::ToUID,
@@ -10,11 +13,13 @@ use crate::{
 
 use super::{
     archetype::{Archetype, ArchetypeEntry},
+    container::ContainerTable,
     entity::EntityTable,
+    system::SystemId,
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub struct Query(pub(crate) SlotId);
+pub struct QueryId(pub(crate) SlotId);
 
 #[derive(Default)]
 pub(crate) struct QueryEntry {
@@ -75,10 +80,10 @@ pub(crate) fn query_archetype_match(
 impl QueryTable {
     fn find_same_query(
         &self,
-        all: &[ComponentType],
-        any: &[ComponentType],
-        not: &[ComponentType],
-    ) -> Option<Query> {
+        all: &[ComponentId],
+        any: &[ComponentId],
+        not: &[ComponentId],
+    ) -> Option<QueryId> {
         for (id, query) in self.entries.iter() {
             if query.all.len() != all.len() {
                 continue;
@@ -101,7 +106,7 @@ impl QueryTable {
             if not.iter().any(|c| !not2.contains(c)) {
                 continue;
             }
-            return Some(Query(id));
+            return Some(QueryId(id));
         }
         None
     }
@@ -112,7 +117,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> Query {
+    ) -> QueryId {
         let mut query = QueryEntry::default();
         let start = self.components.len();
         self.components.extend_from_slice(all);
@@ -121,7 +126,7 @@ impl QueryTable {
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
-        let id = Query(self.entries.add(query));
+        let id = QueryId(self.entries.add(query));
         // Bind new query to existing archetypes
         for archetype in entities.archetypes.entries.keys() {
             let archetype_entry = &entities.archetypes[archetype];
@@ -139,36 +144,45 @@ impl QueryTable {
     }
 }
 
+#[derive(Error)]
+pub enum QueryError {
+    #[error("component not found")]
+    ComponentNotFound,
+}
+
 pub struct QueryBuilder<'a> {
-    pub(crate) registry: &'a ComponentRegistryManager,
-    pub(crate) system: System,
+    pub(crate) resources: &'a ResourceManager,
+    pub(crate) system: SystemId,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
     pub(crate) not: &'a mut Vec<ComponentId>,
     pub(crate) entities: &'a mut EntityTable,
+    pub(crate) containers: &'a mut ContainerTable,
     pub(crate) queries: &'a mut QueryTable,
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn all(self, components: &[impl ToUID]) -> Result<Self, RegistryError> {
+    fn find_component(&self, component: impl ToUID) -> Result<ComponentId, QueryError> {
+        let handle = self
+            .resources
+            .find(component)
+            .ok_or(QueryError::ComponentNotFound)?;
+        Ok(self.containers.preallocate(handle, &mut self.resources))
+    }
+
+    pub fn all(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
         for component in components {
-            let component = self
-                .registry
-                .find(component.to_uid())
-                .ok_or(RegistryError::ComponentNotFound)?;
+            let id = self.find_component(component)?;
             if self.all.iter().all(|c| *c != component) {
-                self.all.push(component);
+                self.all.push(id);
             }
         }
         Ok(self)
     }
 
-    pub fn any(self, components: &[impl ToUID]) -> Result<Self, RegistryError> {
+    pub fn any(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
         for component in components {
-            let component = self
-                .registry
-                .find(component.to_uid())
-                .ok_or(RegistryError::ComponentNotFound)?;
+            let id = self.find_component(component)?;
             if self.any.iter().all(|c| *c != component) {
                 self.any.push(component);
             }
@@ -176,12 +190,9 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn not(self, components: &[impl ToUID]) -> Result<Self, RegistryError> {
+    pub fn not(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
         for component in components {
-            let component = self
-                .registry
-                .find(component.to_uid())
-                .ok_or(RegistryError::ComponentNotFound)?;
+            let id = self.find_component(component)?;
             if self.not.iter().all(|c| *c != component) {
                 self.not.push(component);
             }
@@ -189,7 +200,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn build(mut self) -> Query {
+    pub fn build(mut self) -> QueryId {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
             return id;
         }
