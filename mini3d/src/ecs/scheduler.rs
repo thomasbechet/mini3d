@@ -1,8 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::utils::{
-    slotmap::{SlotId, SlotMap},
-    uid::{ToUID, UID},
+use crate::{
+    feature::core::system_stage::SystemStage,
+    utils::{
+        slotmap::{SlotId, SlotMap},
+        uid::{ToUID, UID},
+    },
 };
 
 pub enum Invocation {
@@ -160,11 +163,7 @@ impl Scheduler {
         Some(node)
     }
 
-    pub(crate) fn invoke(
-        &mut self,
-        stage: impl ToUID,
-        invocation: Invocation,
-    ) -> Result<(), RegistryError> {
+    pub(crate) fn invoke(&mut self, stage: impl ToUID, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage.to_uid());

@@ -3,7 +3,9 @@ use std::cell::RefCell;
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::common::component_type::{ComponentId, PrivateComponentTableRef},
+    feature::core::component_type::{
+        ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
+    },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::slotmap::SparseSecondaryMap,
 };
@@ -117,6 +119,6 @@ impl ContainerTable {
     }
 
     pub(crate) fn view_mut<V: ComponentViewMut>(&self, component: ComponentId, cycle: u32) -> V {
-        V::view_mut(PrivateComponentTableRef(self), component, cycle)
+        V::view_mut(PrivateComponentTableMut(self), component, cycle)
     }
 }

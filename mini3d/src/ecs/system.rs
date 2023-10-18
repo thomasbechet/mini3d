@@ -22,7 +22,6 @@ use crate::{
 };
 
 use super::{
-    api::ecs::ECS,
     entity::EntityTable,
     query::{QueryBuilder, QueryTable},
 };
@@ -143,7 +142,7 @@ impl ExclusiveSystemInstance {
         }
     }
 
-    pub(crate) fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
+    pub(crate) fn run(&self, ctx: &mut Context) {
         match self {
             Self::Static(instance) => instance.run(ctx),
             Self::Program(instance) => {}
@@ -238,11 +237,11 @@ impl SystemInstanceEntry {
 }
 
 #[derive(Default)]
-pub(crate) struct SystemInstanceManager {
+pub(crate) struct SystemInstanceTable {
     pub(crate) entries: SparseSecondaryMap<SystemInstanceEntry>,
 }
 
-impl SystemInstanceManager {
+impl SystemInstanceTable {
     pub(crate) fn on_registry_update(
         &mut self,
         registry: &RegistryManager,
