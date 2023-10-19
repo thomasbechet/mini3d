@@ -59,6 +59,7 @@ impl<'a> ExclusiveResolver<'a> {
             not: self.not,
             entities: self.entities,
             queries: self.queries,
+            resources: self.resources,
         }
     }
 }

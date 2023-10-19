@@ -151,7 +151,6 @@ pub enum QueryError {
 }
 
 pub struct QueryBuilder<'a> {
-    pub(crate) resources: &'a ResourceManager,
     pub(crate) system: SystemId,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
@@ -159,6 +158,7 @@ pub struct QueryBuilder<'a> {
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) containers: &'a mut ContainerTable,
     pub(crate) queries: &'a mut QueryTable,
+    pub(crate) resources: &'a mut ResourceManager,
 }
 
 impl<'a> QueryBuilder<'a> {
@@ -167,7 +167,7 @@ impl<'a> QueryBuilder<'a> {
             .resources
             .find(component)
             .ok_or(QueryError::ComponentNotFound)?;
-        Ok(self.containers.preallocate(handle, &mut self.resources))
+        Ok(self.containers.preallocate(handle, self.resources))
     }
 
     pub fn all(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
