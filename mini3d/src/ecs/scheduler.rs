@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-use super::system::SystemId;
+use super::system::{SystemId, SystemTable};
 
 pub enum Invocation {
     Immediate,
@@ -70,7 +70,7 @@ impl Scheduler {
     //     }
     // }
 
-    pub(crate) fn on_registry_update(&mut self, registry: &SystemRegistryManager) {
+    pub(crate) fn on_registry_update(&mut self, systems: &SystemTable) {
         // Reset baked resources
         self.stages.clear();
         self.nodes.clear();

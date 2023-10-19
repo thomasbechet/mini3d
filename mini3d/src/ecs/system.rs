@@ -4,7 +4,7 @@ use crate::{
     utils::slotmap::{SlotId, SlotMap},
 };
 
-use super::{api::context::Context, error::ResolverError};
+use super::{api::context::Context, container::ContainerTable, error::ResolverError};
 
 pub(crate) struct SystemId(pub(crate) SlotId);
 
@@ -36,16 +36,17 @@ pub struct ExclusiveResolver<'a> {
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
+    containers: &'a mut ContainerTable,
     resources: &'a mut ResourceManager,
 }
 
 impl<'a> ExclusiveResolver<'a> {
     pub fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
         let handle = self
-            .registry
-            .find::<H>(component)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        Ok(handle)
+            .resources
+            .find(component)
+            .ok_or(ResolverError::ComponentNotFound)?;
+        Ok(self.containers.preallocate(handle, self.resources))
     }
 
     pub fn query(&mut self) -> QueryBuilder<'_> {
@@ -59,13 +60,14 @@ impl<'a> ExclusiveResolver<'a> {
             not: self.not,
             entities: self.entities,
             queries: self.queries,
+            containers: self.containers,
             resources: self.resources,
         }
     }
 }
 
 pub struct ParallelResolver<'a> {
-    system: System,
+    system: SystemId,
     reads: Vec<ComponentId>,
     writes: Vec<ComponentId>,
     all: &'a mut Vec<ComponentId>,
@@ -73,35 +75,36 @@ pub struct ParallelResolver<'a> {
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
+    containers: &'a mut ContainerTable,
     resources: &'a mut ResourceManager,
 }
 
 impl<'a> ParallelResolver<'a> {
-    pub fn read(&mut self, component: impl ToUID) -> Result<ComponentId, RegistryError> {
-        let handle: H = self
-            .registry
+    fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+        let handle = self
+            .resources
             .find(component)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        let id = handle.id();
+            .ok_or(ResolverError::ComponentNotFound)?;
+        Ok(self.containers.preallocate(handle, self.resources))
+    }
+
+    pub fn read(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+        let id = self.find(component)?;
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
         }
-        Ok(H::new(id))
+        Ok(id)
     }
 
-    pub fn write(&mut self, component: impl ToUID) -> Result<ComponentId, RegistryError> {
-        let handle: H = self
-            .registry
-            .find(component)
-            .ok_or(RegistryError::ComponentNotFound)?;
-        let id = handle.id();
+    pub fn write(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+        let id = self.find(component)?;
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);
         }
         if !self.writes.contains(&id) {
             self.writes.push(id);
         }
-        Ok(H::new(id))
+        Ok(id)
     }
 
     pub fn query(&mut self) -> QueryBuilder<'_> {
@@ -109,29 +112,30 @@ impl<'a> ParallelResolver<'a> {
         self.any.clear();
         self.not.clear();
         QueryBuilder {
-            registry: self.registry,
             system: self.system,
             all: self.all,
             any: self.any,
             not: self.not,
             entities: self.entities,
             queries: self.queries,
+            containers: self.containers,
+            resources: self.resources,
         }
     }
 }
 
-pub(crate) trait AnyStaticExclusiveSystemInstance {
-    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError>;
+pub(crate) trait AnyNativeExclusiveSystemInstance {
+    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError>;
     fn run(&self, ctx: &mut Context);
 }
 
-pub(crate) trait AnyStaticParallelSystemInstance {
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError>;
+pub(crate) trait AnyNativeParallelSystemInstance {
+    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError>;
     fn run(&self, ctx: &Context);
 }
 
 pub(crate) enum ExclusiveSystemInstance {
-    Static(Box<dyn AnyStaticExclusiveSystemInstance>),
+    Native(Box<dyn AnyNativeExclusiveSystemInstance>),
     Program(Program),
 }
 
@@ -139,37 +143,37 @@ impl ExclusiveSystemInstance {
     pub(crate) fn resolve(
         &mut self,
         resolver: &mut ExclusiveResolver,
-    ) -> Result<(), RegistryError> {
+    ) -> Result<(), ResolverError> {
         match self {
-            Self::Static(instance) => instance.resolve(resolver),
+            Self::Native(instance) => instance.resolve(resolver),
             Self::Program(_) => Ok(()),
         }
     }
 
     pub(crate) fn run(&self, ctx: &mut Context) {
         match self {
-            Self::Static(instance) => instance.run(ctx),
+            Self::Native(instance) => instance.run(ctx),
             Self::Program(instance) => {}
         }
     }
 }
 
 pub(crate) enum ParallelSystemInstance {
-    Static(Box<dyn AnyStaticParallelSystemInstance>),
+    Native(Box<dyn AnyNativeParallelSystemInstance>),
     Program(Program),
 }
 
 impl ParallelSystemInstance {
-    pub(crate) fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    pub(crate) fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
         match self {
-            Self::Static(instance) => instance.resolve(resolver),
+            Self::Native(instance) => instance.resolve(resolver),
             Self::Program(_) => Ok(()),
         }
     }
 
     pub(crate) fn run(&self, ctx: &Context) {
         match self {
-            Self::Static(instance) => instance.run(ctx),
+            Self::Native(instance) => instance.run(ctx),
             Self::Program(instance) => {}
         }
     }
@@ -183,9 +187,6 @@ pub(crate) enum SystemInstance {
 pub(crate) struct SystemInstanceEntry {
     pub(crate) handle: ResourceRef,
     pub(crate) system: SystemInstance,
-    pub(crate) last_execution_cycle: usize,
-    pub(crate) active: bool,
-    pub(crate) dirty: bool,
 }
 
 impl SystemInstanceEntry {
@@ -198,9 +199,6 @@ impl SystemInstanceEntry {
         Self {
             handle: system,
             system: instance,
-            last_execution_cycle: 0,
-            active: true,
-            dirty: true,
         }
     }
 

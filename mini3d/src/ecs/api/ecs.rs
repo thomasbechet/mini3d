@@ -7,7 +7,7 @@ use crate::{
         view::{ComponentViewMut, ComponentViewRef},
     },
     feature::core::component_type::{Component, ComponentId},
-    utils::uid::{ToUID, UID},
+    utils::uid::ToUID,
 };
 
 use super::context::Context;
@@ -25,6 +25,8 @@ impl ECS {
 
     pub fn add<C: Component>(ctx: &mut Context, entity: Entity, component: ComponentId, data: C) {}
 
+    pub fn add_any(ctx: &mut Context, entity: Entity, component: ComponentId) {}
+
     pub fn remove(ctx: &mut Context, entity: Entity, component: ComponentId) {}
 
     pub fn view<V: ComponentViewRef>(ctx: &Context, id: ComponentId) -> V {
@@ -33,10 +35,6 @@ impl ECS {
 
     pub fn view_mut<V: ComponentViewMut>(ctx: &Context, id: ComponentId) -> V {
         ctx.containers.view_mut(id, ctx.cycle)
-    }
-
-    pub fn set_periodic_invoke(ctx: &Context, stage: UID, frequency: f64) {
-        ctx.scheduler.set_periodic_invoke(stage, frequency);
     }
 
     pub fn invoke(ctx: &mut Context, stage: impl ToUID, invocation: Invocation) {

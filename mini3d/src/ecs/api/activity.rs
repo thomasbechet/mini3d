@@ -44,7 +44,11 @@ impl Activity {
         ctx.activity
     }
 
-    pub fn inject_system_set(ctx: &mut Context, activity: ActivityId, set: ResourceHandle) {
+    pub fn add_system_set(ctx: &mut Context, activity: ActivityId, set: ResourceHandle) {
+        todo!()
+    }
+
+    pub fn remove_system_set(ctx: &mut Context, activity: ActivityId, set: ResourceHandle) {
         todo!()
     }
 }

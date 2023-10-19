@@ -1,5 +1,7 @@
-#[derive(Default, Debug, Resource, Serialize, Reflect, Clone)]
-pub struct SystemStage {}
+#[derive(Default, Debug, Clone)]
+pub struct SystemStage {
+    periodic_invoke: Option<f64>,
+}
 
 impl SystemStage {
     pub const UPDATE: &'static str = "update";

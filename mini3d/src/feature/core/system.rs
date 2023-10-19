@@ -1,11 +1,11 @@
-use mini3d_derive::{Reflect, Resource, Serialize};
+use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
         api::context::Context,
         error::ResolverError,
         system::{
-            AnyStaticExclusiveSystemInstance, AnyStaticParallelSystemInstance, ExclusiveResolver,
+            AnyNativeExclusiveSystemInstance, AnyNativeParallelSystemInstance, ExclusiveResolver,
             ExclusiveSystem, ExclusiveSystemInstance, ParallelResolver, ParallelSystem,
             ParallelSystemInstance, SystemInstance,
         },
@@ -15,20 +15,20 @@ use crate::{
 
 use super::resource_type::Resource;
 
-pub(crate) trait AnySystemReflection {
+pub(crate) trait SystemReflection {
     fn create_instance(&self) -> SystemInstance;
 }
 
-struct StaticExclusiveSystemReflection<S: ExclusiveSystem> {
+struct NativeExclusiveSystemReflection<S: ExclusiveSystem> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection<S> {
+impl<S: ExclusiveSystem> SystemReflection for NativeExclusiveSystemReflection<S> {
     fn create_instance(&self) -> SystemInstance {
         struct InstanceHolder<S: ExclusiveSystem> {
             system: S,
         }
-        impl<S: ExclusiveSystem> AnyStaticExclusiveSystemInstance for InstanceHolder<S> {
+        impl<S: ExclusiveSystem> AnyNativeExclusiveSystemInstance for InstanceHolder<S> {
             fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError> {
                 self.system.setup(resolver)
             }
@@ -36,22 +36,22 @@ impl<S: ExclusiveSystem> AnySystemReflection for StaticExclusiveSystemReflection
                 self.system.run(ctx);
             }
         }
-        SystemInstance::Exclusive(ExclusiveSystemInstance::Static(Box::new(InstanceHolder {
+        SystemInstance::Exclusive(ExclusiveSystemInstance::Native(Box::new(InstanceHolder {
             system: S::default(),
         })))
     }
 }
 
-struct StaticParallelSystemReflection<S: ParallelSystem> {
+struct NativeParallelSystemReflection<S: ParallelSystem> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S> {
+impl<S: ParallelSystem> SystemReflection for NativeParallelSystemReflection<S> {
     fn create_instance(&self) -> SystemInstance {
         struct InstanceHolder<S: ParallelSystem> {
             system: S,
         }
-        impl<S: ParallelSystem> AnyStaticParallelSystemInstance for InstanceHolder<S> {
+        impl<S: ParallelSystem> AnyNativeParallelSystemInstance for InstanceHolder<S> {
             fn resolve(
                 &mut self,
                 resolver: &mut ParallelResolver<'_>,
@@ -62,26 +62,24 @@ impl<S: ParallelSystem> AnySystemReflection for StaticParallelSystemReflection<S
                 self.system.run(ctx);
             }
         }
-        SystemInstance::Parallel(ParallelSystemInstance::Static(Box::new(InstanceHolder {
+        SystemInstance::Parallel(ParallelSystemInstance::Native(Box::new(InstanceHolder {
             system: S::default(),
         })))
     }
 }
 
-#[derive(Default)]
-pub struct SystemOrder;
-
 pub(crate) enum SystemKind {
-    Native,
-    Script { script: ResourceRef },
+    Native {
+        reflection: Box<dyn SystemReflection>,
+    },
+    Script {
+        script: ResourceRef,
+    },
 }
 
 #[derive(Default, Debug, Serialize, Reflect, Clone)]
 pub struct System {
-    pub(crate) stage: ResourceRef,
-    pub(crate) reflection: Box<dyn AnySystemReflection>,
-    pub(crate) order: SystemOrder,
-    pub(crate) active_by_default: bool,
+    pub(crate) kind: SystemKind,
 }
 
 impl Resource for System {}

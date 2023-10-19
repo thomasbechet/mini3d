@@ -1,5 +1,3 @@
-use std::any::TypeId;
-
 use crate::{
     ecs::container::{
         native::single::{NativeSingleContainer, SingleContainer},
@@ -31,7 +29,6 @@ pub(crate) trait ComponentReflection {
     fn create_container(&self) -> Box<dyn SingleContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
-    fn type_id(&self) -> TypeId;
 }
 
 pub(crate) struct NativeComponentReflection<C: Component> {
@@ -49,10 +46,6 @@ impl<C: Component> ComponentReflection for NativeComponentReflection<C> {
 
     fn properties(&self) -> &[Property] {
         C::PROPERTIES
-    }
-
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<C>()
     }
 }
 
