@@ -51,6 +51,13 @@ impl<const SIZE: usize> AsciiArray<SIZE> {
     pub fn as_str(&self) -> &str {
         std::str::from_utf8(&self.data[..self.len]).unwrap()
     }
+
+    pub fn push(&mut self, c: char) {
+        if self.len < self.data.len() {
+            self.data[self.len] = c as u8;
+            self.len += 1;
+        }
+    }
 }
 
 impl<const SIZE: usize> Display for AsciiArray<SIZE> {

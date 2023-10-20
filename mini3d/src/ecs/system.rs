@@ -190,24 +190,13 @@ pub(crate) struct SystemInstanceEntry {
 }
 
 impl SystemInstanceEntry {
-    fn new(system: System, registry: &SystemRegistryManager) -> Self {
-        let instance = registry
-            .get(system)
-            .expect("System not found")
-            .reflection
-            .create_instance();
-        Self {
-            handle: system,
-            system: instance,
-        }
-    }
-
     pub(crate) fn setup(
         &mut self,
-        registry: &ComponentRegistryManager,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-    ) -> Result<(), RegistryError> {
+        containers: &mut ContainerTable,
+        resources: &mut ResourceManager,
+    ) -> Result<(), ResolverError> {
         match self.system {
             SystemInstance::Exclusive(ref mut instance) => {
                 instance.resolve(&mut ExclusiveResolver {
@@ -217,6 +206,8 @@ impl SystemInstanceEntry {
                     not: &mut Default::default(),
                     entities,
                     queries,
+                    containers,
+                    resources,
                 })?;
             }
             SystemInstance::Parallel(ref mut instance) => {
@@ -229,6 +220,8 @@ impl SystemInstanceEntry {
                     not: &mut Default::default(),
                     entities,
                     queries,
+                    containers,
+                    resources,
                 })?;
             }
         }

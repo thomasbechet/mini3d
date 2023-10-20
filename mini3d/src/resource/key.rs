@@ -1,20 +1,29 @@
 use mini3d_derive::Serialize;
 
 use crate::utils::{
+    prng::PCG32,
     string::AsciiArray,
     uid::{ToUID, UID},
 };
 
-pub(crate) const MAX_RESOURCE_PATH_LEN: usize = 64;
+pub(crate) const MAX_RESOURCE_KEY_LEN: usize = 64;
 
 #[derive(Default, Serialize)]
-pub struct ResourceKey(AsciiArray<MAX_RESOURCE_PATH_LEN>);
+pub struct ResourceKey(AsciiArray<MAX_RESOURCE_KEY_LEN>);
 
 impl ResourceKey {
-    pub(crate) fn new(path: &str) -> Self {
-        let mut p = Self(Default::default());
-        p.0.set(path).unwrap();
-        p
+    pub(crate) fn new(key: &str) -> Self {
+        Self(AsciiArray::from_str(key).unwrap())
+    }
+
+    pub(crate) fn random(prng: &mut PCG32) -> Self {
+        let mut key = AsciiArray::default();
+        for i in 0..MAX_RESOURCE_KEY_LEN {
+            let c = prng.next_u32() % 26;
+            let c = (c + 65) as char;
+            key.push(c);
+        }
+        Self(key)
     }
 
     pub fn as_str(&self) -> &str {

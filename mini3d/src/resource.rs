@@ -109,15 +109,11 @@ impl ResourceManager {
     pub(crate) fn add<R: Resource>(
         &mut self,
         ty: impl ToResourceHandle,
-        key: &str,
+        key: Option<&str>,
         owner: ActivityId,
         data: R,
         hook: &mut Option<ResourceAddedHook>,
     ) -> Result<ResourceHandle, ResourceError> {
-        // Check duplicated entry
-        if self.find(key).is_some() {
-            return Err(ResourceError::DuplicatedAssetEntry);
-        }
         // Find resource type reference
         let ty_handle = ty.to_handle();
         let ty_reference = self
@@ -146,6 +142,15 @@ impl ResourceManager {
                 .get_mut(ty_reference.id)
                 .unwrap()
                 .container_id = container_id;
+        }
+        // Check duplicated entry
+        if let Some(key) = key {
+            if self.find(key).is_some() {
+                return Err(ResourceError::DuplicatedAssetEntry);
+            }
+        } else {
+            // Generate random key
+            ResourceKey::random()
         }
         // Create new entry
         let id = self.entries.add(ResourceEntry {
