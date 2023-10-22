@@ -1,5 +1,5 @@
 use crate::ecs::view::ComponentViewMut;
-use crate::feature::core::component_type::{
+use crate::feature::core::component::{
     ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
 };
 use crate::reflection::PropertyId;

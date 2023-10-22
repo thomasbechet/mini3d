@@ -1,6 +1,6 @@
 use crate::{activity::ActivityId, resource::handle::ResourceHandle};
 
-use super::context::Context;
+use super::Context;
 
 pub enum ActivityCommand {
     Start(ActivityId, ResourceHandle),

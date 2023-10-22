@@ -1,12 +1,15 @@
 use crate::{
-    feature::core::component_type::ComponentId,
-    resource::{handle::ResourceRef, ResourceManager},
+    feature::core::{
+        component::{ComponentId, ComponentType},
+        system::{System, SystemKind, SystemSet},
+    },
+    resource::{handle::ResourceHandle, ResourceManager},
     utils::slotmap::{SlotId, SlotMap},
 };
 
-use super::{api::context::Context, container::ContainerTable, error::ResolverError};
+use super::{api::Context, container::ContainerTable, error::ResolverError};
 
-pub(crate) struct SystemId(pub(crate) SlotId);
+pub(crate) struct SystemInstanceId(pub(crate) SlotId);
 
 pub trait ExclusiveSystem: 'static + Default {
     fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError> {
@@ -30,7 +33,8 @@ use super::{
 };
 
 pub struct ExclusiveResolver<'a> {
-    system: SystemId,
+    system: SystemInstanceId,
+    component_type: ResourceHandle,
     all: &'a mut Vec<ComponentId>,
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
@@ -44,7 +48,7 @@ impl<'a> ExclusiveResolver<'a> {
     pub fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
         let handle = self
             .resources
-            .find(component)
+            .find(self.component_type, component)
             .ok_or(ResolverError::ComponentNotFound)?;
         Ok(self.containers.preallocate(handle, self.resources))
     }
@@ -55,6 +59,7 @@ impl<'a> ExclusiveResolver<'a> {
         self.not.clear();
         QueryBuilder {
             system: self.system,
+            component_type: self.component_type,
             all: self.all,
             any: self.any,
             not: self.not,
@@ -67,7 +72,8 @@ impl<'a> ExclusiveResolver<'a> {
 }
 
 pub struct ParallelResolver<'a> {
-    system: SystemId,
+    system: SystemInstanceId,
+    component_type: ResourceHandle,
     reads: Vec<ComponentId>,
     writes: Vec<ComponentId>,
     all: &'a mut Vec<ComponentId>,
@@ -83,7 +89,7 @@ impl<'a> ParallelResolver<'a> {
     fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
         let handle = self
             .resources
-            .find(component)
+            .find(self.component_type, component)
             .ok_or(ResolverError::ComponentNotFound)?;
         Ok(self.containers.preallocate(handle, self.resources))
     }
@@ -113,6 +119,7 @@ impl<'a> ParallelResolver<'a> {
         self.not.clear();
         QueryBuilder {
             system: self.system,
+            component_type: self.component_type,
             all: self.all,
             any: self.any,
             not: self.not,
@@ -185,8 +192,9 @@ pub(crate) enum SystemInstance {
 }
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) handle: ResourceRef,
-    pub(crate) system: SystemInstance,
+    pub(crate) set: ResourceHandle,
+    pub(crate) index: usize,
+    pub(crate) instance: SystemInstance,
 }
 
 impl SystemInstanceEntry {
@@ -196,11 +204,13 @@ impl SystemInstanceEntry {
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
         resources: &mut ResourceManager,
+        component_type: ResourceHandle,
     ) -> Result<(), ResolverError> {
-        match self.system {
+        match self.instance {
             SystemInstance::Exclusive(ref mut instance) => {
                 instance.resolve(&mut ExclusiveResolver {
-                    system: self.handle,
+                    system: self.system,
+                    component_type,
                     all: &mut Default::default(),
                     any: &mut Default::default(),
                     not: &mut Default::default(),
@@ -212,7 +222,8 @@ impl SystemInstanceEntry {
             }
             SystemInstance::Parallel(ref mut instance) => {
                 instance.resolve(&mut ParallelResolver {
-                    system: self.handle,
+                    system: self.system,
+                    component_type,
                     reads: Vec::new(),
                     writes: Vec::new(),
                     all: &mut Default::default(),
@@ -231,29 +242,47 @@ impl SystemInstanceEntry {
 
 #[derive(Default)]
 pub(crate) struct SystemTable {
-    pub(crate) systems: Vec<(ResourceRef, SystemId)>,
+    pub(crate) sets: Vec<ResourceHandle>,
     pub(crate) instances: SlotMap<SystemInstanceEntry>,
 }
 
 impl SystemTable {
-    pub(crate) fn on_registry_update(
+    pub(crate) fn insert_system_set(
         &mut self,
-        registry: &RegistryManager,
+        handle: ResourceHandle,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-    ) -> Result<(), RegistryError> {
-        for id in registry.system.systems.keys() {
-            // Create instance if missing
-            if !self.entries.contains(id) {
-                self.entries
-                    .insert(id, SystemInstanceEntry::new(System(id), &registry.system));
+        containers: &mut ContainerTable,
+        resources: &mut ResourceManager,
+    ) -> Result<(), ResolverError> {
+        // Check existing system set
+        if self.sets.iter().find(|e| e.handle() == handle).is_some() {
+            return Ok(());
+        }
+        // Acquire resource
+        self.sets.push(resources.increment_ref(handle));
+        let set = resources.read::<SystemSet>(handle).unwrap();
+        // Add systems
+        for (index, entry) in set.0.iter().enumerate() {
+            let system = resources.read::<System>(entry.system).unwrap();
+            match system.kind {
+                SystemKind::Native { reflection } => {
+                    let instance = reflection.create_instance();
+                    self.instances.add(SystemInstanceEntry {
+                        set: handle,
+                        index,
+                        instance,
+                    });
+                }
+                SystemKind::Script { script } => {
+                    todo!()
+                }
             }
-
-            // TODO: check if system must be changed
-            if self.entries[id].dirty {
-                self.entries[id].setup(&registry.component, entities, queries)?;
-                self.entries[id].dirty = false;
-            }
+        }
+        // Setup instances
+        let component_type = resources.find_type(ComponentType::NAME).unwrap();
+        for entry in self.instances.values_mut() {
+            entry.setup(entities, queries, containers, resources, component_type)?;
         }
         Ok(())
     }

@@ -9,7 +9,7 @@ use crate::{
         entity::Entity,
         view::{ComponentViewMut, ComponentViewRef},
     },
-    feature::core::component_type::{
+    feature::core::component::{
         Component, ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
     },
 };

@@ -3,13 +3,10 @@ use std::cell::RefCell;
 use mini3d_derive::Serialize;
 
 use crate::{
-    feature::core::component_type::{
+    feature::core::component::{
         ComponentId, ComponentType, PrivateComponentTableMut, PrivateComponentTableRef,
     },
-    resource::{
-        handle::{ResourceHandle, ResourceRef},
-        ResourceManager,
-    },
+    resource::{handle::ResourceHandle, ResourceManager},
     serialize::{Decoder, Encoder},
     utils::slotmap::SlotMap,
 };
@@ -63,7 +60,7 @@ impl ComponentFlags {
 
 struct ContainerEntry {
     container: RefCell<Box<dyn Container>>,
-    resource: ResourceRef,
+    resource_type: ResourceHandle,
 }
 
 #[derive(Default)]
@@ -113,7 +110,7 @@ impl ContainerTable {
     ) -> ComponentId {
         // Find existing container
         let id = self.entries.iter().find_map(|(id, e)| {
-            if e.resource.handle() == component {
+            if e.resource_type.handle() == component {
                 Some(ComponentId(id))
             } else {
                 None
@@ -128,7 +125,7 @@ impl ContainerTable {
             .expect("Component type not found while preallocating");
         let entry = ContainerEntry {
             container: RefCell::new(ty.create_container()),
-            resource: resources.acquire(component),
+            resource_type: resources.increment_ref(component),
         };
         ComponentId(self.entries.insert(entry))
     }

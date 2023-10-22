@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    feature::core::resource_type::Resource,
+    feature::core::resource::Resource,
     serialize::{Decoder, Encoder},
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-use super::error::ResourceError;
+use super::{error::ResourceError, key::ResourceKey};
 
 pub struct PrivateResourceContainerRef<'a>(pub(crate) &'a dyn ResourceContainer);
 pub struct PrivateResourceContainerMut<'a>(pub(crate) &'a mut dyn ResourceContainer);
@@ -20,6 +20,7 @@ pub(crate) struct NativeResourceContainer<R: Resource>(pub(crate) SlotMap<R>);
 pub(crate) trait ResourceContainer: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn find(&self, key: ResourceKey) -> Option<SlotId>;
     fn remove(&mut self, slot: SlotId);
     fn clear(&mut self);
     fn serialize_entries(

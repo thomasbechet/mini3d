@@ -1,14 +1,15 @@
 use std::collections::VecDeque;
 
 use crate::{
-    feature::core::system_stage::SystemStage,
+    feature::core::system::{SystemSet, SystemStage},
+    resource::{handle::ResourceHandle, ResourceManager},
     utils::{
         slotmap::{SlotId, SlotMap},
         uid::{ToUID, UID},
     },
 };
 
-use super::system::{SystemId, SystemTable};
+use super::system::SystemTable;
 
 pub enum Invocation {
     Immediate,
@@ -30,8 +31,8 @@ struct PeriodicStage {
 }
 
 struct StageEntry {
+    handle: ResourceHandle,
     first_node: SlotId,
-    uid: UID,
 }
 
 #[derive(Default)]
@@ -41,7 +42,7 @@ pub(crate) struct Scheduler {
     // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
     // Instances
-    pub(crate) instances: Vec<SystemId>,
+    pub(crate) instances: Vec<SlotId>,
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next frame stage
@@ -53,47 +54,58 @@ pub(crate) struct Scheduler {
 }
 
 impl Scheduler {
-    // pub(crate) fn log(&self, registry: &SystemRegistryManager) {
-    //     println!("Scheduler:");
-    //     for stage in self.stages.iter() {
-    //         println!("  Stage: {}", stage.uid);
-    //         let mut next = stage.first_node;
-    //         while !next.is_null() {
-    //             let node = self.nodes[next];
-    //             println!("    Node: {} instances", node.count);
-    //             for i in node.first..node.first + node.count {
-    //                 let name = registry.get(self.instances[i]).unwrap().name.as_str();
-    //                 println!("    Instance: {}", name);
-    //             }
-    //             next = node.next;
-    //         }
-    //     }
-    // }
-
-    pub(crate) fn on_registry_update(&mut self, systems: &SystemTable) {
+    pub(crate) fn rebuild(&mut self, table: &SystemTable, resources: &ResourceManager) {
         // Reset baked resources
         self.stages.clear();
         self.nodes.clear();
         self.instances.clear();
         self.next_node = SlotId::null();
 
-        // Build nodes from registry stages
-        for entry in registry.stages.values() {
-            // Find stage index
-            let mut stage_index = self.stages.iter().position(|e| e.uid == entry.uid);
-            if stage_index.is_none() {
-                self.stages.push(StageEntry {
-                    first_node: SlotId::null(),
-                    uid: entry.uid,
-                });
-                stage_index = Some(self.stages.len() - 1);
+        // Collect stages
+        let mut stages = Vec::new();
+        for set in table.sets.iter() {
+            let set = resources.read::<SystemSet>(set.handle()).unwrap();
+            for entry in &set.0 {
+                if stages
+                    .iter()
+                    .find(|stage| stage == entry.stage.handle())
+                    .is_none()
+                {
+                    stages.push(entry.stage.handle());
+                    let stage = resources.read::<SystemStage>(entry.stage.handle()).unwrap();
+                    if let Some(periodic) = stage.periodic {
+                        self.periodic_stages.push(PeriodicStage {
+                            stage: entry.stage.handle(),
+                            frequency: 1.0 / periodic,
+                            accumulator: 0.0,
+                        });
+                    }
+                }
             }
-            let stage_index = stage_index.unwrap();
-
-            // Build stage nodes
+        }
+        for (stage_index, stage) in stages.iter().enumerate() {
+            // Collect instances in stage
+            let instances = table
+                .instances
+                .iter()
+                .filter(|(_, e)| {
+                    resources.read::<SystemSet>(e.set).unwrap().0[e.index]
+                        .stage
+                        .handle()
+                        == *stage
+                })
+                .collect::<Vec<_>>();
+            // Sort instances based on system order
+            // TODO:
+            // Create stage entry
+            let stage = resources.read::<SystemStage>(*stage).unwrap();
+            self.stages.push(StageEntry {
+                handle: stage.handle(),
+                first_node: SlotId::null(),
+            });
+            // Build nodes
             let mut previous_node = None;
-            let mut system = entry.first_system;
-            while let Some(instance) = system {
+            for (id, instance) in instances {
                 // TODO: detect parallel nodes
 
                 // Insert instance
@@ -105,9 +117,6 @@ impl Scheduler {
                     count: 1,
                     next: SlotId::null(),
                 });
-
-                // Iter next system in stage
-                system = registry.systems[instance.0].next_in_stage;
 
                 // Link previous node or create new stage
                 if let Some(previous_node) = previous_node {

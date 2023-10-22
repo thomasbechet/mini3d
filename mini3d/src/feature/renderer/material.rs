@@ -1,8 +1,9 @@
 use mini3d_derive::{Reflect, Resource, Serialize};
 
-use crate::resource::handle::ResourceRef;
+use crate::{renderer::provider::RendererProviderHandle, resource::handle::ResourceHandle};
 
 #[derive(Default, Clone, Resource, Serialize, Reflect)]
 pub struct Material {
-    pub diffuse: ResourceRef,
+    pub diffuse: ResourceHandle,
+    pub(crate) handle: RendererProviderHandle,
 }

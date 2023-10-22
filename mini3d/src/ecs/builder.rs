@@ -1,4 +1,4 @@
-use crate::feature::core::component_type::{Component, ComponentId, PrivateComponentTableMut};
+use crate::feature::core::component::{Component, ComponentId, PrivateComponentTableMut};
 
 use super::{
     archetype::Archetype,

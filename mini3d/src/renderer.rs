@@ -1,15 +1,9 @@
 use crate::ecs::container::ContainerTable;
-use crate::feature::common::local_to_world::LocalToWorld;
-use crate::feature::renderer::camera::Camera;
-use crate::feature::renderer::canvas::Canvas;
 use crate::feature::renderer::font::{Font, FontAtlas};
 use crate::feature::renderer::material::Material;
 use crate::feature::renderer::mesh::Mesh;
-use crate::feature::renderer::model::Model;
-use crate::feature::renderer::static_mesh::StaticMesh;
 use crate::feature::renderer::texture::Texture;
-use crate::feature::renderer::viewport::Viewport;
-use crate::resource::handle::ResourceHandle;
+use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
 use crate::resource::hook::RendererResourceHook;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Serialize};
@@ -26,15 +20,13 @@ use self::event::RendererEvent;
 use self::{
     color::Color,
     graphics::Graphics,
-    provider::{
-        MaterialHandle, MeshHandle, ProviderMaterialDescriptor, RendererProvider,
-        RendererProviderError, TextureHandle,
-    },
+    provider::{ProviderMaterialDescriptor, RendererProvider, RendererProviderError},
 };
 
 pub mod color;
 pub mod event;
 pub mod graphics;
+pub mod handle;
 pub mod provider;
 pub mod rasterizer;
 
@@ -76,27 +68,6 @@ pub enum RendererModelDescriptor {
 pub struct RendererStatistics {
     pub triangle_count: usize,
     pub draw_count: usize,
-}
-
-#[derive(Default)]
-pub(crate) struct RendererFont {
-    pub(crate) atlas: FontAtlas,
-    pub(crate) handle: TextureHandle,
-}
-
-#[derive(Default)]
-pub(crate) struct RendererTexture {
-    pub(crate) handle: TextureHandle,
-}
-
-#[derive(Default)]
-pub(crate) struct RendererMesh {
-    pub(crate) handle: MeshHandle,
-}
-
-#[derive(Default)]
-pub(crate) struct RendererMaterial {
-    pub(crate) handle: MaterialHandle,
 }
 
 #[derive(Default)]
@@ -238,13 +209,9 @@ pub struct RendererManager {
     graphics: Graphics,
     clear_color: Color,
 
-    // Components
-    camera: ComponentType,
-    static_mesh: StaticComponentType<StaticMesh>,
-    canvas: StaticComponentType<Canvas>,
-    local_to_world: StaticComponentType<LocalToWorld>,
-    viewport: StaticComponentType<Viewport>,
-    model: StaticResourceType<Model>,
+    // Resources
+    model: ResourceTypeHandle,
+    texture: ResourceTypeHandle,
 }
 
 impl RendererManager {

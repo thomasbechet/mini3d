@@ -1,6 +1,6 @@
 use std::collections::{hash_map, HashMap};
 
-use mini3d::renderer::provider::{TextureHandle, ViewportHandle};
+use mini3d::renderer::provider::{TextureProviderHandle, ViewportProviderHandle};
 use wgpu::{include_wgsl, vertex_attr_array};
 
 use crate::{
@@ -287,8 +287,8 @@ pub(crate) struct GraphicsRenderer {
 
     blit_bind_group_layout: wgpu::BindGroupLayout,
 
-    texture_bind_groups: HashMap<TextureHandle, wgpu::BindGroup>,
-    viewport_bind_groups: HashMap<ViewportHandle, wgpu::BindGroup>,
+    texture_bind_groups: HashMap<TextureProviderHandle, wgpu::BindGroup>,
+    viewport_bind_groups: HashMap<ViewportProviderHandle, wgpu::BindGroup>,
 
     pipelines: GraphicsPipelines,
 
@@ -437,8 +437,8 @@ impl GraphicsRenderer {
     pub(crate) fn render_canvas(
         &mut self,
         context: &WGPUContext,
-        textures: &HashMap<TextureHandle, Texture>,
-        viewports: &HashMap<ViewportHandle, Viewport>,
+        textures: &HashMap<TextureProviderHandle, Texture>,
+        viewports: &HashMap<ViewportProviderHandle, Viewport>,
         canvas: &mut GraphicsCanvas,
         encoder: &mut wgpu::CommandEncoder,
     ) {

@@ -4,8 +4,8 @@ use crate::{
     ecs::{
         api::{
             activity::{ActivityCommand, ActivityContext},
-            context::Context,
             time::TimeAPI,
+            Context,
         },
         container::ContainerTable,
         entity::EntityTable,
@@ -135,10 +135,10 @@ impl ActivityManager {
             if node.count == 1 {
                 // Find instance
                 let instance = activity.scheduler.instances[node.first];
-                let instance = &activity.systems.instances[instance.0];
+                let instance = &activity.systems.instances[instance];
 
                 // Run the system
-                match &instance.system {
+                match &instance.instance {
                     SystemInstance::Exclusive(instance) => {
                         let ctx = &mut Context {
                             activity: activity.id,

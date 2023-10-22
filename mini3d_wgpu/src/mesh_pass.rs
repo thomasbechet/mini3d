@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d::{renderer::provider::MaterialHandle, utils::uid::UID};
+use mini3d::{renderer::provider::MaterialProviderHandle, utils::uid::UID};
 
 use crate::{
     context::WGPUContext, error::WGPURendererError, model_buffer::ModelIndex,
@@ -66,20 +66,20 @@ struct PassObject {
 
 pub(crate) struct RenderBatch {
     pub(crate) submesh: UID,
-    pub(crate) material: MaterialHandle,
+    pub(crate) material: MaterialProviderHandle,
     pub(crate) model_index: ModelIndex,
 }
 
 pub(crate) struct InstancedRenderBatch {
     pub(crate) submesh: UID,
-    pub(crate) material: MaterialHandle,
+    pub(crate) material: MaterialProviderHandle,
     pub(crate) first_instance: usize,
     pub(crate) instance_count: usize,
     pub(crate) triangle_count: usize,
 }
 
 pub(crate) struct MultiInstancedRenderBatch {
-    pub(crate) material: MaterialHandle,
+    pub(crate) material: MaterialProviderHandle,
     pub(crate) first: usize,
     pub(crate) count: usize,
     pub(crate) triangle_count: usize,

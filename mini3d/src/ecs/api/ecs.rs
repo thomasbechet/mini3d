@@ -6,11 +6,11 @@ use crate::{
         scheduler::Invocation,
         view::{ComponentViewMut, ComponentViewRef},
     },
-    feature::core::component_type::{Component, ComponentId},
+    feature::core::component::{Component, ComponentId},
     utils::uid::ToUID,
 };
 
-use super::context::Context;
+use super::Context;
 
 pub struct ECS;
 

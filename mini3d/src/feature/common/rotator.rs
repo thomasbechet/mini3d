@@ -3,11 +3,12 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{context::Context, ecs::ECS, time::Time},
-        instance::ParallelResolver,
+        api::{ecs::ECS, time::Time, Context},
+        error::ResolverError,
         query::QueryId,
+        system::{ParallelResolver, ParallelSystem},
     },
-    registry::{component::ComponentType, error::RegistryError},
+    feature::core::component::ComponentId,
 };
 
 use super::transform::Transform;
@@ -19,8 +20,8 @@ pub struct Rotator {
 
 #[derive(Default)]
 pub struct RotatorSystem {
-    transform: ComponentType,
-    rotator: ComponentType,
+    transform: ComponentId,
+    rotator: ComponentId,
     query: QueryId,
 }
 
@@ -29,7 +30,7 @@ impl RotatorSystem {
 }
 
 impl ParallelSystem for RotatorSystem {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
         self.transform = resolver.write(Transform::NAME)?;
         self.rotator = resolver.read(Rotator::NAME)?;
         self.query = resolver
@@ -39,10 +40,10 @@ impl ParallelSystem for RotatorSystem {
         Ok(())
     }
 
-    fn run(&self, ecs: &ECS, ctx: &Context) {
-        let mut transforms = ecs.view_mut(self.transform);
-        let rotators = ecs.view(self.rotator);
-        for e in ecs.query(self.query) {
+    fn run(&self, ctx: &Context) {
+        let mut transforms = ECS::view_mut(ctx, self.transform);
+        let rotators = ECS::view(ctx, self.rotator);
+        for e in ECS::query(ctx, self.query) {
             transforms[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
                 Time::delta(ctx) as f32 * f32::to_radians(rotators[e].speed),

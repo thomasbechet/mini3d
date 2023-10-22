@@ -19,21 +19,10 @@ pub enum RendererProviderError {
     MaxResourcesReached,
 }
 
-define_provider_handle!(CommandBufferHandle);
-
-define_provider_handle!(MeshHandle);
-define_provider_handle!(TextureHandle);
-define_provider_handle!(MaterialHandle);
-
-define_provider_handle!(ViewportHandle);
-
-define_provider_handle!(SceneHandle);
-define_provider_handle!(SceneCameraHandle);
-define_provider_handle!(SceneModelHandle);
-define_provider_handle!(SceneCanvasHandle);
+define_provider_handle!(RendererProviderHandle);
 
 pub struct ProviderMaterialDescriptor<'a> {
-    pub diffuse: TextureHandle,
+    pub diffuse: RendererProviderHandle,
     pub name: &'a str,
 }
 
@@ -48,30 +37,39 @@ pub trait RendererProvider {
 
     /// Assets API
 
-    fn mesh_add(&mut self, mesh: &Mesh) -> Result<MeshHandle, RendererProviderError>;
-    fn mesh_remove(&mut self, handle: MeshHandle) -> Result<(), RendererProviderError>;
+    fn mesh_add(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn mesh_remove(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError>;
 
-    fn texture_add(&mut self, texture: &Texture) -> Result<TextureHandle, RendererProviderError>;
-    fn texture_remove(&mut self, handle: TextureHandle) -> Result<(), RendererProviderError>;
+    fn texture_add(
+        &mut self,
+        texture: &Texture,
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn texture_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError>;
 
     fn material_add(
         &mut self,
         desc: ProviderMaterialDescriptor,
-    ) -> Result<MaterialHandle, RendererProviderError>;
-    fn material_remove(&mut self, handle: MaterialHandle) -> Result<(), RendererProviderError>;
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn material_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError>;
 
     /// Canvas API
 
     fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererProviderError>;
     fn scene_canvas_begin(
         &mut self,
-        canvas: SceneCanvasHandle,
+        canvas: RendererProviderHandle,
         clear_color: Color,
     ) -> Result<(), RendererProviderError>;
     fn canvas_end(&mut self) -> Result<(), RendererProviderError>;
     fn canvas_blit_texture(
         &mut self,
-        texture: TextureHandle,
+        texture: RendererProviderHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
@@ -80,7 +78,7 @@ pub trait RendererProvider {
     ) -> Result<(), RendererProviderError>;
     fn canvas_blit_viewport(
         &mut self,
-        viewport: ViewportHandle,
+        viewport: RendererProviderHandle,
         position: IVec2,
     ) -> Result<(), RendererProviderError>;
     fn canvas_fill_rect(
@@ -117,32 +115,39 @@ pub trait RendererProvider {
 
     /// Viewport API
 
-    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle, RendererProviderError>;
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererProviderError>;
+    fn viewport_add(
+        &mut self,
+        resolution: UVec2,
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn viewport_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError>;
     fn viewport_set_camera(
         &mut self,
-        handle: ViewportHandle,
-        camera: Option<SceneCameraHandle>,
+        handle: RendererProviderHandle,
+        camera: Option<RendererProviderHandle>,
     ) -> Result<(), RendererProviderError>;
     fn viewport_set_resolution(
         &mut self,
-        handle: ViewportHandle,
+        handle: RendererProviderHandle,
         resolution: UVec2,
     ) -> Result<(), RendererProviderError>;
 
     /// Scene API
 
-    fn scene_add(&mut self) -> Result<SceneHandle, RendererProviderError>;
-    fn scene_remove(&mut self, handle: SceneHandle) -> Result<(), RendererProviderError>;
+    fn scene_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn scene_remove(&mut self, handle: RendererProviderHandle)
+        -> Result<(), RendererProviderError>;
 
-    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle, RendererProviderError>;
+    fn scene_camera_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError>;
     fn scene_camera_remove(
         &mut self,
-        handle: SceneCameraHandle,
+        handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
     fn scene_camera_update(
         &mut self,
-        handle: SceneCameraHandle,
+        handle: RendererProviderHandle,
         eye: Vec3,
         forward: Vec3,
         up: Vec3,
@@ -151,33 +156,35 @@ pub trait RendererProvider {
 
     fn scene_model_add(
         &mut self,
-        mesh: MeshHandle,
-    ) -> Result<SceneModelHandle, RendererProviderError>;
-    fn scene_model_remove(&mut self, handle: SceneModelHandle)
-        -> Result<(), RendererProviderError>;
+        mesh: RendererProviderHandle,
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn scene_model_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError>;
     fn scene_model_set_material(
         &mut self,
-        handle: SceneModelHandle,
+        handle: RendererProviderHandle,
         index: usize,
-        material: MaterialHandle,
+        material: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
     fn scene_model_transfer_matrix(
         &mut self,
-        handle: SceneModelHandle,
+        handle: RendererProviderHandle,
         mat: Mat4,
     ) -> Result<(), RendererProviderError>;
 
     fn scene_canvas_add(
         &mut self,
         resolution: UVec2,
-    ) -> Result<SceneCanvasHandle, RendererProviderError>;
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
     fn scene_canvas_remove(
         &mut self,
-        handle: SceneCanvasHandle,
+        handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
     fn scene_canvas_transfer_matrix(
         &mut self,
-        handle: SceneCanvasHandle,
+        handle: RendererProviderHandle,
         mat: Mat4,
     ) -> Result<(), RendererProviderError>;
 }
@@ -201,27 +208,36 @@ impl RendererProvider for PassiveRendererProvider {
 
     /// Assets API
 
-    fn mesh_add(&mut self, mesh: &Mesh) -> Result<MeshHandle, RendererProviderError> {
+    fn mesh_add(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn mesh_remove(&mut self, handle: MeshHandle) -> Result<(), RendererProviderError> {
+    fn mesh_remove(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
-    fn texture_add(&mut self, texture: &Texture) -> Result<TextureHandle, RendererProviderError> {
+    fn texture_add(
+        &mut self,
+        texture: &Texture,
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn texture_remove(&mut self, handle: TextureHandle) -> Result<(), RendererProviderError> {
+    fn texture_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
     fn material_add(
         &mut self,
         desc: ProviderMaterialDescriptor,
-    ) -> Result<MaterialHandle, RendererProviderError> {
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn material_remove(&mut self, handle: MaterialHandle) -> Result<(), RendererProviderError> {
+    fn material_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
@@ -232,7 +248,7 @@ impl RendererProvider for PassiveRendererProvider {
     }
     fn scene_canvas_begin(
         &mut self,
-        canvas: SceneCanvasHandle,
+        canvas: RendererProviderHandle,
         clear_color: Color,
     ) -> Result<(), RendererProviderError> {
         Ok(())
@@ -242,7 +258,7 @@ impl RendererProvider for PassiveRendererProvider {
     }
     fn canvas_blit_texture(
         &mut self,
-        texture: TextureHandle,
+        texture: RendererProviderHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
@@ -253,7 +269,7 @@ impl RendererProvider for PassiveRendererProvider {
     }
     fn canvas_blit_viewport(
         &mut self,
-        viewport: ViewportHandle,
+        viewport: RendererProviderHandle,
         position: IVec2,
     ) -> Result<(), RendererProviderError> {
         Ok(())
@@ -304,22 +320,28 @@ impl RendererProvider for PassiveRendererProvider {
 
     /// Viewport API
 
-    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle, RendererProviderError> {
+    fn viewport_add(
+        &mut self,
+        resolution: UVec2,
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererProviderError> {
+    fn viewport_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         Ok(())
     }
     fn viewport_set_camera(
         &mut self,
-        handle: ViewportHandle,
-        camera: Option<SceneCameraHandle>,
+        handle: RendererProviderHandle,
+        camera: Option<RendererProviderHandle>,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
     fn viewport_set_resolution(
         &mut self,
-        handle: ViewportHandle,
+        handle: RendererProviderHandle,
         resolution: UVec2,
     ) -> Result<(), RendererProviderError> {
         Ok(())
@@ -327,25 +349,28 @@ impl RendererProvider for PassiveRendererProvider {
 
     /// Scene API
 
-    fn scene_add(&mut self) -> Result<SceneHandle, RendererProviderError> {
+    fn scene_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn scene_remove(&mut self, handle: SceneHandle) -> Result<(), RendererProviderError> {
+    fn scene_remove(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
-    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle, RendererProviderError> {
+    fn scene_camera_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
     fn scene_camera_remove(
         &mut self,
-        handle: SceneCameraHandle,
+        handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
     fn scene_camera_update(
         &mut self,
-        handle: SceneCameraHandle,
+        handle: RendererProviderHandle,
         eye: Vec3,
         forward: Vec3,
         up: Vec3,
@@ -356,27 +381,27 @@ impl RendererProvider for PassiveRendererProvider {
 
     fn scene_model_add(
         &mut self,
-        mesh: MeshHandle,
-    ) -> Result<SceneModelHandle, RendererProviderError> {
+        mesh: RendererProviderHandle,
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
     fn scene_model_remove(
         &mut self,
-        handle: SceneModelHandle,
+        handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
     fn scene_model_set_material(
         &mut self,
-        handle: SceneModelHandle,
+        handle: RendererProviderHandle,
         index: usize,
-        material: MaterialHandle,
+        material: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
     fn scene_model_transfer_matrix(
         &mut self,
-        handle: SceneModelHandle,
+        handle: RendererProviderHandle,
         mat: Mat4,
     ) -> Result<(), RendererProviderError> {
         Ok(())
@@ -385,18 +410,18 @@ impl RendererProvider for PassiveRendererProvider {
     fn scene_canvas_add(
         &mut self,
         resolution: UVec2,
-    ) -> Result<SceneCanvasHandle, RendererProviderError> {
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
     fn scene_canvas_remove(
         &mut self,
-        handle: SceneCanvasHandle,
+        handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
     fn scene_canvas_transfer_matrix(
         &mut self,
-        handle: SceneCanvasHandle,
+        handle: RendererProviderHandle,
         mat: Mat4,
     ) -> Result<(), RendererProviderError> {
         Ok(())

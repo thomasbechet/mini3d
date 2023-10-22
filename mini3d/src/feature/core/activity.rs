@@ -1,4 +1,6 @@
+use crate::resource::handle::ResourceHandle;
+
 pub(crate) struct ActivityDescriptor {
-    pub(crate) system_sets: Vec<ResourceRef>,
-    pub(crate) prefabs: Vec<ResourceRef>,
+    pub(crate) system_sets: Vec<ResourceHandle>,
+    pub(crate) prefabs: Vec<ResourceHandle>,
 }

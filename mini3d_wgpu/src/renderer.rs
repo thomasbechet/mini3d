@@ -7,9 +7,9 @@ use mini3d::renderer::color::{srgb_to_linear, Color};
 use mini3d::renderer::event::RendererEvent;
 use mini3d::renderer::graphics::TextureWrapMode;
 use mini3d::renderer::provider::{
-    MaterialHandle, MeshHandle, ProviderMaterialDescriptor, RendererProvider,
-    RendererProviderError, SceneCameraHandle, SceneCanvasHandle, SceneModelHandle, TextureHandle,
-    ViewportHandle,
+    MaterialProviderHandle, MeshProviderHandle, ProviderMaterialDescriptor, RendererProvider,
+    RendererProviderError, SceneCameraProviderHandle, SceneCanvasProviderHandle,
+    SceneModelProviderHandle, TextureProviderHandle, ViewportProviderHandle,
 };
 use mini3d::renderer::{RendererStatistics, SCREEN_RESOLUTION};
 use mini3d::utils::uid::{SequentialGenerator, UID};
@@ -50,7 +50,7 @@ pub(crate) struct Material {
 /// Multiple object can have a single model
 pub(crate) struct Object {
     pub(crate) submesh: UID,
-    pub(crate) material: MaterialHandle,
+    pub(crate) material: MaterialProviderHandle,
     pub(crate) model_index: ModelIndex,
     pub(crate) draw_forward_pass: bool,
     pub(crate) draw_shadow_pass: bool,
@@ -59,7 +59,7 @@ pub(crate) struct Object {
 /// API model representation
 /// Model has a single transform matrix
 pub(crate) struct Model {
-    mesh: MeshHandle,
+    mesh: MeshProviderHandle,
     model_index: ModelIndex,
     objects: Vec<Option<UID>>,
 }
@@ -80,14 +80,14 @@ pub struct WGPURenderer {
 
     // Assets
     vertex_allocator: VertexAllocator,
-    meshes: HashMap<MeshHandle, Mesh>,
+    meshes: HashMap<MeshProviderHandle, Mesh>,
     submeshes: HashMap<UID, VertexBufferDescriptor>,
-    textures: HashMap<TextureHandle, Texture>,
-    materials: HashMap<MaterialHandle, Material>,
+    textures: HashMap<TextureProviderHandle, Texture>,
+    materials: HashMap<MaterialProviderHandle, Material>,
 
     // Scene resources
-    cameras: HashMap<SceneCameraHandle, Camera>,
-    models: HashMap<SceneModelHandle, Model>,
+    cameras: HashMap<SceneCameraProviderHandle, Camera>,
+    models: HashMap<SceneModelProviderHandle, Model>,
     model_buffer: ModelBuffer,
     objects: HashMap<UID, Object>,
 
@@ -96,7 +96,7 @@ pub struct WGPURenderer {
     forward_mesh_pass: MeshPass,
 
     // Viewports
-    viewports: HashMap<ViewportHandle, Viewport>,
+    viewports: HashMap<ViewportProviderHandle, Viewport>,
 
     // Canvas resources
     nearest_sampler: wgpu::Sampler,
@@ -367,7 +367,7 @@ impl WGPURenderer {
     fn add_object(
         &mut self,
         submesh: UID,
-        material: MaterialHandle,
+        material: MaterialProviderHandle,
         model_index: usize,
     ) -> Result<UID, WGPURendererError> {
         let uid = self.generator.next();
@@ -431,7 +431,7 @@ impl RendererProvider for WGPURenderer {
 
     /// Assets API
 
-    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshHandle, RendererProviderError> {
+    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshProviderHandle, RendererProviderError> {
         let mut submeshes: Vec<UID> = Default::default();
         for submesh in mesh.submeshes.iter() {
             let descriptor = self
@@ -442,19 +442,19 @@ impl RendererProvider for WGPURenderer {
             self.submeshes.insert(submesh_uid, descriptor);
             submeshes.push(submesh_uid);
         }
-        let handle: MeshHandle = self.generator.next().into();
+        let handle: MeshProviderHandle = self.generator.next().into();
         self.meshes.insert(handle, Mesh { submeshes });
         Ok(handle)
     }
-    fn mesh_remove(&mut self, handle: MeshHandle) -> Result<(), RendererProviderError> {
+    fn mesh_remove(&mut self, handle: MeshProviderHandle) -> Result<(), RendererProviderError> {
         todo!()
     }
 
     fn texture_add(
         &mut self,
         texture: &texture::Texture,
-    ) -> Result<TextureHandle, RendererProviderError> {
-        let handle: TextureHandle = self.generator.next().into();
+    ) -> Result<TextureProviderHandle, RendererProviderError> {
+        let handle: TextureProviderHandle = self.generator.next().into();
         self.textures.insert(
             handle,
             Texture::from_resource(
@@ -466,16 +466,19 @@ impl RendererProvider for WGPURenderer {
         );
         Ok(handle)
     }
-    fn texture_remove(&mut self, handle: TextureHandle) -> Result<(), RendererProviderError> {
+    fn texture_remove(
+        &mut self,
+        handle: TextureProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         todo!()
     }
 
     fn material_add(
         &mut self,
         desc: ProviderMaterialDescriptor,
-    ) -> Result<MaterialHandle, RendererProviderError> {
+    ) -> Result<MaterialProviderHandle, RendererProviderError> {
         let diffuse = self.textures.get(&desc.diffuse).expect("Texture not found");
-        let handle: MaterialHandle = self.generator.next().into();
+        let handle: MaterialProviderHandle = self.generator.next().into();
         self.materials.insert(
             handle,
             Material {
@@ -489,7 +492,10 @@ impl RendererProvider for WGPURenderer {
         );
         Ok(handle)
     }
-    fn material_remove(&mut self, handle: MaterialHandle) -> Result<(), RendererProviderError> {
+    fn material_remove(
+        &mut self,
+        handle: MaterialProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         todo!()
     }
 
@@ -503,7 +509,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn scene_canvas_begin(
         &mut self,
-        canvas: SceneCanvasHandle,
+        canvas: SceneCanvasProviderHandle,
         clear_color: Color,
     ) -> Result<(), RendererProviderError> {
         self.current_canvas = Some(self.screen_canvas);
@@ -522,7 +528,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn canvas_blit_texture(
         &mut self,
-        texture: TextureHandle,
+        texture: TextureProviderHandle,
         extent: IRect,
         tex_extent: IRect,
         filtering: Color,
@@ -545,7 +551,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn canvas_blit_viewport(
         &mut self,
-        handle: ViewportHandle,
+        handle: ViewportProviderHandle,
         position: IVec2,
     ) -> Result<(), RendererProviderError> {
         let canvas = self
@@ -643,13 +649,19 @@ impl RendererProvider for WGPURenderer {
 
     /// Viewport API
 
-    fn viewport_add(&mut self, resolution: UVec2) -> Result<ViewportHandle, RendererProviderError> {
-        let handle: ViewportHandle = self.generator.next().into();
+    fn viewport_add(
+        &mut self,
+        resolution: UVec2,
+    ) -> Result<ViewportProviderHandle, RendererProviderError> {
+        let handle: ViewportProviderHandle = self.generator.next().into();
         self.viewports
             .insert(handle, Viewport::new(&self.context, resolution));
         Ok(handle)
     }
-    fn viewport_remove(&mut self, handle: ViewportHandle) -> Result<(), RendererProviderError> {
+    fn viewport_remove(
+        &mut self,
+        handle: ViewportProviderHandle,
+    ) -> Result<(), RendererProviderError> {
         self.viewports
             .remove(&handle)
             .ok_or(RendererProviderError::ResourceNotFound)?;
@@ -657,8 +669,8 @@ impl RendererProvider for WGPURenderer {
     }
     fn viewport_set_camera(
         &mut self,
-        handle: ViewportHandle,
-        camera: Option<SceneCameraHandle>,
+        handle: ViewportProviderHandle,
+        camera: Option<SceneCameraProviderHandle>,
     ) -> Result<(), RendererProviderError> {
         let viewport = self
             .viewports
@@ -669,7 +681,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn viewport_set_resolution(
         &mut self,
-        handle: ViewportHandle,
+        handle: ViewportProviderHandle,
         resolution: UVec2,
     ) -> Result<(), RendererProviderError> {
         let viewport = self
@@ -684,23 +696,23 @@ impl RendererProvider for WGPURenderer {
 
     fn scene_add(
         &mut self,
-    ) -> Result<mini3d::renderer::provider::SceneHandle, RendererProviderError> {
+    ) -> Result<mini3d::renderer::provider::SceneProviderHandle, RendererProviderError> {
         todo!()
     }
     fn scene_remove(
         &mut self,
-        handle: mini3d::renderer::provider::SceneHandle,
+        handle: mini3d::renderer::provider::SceneProviderHandle,
     ) -> Result<(), RendererProviderError> {
         todo!()
     }
-    fn scene_camera_add(&mut self) -> Result<SceneCameraHandle, RendererProviderError> {
-        let handle: SceneCameraHandle = self.generator.next().into();
+    fn scene_camera_add(&mut self) -> Result<SceneCameraProviderHandle, RendererProviderError> {
+        let handle: SceneCameraProviderHandle = self.generator.next().into();
         self.cameras.insert(handle, Camera::default());
         Ok(handle)
     }
     fn scene_camera_remove(
         &mut self,
-        handle: SceneCameraHandle,
+        handle: SceneCameraProviderHandle,
     ) -> Result<(), RendererProviderError> {
         self.cameras
             .remove(&handle)
@@ -709,7 +721,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn scene_camera_update(
         &mut self,
-        handle: SceneCameraHandle,
+        handle: SceneCameraProviderHandle,
         eye: Vec3,
         forward: Vec3,
         up: Vec3,
@@ -725,12 +737,12 @@ impl RendererProvider for WGPURenderer {
 
     fn scene_model_add(
         &mut self,
-        mesh_handle: MeshHandle,
-    ) -> Result<SceneModelHandle, RendererProviderError> {
+        mesh_handle: MeshProviderHandle,
+    ) -> Result<SceneModelProviderHandle, RendererProviderError> {
         // Reserve the model index
         let model_index = self.model_buffer.add();
         // Generate the handle
-        let handle: SceneModelHandle = self.generator.next().into();
+        let handle: SceneModelProviderHandle = self.generator.next().into();
         // Insert model (empty by default)
         let mesh = self
             .meshes
@@ -749,7 +761,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn scene_model_remove(
         &mut self,
-        handle: SceneModelHandle,
+        handle: SceneModelProviderHandle,
     ) -> Result<(), RendererProviderError> {
         let model = self
             .models
@@ -763,9 +775,9 @@ impl RendererProvider for WGPURenderer {
     }
     fn scene_model_set_material(
         &mut self,
-        handle: SceneModelHandle,
+        handle: SceneModelProviderHandle,
         index: usize,
-        material: MaterialHandle,
+        material: MaterialProviderHandle,
     ) -> Result<(), RendererProviderError> {
         // Check input
         let model = self
@@ -802,7 +814,7 @@ impl RendererProvider for WGPURenderer {
     }
     fn scene_model_transfer_matrix(
         &mut self,
-        handle: SceneModelHandle,
+        handle: SceneModelProviderHandle,
         mat: Mat4,
     ) -> Result<(), RendererProviderError> {
         let model = self
@@ -815,18 +827,18 @@ impl RendererProvider for WGPURenderer {
     fn scene_canvas_add(
         &mut self,
         resolution: UVec2,
-    ) -> Result<SceneCanvasHandle, RendererProviderError> {
+    ) -> Result<SceneCanvasProviderHandle, RendererProviderError> {
         todo!()
     }
     fn scene_canvas_remove(
         &mut self,
-        handle: SceneCanvasHandle,
+        handle: SceneCanvasProviderHandle,
     ) -> Result<(), RendererProviderError> {
         todo!()
     }
     fn scene_canvas_transfer_matrix(
         &mut self,
-        handle: SceneCanvasHandle,
+        handle: SceneCanvasProviderHandle,
         mat: Mat4,
     ) -> Result<(), RendererProviderError> {
         todo!()

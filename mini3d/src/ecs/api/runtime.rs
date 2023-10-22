@@ -1,6 +1,6 @@
 use crate::platform::event::ImportAssetEvent;
 
-use super::context::Context;
+use super::Context;
 
 pub struct Runtime;
 

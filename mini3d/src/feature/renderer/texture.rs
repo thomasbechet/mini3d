@@ -1,5 +1,7 @@
 use mini3d_derive::{Reflect, Resource, Serialize};
 
+use crate::renderer::provider::RendererProviderHandle;
+
 #[derive(Clone, Serialize, Default)]
 pub enum TextureFormat {
     R,
@@ -15,4 +17,5 @@ pub struct Texture {
     pub format: TextureFormat,
     pub width: u32,
     pub height: u32,
+    pub(crate) handle: RendererProviderHandle,
 }

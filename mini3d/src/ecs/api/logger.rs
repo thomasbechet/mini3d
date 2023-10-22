@@ -2,7 +2,7 @@ use std::fmt::Arguments;
 
 use crate::logger::level::LogLevel;
 
-use super::context::Context;
+use super::Context;
 
 #[macro_export]
 macro_rules! info {

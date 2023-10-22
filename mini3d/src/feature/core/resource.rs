@@ -2,7 +2,7 @@ use crate::{
     reflection::{Property, Reflect},
     resource::{
         container::{NativeResourceContainer, ResourceContainer},
-        handle::{ReferenceResolver, ResourceRef},
+        handle::{ReferenceResolver, ResourceHandle},
         hook::{ResourceAddedHook, ResourceRemovedHook},
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
@@ -45,7 +45,7 @@ pub(crate) enum ResourceKind {
     },
     Raw,
     Struct {
-        structure: ResourceRef,
+        structure: ResourceHandle,
     },
 }
 
@@ -84,7 +84,7 @@ impl ResourceType {
         self
     }
 
-    pub fn structure(name: &str, structure: ResourceRef) -> Self {
+    pub fn structure(name: &str, structure: ResourceHandle) -> Self {
         Self {
             display_name: AsciiArray::from_str(name),
             kind: ResourceKind::Struct { structure },

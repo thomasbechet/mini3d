@@ -1,4 +1,4 @@
-use crate::math::rect::IRect;
+use crate::{math::rect::IRect, renderer::provider::RendererProviderHandle};
 use glam::{IVec2, UVec2};
 use mini3d_derive::{Reflect, Resource, Serialize};
 use std::collections::HashMap;
@@ -10,6 +10,7 @@ pub struct Font {
     pub glyph_size: UVec2,
     pub data: Vec<u8>,
     pub glyph_locations: HashMap<char, usize>,
+    pub(crate) handle: RendererProviderHandle,
 }
 
 impl Default for Font {

@@ -4,7 +4,7 @@ use crate::{
         Container, ContainerTable,
     },
     reflection::{Property, Reflect},
-    resource::handle::{ReferenceResolver, ResourceRef},
+    resource::handle::{ReferenceResolver, ResourceHandle, ToResourceHandle},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{slotmap::SlotId, string::AsciiArray},
 };
@@ -54,7 +54,7 @@ pub(crate) enum ComponentKind {
         reflection: Box<dyn ComponentReflection>,
     },
     Struct {
-        structure: ResourceRef,
+        structure: ResourceHandle,
     },
     Raw,
     Tag,
@@ -69,18 +69,20 @@ pub enum ComponentStorage {
 
 #[derive(Clone, Default)]
 pub struct ComponentType {
-    pub(crate) access_name: AsciiArray<32>,
+    pub(crate) name: AsciiArray<32>,
     pub(crate) kind: ComponentKind,
     pub(crate) storage: ComponentStorage,
 }
 
 impl ComponentType {
-    pub fn native<C: Component>(access_name: &str, storage: ComponentStorage) -> Self {
+    pub const NAME: &'static str = "component_type";
+
+    pub fn native<C: Component>(name: &str, storage: ComponentStorage) -> Self {
         let reflection = NativeComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
         Self {
-            access_name: AsciiArray::from_str(access_name),
+            name: AsciiArray::from_str(name),
             kind: ComponentKind::Native {
                 reflection: Box::new(reflection),
             },
@@ -88,9 +90,13 @@ impl ComponentType {
         }
     }
 
-    pub fn structure(access_name: &str, storage: ComponentStorage, structure: ResourceRef) -> Self {
+    pub fn structure(
+        access_name: &str,
+        storage: ComponentStorage,
+        structure: ResourceHandle,
+    ) -> Self {
         Self {
-            access_name: AsciiArray::from_str(access_name),
+            name: AsciiArray::from_str(access_name),
             kind: ComponentKind::Struct { structure },
             storage,
         }
@@ -101,5 +107,13 @@ impl ComponentType {
             ComponentKind::Native { reflection } => reflection.create_container(),
             _ => unimplemented!(),
         }
+    }
+}
+
+pub struct ComponentTypeHandle(pub(crate) ResourceHandle);
+
+impl ToResourceHandle for ComponentTypeHandle {
+    fn to_handle(&self) -> ResourceHandle {
+        self.0
     }
 }

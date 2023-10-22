@@ -1,4 +1,4 @@
-use mini3d::{glam::UVec2, renderer::provider::SceneCameraHandle};
+use mini3d::{glam::UVec2, renderer::provider::SceneCameraProviderHandle};
 
 use crate::context::WGPUContext;
 
@@ -35,7 +35,7 @@ pub(crate) struct Viewport {
     pub(crate) extent: wgpu::Extent3d,
     pub(crate) color_view: wgpu::TextureView,
     pub(crate) depth_view: wgpu::TextureView,
-    pub(crate) camera: Option<SceneCameraHandle>,
+    pub(crate) camera: Option<SceneCameraProviderHandle>,
 }
 
 impl Viewport {

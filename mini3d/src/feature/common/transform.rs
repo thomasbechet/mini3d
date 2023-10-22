@@ -3,13 +3,14 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{context::Context, ecs::ECS},
+        api::{ecs::ECS, Context},
         entity::Entity,
-        instance::ParallelResolver,
+        error::ResolverError,
         query::QueryId,
+        system::{ParallelResolver, ParallelSystem},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
-    registry::{component::ComponentType, error::RegistryError},
+    feature::core::component::ComponentId,
 };
 
 use super::{hierarchy::Hierarchy, local_to_world::LocalToWorld};
@@ -90,9 +91,9 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: ComponentType,
-    hierarchy: ComponentType,
-    local_to_world: ComponentType,
+    transform: ComponentId,
+    hierarchy: ComponentId,
+    local_to_world: ComponentId,
     query: QueryId,
 }
 
@@ -101,7 +102,7 @@ impl PropagateTransforms {
 }
 
 impl ParallelSystem for PropagateTransforms {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
         self.transform = resolver.read(Transform::NAME)?;
         self.hierarchy = resolver.read(Hierarchy::NAME)?;
         self.local_to_world = resolver.write(LocalToWorld::NAME)?;
@@ -109,14 +110,14 @@ impl ParallelSystem for PropagateTransforms {
         Ok(())
     }
 
-    fn run(&self, ecs: &ECS, ctx: &Context) {
-        let transforms = ecs.view(self.transform);
-        let hierarchies = ecs.view(self.hierarchy);
-        let mut local_to_worlds = ecs.view_mut(self.local_to_world);
+    fn run(&self, ctx: &Context) {
+        let transforms = ECS::view(ctx, self.transform);
+        let hierarchies = ECS::view(ctx, self.hierarchy);
+        let mut local_to_worlds = ECS::view_mut(ctx, self.local_to_world);
 
         // Reset all flags
         let mut entities = Vec::new();
-        for e in ecs.query(self.query) {
+        for e in ECS::query(ctx, self.query) {
             local_to_worlds[e].dirty = true;
             entities.push(e);
         }

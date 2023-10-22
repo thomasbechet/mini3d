@@ -1,53 +1,40 @@
 use crate::{
-    feature::input::{action::InputAction, axis::InputAxis},
-    input::{
-        handle::{InputActionHandle, InputAxisHandle, InputTextHandle},
-        InputActionState, InputAxisState, InputError, InputTextState,
+    feature::input::{
+        action::{InputAction, InputActionState},
+        axis::{InputAxis, InputAxisState},
     },
+    input::handle::{InputActionHandle, InputAxisHandle},
+    resource::error::ResourceError,
 };
 
-use super::context::Context;
+use super::Context;
 
 pub struct Input;
 
 impl Input {
-    pub fn add_action(
-        ctx: &mut Context,
-        action: InputAction,
-    ) -> Result<InputActionHandle, InputError> {
-        ctx.input.add_action(action)
-    }
-
     pub fn find_action(ctx: &Context, name: &str) -> Option<InputActionHandle> {
-        ctx.input.find_action(name)
-    }
-
-    pub fn add_axis(ctx: &mut Context, axis: InputAxis) -> Result<InputAxisHandle, InputError> {
-        ctx.input.add_axis(axis)
+        ctx.input.find_action(name, &ctx.resource)
     }
 
     pub fn find_axis(ctx: &Context, name: &str) -> Option<InputAxisHandle> {
-        ctx.input.find_axis(name)
+        ctx.input.find_axis(name, &ctx.resource)
     }
 
     pub fn action<'a>(
         ctx: &'a Context,
-        handle: InputActionHandle,
-    ) -> Result<&'a InputActionState, InputError> {
-        ctx.input.action(handle)
+        action: InputActionHandle,
+    ) -> Result<&'a InputActionState, ResourceError> {
+        ctx.resource
+            .read::<InputAction>(action.0)
+            .map(|action| &action.state)
     }
 
     pub fn axis<'a>(
         ctx: &'a Context,
-        handle: InputAxisHandle,
-    ) -> Result<&'a InputAxisState, InputError> {
-        ctx.input.axis(handle)
-    }
-
-    pub fn text<'a>(
-        ctx: &'a Context,
-        handle: InputTextHandle,
-    ) -> Result<&'a InputTextState, InputError> {
-        ctx.input.text(handle)
+        axis: InputAxisHandle,
+    ) -> Result<&'a InputAxisState, ResourceError> {
+        ctx.resource
+            .read::<InputAxis>(axis.0)
+            .map(|axis| &axis.state)
     }
 }

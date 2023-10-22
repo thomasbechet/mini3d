@@ -4,7 +4,7 @@ use mini3d::{
     renderer::{
         color::Color,
         graphics::TextureWrapMode,
-        provider::{TextureHandle, ViewportHandle},
+        provider::{TextureProviderHandle, ViewportProviderHandle},
         rasterizer,
     },
 };
@@ -36,14 +36,14 @@ pub(crate) struct GPUPrimitiveVertexData {
 
 #[derive(Debug)]
 pub(crate) struct BlitBatch {
-    pub(crate) texture: TextureHandle,
+    pub(crate) texture: TextureProviderHandle,
     pub(crate) instance_start: u32,
     pub(crate) instance_count: u32,
 }
 
 #[derive(Debug)]
 pub(crate) struct ViewportBatch {
-    pub(crate) viewport: ViewportHandle,
+    pub(crate) viewport: ViewportProviderHandle,
     pub(crate) blit_index: u32,
 }
 
@@ -156,7 +156,7 @@ impl GraphicsRenderPass {
 
     pub(crate) fn blit_rect(
         &mut self,
-        texture: TextureHandle,
+        texture: TextureProviderHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,
@@ -274,7 +274,7 @@ impl GraphicsRenderPass {
     }
     pub(crate) fn blit_viewport(
         &mut self,
-        viewport: ViewportHandle,
+        viewport: ViewportProviderHandle,
         extent: wgpu::Extent3d,
         position: IVec2,
     ) {

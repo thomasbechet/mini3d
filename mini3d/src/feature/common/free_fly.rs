@@ -3,12 +3,13 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{context::Context, ecs::ECS, input::Input, time::Time},
+        api::{ecs::ECS, input::Input, time::Time, Context},
+        error::ResolverError,
         query::QueryId,
-        system::ParallelSystem,
+        system::{ParallelResolver, ParallelSystem},
     },
     expect,
-    feature::core::component_type::ComponentId,
+    feature::core::component::ComponentId,
     input::handle::{InputActionHandle, InputAxisHandle},
 };
 
@@ -61,7 +62,7 @@ impl FreeFlySystem {
 }
 
 impl ParallelSystem for FreeFlySystem {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), RegistryError> {
+    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
         self.free_fly = resolver.read(FreeFly::NAME)?;
         self.transform = resolver.write(Transform::NAME)?;
         self.query = resolver
@@ -71,19 +72,11 @@ impl ParallelSystem for FreeFlySystem {
         Ok(())
     }
 
-    fn run(&self, ecs: &ECS, ctx: &Context) {
-        let mut transforms = ecs.view_mut(self.transform);
-        let mut free_flies = ecs.view_mut(self.free_fly);
-
-        ECS::view_mut(ctx, self.transform);
+    fn run(&self, ctx: &Context) {
+        let mut transforms = ECS::view_mut(ctx, self.transform);
+        let mut free_flies = ECS::view_mut(ctx, self.free_fly);
 
         for e in ECS::query(ctx, self.query) {
-            ECS::destroy(ctx, e);
-            ECS::add(ctx, e, self.transform, Transform::default());
-            let cmd = ECS::commands(ctx);
-        }
-
-        for e in ecs.query(self.query) {
             let transform = transforms.get_mut(e).unwrap();
             let free_fly = free_flies.get_mut(e).unwrap();
 

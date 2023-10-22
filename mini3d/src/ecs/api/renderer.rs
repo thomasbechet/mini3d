@@ -1,6 +1,6 @@
 use crate::renderer::{color::Color, graphics::Graphics, RendererStatistics};
 
-use super::context::Context;
+use super::Context;
 
 pub struct Renderer;
 

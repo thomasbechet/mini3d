@@ -1,12 +1,6 @@
 use crate::{
-    ecs::{
-        api::{context::Context, ecs::ECS},
-        instance::ExclusiveResolver,
-        query::QueryId,
-    },
     expect,
-    feature::common::local_to_world::LocalToWorld,
-    registry::error::RegistryError,
+    feature::common::local_to_world::LocalToWorld, ecs::query::QueryId,
 };
 
 use super::{

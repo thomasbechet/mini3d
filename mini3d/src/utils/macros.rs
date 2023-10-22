@@ -25,3 +25,22 @@ macro_rules! define_provider_handle {
         }
     };
 }
+
+#[macro_export]
+macro_rules! define_resource_handle {
+    ($name:ident) => {
+        pub struct $name(pub(crate) $crate::resource::handle::ResourceHandle);
+
+        impl $crate::resource::handle::ToResourceHandle for $name {
+            fn to_handle(&self) -> $crate::resource::handle::ResourceHandle {
+                self.0
+            }
+        }
+
+        impl From<$crate::resource::handle::ResourceHandle> for $name {
+            fn from(handle: $crate::resource::handle::ResourceHandle) -> Self {
+                Self(handle)
+            }
+        }
+    };
+}

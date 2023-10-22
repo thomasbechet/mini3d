@@ -1,6 +1,9 @@
 use mini3d_derive::Error;
 
-use crate::feature::input::{action::InputAction, axis::InputAxis};
+use crate::{
+    define_provider_handle,
+    feature::input::{action::InputAction, axis::InputAxis},
+};
 
 use super::event::InputEvent;
 
@@ -10,6 +13,8 @@ pub enum InputProviderError {
     Unknown,
 }
 
+define_provider_handle!(InputProviderHandle);
+
 #[allow(unused_variables)]
 pub trait InputProvider {
     fn on_connect(&mut self);
@@ -17,8 +22,11 @@ pub trait InputProvider {
 
     fn next_event(&mut self) -> Option<InputEvent>;
 
-    fn add_action(&mut self, id: u32, action: &InputAction);
-    fn add_axis(&mut self, id: u32, axis: &InputAxis);
+    fn add_action(
+        &mut self,
+        action: &InputAction,
+    ) -> Result<InputProviderHandle, InputProviderError>;
+    fn add_axis(&mut self, axis: &InputAxis) -> Result<InputProviderHandle, InputProviderError>;
 }
 
 #[derive(Default)]

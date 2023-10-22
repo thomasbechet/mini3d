@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use mini3d::{
     renderer::{
-        provider::{MaterialHandle, SceneCameraHandle, ViewportHandle},
+        provider::{MaterialProviderHandle, SceneCameraProviderHandle, ViewportProviderHandle},
         RendererStatistics,
     },
     utils::uid::UID,
@@ -125,9 +125,9 @@ impl ViewportRenderer {
     pub(crate) fn render(
         &mut self,
         context: &WGPUContext,
-        viewports: &HashMap<ViewportHandle, Viewport>,
-        cameras: &HashMap<SceneCameraHandle, Camera>,
-        materials: &HashMap<MaterialHandle, Material>,
+        viewports: &HashMap<ViewportProviderHandle, Viewport>,
+        cameras: &HashMap<SceneCameraProviderHandle, Camera>,
+        materials: &HashMap<MaterialProviderHandle, Material>,
         submeshes: &HashMap<UID, VertexBufferDescriptor>,
         vertex_allocator: &VertexAllocator,
         flat_pipeline: &wgpu::RenderPipeline,
@@ -211,7 +211,7 @@ impl ViewportRenderer {
                 // Classic draw
                 {
                     statistics.triangle_count = 0;
-                    let mut previous_material: MaterialHandle = Default::default();
+                    let mut previous_material: MaterialProviderHandle = Default::default();
                     for batch in &forward_mesh_pass.instanced_batches {
                         // Check change in material
                         if batch.material != previous_material {

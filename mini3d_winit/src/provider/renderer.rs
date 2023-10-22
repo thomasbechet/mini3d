@@ -27,7 +27,7 @@ impl RendererProvider for WinitRendererProvider {
         &mut self,
         mesh: &mini3d::feature::renderer::mesh::Mesh,
     ) -> Result<
-        mini3d::renderer::provider::MeshHandle,
+        mini3d::renderer::provider::MeshProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().mesh_add(mesh)
@@ -35,7 +35,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn mesh_remove(
         &mut self,
-        handle: mini3d::renderer::provider::MeshHandle,
+        handle: mini3d::renderer::provider::MeshProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().mesh_remove(handle)
     }
@@ -44,7 +44,7 @@ impl RendererProvider for WinitRendererProvider {
         &mut self,
         texture: &mini3d::feature::renderer::texture::Texture,
     ) -> Result<
-        mini3d::renderer::provider::TextureHandle,
+        mini3d::renderer::provider::TextureProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().texture_add(texture)
@@ -52,7 +52,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn texture_remove(
         &mut self,
-        handle: mini3d::renderer::provider::TextureHandle,
+        handle: mini3d::renderer::provider::TextureProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().texture_remove(handle)
     }
@@ -61,7 +61,7 @@ impl RendererProvider for WinitRendererProvider {
         &mut self,
         desc: mini3d::renderer::provider::ProviderMaterialDescriptor,
     ) -> Result<
-        mini3d::renderer::provider::MaterialHandle,
+        mini3d::renderer::provider::MaterialProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().material_add(desc)
@@ -69,7 +69,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn material_remove(
         &mut self,
-        handle: mini3d::renderer::provider::MaterialHandle,
+        handle: mini3d::renderer::provider::MaterialProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().material_remove(handle)
     }
@@ -83,7 +83,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_canvas_begin(
         &mut self,
-        canvas: mini3d::renderer::provider::SceneCanvasHandle,
+        canvas: mini3d::renderer::provider::SceneCanvasProviderHandle,
         clear_color: mini3d::renderer::color::Color,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().scene_canvas_begin(canvas, clear_color)
@@ -95,7 +95,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn canvas_blit_texture(
         &mut self,
-        texture: mini3d::renderer::provider::TextureHandle,
+        texture: mini3d::renderer::provider::TextureProviderHandle,
         extent: mini3d::math::rect::IRect,
         texture_extent: mini3d::math::rect::IRect,
         filtering: mini3d::renderer::color::Color,
@@ -114,7 +114,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn canvas_blit_viewport(
         &mut self,
-        viewport: mini3d::renderer::provider::ViewportHandle,
+        viewport: mini3d::renderer::provider::ViewportProviderHandle,
         position: mini3d::glam::IVec2,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().canvas_blit_viewport(viewport, position)
@@ -176,7 +176,7 @@ impl RendererProvider for WinitRendererProvider {
         &mut self,
         resolution: mini3d::glam::UVec2,
     ) -> Result<
-        mini3d::renderer::provider::ViewportHandle,
+        mini3d::renderer::provider::ViewportProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().viewport_add(resolution)
@@ -184,22 +184,22 @@ impl RendererProvider for WinitRendererProvider {
 
     fn viewport_remove(
         &mut self,
-        handle: mini3d::renderer::provider::ViewportHandle,
+        handle: mini3d::renderer::provider::ViewportProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().viewport_remove(handle)
     }
 
     fn viewport_set_camera(
         &mut self,
-        handle: mini3d::renderer::provider::ViewportHandle,
-        camera: Option<mini3d::renderer::provider::SceneCameraHandle>,
+        handle: mini3d::renderer::provider::ViewportProviderHandle,
+        camera: Option<mini3d::renderer::provider::SceneCameraProviderHandle>,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().viewport_set_camera(handle, camera)
     }
 
     fn viewport_set_resolution(
         &mut self,
-        handle: mini3d::renderer::provider::ViewportHandle,
+        handle: mini3d::renderer::provider::ViewportProviderHandle,
         resolution: mini3d::glam::UVec2,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0
@@ -210,7 +210,7 @@ impl RendererProvider for WinitRendererProvider {
     fn scene_add(
         &mut self,
     ) -> Result<
-        mini3d::renderer::provider::SceneHandle,
+        mini3d::renderer::provider::SceneProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().scene_add()
@@ -218,7 +218,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_remove(
         &mut self,
-        handle: mini3d::renderer::provider::SceneHandle,
+        handle: mini3d::renderer::provider::SceneProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().scene_remove(handle)
     }
@@ -226,7 +226,7 @@ impl RendererProvider for WinitRendererProvider {
     fn scene_camera_add(
         &mut self,
     ) -> Result<
-        mini3d::renderer::provider::SceneCameraHandle,
+        mini3d::renderer::provider::SceneCameraProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().scene_camera_add()
@@ -234,14 +234,14 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_camera_remove(
         &mut self,
-        handle: mini3d::renderer::provider::SceneCameraHandle,
+        handle: mini3d::renderer::provider::SceneCameraProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().scene_camera_remove(handle)
     }
 
     fn scene_camera_update(
         &mut self,
-        handle: mini3d::renderer::provider::SceneCameraHandle,
+        handle: mini3d::renderer::provider::SceneCameraProviderHandle,
         eye: mini3d::glam::Vec3,
         forward: mini3d::glam::Vec3,
         up: mini3d::glam::Vec3,
@@ -254,9 +254,9 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_model_add(
         &mut self,
-        mesh: mini3d::renderer::provider::MeshHandle,
+        mesh: mini3d::renderer::provider::MeshProviderHandle,
     ) -> Result<
-        mini3d::renderer::provider::SceneModelHandle,
+        mini3d::renderer::provider::SceneModelProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().scene_model_add(mesh)
@@ -264,16 +264,16 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_model_remove(
         &mut self,
-        handle: mini3d::renderer::provider::SceneModelHandle,
+        handle: mini3d::renderer::provider::SceneModelProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().scene_model_remove(handle)
     }
 
     fn scene_model_set_material(
         &mut self,
-        handle: mini3d::renderer::provider::SceneModelHandle,
+        handle: mini3d::renderer::provider::SceneModelProviderHandle,
         index: usize,
-        material: mini3d::renderer::provider::MaterialHandle,
+        material: mini3d::renderer::provider::MaterialProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0
             .borrow_mut()
@@ -282,7 +282,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_model_transfer_matrix(
         &mut self,
-        handle: mini3d::renderer::provider::SceneModelHandle,
+        handle: mini3d::renderer::provider::SceneModelProviderHandle,
         mat: mini3d::glam::Mat4,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().scene_model_transfer_matrix(handle, mat)
@@ -292,7 +292,7 @@ impl RendererProvider for WinitRendererProvider {
         &mut self,
         resolution: mini3d::glam::UVec2,
     ) -> Result<
-        mini3d::renderer::provider::SceneCanvasHandle,
+        mini3d::renderer::provider::SceneCanvasProviderHandle,
         mini3d::renderer::provider::RendererProviderError,
     > {
         self.0.borrow_mut().scene_canvas_add(resolution)
@@ -300,14 +300,14 @@ impl RendererProvider for WinitRendererProvider {
 
     fn scene_canvas_remove(
         &mut self,
-        handle: mini3d::renderer::provider::SceneCanvasHandle,
+        handle: mini3d::renderer::provider::SceneCanvasProviderHandle,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0.borrow_mut().scene_canvas_remove(handle)
     }
 
     fn scene_canvas_transfer_matrix(
         &mut self,
-        handle: mini3d::renderer::provider::SceneCanvasHandle,
+        handle: mini3d::renderer::provider::SceneCanvasProviderHandle,
         mat: mini3d::glam::Mat4,
     ) -> Result<(), mini3d::renderer::provider::RendererProviderError> {
         self.0

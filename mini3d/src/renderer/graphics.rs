@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     color::Color,
-    provider::{RendererProvider, RendererProviderError, SceneCanvasHandle},
+    provider::{RendererProvider, RendererProviderError, RendererProviderHandle},
     RendererResourceManager,
 };
 
@@ -85,7 +85,7 @@ impl Graphics {
 
     pub(crate) fn submit_provider(
         &self,
-        canvas: Option<SceneCanvasHandle>,
+        canvas: Option<RendererProviderHandle>,
         clear_color: Color,
         resources: &mut RendererResourceManager,
         resource: &mut ResourceManager,

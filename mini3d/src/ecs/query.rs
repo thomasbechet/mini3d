@@ -3,8 +3,8 @@ use std::ops::Range;
 use mini3d_derive::Error;
 
 use crate::{
-    feature::core::component_type::ComponentId,
-    resource::ResourceManager,
+    feature::core::component::ComponentId,
+    resource::{handle::ResourceHandle, ResourceManager},
     utils::{
         slotmap::{SlotId, SlotMap},
         uid::ToUID,
@@ -15,7 +15,7 @@ use super::{
     archetype::{Archetype, ArchetypeEntry},
     container::ContainerTable,
     entity::EntityTable,
-    system::SystemId,
+    system::SystemInstanceId,
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
@@ -151,7 +151,8 @@ pub enum QueryError {
 }
 
 pub struct QueryBuilder<'a> {
-    pub(crate) system: SystemId,
+    pub(crate) system: SystemInstanceId,
+    pub(crate) component_type: ResourceHandle,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
     pub(crate) not: &'a mut Vec<ComponentId>,
@@ -165,7 +166,7 @@ impl<'a> QueryBuilder<'a> {
     fn find_component(&self, component: impl ToUID) -> Result<ComponentId, QueryError> {
         let handle = self
             .resources
-            .find(component)
+            .find(self.component_type, component)
             .ok_or(QueryError::ComponentNotFound)?;
         Ok(self.containers.preallocate(handle, self.resources))
     }

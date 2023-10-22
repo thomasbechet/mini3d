@@ -8,7 +8,7 @@ use crate::{
         entity::Entity,
         sparse::PagedVector,
     },
-    feature::core::component_type::Component,
+    feature::core::component::Component,
     reflection::PropertyId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::uid::UID,

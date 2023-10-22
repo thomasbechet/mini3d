@@ -1,36 +1,35 @@
 use std::fmt::Debug;
 
-use mini3d_derive::Serialize;
+use crate::{ecs::entity::Entity, utils::slotmap::SlotId};
 
-use crate::utils::{slotmap::SlotId, uid::UID};
+use super::ResourceManager;
 
 pub struct ReferenceResolver;
+
+impl ReferenceResolver {
+    pub(crate) fn resolve_resource(&mut self, handle: ResourceHandle) -> ResourceHandle {}
+    pub(crate) fn resolve_entity(&mut self, entity: Entity) -> Entity {}
+}
 
 #[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct ResourceHandle(pub(crate) SlotId);
 
-#[derive(Default, Serialize)]
-pub struct ResourceRef {
-    #[serialize(skip)]
-    pub(crate) id: SlotId,
-    pub(crate) key: UID,
-}
-
-impl ResourceRef {
+impl ResourceHandle {
     pub fn resolve(&mut self, resolver: &mut ReferenceResolver) {
-        if !self.key.is_null() {
-            if self.id.is_null() {
-                // Find entry
-                self.id = resolver.resolve_resource_id(self.key);
-            } else {
-                // The entry's key has changed
-                self.key = resolver.remap_resource_key(self.id);
-            }
+        if !self.0.is_null() {
+            self.0 = resolver.resolve_resource(self.0);
         }
     }
 
     pub fn handle(&self) -> ResourceHandle {
-        ResourceHandle(self.id)
+        ResourceHandle(self.0)
+    }
+
+    pub(crate) fn release(&mut self, resources: &mut ResourceManager) {
+        if !self.0.is_null() {
+            resources.decrement_ref(self.0);
+            self.0 = ResourceHandle::null();
+        }
     }
 }
 
@@ -44,17 +43,10 @@ impl ToResourceHandle for ResourceHandle {
     }
 }
 
-impl ToResourceHandle for ResourceRef {
-    fn to_handle(&self) -> ResourceHandle {
-        self.handle()
-    }
-}
+pub struct ResourceTypeHandle(pub(crate) ResourceHandle);
 
-#[cfg(debug_assertions)]
-impl Drop for ResourceRef {
-    fn drop(&mut self) {
-        if !self.id.is_null() {
-            panic!("ResourceRef must be released before dropping")
-        }
+impl ToResourceHandle for ResourceTypeHandle {
+    fn to_handle(&self) -> ResourceHandle {
+        self.0
     }
 }

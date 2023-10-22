@@ -1,7 +1,6 @@
 use crate::{
-    ecs::api::{context::Context, resource::Resource},
+    ecs::api::{resource::Resource, Context},
     feature::common::script::Script,
-    resource::ResourceManager,
     utils::uid::ToUID,
 };
 
@@ -62,12 +61,10 @@ impl Compiler {
 
     fn fetch_modules(&mut self, ctx: &Context) -> Result<(), CompileError> {
         // Insert builtin modules
-        self.modules.add("scene", Module::Builtin);
         self.modules.add("resource", Module::Builtin);
         self.modules.add("input", Module::Builtin);
         self.modules.add("renderer", Module::Builtin);
         self.modules.add("physics", Module::Builtin);
-        self.modules.add("registry", Module::Builtin);
         self.modules.add("math", Module::Builtin);
         Ok(())
     }
