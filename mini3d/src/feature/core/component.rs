@@ -1,7 +1,6 @@
 use crate::{
     ecs::container::{
-        native::single::{NativeSingleContainer, SingleContainer},
-        Container, ContainerTable,
+        native::single::NativeSingleContainer, Container, ContainerTable, SingleContainer,
     },
     reflection::{Property, Reflect},
     resource::handle::{ReferenceResolver, ResourceHandle, ToResourceHandle},

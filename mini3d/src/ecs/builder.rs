@@ -1,51 +1,42 @@
-use crate::feature::core::component::{Component, ComponentId, PrivateComponentTableMut};
+use crate::feature::core::component::{Component, ComponentId};
 
 use super::{
+    api::Context,
     archetype::Archetype,
-    container::ContainerTable,
-    entity::{Entity, EntityEntry, EntityTable},
-    query::QueryTable,
+    container::native::single::NativeSingleContainer,
+    entity::{Entity, EntityEntry},
 };
 
 pub struct EntityBuilder<'a> {
     entity: Entity,
     archetype: Archetype,
-    entities: &'a mut EntityTable,
-    containers: &'a mut ContainerTable,
-    queries: &'a mut QueryTable,
-    cycle: u32,
+    ctx: &'a mut Context<'a>,
 }
 
 impl<'a> EntityBuilder<'a> {
-    pub(crate) fn new(
-        entities: &'a mut EntityTable,
-        containers: &'a mut ContainerTable,
-        queries: &'a mut QueryTable,
-        cycle: u32,
-    ) -> Self {
+    pub(crate) fn new(ctx: &'a mut Context<'a>) -> Self {
         // Find next entity
-        let entity = entities.next_entity();
+        let entity = ctx.entities.next_entity();
         Self {
             entity,
-            archetype: entities.archetypes.empty,
-            entities,
-            containers,
-            queries,
-            cycle,
+            archetype: ctx.entities.archetypes.empty,
+            ctx,
         }
     }
 
     pub fn with<C: Component>(mut self, component: ComponentId, data: C) -> Self {
-        self.archetype = self
-            .entities
-            .archetypes
-            .find_add(self.queries, self.archetype, component);
-        component.insert_single_container(
-            PrivateComponentTableMut(self.containers),
-            self.entity,
-            data,
-            self.cycle,
-        );
+        self.archetype =
+            self.ctx
+                .entities
+                .archetypes
+                .find_add(self.ctx.queries, self.archetype, component);
+        self.ctx.containers.entries[component.0]
+            .container
+            .get_mut()
+            .as_any_mut()
+            .downcast_mut::<NativeSingleContainer<C>>()
+            .unwrap()
+            .add(self.entity, component);
         self
     }
 
@@ -61,7 +52,7 @@ impl<'a> EntityBuilder<'a> {
         self
     }
 
-    pub fn with_any(mut self, component: ComponentId) -> AnyComponentBuilder<'a> {}
+    pub fn with_any(mut self, component: ComponentId) -> ComponentBuilder<'a> {}
 
     pub fn with_default(self, component: ComponentId) -> Self {
         self
@@ -75,15 +66,11 @@ impl<'a> EntityBuilder<'a> {
 impl<'a> Drop for EntityBuilder<'a> {
     fn drop(&mut self) {
         // Add to pool
-        let archetype = &mut self.entities.archetypes[self.archetype];
+        let archetype = &mut self.ctx.entities.archetypes[self.archetype];
         let pool_index = archetype.pool.len();
         archetype.pool.push(self.entity);
-        // Add to added filter queries
-        for added in &archetype.added_filter_queries {
-            self.queries.filter_queries[added.0].pool.push(self.entity);
-        }
         // Update entity info
-        self.entities.entries.set(
+        self.ctx.entities.entries.set(
             self.entity.key(),
             EntityEntry {
                 archetype: self.archetype,
@@ -93,24 +80,18 @@ impl<'a> Drop for EntityBuilder<'a> {
     }
 }
 
-pub struct AnyComponentBuilder<'a> {
+pub struct ComponentBuilder<'a> {
     entity: Entity,
     archetype: Archetype,
-    entities: &'a mut EntityTable,
-    containers: &'a mut ContainerTable,
-    queries: &'a mut QueryTable,
-    cycle: u32,
+    ctx: &'a mut Context<'a>,
 }
 
-impl<'a> AnyComponentBuilder<'a> {
+impl<'a> ComponentBuilder<'a> {
     pub fn end(self) -> EntityBuilder<'a> {
         EntityBuilder {
             entity: self.entity,
             archetype: self.archetype,
-            entities: self.entities,
-            containers: self.containers,
-            queries: self.queries,
-            cycle: self.cycle,
+            ctx: self.ctx,
         }
     }
 }

@@ -7,6 +7,7 @@ use crate::{
         error::ResolverError,
         query::QueryId,
         system::{ParallelResolver, ParallelSystem},
+        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     expect,
     feature::core::component::ComponentId,
@@ -73,8 +74,8 @@ impl ParallelSystem for FreeFlySystem {
     }
 
     fn run(&self, ctx: &Context) {
-        let mut transforms = ECS::view_mut(ctx, self.transform);
-        let mut free_flies = ECS::view_mut(ctx, self.free_fly);
+        let mut transforms: NativeSingleViewRef<Transform> = ECS::view_mut(ctx, self.transform);
+        let mut free_flies: NativeSingleViewMut<FreeFly> = ECS::view_mut(ctx, self.free_fly);
 
         for e in ECS::query(ctx, self.query) {
             let transform = transforms.get_mut(e).unwrap();

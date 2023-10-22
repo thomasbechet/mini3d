@@ -276,6 +276,11 @@ impl RendererManager {
         self.statistics
     }
 
+    pub(crate) fn on_component_added_hook(
+        &mut self,
+        hook: RendererComponentHook,
+    )
+
     pub(crate) fn on_resource_added_hook(
         &mut self,
         hook: RendererResourceHook,

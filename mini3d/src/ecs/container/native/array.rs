@@ -2,7 +2,7 @@ use std::any::Any;
 
 use crate::{
     ecs::{
-        container::{ComponentFlags, ComponentStatus},
+        container::{ArrayContainer, Container},
         entity::Entity,
         sparse::PagedVector,
     },
@@ -10,18 +10,8 @@ use crate::{
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
-pub(crate) trait ArrayContainer {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn remove(&mut self, entity: Entity);
-    fn clear_changed(&mut self);
-    fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
-    fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
-}
-
 struct NativeArrayEntry {
     entity: Entity,
-    flags: ComponentFlags,
     chunk_index: usize,
 }
 
@@ -44,9 +34,7 @@ impl<C: Component> NativeArrayContainer<C> {
 
     pub(crate) fn get(&self, entity: Entity) -> Option<&[C]> {
         self.indices.get(entity.key()).and_then(|index| {
-            if self.entries[*index].entity == entity
-                && self.entries[*index].flags.status() != ComponentStatus::Removed
-            {
+            if self.entries[*index].entity == entity {
                 let start = self.entries[*index].chunk_index * self.chunk_size;
                 Some(&self.data[start..start + self.chunk_size])
             } else {
@@ -59,18 +47,6 @@ impl<C: Component> NativeArrayContainer<C> {
         self.indices.get(entity.key()).and_then(|index| {
             let entry = &mut self.entries[*index];
             if entry.entity == entity {
-                match entry.flags.status() {
-                    ComponentStatus::Unchanged => {
-                        entry.flags.set(ComponentStatus::Changed, cycle);
-                        self.changed.push(entry.entity);
-                    }
-                    ComponentStatus::Changed | ComponentStatus::Added => {
-                        entry.flags.set(ComponentStatus::Changed, cycle);
-                    }
-                    ComponentStatus::Removed => {
-                        return None;
-                    }
-                }
                 let start = entry.chunk_index * self.chunk_size;
                 Some(&mut self.data[start..start + self.chunk_size])
             } else {
@@ -84,7 +60,6 @@ impl<C: Component> NativeArrayContainer<C> {
         self.entries
             .iter()
             .zip(chunks.into_iter())
-            .filter(|(entry, _)| !matches!(entry.flags.status(), ComponentStatus::Removed))
             .map(|(_, data)| data)
     }
 
@@ -93,7 +68,6 @@ impl<C: Component> NativeArrayContainer<C> {
         self.entries
             .iter()
             .zip(chunks.into_iter())
-            .filter(|(entry, _)| !matches!(entry.flags.status(), ComponentStatus::Removed))
             .map(|(_, data)| data)
     }
 
@@ -105,7 +79,6 @@ impl<C: Component> NativeArrayContainer<C> {
         // Append entry
         self.entries.push(NativeArrayEntry {
             entity,
-            flags: ComponentFlags::added(cycle),
             chunk_index,
         });
         // Update indices
@@ -113,7 +86,7 @@ impl<C: Component> NativeArrayContainer<C> {
     }
 }
 
-impl<C: Component> ArrayContainer for NativeArrayContainer<C> {
+impl<C: Component> Container for NativeArrayContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -143,10 +116,6 @@ impl<C: Component> ArrayContainer for NativeArrayContainer<C> {
         }
     }
 
-    fn clear_changed(&mut self) {
-        self.changed.clear();
-    }
-
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
         Ok(())
     }
@@ -156,12 +125,14 @@ impl<C: Component> ArrayContainer for NativeArrayContainer<C> {
     }
 }
 
+impl<C: Component> ArrayContainer for NativeArrayContainer<C> {}
+
 pub(crate) struct DynamicArrayContainer {
     pub(crate) entities: Vec<Entity>,
     pub(crate) indices: PagedVector<usize>,
 }
 
-impl ArrayContainer for DynamicArrayContainer {
+impl Container for DynamicArrayContainer {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -174,10 +145,6 @@ impl ArrayContainer for DynamicArrayContainer {
         todo!()
     }
 
-    fn clear_changed(&mut self) {
-        todo!()
-    }
-
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
         todo!()
     }
@@ -186,3 +153,5 @@ impl ArrayContainer for DynamicArrayContainer {
         todo!()
     }
 }
+
+impl ArrayContainer for DynamicArrayContainer {}

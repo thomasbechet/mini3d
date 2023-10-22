@@ -16,7 +16,7 @@ pub struct ECS;
 
 impl ECS {
     pub fn create<'a>(ctx: &'a mut Context<'a>) -> EntityBuilder<'a> {
-        EntityBuilder::new(ctx.entities, ctx.containers, ctx.queries, ctx.cycle)
+        EntityBuilder::new(ctx)
     }
 
     pub fn destroy(ctx: &mut Context, entity: Entity) {
