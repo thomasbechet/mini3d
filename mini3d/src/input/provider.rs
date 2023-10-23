@@ -25,8 +25,13 @@ pub trait InputProvider {
     fn add_action(
         &mut self,
         action: &InputAction,
+        id: u32,
     ) -> Result<InputProviderHandle, InputProviderError>;
-    fn add_axis(&mut self, axis: &InputAxis) -> Result<InputProviderHandle, InputProviderError>;
+    fn add_axis(
+        &mut self,
+        axis: &InputAxis,
+        id: u32,
+    ) -> Result<InputProviderHandle, InputProviderError>;
 }
 
 #[derive(Default)]

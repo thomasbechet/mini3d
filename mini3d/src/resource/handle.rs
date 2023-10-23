@@ -31,6 +31,10 @@ impl ResourceHandle {
             self.0 = ResourceHandle::null();
         }
     }
+
+    pub(crate) fn from_raw(raw: u32) -> Self {
+        Self(SlotId::from_raw(raw))
+    }
 }
 
 pub trait ToResourceHandle {

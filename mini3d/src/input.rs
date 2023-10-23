@@ -2,12 +2,12 @@ use mini3d_derive::Error;
 
 use crate::feature::input::action::InputAction;
 use crate::feature::input::axis::InputAxis;
+use crate::feature::input::text::InputText;
 use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
 use crate::resource::hook::InputResourceHook;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
-use crate::utils::slotmap::SlotId;
 use crate::utils::uid::ToUID;
 
 use self::event::InputEvent;
@@ -42,6 +42,7 @@ pub struct InputManager {
     provider: Box<dyn InputProvider>,
     action_type: ResourceTypeHandle,
     axis_type: ResourceTypeHandle,
+    text_type: ResourceTypeHandle,
 }
 
 impl InputManager {
@@ -52,52 +53,47 @@ impl InputManager {
     }
 
     /// Reset action states and mouse motion
-    pub(crate) fn prepare_dispatch(&mut self) {
+    pub(crate) fn prepare_dispatch(&mut self, resources: &mut ResourceManager) {
         // Save the previous action state
-        for action in self.actions.values_mut() {
-            action.was_pressed = action.pressed;
+        for action in resources.iter_mut::<InputAction>(self.action_type) {
+            action.state.was_pressed = action.state.pressed;
         }
-
         // Reset text for current frame
-        for text in self.texts.values_mut() {
-            text.value.clear();
+        for text in resources.iter_mut::<InputText>(self.text_type) {
+            text.state.value.clear();
         }
     }
 
     /// Process input events
-    pub(crate) fn dispatch_events(&mut self) {
+    pub(crate) fn dispatch_events(&mut self, resources: &mut ResourceManager) {
         while let Some(event) = self.provider.next_event() {
             match event {
                 InputEvent::Action(event) => {
-                    if let Some(action) = self.actions.get_mut(SlotId::from_raw(event.id)) {
-                        action.pressed = event.pressed;
-                    }
+                    let action = resources.get_mut_unchecked::<InputAction>(
+                        self.action_type,
+                        ResourceHandle::from_raw(event.id),
+                    );
+                    action.state.pressed = event.pressed;
                 }
                 InputEvent::Axis(event) => {
-                    if let Some(axis) = self.axis.get_mut(SlotId::from_raw(event.id)) {
-                        axis.set_value(event.value);
-                    }
+                    let axis = resources.get_mut_unchecked::<InputAxis>(
+                        self.axis_type,
+                        ResourceHandle::from_raw(event.id),
+                    );
+                    axis.set_value(event.value);
                 }
                 InputEvent::Text(event) => {
-                    if let Some(text) = self.texts.get_mut(SlotId::from_raw(event.id)) {
-                        text.value = text.value.clone();
-                    }
+                    todo!()
                 }
             }
         }
     }
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        // self.actions.serialize(encoder)?;
-        // self.axis.serialize(encoder)?;
-        // self.texts.serialize(encoder)?;
         Ok(())
     }
 
     pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        // self.actions = HashMap::deserialize(decoder, &Default::default())?;
-        // self.axis = HashMap::deserialize(decoder, &Default::default())?;
-        // self.texts = HashMap::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
@@ -110,11 +106,11 @@ impl InputManager {
         match hook {
             InputResourceHook::Action => {
                 let action = resources.get_mut_unchecked::<InputAction>(self.action_type, handle);
-                action.state.handle = self.provider.add_action(action);
+                action.state.handle = self.provider.add_action(action, handle.0.raw());
             }
             InputResourceHook::Axis => {
                 let axis = resources.get_mut_unchecked::<InputAxis>(self.axis_type, handle);
-                axis.state.handle = self.provider.add_axis(axis);
+                axis.state.handle = self.provider.add_axis(axis, handle.0.raw());
             }
             InputResourceHook::Text => todo!(),
         }
@@ -132,15 +128,29 @@ impl InputManager {
         &self,
         key: impl ToUID,
         resource: &ResourceManager,
-    ) -> Option<&InputActionHandle, InputError> {
-        resource.find(self.action_type, key)
+    ) -> Option<InputActionHandle, InputError> {
+        resource
+            .find(self.action_type, key)
+            .map(|handle| handle.into())
     }
 
     pub(crate) fn find_axis(
         &self,
         key: impl ToUID,
         resource: &ResourceManager,
-    ) -> Option<&InputAxisHandle, InputError> {
-        resource.find(self.axis_type, key)
+    ) -> Option<InputAxisHandle, InputError> {
+        resource
+            .find(self.axis_type, key)
+            .map(|handle| handle.into())
+    }
+
+    pub(crate) fn find_text(
+        &self,
+        key: impl ToUID,
+        resource: &ResourceManager,
+    ) -> Option<&InputText> {
+        resource
+            .find(self.text_type, key)
+            .map(|handle| handle.into())
     }
 }

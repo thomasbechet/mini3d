@@ -1,4 +1,5 @@
 use crate::{
+    ecs::api::Context,
     reflection::{Property, Reflect},
     resource::{
         container::{NativeResourceContainer, ResourceContainer},
@@ -13,6 +14,7 @@ pub trait Resource: 'static + Default + Reflect {
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError>;
     fn resolve_references(&mut self, resolver: &mut ReferenceResolver);
+    fn hook_added(ctx: &mut Context, handle: ResourceHandle) {}
 }
 
 pub(crate) trait ResourceReflection {

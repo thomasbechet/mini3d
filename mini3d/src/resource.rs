@@ -204,6 +204,22 @@ impl ResourceManager {
         }
     }
 
+    pub(crate) fn iter_mut<R: Resource>(
+        &mut self,
+        ty: ResourceTypeHandle,
+    ) -> impl Iterator<Item = &mut R> {
+        let container_id = self.read::<ResourceType>(ty).unwrap().container_id;
+        self.containers
+            .get_mut(container_id)
+            .unwrap()
+            .container
+            .as_any_mut()
+            .downcast_mut::<NativeResourceContainer<R>>()
+            .unwrap()
+            .0
+            .iter_mut()
+    }
+
     pub(crate) fn get_mut_unchecked<R: Resource>(
         &mut self,
         ty: ResourceTypeHandle,

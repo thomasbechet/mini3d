@@ -20,8 +20,8 @@ impl InputAction {
 
 #[derive(Serialize, Clone)]
 pub struct InputActionState {
-    pressed: bool,
-    was_pressed: bool,
+    pub(crate) pressed: bool,
+    pub(crate) was_pressed: bool,
     pub(crate) handle: InputProviderHandle,
 }
 
