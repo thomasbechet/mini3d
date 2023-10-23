@@ -4,7 +4,6 @@ use crate::feature::renderer::material::Material;
 use crate::feature::renderer::mesh::Mesh;
 use crate::feature::renderer::texture::Texture;
 use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
-use crate::resource::hook::RendererResourceHook;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Serialize};
 use crate::utils::slotmap::SecondaryMap;
@@ -68,14 +67,6 @@ pub enum RendererModelDescriptor {
 pub struct RendererStatistics {
     pub triangle_count: usize,
     pub draw_count: usize,
-}
-
-#[derive(Default)]
-pub(crate) struct RendererResourceManager {
-    fonts: SecondaryMap<RendererFont>,
-    textures: SecondaryMap<RendererTexture>,
-    meshes: SecondaryMap<RendererMesh>,
-    materials: SecondaryMap<RendererMaterial>,
 }
 
 fn load_font(

@@ -4,7 +4,6 @@ use crate::feature::input::action::InputAction;
 use crate::feature::input::axis::InputAxis;
 use crate::feature::input::text::InputText;
 use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
-use crate::resource::hook::InputResourceHook;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
@@ -97,28 +96,33 @@ impl InputManager {
         Ok(())
     }
 
-    pub(crate) fn on_resource_added_hook(
+    pub(crate) fn on_action_added(
         &mut self,
-        hook: InputResourceHook,
         handle: ResourceHandle,
         resources: &mut ResourceManager,
     ) {
-        match hook {
-            InputResourceHook::Action => {
-                let action = resources.get_mut_unchecked::<InputAction>(self.action_type, handle);
-                action.state.handle = self.provider.add_action(action, handle.0.raw());
-            }
-            InputResourceHook::Axis => {
-                let axis = resources.get_mut_unchecked::<InputAxis>(self.axis_type, handle);
-                axis.state.handle = self.provider.add_axis(axis, handle.0.raw());
-            }
-            InputResourceHook::Text => todo!(),
-        }
+        let action = resources.get_mut_unchecked::<InputAction>(self.action_type, handle);
+        action.state.handle = self.provider.add_action(action, handle.0.raw());
     }
 
-    pub(crate) fn on_resource_removed_hook(
+    pub(crate) fn on_axis_added(
         &mut self,
-        hook: InputResourceHook,
+        handle: ResourceHandle,
+        resources: &mut ResourceManager,
+    ) {
+        let axis = resources.get_mut_unchecked::<InputAxis>(self.axis_type, handle);
+        axis.state.handle = self.provider.add_axis(axis, handle.0.raw());
+    }
+
+    pub(crate) fn on_action_removed(
+        &mut self,
+        handle: ResourceHandle,
+        resources: &mut ResourceManager,
+    ) {
+    }
+
+    pub(crate) fn on_axis_removed(
+        &mut self,
         handle: ResourceHandle,
         resources: &mut ResourceManager,
     ) {

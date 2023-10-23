@@ -1,9 +1,8 @@
 use crate::{
-    feature::core::resource,
+    feature::core::resource::{self, ResourceHookContext},
     resource::{
         error::ResourceError,
         handle::{ResourceHandle, ToResourceHandle},
-        hook::ResourceAddedHook,
     },
     utils::uid::ToUID,
 };
@@ -19,19 +18,15 @@ impl Resource {
         key: Option<&str>,
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
-        let mut hook = None;
-        let handle = ctx.resource.add(ty, key, ctx.activity, data, &mut hook)?;
-        if let Some(hook) = hook {
-            match hook {
-                ResourceAddedHook::Renderer(hook) => {
-                    ctx.renderer
-                        .on_resource_added_hook(hook, handle, ctx.resource);
-                }
-                ResourceAddedHook::Input(hook) => {
-                    ctx.input.on_resource_added_hook(hook, handle, ctx.resource);
-                }
-            }
-        }
+        let handle = ctx.resource.add(ty, key, ctx.activity, data)?;
+        R::hook_added(
+            handle,
+            ResourceHookContext {
+                input: &mut ctx.input,
+                renderer: &mut ctx.renderer,
+                resource: &mut ctx.resource,
+            },
+        );
         Ok(handle)
     }
 

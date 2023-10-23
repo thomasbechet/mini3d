@@ -1,7 +1,9 @@
 use mini3d_derive::{Reflect, Resource, Serialize};
 
 use crate::{
+    feature::core::resource::{Resource, ResourceHookContext},
     input::{provider::InputProviderHandle, MAX_INPUT_DISPLAY_NAME_LEN, MAX_INPUT_NAME_LEN},
+    resource::handle::ResourceHandle,
     utils::{string::AsciiArray, uid::UID},
 };
 
@@ -29,6 +31,16 @@ pub struct InputAxis {
     pub display_name: AsciiArray<MAX_INPUT_DISPLAY_NAME_LEN>,
     pub range: InputAxisRange,
     pub(crate) state: InputAxisState,
+}
+
+impl Resource for InputAxis {
+    fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
+        ctx.input.on_axis_added(handle, ctx.resource);
+    }
+
+    fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
+        ctx.input.on_axis_removed(handle, ctx.resource);
+    }
 }
 
 impl InputAxis {

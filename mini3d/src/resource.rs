@@ -10,13 +10,11 @@ use crate::utils::uid::ToUID;
 use self::container::{NativeResourceContainer, ResourceContainer};
 use self::error::ResourceError;
 use self::handle::{ResourceHandle, ResourceTypeHandle, ToResourceHandle};
-use self::hook::ResourceAddedHook;
 use self::key::ResourceKey;
 
 pub mod container;
 pub mod error;
 pub mod handle;
-pub mod hook;
 pub mod key;
 
 pub struct ResourceInfo<'a> {
@@ -87,7 +85,6 @@ impl ResourceManager {
         key: Option<&str>,
         owner: ActivityId,
         data: R,
-        hook: &mut Option<ResourceAddedHook>,
     ) -> Result<ResourceHandle, ResourceError> {
         // Allocate container if missing
         if self
@@ -143,7 +140,6 @@ impl ResourceManager {
         entry.next = self.containers[container_id].first;
         let id = self.entries.add(entry);
         self.containers[container_id].first = id;
-        *hook = resource_ty.added_hook;
         // Load asset
         // TODO: preload resource in container ? wait for read ? define proper strategy
         self.entries[id].slot = self

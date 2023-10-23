@@ -1,20 +1,28 @@
 use crate::{
-    ecs::api::Context,
+    input::InputManager,
     reflection::{Property, Reflect},
+    renderer::RendererManager,
     resource::{
         container::{NativeResourceContainer, ResourceContainer},
         handle::{ReferenceResolver, ResourceHandle},
-        hook::{ResourceAddedHook, ResourceRemovedHook},
+        ResourceManager,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{slotmap::SlotId, string::AsciiArray},
 };
 
+pub struct ResourceHookContext<'a> {
+    pub input: &'a mut InputManager,
+    pub renderer: &'a mut RendererManager,
+    pub resource: &'a mut ResourceManager,
+}
+
 pub trait Resource: 'static + Default + Reflect {
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError>;
     fn resolve_references(&mut self, resolver: &mut ReferenceResolver);
-    fn hook_added(ctx: &mut Context, handle: ResourceHandle) {}
+    fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {}
+    fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {}
 }
 
 pub(crate) trait ResourceReflection {
@@ -56,8 +64,6 @@ pub struct ResourceType {
     pub(crate) display_name: AsciiArray<32>,
     pub(crate) kind: ResourceKind,
     pub(crate) container_id: SlotId,
-    pub(crate) added_hook: Option<ResourceAddedHook>,
-    pub(crate) removed_hook: Option<ResourceRemovedHook>,
 }
 
 impl ResourceType {
@@ -71,19 +77,7 @@ impl ResourceType {
                 reflection: Box::new(reflection),
             },
             container_id: SlotId::null(),
-            added_hook: None,
-            removed_hook: None,
         }
-    }
-
-    pub(crate) fn with_added_hook(mut self, hook: ResourceAddedHook) -> Self {
-        self.added_hook = Some(hook);
-        self
-    }
-
-    pub(crate) fn with_removed_hook(mut self, hook: ResourceRemovedHook) -> Self {
-        self.removed_hook = Some(hook);
-        self
     }
 
     pub fn structure(name: &str, structure: ResourceHandle) -> Self {
@@ -91,8 +85,6 @@ impl ResourceType {
             display_name: AsciiArray::from_str(name),
             kind: ResourceKind::Struct { structure },
             container_id: SlotId::null(),
-            added_hook: None,
-            removed_hook: None,
         }
     }
 

@@ -1,7 +1,4 @@
-use crate::{
-    expect,
-    feature::common::local_to_world::LocalToWorld, ecs::query::QueryId,
-};
+use crate::{ecs::query::QueryId, expect, feature::common::local_to_world::LocalToWorld};
 
 use super::{
     camera::Camera, canvas::Canvas, model::Model, static_mesh::StaticMesh, viewport::Viewport,
@@ -53,8 +50,6 @@ impl ExclusiveSystem for SynchronizeRendererResources {
         let mut static_meshes = ecs.view_mut(self.static_mesh);
         let mut canvases = ecs.view_mut(self.canvas);
         let local_to_worlds = ecs.view_mut(self.local_to_world);
-
-        ECS::query(ctx)
 
         // Camera
         for e in ecs.query_filter(self.removed_camera) {

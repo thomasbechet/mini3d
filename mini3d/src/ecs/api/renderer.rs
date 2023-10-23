@@ -16,4 +16,14 @@ impl Renderer {
     pub fn statistics(ctx: &Context) -> RendererStatistics {
         ctx.renderer.statistics()
     }
+
+    pub fn create_render_pass(ctx: &mut Context) {}
+
+    pub fn begin_pass(ctx: &mut Context) {}
+
+    pub fn end_pass(ctx: &mut Context) {}
+
+    // Declaration
+    // Invocation
+    // Dispatch
 }
