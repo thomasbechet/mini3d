@@ -17,7 +17,13 @@ impl Renderer {
         ctx.renderer.statistics()
     }
 
-    pub fn create_render_pass(ctx: &mut Context) {}
+    pub fn create_vertex_buffer(ctx: &mut Context) {}
+
+    pub fn create_texture(ctx: &mut Context) {}
+
+    pub fn create_graphics_pipeline(ctx: &mut Context) {}
+
+    pub fn render_graph(ctx: &mut Context) {}
 
     pub fn begin_pass(ctx: &mut Context) {}
 

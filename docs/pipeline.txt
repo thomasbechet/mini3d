@@ -1,0 +1,23 @@
+{
+    "name": "default",
+    "attributes": [
+        {
+            "name": "a_position",
+            "type": "vec3"
+        },
+        {
+            "name": "a_normal",
+            "type": "vec3"
+        },
+        {
+            "name": "a_texcoord",
+            "type": "vec2"
+        }
+    ],
+    "vertex": {
+        
+    },
+    "fragment": {
+
+    }
+}
