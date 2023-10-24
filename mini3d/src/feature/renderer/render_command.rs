@@ -1,8 +1,4 @@
-use crate::resource::handle::ResourceHandle;
-
 use super::{graphics_pipeline::GraphicsPipelineHandle, vertex_buffer::VertexBufferHandle};
-
-pub struct RenderCommandBufferHandle(pub(crate) ResourceHandle);
 
 pub struct RenderCommandBuffer;
 
