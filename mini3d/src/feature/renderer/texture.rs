@@ -15,6 +15,8 @@ pub enum TextureFormat {
     RGBA,
 }
 
+pub struct TextureHandle(pub ResourceHandle);
+
 #[derive(Clone, Serialize, Default, Reflect)]
 pub struct Texture {
     pub data: Vec<u8>,

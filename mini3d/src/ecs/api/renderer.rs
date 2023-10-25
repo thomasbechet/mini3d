@@ -1,9 +1,10 @@
 use crate::{
     feature::renderer::{
         render_command::RenderCommandBuffer, render_graph::RenderGraphHandle,
-        render_pass::RenderPassHandle,
+        render_pass::RenderPassHandle, texture::TextureHandle,
     },
     renderer::{color::Color, graphics::Graphics, RendererStatistics},
+    utils::uid::ToUID,
 };
 
 use super::Context;
@@ -25,7 +26,7 @@ impl Renderer {
 
     pub fn create_vertex_buffer(ctx: &mut Context) {}
 
-    pub fn create_texture(ctx: &mut Context) {}
+    pub fn create_texture(ctx: &mut Context) -> TextureHandle {}
 
     pub fn create_graphics_pipeline(ctx: &mut Context) {}
 
@@ -33,15 +34,15 @@ impl Renderer {
 
     pub fn set_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
 
-    pub fn find_render_pass(ctx: &Context) -> RenderPassHandle {
+    pub fn find_render_pass(ctx: &Context, uid: impl ToUID) -> RenderPassHandle {
         todo!()
     }
 
-    pub fn begin_render_pass(ctx: &Context) -> RenderCommandBuffer {
+    pub fn begin_render_pass<'a>(ctx: &'a Context) -> RenderCommandBuffer<'a> {
         todo!()
     }
 
-    pub fn end_render_pass(ctx: &Context, cmd: RenderCommandBuffer) {
+    pub fn end_render_pass(cmd: RenderCommandBuffer) {
         todo!()
     }
 
