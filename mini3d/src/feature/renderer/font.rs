@@ -1,9 +1,13 @@
-use crate::{math::rect::IRect, renderer::provider::RendererProviderHandle};
+use crate::{
+    define_resource_handle, math::rect::IRect, renderer::provider::RendererProviderHandle,
+};
 use glam::{IVec2, UVec2};
 use mini3d_derive::{Reflect, Resource, Serialize};
 use std::collections::HashMap;
 
 use super::texture::{Texture, TextureFormat};
+
+define_resource_handle!(FontHandle);
 
 #[derive(Clone, Resource, Reflect, Serialize)]
 pub struct Font {

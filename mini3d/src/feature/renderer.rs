@@ -1,13 +1,13 @@
 pub mod camera;
 pub mod canvas;
+pub mod compute_pipeline;
 pub mod font;
-pub mod graphics_pipeline;
 pub mod material;
 pub mod mesh;
 pub mod model;
-pub mod render_command;
 pub mod render_graph;
 pub mod render_pass;
+pub mod render_pipeline;
 pub mod static_mesh;
 pub mod system;
 pub mod texture;

@@ -1,0 +1,32 @@
+{
+    "name": "default",
+    "resources": {
+
+    },
+    "passes": {
+        "shadow_pass": {
+            "type": "render_pass",
+            "targets": [
+
+            ]
+        },
+        "geometry_pass": {
+            "type": "render_pass",
+            "targets": [
+
+            ]
+        },
+        "light_pass": {
+            "type": "render_pass",
+            "targets": [
+
+            ]
+        },
+        "post_process_pass": {
+            "type": "render_pass",
+            "targets": [
+
+            ]
+        }
+    }
+}

@@ -11,7 +11,6 @@ use crate::{
 use super::{
     color::Color,
     provider::{RendererProvider, RendererProviderError, RendererProviderHandle},
-    RendererResourceManager,
 };
 
 #[derive(Clone, Copy, Serialize)]

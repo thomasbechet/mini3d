@@ -1,6 +1,7 @@
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
+    define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
     renderer::provider::RendererProviderHandle,
     resource::handle::ResourceHandle,
@@ -15,7 +16,7 @@ pub enum TextureFormat {
     RGBA,
 }
 
-pub struct TextureHandle(pub ResourceHandle);
+define_resource_handle!(TextureHandle);
 
 #[derive(Clone, Serialize, Default, Reflect)]
 pub struct Texture {

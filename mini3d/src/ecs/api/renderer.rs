@@ -1,10 +1,12 @@
 use crate::{
     feature::renderer::{
-        render_command::RenderCommandBuffer, render_graph::RenderGraphHandle,
-        render_pass::RenderPassHandle, vertex_buffer::VertexBufferHandle,
+        render_graph::RenderGraphHandle, render_pass::RenderPassHandle, texture::TextureHandle,
+        vertex_buffer::VertexBufferHandle,
     },
-    renderer::{color::Color, graphics::Graphics, RendererStatistics},
-    utils::uid::ToUID,
+    renderer::{
+        command::{CanvasCommandBuffer, ComputeCommandBuffer, RenderCommandBuffer},
+        RendererStatistics,
+    },
 };
 
 use super::Context;
@@ -12,6 +14,8 @@ use super::Context;
 pub struct Renderer;
 
 impl Renderer {
+    /// Statistics
+
     pub fn statistics(ctx: &Context) -> RendererStatistics {
         ctx.renderer.statistics()
     }
@@ -22,9 +26,13 @@ impl Renderer {
 
     pub fn destroy_vertex_buffer(ctx: &mut Context, buffer: VertexBufferHandle) {}
 
+    pub fn update_vertex_buffer(ctx: &mut Context, buffer: VertexBufferHandle) {}
+
     /// Textures
 
-    pub fn create_texture(ctx: &mut Context) -> TextureH {}
+    pub fn create_texture(ctx: &mut Context) -> TextureHandle {}
+
+    pub fn destroy_texture(ctx: &mut Context, texture: TextureHandle) {}
 
     /// Pipelines
 
@@ -33,6 +41,8 @@ impl Renderer {
     /// Render graphs
 
     pub fn create_render_graph(ctx: &mut Context) {}
+
+    pub fn destroy_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
 
     pub fn set_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
 
@@ -47,6 +57,26 @@ impl Renderer {
     }
 
     pub fn end_render_pass(cmd: RenderCommandBuffer) {
+        todo!()
+    }
+
+    /// Canvas passes
+
+    pub fn begin_canvas_pass<'a>(ctx: &'a Context) -> CanvasCommandBuffer<'a> {
+        todo!()
+    }
+
+    pub fn end_canvas_pass(cmd: CanvasCommandBuffer) {
+        todo!()
+    }
+
+    /// Compute passes
+
+    pub fn create_compute_pass<'a>(ctx: &'a Context) -> ComputeCommandBuffer<'a> {
+        todo!()
+    }
+
+    pub fn end_compute_pass(cmd: ComputeCommandBuffer) {
         todo!()
     }
 

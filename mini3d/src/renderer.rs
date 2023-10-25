@@ -25,7 +25,7 @@ use self::{
 pub mod color;
 pub mod event;
 pub mod graphics;
-pub mod handle;
+pub mod command;
 pub mod provider;
 pub mod rasterizer;
 
