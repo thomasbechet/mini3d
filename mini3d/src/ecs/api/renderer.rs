@@ -1,7 +1,7 @@
 use crate::{
     feature::renderer::{
         render_command::RenderCommandBuffer, render_graph::RenderGraphHandle,
-        render_pass::RenderPassHandle, texture::TextureHandle,
+        render_pass::RenderPassHandle, vertex_buffer::VertexBufferHandle,
     },
     renderer::{color::Color, graphics::Graphics, RendererStatistics},
     utils::uid::ToUID,
@@ -12,29 +12,33 @@ use super::Context;
 pub struct Renderer;
 
 impl Renderer {
-    pub fn graphics<'a>(ctx: &'a mut Context) -> &'a mut Graphics {
-        ctx.renderer.graphics()
-    }
-
-    pub fn set_clear_color(ctx: &mut Context, color: Color) {
-        ctx.renderer.set_clear_color(color);
-    }
-
     pub fn statistics(ctx: &Context) -> RendererStatistics {
         ctx.renderer.statistics()
     }
 
-    pub fn create_vertex_buffer(ctx: &mut Context) {}
+    /// Vertex buffers
 
-    pub fn create_texture(ctx: &mut Context) -> TextureHandle {}
+    pub fn create_vertex_buffer(ctx: &mut Context) -> VertexBufferHandle {}
+
+    pub fn destroy_vertex_buffer(ctx: &mut Context, buffer: VertexBufferHandle) {}
+
+    /// Textures
+
+    pub fn create_texture(ctx: &mut Context) -> TextureH {}
+
+    /// Pipelines
 
     pub fn create_graphics_pipeline(ctx: &mut Context) {}
+
+    /// Render graphs
 
     pub fn create_render_graph(ctx: &mut Context) {}
 
     pub fn set_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
 
-    pub fn find_render_pass(ctx: &Context, uid: impl ToUID) -> RenderPassHandle {
+    /// Render passes
+
+    pub fn find_render_pass(ctx: &Context) -> RenderPassHandle {
         todo!()
     }
 
