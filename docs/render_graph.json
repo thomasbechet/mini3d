@@ -1,43 +1,37 @@
 {
     "name": "default",
-    "resources": {},
-    "passes": {
-        "cull_pass": {
-            "type": "compute_pass"
-        },
-        "shadow_pass": {
+    "resources": [
+        { "name": "models", "type": "buffer" },
+        { "name": "vertices", "type": "buffer" },
+        { "name": "shadow_map", "type": "texture" },
+        { "name": "light_map", "type": "texture" },
+        { "name": "back_buffer", "type": "texture" }
+    ],
+    "passes": [
+        {
+            "name": "shadow_pass",
             "type": "render_pass",
-            "resources": [
-                {
-                    "type": "vertex_buffer"
-                },
-                {
-                    "type": "instance_buffer"
-                },
-                {
-                    "type":
-                }
-            ],
+            "resources": [ "models", "vertices" ],
+            "targets": [ "shadow_map" ]
+        },
+        {
+            "name": "light_pass",
+            "type": "render_pass",
+            "resources": [ "models", "vertices", "shadow_map" ],
+            "targets": [ "light_map" ]
+        },
+        {
+            "name": "ui_pass",
+            "type": "render_pass",
+            "resources": [ "light_map" ],
+            "targets": [ "back_buffer" ]
+        },
+        {
+            "name": "post_process_pass",
+            "type": "render_pass",
             "targets": [
-                {
-                    "type": "texture",
-                }
+                { "name": "back_buffer" }
             ]
-        },
-        "geometry_pass": {
-            "type": "render_pass",
-            "resources": [],
-            "targets": []
-        },
-        "light_pass": {
-            "type": "render_pass",
-            "resources": [],
-            "targets": []
-        },
-        "post_process_pass": {
-            "type": "render_pass",
-            "resources": [],
-            "targets": []
         }
-    }
+    ]
 }

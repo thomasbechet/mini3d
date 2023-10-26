@@ -1,11 +1,3 @@
-{
-    "name": "generic",
-    "passes": [
-        {
-            
-        },
-        {
-
-        },
-    ]
-}
+Resources :
+- Transient -> Lifetime is limited to render frame
+- External -> Lifetime can be longer than render frame

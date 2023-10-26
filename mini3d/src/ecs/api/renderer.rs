@@ -5,7 +5,9 @@ use crate::{
         texture::TextureHandle, vertex_buffer::VertexBufferHandle,
     },
     renderer::{
-        command::{ComputeCommandBuffer, RenderCommandBuffer},
+        command::{
+            CanvasCommandBuffer, ComputeCommandBuffer, CopyCommandBuffer, RenderCommandBuffer,
+        },
         RendererStatistics,
     },
 };
@@ -73,6 +75,16 @@ impl Renderer {
         todo!()
     }
 
+    /// Canvas passes
+
+    pub fn begin_canvas_pass<'a>(ctx: &'a Context) -> CanvasCommandBuffer<'a> {
+        todo!()
+    }
+
+    pub fn end_canvas_pass(cmd: CanvasCommandBuffer) {
+        todo!()
+    }
+
     /// Compute passes
 
     pub fn create_compute_pass<'a>(ctx: &'a Context) -> ComputeCommandBuffer<'a> {
@@ -80,6 +92,16 @@ impl Renderer {
     }
 
     pub fn end_compute_pass(cmd: ComputeCommandBuffer) {
+        todo!()
+    }
+
+    /// Copy passes
+
+    pub fn create_copy_pass<'a>(ctx: &'a Context) -> CopyCommandBuffer<'a> {
+        todo!()
+    }
+
+    pub fn end_copy_pass(cmd: CopyCommandBuffer) {
         todo!()
     }
 
