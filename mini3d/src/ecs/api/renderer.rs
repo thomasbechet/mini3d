@@ -1,10 +1,11 @@
 use crate::{
     feature::renderer::{
-        render_graph::RenderGraphHandle, render_pass::RenderPassHandle, texture::TextureHandle,
-        vertex_buffer::VertexBufferHandle,
+        compute_pipeline::ComputePipelineHandle, font::FontHandle, render_graph::RenderGraphHandle,
+        render_pass::RenderPassHandle, render_pipeline::RenderPipelineHandle,
+        texture::TextureHandle, vertex_buffer::VertexBufferHandle,
     },
     renderer::{
-        command::{CanvasCommandBuffer, ComputeCommandBuffer, RenderCommandBuffer},
+        command::{ComputeCommandBuffer, RenderCommandBuffer},
         RendererStatistics,
     },
 };
@@ -34,9 +35,21 @@ impl Renderer {
 
     pub fn destroy_texture(ctx: &mut Context, texture: TextureHandle) {}
 
+    /// Font
+
+    pub fn create_font(ctx: &mut Context) -> FontHandle {}
+
+    pub fn destroy_font(ctx: &mut Context, font: FontHandle) {}
+
     /// Pipelines
 
-    pub fn create_graphics_pipeline(ctx: &mut Context) {}
+    pub fn create_render_pipeline(ctx: &mut Context) -> RenderPipelineHandle {}
+
+    pub fn destroy_render_pipeline(ctx: &mut Context, pipeline: RenderPipelineHandle) {}
+
+    pub fn create_compute_pipeline(ctx: &mut Context) -> ComputePipelineHandle {}
+
+    pub fn destroy_compute_pipeline(ctx: &mut Context, pipeline: ComputePipelineHandle) {}
 
     /// Render graphs
 
@@ -57,16 +70,6 @@ impl Renderer {
     }
 
     pub fn end_render_pass(cmd: RenderCommandBuffer) {
-        todo!()
-    }
-
-    /// Canvas passes
-
-    pub fn begin_canvas_pass<'a>(ctx: &'a Context) -> CanvasCommandBuffer<'a> {
-        todo!()
-    }
-
-    pub fn end_canvas_pass(cmd: CanvasCommandBuffer) {
         todo!()
     }
 

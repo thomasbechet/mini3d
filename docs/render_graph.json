@@ -1,32 +1,43 @@
 {
     "name": "default",
-    "resources": {
-
-    },
+    "resources": {},
     "passes": {
+        "cull_pass": {
+            "type": "compute_pass"
+        },
         "shadow_pass": {
             "type": "render_pass",
+            "resources": [
+                {
+                    "type": "vertex_buffer"
+                },
+                {
+                    "type": "instance_buffer"
+                },
+                {
+                    "type":
+                }
+            ],
             "targets": [
-
+                {
+                    "type": "texture",
+                }
             ]
         },
         "geometry_pass": {
             "type": "render_pass",
-            "targets": [
-
-            ]
+            "resources": [],
+            "targets": []
         },
         "light_pass": {
             "type": "render_pass",
-            "targets": [
-
-            ]
+            "resources": [],
+            "targets": []
         },
         "post_process_pass": {
             "type": "render_pass",
-            "targets": [
-
-            ]
+            "resources": [],
+            "targets": []
         }
     }
 }
