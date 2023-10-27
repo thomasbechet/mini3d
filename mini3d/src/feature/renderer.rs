@@ -1,5 +1,7 @@
 pub mod camera;
 pub mod canvas;
+pub mod canvas_pass;
+pub mod compute_pass;
 pub mod compute_pipeline;
 pub mod font;
 pub mod material;
