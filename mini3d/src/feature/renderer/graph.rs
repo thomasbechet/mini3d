@@ -1,6 +1,4 @@
-use crate::resource::handle::ResourceHandle;
-
-use super::render_pass::RenderPassHandle;
+use crate::define_resource_handle;
 
 pub enum ResourceAccess {
     ReadOnly,
@@ -8,7 +6,7 @@ pub enum ResourceAccess {
     ReadWrite,
 }
 
-pub struct RenderGraphHandle(pub(crate) ResourceHandle);
+define_resource_handle!(RenderGraphHandle);
 
 pub struct RenderGraph;
 

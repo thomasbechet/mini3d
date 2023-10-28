@@ -3,7 +3,7 @@ use glam::{IVec2, Mat4, Vec2};
 use crate::{
     feature::renderer::{
         compute_pipeline::ComputePipelineHandle, font::FontHandle,
-        render_pipeline::RenderPipelineHandle, texture::TextureHandle,
+        graphics_pipeline::GraphicsPipelineHandle, texture::TextureHandle,
         vertex_buffer::VertexBufferHandle,
     },
     math::rect::IRect,
@@ -11,10 +11,10 @@ use crate::{
 
 use super::{color::Color, graphics::TextureWrapMode};
 
-pub struct RenderCommandBuffer<'a> {}
+pub struct GraphicsCommandBuffer<'a> {}
 
-impl<'a> RenderCommandBuffer<'a> {
-    pub fn set_pipeline(&mut self, pipeline: RenderPipelineHandle) {}
+impl<'a> GraphicsCommandBuffer<'a> {
+    pub fn set_pipeline(&mut self, pipeline: GraphicsPipelineHandle) {}
 
     pub fn set_vertex_buffer(&mut self, buffer: VertexBufferHandle) {}
 

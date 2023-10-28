@@ -1,12 +1,8 @@
 use crate::{
-    feature::renderer::{
-        compute_pipeline::ComputePipelineHandle, font::FontHandle, render_graph::RenderGraphHandle,
-        render_pass::RenderPassHandle, render_pipeline::RenderPipelineHandle,
-        texture::TextureHandle, vertex_buffer::VertexBufferHandle,
-    },
+    feature::renderer::pass::GraphicsPassHandle,
     renderer::{
         command::{
-            CanvasCommandBuffer, ComputeCommandBuffer, CopyCommandBuffer, RenderCommandBuffer,
+            CanvasCommandBuffer, ComputeCommandBuffer, CopyCommandBuffer, GraphicsCommandBuffer,
         },
         RendererStatistics,
     },
@@ -22,6 +18,14 @@ impl Renderer {
     pub fn statistics(ctx: &Context) -> RendererStatistics {
         ctx.renderer.statistics()
     }
+
+    /// Render graphs
+
+    pub fn create_render_graph(ctx: &mut Context) {}
+
+    pub fn destroy_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
+
+    pub fn set_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
 
     /// Vertex buffers
 
@@ -45,33 +49,25 @@ impl Renderer {
 
     /// Pipelines
 
-    pub fn create_render_pipeline(ctx: &mut Context) -> RenderPipelineHandle {}
+    pub fn create_graphics_pipeline(ctx: &mut Context) -> GraphicsPipelineHandle {}
 
-    pub fn destroy_render_pipeline(ctx: &mut Context, pipeline: RenderPipelineHandle) {}
+    pub fn destroy_graphics_pipeline(ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
 
     pub fn create_compute_pipeline(ctx: &mut Context) -> ComputePipelineHandle {}
 
     pub fn destroy_compute_pipeline(ctx: &mut Context, pipeline: ComputePipelineHandle) {}
 
-    /// Render graphs
+    /// Graphics passes
 
-    pub fn create_render_graph(ctx: &mut Context) {}
-
-    pub fn destroy_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
-
-    pub fn set_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
-
-    /// Render passes
-
-    pub fn find_render_pass(ctx: &Context) -> RenderPassHandle {
+    pub fn find_graphics_pass(ctx: &Context) -> GraphicsPassHandle {
         todo!()
     }
 
-    pub fn begin_render_pass<'a>(ctx: &'a Context) -> RenderCommandBuffer<'a> {
+    pub fn begin_graphics_pass<'a>(ctx: &'a Context) -> GraphicsCommandBuffer<'a> {
         todo!()
     }
 
-    pub fn end_render_pass(cmd: RenderCommandBuffer) {
+    pub fn end_graphics_pass(cmd: GraphicsCommandBuffer) {
         todo!()
     }
 
