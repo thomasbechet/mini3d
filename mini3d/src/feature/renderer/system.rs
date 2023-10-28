@@ -1,8 +1,6 @@
 use crate::{ecs::query::QueryId, expect, feature::common::local_to_world::LocalToWorld};
 
-use super::{
-    camera::Camera, canvas::Canvas, model::Model, static_mesh::StaticMesh, viewport::Viewport,
-};
+use super::{camera::Camera, canvas::Canvas, static_mesh::StaticMesh, viewport::Viewport};
 
 #[derive(Default)]
 pub struct SynchronizeRendererResources {

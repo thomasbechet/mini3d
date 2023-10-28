@@ -2,9 +2,10 @@ use glam::{IVec2, Mat4, Vec2};
 
 use crate::{
     feature::renderer::{
-        compute_pipeline::ComputePipelineHandle, font::FontHandle,
-        graphics_pipeline::GraphicsPipelineHandle, texture::TextureHandle,
-        vertex_buffer::VertexBufferHandle,
+        buffer::BufferHandle,
+        font::FontHandle,
+        pipeline::{ComputePipelineHandle, GraphicsPipelineHandle},
+        texture::TextureHandle,
     },
     math::rect::IRect,
 };
@@ -16,7 +17,7 @@ pub struct GraphicsCommandBuffer<'a> {}
 impl<'a> GraphicsCommandBuffer<'a> {
     pub fn set_pipeline(&mut self, pipeline: GraphicsPipelineHandle) {}
 
-    pub fn set_vertex_buffer(&mut self, buffer: VertexBufferHandle) {}
+    pub fn set_vertex_buffer(&mut self, buffer: BufferHandle) {}
 
     pub fn set_texture(&mut self, texture: TextureHandle, binding: u32) {}
 

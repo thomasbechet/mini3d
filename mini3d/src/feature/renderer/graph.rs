@@ -1,17 +1,25 @@
-use crate::define_resource_handle;
+use mini3d_derive::Error;
 
-pub enum ResourceAccess {
-    ReadOnly,
-    WriteOnly,
-    ReadWrite,
-}
+use crate::define_resource_handle;
 
 define_resource_handle!(RenderGraphHandle);
 
-pub struct RenderGraph;
+#[derive(Error)]
+pub enum RenderGraphError {
+    #[error("Failed to compile graph")]
+    CompilationError,
+}
+
+pub(crate) enum RenderPass {
+    Graphics,
+    Compute,
+    Copy,
+}
+
+pub(crate) struct RenderGraph {
+    passes: Vec<RenderPass>,
+}
 
 impl RenderGraph {
-    pub fn add_render_pass(&mut self, pass: RenderPassHandle) {}
-    pub fn add_compute_pass(&mut self, pass: ComputePas) {}
-    pub fn build();
+    pub(crate) fn build(&mut self) {}
 }
