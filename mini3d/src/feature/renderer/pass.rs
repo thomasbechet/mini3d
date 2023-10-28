@@ -44,15 +44,15 @@ impl GraphicsPass {
         }
     }
 
-    pub fn with_shader_resource(mut self, binding: ShaderResource) -> Self {
-        self.shader_resources.push(resource);
-        self
-    }
+    // pub fn with_shader_resource(mut self, binding: ShaderResource) -> Self {
+    //     self.shader_resources.push(resource);
+    //     self
+    // }
 
-    pub fn with_color_attachment(mut self, attachment: ColorAttachment) -> Self {
-        self.color_attachments.push(attachment);
-        self
-    }
+    // pub fn with_color_attachment(mut self, attachment: ColorAttachment) -> Self {
+    //     self.color_attachments.push(attachment);
+    //     self
+    // }
 }
 
 pub struct CanvasPass {

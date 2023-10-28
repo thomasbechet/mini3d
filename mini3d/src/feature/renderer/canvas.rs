@@ -1,13 +1,13 @@
 use glam::UVec2;
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::renderer::{color::Color, graphics::Graphics, provider::RendererProviderHandle};
+use crate::renderer::{color::Color, provider::RendererProviderHandle};
 
 #[derive(Default, Component, Serialize, Reflect)]
 pub struct Canvas {
     pub resolution: UVec2,
     pub clear_color: Color,
-    pub graphics: Graphics,
+    // pub graphics: Graphics,
     pub visible: bool,
     #[serialize(skip)]
     pub(crate) handle: RendererProviderHandle,

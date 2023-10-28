@@ -132,7 +132,7 @@ impl InputManager {
         &self,
         key: impl ToUID,
         resource: &ResourceManager,
-    ) -> Option<InputActionHandle, InputError> {
+    ) -> Option<InputActionHandle> {
         resource
             .find(self.action_type, key)
             .map(|handle| handle.into())
@@ -142,7 +142,7 @@ impl InputManager {
         &self,
         key: impl ToUID,
         resource: &ResourceManager,
-    ) -> Option<InputAxisHandle, InputError> {
+    ) -> Option<InputAxisHandle> {
         resource
             .find(self.axis_type, key)
             .map(|handle| handle.into())

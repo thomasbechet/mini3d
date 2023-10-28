@@ -2,8 +2,8 @@ use glam::{Mat4, Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
+    api::{ecs::ECS, Context},
     ecs::{
-        api::{ecs::ECS, Context},
         entity::Entity,
         error::ResolverError,
         query::QueryId,
@@ -113,7 +113,8 @@ impl ParallelSystem for PropagateTransforms {
     fn run(&self, ctx: &Context) {
         let transforms = ECS::view(ctx, self.transform);
         let hierarchies = ECS::view(ctx, self.hierarchy);
-        let mut local_to_worlds = ECS::view_mut(ctx, self.local_to_world);
+        let mut local_to_worlds: NativeSingleViewMut<LocalToWorld> =
+            ECS::view_mut(ctx, self.local_to_world);
 
         // Reset all flags
         let mut entities = Vec::new();

@@ -2,11 +2,12 @@ use glam::{Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
+    api::{ecs::ECS, time::Time, Context},
     ecs::{
-        api::{ecs::ECS, time::Time, Context},
         error::ResolverError,
         query::QueryId,
         system::{ParallelResolver, ParallelSystem},
+        view::native::single::NativeSingleViewMut,
     },
     feature::core::component::ComponentId,
 };
@@ -41,7 +42,7 @@ impl ParallelSystem for RotatorSystem {
     }
 
     fn run(&self, ctx: &Context) {
-        let mut transforms = ECS::view_mut(ctx, self.transform);
+        let mut transforms: NativeSingleViewMut<Transform> = ECS::view_mut(ctx, self.transform);
         let rotators = ECS::view(ctx, self.rotator);
         for e in ECS::query(ctx, self.query) {
             transforms[e].rotation *= Quat::from_axis_angle(

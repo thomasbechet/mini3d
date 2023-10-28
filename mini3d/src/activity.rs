@@ -1,12 +1,12 @@
 use mini3d_derive::Error;
 
 use crate::{
+    api::{
+        activity::{ActivityCommand, ActivityContext},
+        time::TimeAPI,
+        Context,
+    },
     ecs::{
-        api::{
-            activity::{ActivityCommand, ActivityContext},
-            time::TimeAPI,
-            Context,
-        },
         container::ContainerTable,
         entity::EntityTable,
         query::QueryTable,

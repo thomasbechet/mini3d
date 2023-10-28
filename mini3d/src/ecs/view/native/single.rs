@@ -73,7 +73,7 @@ pub struct NativeSingleViewMut<'a, C: Component> {
 
 impl<'a, C: Component> NativeSingleViewMut<'a, C> {
     pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
-        self.container.get_mut(entity, self.cycle)
+        self.container.get_mut(entity)
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {

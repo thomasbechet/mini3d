@@ -5,12 +5,12 @@ use crate::{
         buffer::BufferHandle,
         font::FontHandle,
         pipeline::{ComputePipelineHandle, GraphicsPipelineHandle},
-        texture::TextureHandle,
+        texture::{TextureHandle, TextureWrapMode},
     },
     math::rect::IRect,
 };
 
-use super::{color::Color, graphics::TextureWrapMode};
+use super::color::Color;
 
 pub struct GraphicsCommandBuffer<'a> {}
 

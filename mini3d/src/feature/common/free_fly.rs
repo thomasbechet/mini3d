@@ -2,8 +2,8 @@ use glam::{Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
+    api::{ecs::ECS, input::Input, time::Time, Context},
     ecs::{
-        api::{ecs::ECS, input::Input, time::Time, Context},
         error::ResolverError,
         query::QueryId,
         system::{ParallelResolver, ParallelSystem},

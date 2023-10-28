@@ -1,7 +1,9 @@
-use crate::feature::core::component::{Component, ComponentId};
+use crate::{
+    api::Context,
+    feature::core::component::{Component, ComponentId},
+};
 
 use super::{
-    api::Context,
     archetype::Archetype,
     container::native::single::NativeSingleContainer,
     entity::{Entity, EntityEntry},

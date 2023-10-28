@@ -18,7 +18,6 @@ use mini3d_derive::Serialize;
 use self::event::RendererEvent;
 use self::{
     color::Color,
-    graphics::Graphics,
     provider::{ProviderMaterialDescriptor, RendererProvider, RendererProviderError},
 };
 

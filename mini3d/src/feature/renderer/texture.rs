@@ -16,6 +16,13 @@ pub enum TextureFormat {
     RGBA,
 }
 
+#[derive(Clone, Copy, Serialize)]
+pub enum TextureWrapMode {
+    Clamp,
+    Repeat,
+    Mirror,
+}
+
 define_resource_handle!(TextureHandle);
 
 #[derive(Clone, Serialize, Default, Reflect)]

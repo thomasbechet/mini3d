@@ -1,4 +1,5 @@
 use crate::{
+    api::Context,
     feature::core::{
         component::{ComponentId, ComponentType},
         system::{System, SystemKind, SystemSet},
@@ -7,7 +8,7 @@ use crate::{
     utils::slotmap::{SlotId, SlotMap},
 };
 
-use super::{api::Context, container::ContainerTable, error::ResolverError};
+use super::{container::ContainerTable, error::ResolverError};
 
 pub(crate) struct SystemInstanceId(pub(crate) SlotId);
 

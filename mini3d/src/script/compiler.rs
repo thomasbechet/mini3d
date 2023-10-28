@@ -1,5 +1,5 @@
 use crate::{
-    ecs::api::{resource::Resource, Context},
+    api::{resource::Resource, Context},
     feature::common::script::Script,
     utils::uid::ToUID,
 };

@@ -1,13 +1,15 @@
 use crate::{
-    input::InputManager, logger::LoggerManager, platform::PlatformManager,
-    renderer::RendererManager, resource::ResourceManager,
+    ecs::{
+        container::ContainerTable, entity::EntityTable, query::QueryTable, scheduler::Scheduler,
+    },
+    input::InputManager,
+    logger::LoggerManager,
+    platform::PlatformManager,
+    renderer::RendererManager,
+    resource::ResourceManager,
 };
 
 use self::{activity::ActivityContext, time::TimeAPI};
-
-use super::{
-    container::ContainerTable, entity::EntityTable, query::QueryTable, scheduler::Scheduler,
-};
 
 pub mod activity;
 pub mod ecs;
