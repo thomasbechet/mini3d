@@ -13,14 +13,14 @@ use super::{container::ContainerTable, error::ResolverError};
 pub(crate) struct SystemInstanceId(pub(crate) SlotId);
 
 pub trait ExclusiveSystem: 'static + Default {
-    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError> {
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         Ok(())
     }
     fn run(&self, ctx: &mut Context) {}
 }
 
 pub trait ParallelSystem: 'static + Default {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         Ok(())
     }
     fn run(&self, ctx: &Context) {}
@@ -33,46 +33,7 @@ use super::{
     query::{QueryBuilder, QueryTable},
 };
 
-pub struct ExclusiveResolver<'a> {
-    system: SystemInstanceId,
-    component_type: ResourceHandle,
-    all: &'a mut Vec<ComponentId>,
-    any: &'a mut Vec<ComponentId>,
-    not: &'a mut Vec<ComponentId>,
-    entities: &'a mut EntityTable,
-    queries: &'a mut QueryTable,
-    containers: &'a mut ContainerTable,
-    resources: &'a mut ResourceManager,
-}
-
-impl<'a> ExclusiveResolver<'a> {
-    pub fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
-        let handle = self
-            .resources
-            .find(self.component_type, component)
-            .ok_or(ResolverError::ComponentNotFound)?;
-        Ok(self.containers.preallocate(handle, self.resources))
-    }
-
-    pub fn query(&mut self) -> QueryBuilder<'_> {
-        self.all.clear();
-        self.any.clear();
-        self.not.clear();
-        QueryBuilder {
-            system: self.system,
-            component_type: self.component_type,
-            all: self.all,
-            any: self.any,
-            not: self.not,
-            entities: self.entities,
-            queries: self.queries,
-            containers: self.containers,
-            resources: self.resources,
-        }
-    }
-}
-
-pub struct ParallelResolver<'a> {
+pub struct SystemResolver<'a> {
     system: SystemInstanceId,
     component_type: ResourceHandle,
     reads: Vec<ComponentId>,
@@ -82,11 +43,11 @@ pub struct ParallelResolver<'a> {
     not: &'a mut Vec<ComponentId>,
     entities: &'a mut EntityTable,
     queries: &'a mut QueryTable,
-    containers: &'a mut ContainerTable,
-    resources: &'a mut ResourceManager,
+    pub(crate) containers: &'a mut ContainerTable,
+    pub(crate) resources: &'a mut ResourceManager,
 }
 
-impl<'a> ParallelResolver<'a> {
+impl<'a> SystemResolver<'a> {
     fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
         let handle = self
             .resources
@@ -95,7 +56,7 @@ impl<'a> ParallelResolver<'a> {
         Ok(self.containers.preallocate(handle, self.resources))
     }
 
-    pub fn read(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+    pub(crate) fn read(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
         let id = self.find(component)?;
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
@@ -103,7 +64,7 @@ impl<'a> ParallelResolver<'a> {
         Ok(id)
     }
 
-    pub fn write(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+    pub(crate) fn write(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
         let id = self.find(component)?;
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);
@@ -133,12 +94,12 @@ impl<'a> ParallelResolver<'a> {
 }
 
 pub(crate) trait AnyNativeExclusiveSystemInstance {
-    fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError>;
+    fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError>;
     fn run(&self, ctx: &mut Context);
 }
 
 pub(crate) trait AnyNativeParallelSystemInstance {
-    fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError>;
+    fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError>;
     fn run(&self, ctx: &Context);
 }
 
@@ -148,10 +109,7 @@ pub(crate) enum ExclusiveSystemInstance {
 }
 
 impl ExclusiveSystemInstance {
-    pub(crate) fn resolve(
-        &mut self,
-        resolver: &mut ExclusiveResolver,
-    ) -> Result<(), ResolverError> {
+    pub(crate) fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         match self {
             Self::Native(instance) => instance.resolve(resolver),
             Self::Program(_) => Ok(()),
@@ -172,7 +130,7 @@ pub(crate) enum ParallelSystemInstance {
 }
 
 impl ParallelSystemInstance {
-    pub(crate) fn resolve(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
+    pub(crate) fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         match self {
             Self::Native(instance) => instance.resolve(resolver),
             Self::Program(_) => Ok(()),
@@ -207,34 +165,25 @@ impl SystemInstanceEntry {
         resources: &mut ResourceManager,
         component_type: ResourceHandle,
     ) -> Result<(), ResolverError> {
+        let mut resolver = SystemResolver {
+            system: self.system,
+            component_type,
+            reads: Vec::new(),
+            writes: Vec::new(),
+            all: &mut Default::default(),
+            any: &mut Default::default(),
+            not: &mut Default::default(),
+            entities,
+            queries,
+            containers,
+            resources,
+        };
         match self.instance {
             SystemInstance::Exclusive(ref mut instance) => {
-                instance.resolve(&mut ExclusiveResolver {
-                    system: self.system,
-                    component_type,
-                    all: &mut Default::default(),
-                    any: &mut Default::default(),
-                    not: &mut Default::default(),
-                    entities,
-                    queries,
-                    containers,
-                    resources,
-                })?;
+                instance.resolve(&mut resolver)?;
             }
             SystemInstance::Parallel(ref mut instance) => {
-                instance.resolve(&mut ParallelResolver {
-                    system: self.system,
-                    component_type,
-                    reads: Vec::new(),
-                    writes: Vec::new(),
-                    all: &mut Default::default(),
-                    any: &mut Default::default(),
-                    not: &mut Default::default(),
-                    entities,
-                    queries,
-                    containers,
-                    resources,
-                })?;
+                instance.resolve(&mut resolver)?;
             }
         }
         Ok(())

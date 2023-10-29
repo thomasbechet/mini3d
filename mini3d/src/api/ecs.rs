@@ -1,12 +1,8 @@
 use crate::{
     ecs::{
-        builder::EntityBuilder,
-        entity::Entity,
-        query::QueryId,
+        entity::{Entity, EntityEntry},
         scheduler::Invocation,
-        view::{ComponentViewMut, ComponentViewRef},
     },
-    feature::core::component::{Component, ComponentId},
     utils::uid::ToUID,
 };
 
@@ -15,36 +11,28 @@ use super::Context;
 pub struct ECS;
 
 impl ECS {
-    pub fn create<'a>(ctx: &'a mut Context<'a>) -> EntityBuilder<'a> {
-        EntityBuilder::new(ctx)
+    pub fn create(ctx: &mut Context) -> Entity {
+        // Add to pool
+        let entity = ctx.entities.next_entity();
+        let archetype = &mut ctx.entities.archetypes[ctx.entities.archetypes.empty];
+        let pool_index = archetype.pool.len();
+        archetype.pool.push(entity);
+        // Update entity info
+        ctx.entities.entries.set(
+            entity.key(),
+            EntityEntry {
+                archetype,
+                pool_index: pool_index as u32,
+            },
+        );
+        entity
     }
 
     pub fn destroy(ctx: &mut Context, entity: Entity) {
         ctx.entities.remove(entity, ctx.containers)
     }
 
-    pub fn add<C: Component>(ctx: &mut Context, entity: Entity, component: ComponentId, data: C) {}
-
-    pub fn add_any(ctx: &mut Context, entity: Entity, component: ComponentId) {}
-
-    pub fn remove(ctx: &mut Context, entity: Entity, component: ComponentId) {}
-
-    pub fn view<V: ComponentViewRef>(ctx: &Context, id: ComponentId) -> V {
-        ctx.containers.view(id)
-    }
-
-    pub fn view_mut<V: ComponentViewMut>(ctx: &Context, id: ComponentId) -> V {
-        ctx.containers.view_mut(id, ctx.cycle)
-    }
-
     pub fn invoke(ctx: &mut Context, stage: impl ToUID, invocation: Invocation) {
         ctx.scheduler.invoke(stage, invocation)
-    }
-
-    pub fn query<'a>(ctx: &'a Context, query: QueryId) -> impl Iterator<Item = Entity> + 'a {
-        ctx.queries.entries[query.0]
-            .archetypes
-            .iter()
-            .flat_map(|archetype| ctx.entities.iter_pool_entities(*archetype))
     }
 }

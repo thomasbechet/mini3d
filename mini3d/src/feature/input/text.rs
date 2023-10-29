@@ -7,7 +7,7 @@ pub struct InputText {
     pub(crate) state: InputTextState,
 }
 
-#[derive(Serialize, Clone, Resource)]
+#[derive(Clone, Resource)]
 pub struct InputTextState {
     pub value: String,
     pub(crate) handle: InputProviderHandle,

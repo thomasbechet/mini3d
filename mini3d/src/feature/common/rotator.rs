@@ -2,14 +2,13 @@ use glam::{Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
-    api::{ecs::ECS, time::Time, Context},
+    api::{time::Time, Context},
     ecs::{
         error::ResolverError,
-        query::QueryId,
-        system::{ParallelResolver, ParallelSystem},
-        view::native::single::NativeSingleViewMut,
+        query::Query,
+        system::{ParallelSystem, SystemResolver},
+        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
-    feature::core::component::ComponentId,
 };
 
 use super::transform::Transform;
@@ -21,9 +20,9 @@ pub struct Rotator {
 
 #[derive(Default)]
 pub struct RotatorSystem {
-    transform: ComponentId,
-    rotator: ComponentId,
-    query: QueryId,
+    transform: NativeSingleViewMut<Transform>,
+    rotator: NativeSingleViewRef<Rotator>,
+    query: Query,
 }
 
 impl RotatorSystem {
@@ -31,9 +30,9 @@ impl RotatorSystem {
 }
 
 impl ParallelSystem for RotatorSystem {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
-        self.transform = resolver.write(Transform::NAME)?;
-        self.rotator = resolver.read(Rotator::NAME)?;
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+        self.transform.resolve(resolver, Transform::NAME)?;
+        self.rotator.resolve(resolver, Rotator::NAME)?;
         self.query = resolver
             .query()
             .all(&[Transform::NAME, Rotator::NAME])?
@@ -42,12 +41,10 @@ impl ParallelSystem for RotatorSystem {
     }
 
     fn run(&self, ctx: &Context) {
-        let mut transforms: NativeSingleViewMut<Transform> = ECS::view_mut(ctx, self.transform);
-        let rotators = ECS::view(ctx, self.rotator);
-        for e in ECS::query(ctx, self.query) {
-            transforms[e].rotation *= Quat::from_axis_angle(
+        for e in self.query.query(ctx) {
+            self.transform[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
-                Time::delta(ctx) as f32 * f32::to_radians(rotators[e].speed),
+                Time::delta(ctx) as f32 * f32::to_radians(self.rotator[e].speed),
             );
         }
     }

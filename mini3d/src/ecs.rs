@@ -1,5 +1,4 @@
 pub mod archetype;
-pub mod builder;
 pub mod container;
 pub mod entity;
 pub mod error;

@@ -3,6 +3,7 @@ use std::ops::Range;
 use mini3d_derive::Error;
 
 use crate::{
+    api::Context,
     feature::core::component::ComponentId,
     resource::{handle::ResourceHandle, ResourceManager},
     utils::{
@@ -14,12 +15,21 @@ use crate::{
 use super::{
     archetype::{Archetype, ArchetypeEntry},
     container::ContainerTable,
-    entity::EntityTable,
+    entity::{Entity, EntityTable},
     system::SystemInstanceId,
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub struct QueryId(pub(crate) SlotId);
+pub struct Query(pub(crate) SlotId);
+
+impl Query {
+    pub fn query(&self, ctx: &Context) -> impl Iterator<Item = Entity> {
+        ctx.queries.entries[self.0]
+            .archetypes
+            .iter()
+            .flat_map(|archetype| ctx.entities.iter_pool_entities(*archetype))
+    }
+}
 
 #[derive(Default)]
 pub(crate) struct QueryEntry {
@@ -83,7 +93,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> Option<QueryId> {
+    ) -> Option<Query> {
         for (id, query) in self.entries.iter() {
             if query.all.len() != all.len() {
                 continue;
@@ -106,7 +116,7 @@ impl QueryTable {
             if not.iter().any(|c| !not2.contains(c)) {
                 continue;
             }
-            return Some(QueryId(id));
+            return Some(Query(id));
         }
         None
     }
@@ -117,7 +127,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> QueryId {
+    ) -> Query {
         let mut query = QueryEntry::default();
         let start = self.components.len();
         self.components.extend_from_slice(all);
@@ -126,7 +136,7 @@ impl QueryTable {
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
-        let id = QueryId(self.entries.add(query));
+        let id = Query(self.entries.add(query));
         // Bind new query to existing archetypes
         for archetype in entities.archetypes.entries.keys() {
             let archetype_entry = &entities.archetypes[archetype];
@@ -201,7 +211,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn build(mut self) -> QueryId {
+    pub fn build(mut self) -> Query {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
             return id;
         }

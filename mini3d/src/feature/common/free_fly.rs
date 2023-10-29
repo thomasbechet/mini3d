@@ -2,21 +2,20 @@ use glam::{Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
-    api::{ecs::ECS, input::Input, time::Time, Context},
+    api::{input::Input, time::Time, Context},
     ecs::{
         error::ResolverError,
-        query::QueryId,
-        system::{ParallelResolver, ParallelSystem},
-        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
+        query::Query,
+        system::{ParallelSystem, SystemResolver},
+        view::native::single::NativeSingleViewMut,
     },
     expect,
-    feature::core::component::ComponentId,
     input::handle::{InputActionHandle, InputAxisHandle},
 };
 
 use super::transform::Transform;
 
-#[derive(Default, Component, Serialize, Reflect, Clone)]
+#[derive(Default, Component, Reflect, Clone)]
 pub struct FreeFly {
     // Control if free fly is active
     pub active: bool,
@@ -53,9 +52,9 @@ impl FreeFly {
 
 #[derive(Default)]
 pub struct FreeFlySystem {
-    free_fly: ComponentId,
-    transform: ComponentId,
-    query: QueryId,
+    free_fly: NativeSingleViewMut<FreeFly>,
+    transform: NativeSingleViewMut<Transform>,
+    query: Query,
 }
 
 impl FreeFlySystem {
@@ -63,9 +62,9 @@ impl FreeFlySystem {
 }
 
 impl ParallelSystem for FreeFlySystem {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
-        self.free_fly = resolver.read(FreeFly::NAME)?;
-        self.transform = resolver.write(Transform::NAME)?;
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+        self.free_fly.resolve(resolver, FreeFly::NAME)?;
+        self.transform.resolve(resolver, Transform::NAME)?;
         self.query = resolver
             .query()
             .all(&[FreeFly::NAME, Transform::NAME])?
@@ -74,12 +73,9 @@ impl ParallelSystem for FreeFlySystem {
     }
 
     fn run(&self, ctx: &Context) {
-        let mut transforms: NativeSingleViewRef<Transform> = ECS::view_mut(ctx, self.transform);
-        let mut free_flies: NativeSingleViewMut<FreeFly> = ECS::view_mut(ctx, self.free_fly);
-
-        for e in ECS::query(ctx, self.query) {
-            let transform = transforms.get_mut(e).unwrap();
-            let free_fly = free_flies.get_mut(e).unwrap();
+        for e in self.query.query(ctx) {
+            let transform = self.transform.get_mut(ctx, e).unwrap();
+            let free_fly = self.free_fly.get_mut(ctx, e).unwrap();
 
             // Check active
             if !free_fly.active {

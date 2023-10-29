@@ -2,15 +2,14 @@ use glam::{Mat4, Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
-    api::{ecs::ECS, Context},
+    api::Context,
     ecs::{
         entity::Entity,
         error::ResolverError,
-        query::QueryId,
-        system::{ParallelResolver, ParallelSystem},
-        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
+        query::Query,
+        system::{ParallelSystem, SystemResolver},
+        view::native::single::{NativeSingleView, NativeSingleViewMut, NativeSingleViewRef},
     },
-    feature::core::component::ComponentId,
 };
 
 use super::{hierarchy::Hierarchy, local_to_world::LocalToWorld};
@@ -91,10 +90,10 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: ComponentId,
-    hierarchy: ComponentId,
-    local_to_world: ComponentId,
-    query: QueryId,
+    transform: NativeSingleViewMut<Transform>,
+    hierarchy: NativeSingleViewRef<Hierarchy>,
+    local_to_world: NativeSingleViewRef<LocalToWorld>,
+    query: Query,
 }
 
 impl PropagateTransforms {
@@ -102,47 +101,42 @@ impl PropagateTransforms {
 }
 
 impl ParallelSystem for PropagateTransforms {
-    fn setup(&mut self, resolver: &mut ParallelResolver) -> Result<(), ResolverError> {
-        self.transform = resolver.read(Transform::NAME)?;
-        self.hierarchy = resolver.read(Hierarchy::NAME)?;
-        self.local_to_world = resolver.write(LocalToWorld::NAME)?;
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+        self.transform.resolve(resolver, Transform::NAME)?;
+        self.hierarchy.resolve(resolver, Hierarchy::NAME)?;
+        self.local_to_world.resolve(resolver, LocalToWorld::NAME)?;
         self.query = resolver.query().all(&[LocalToWorld::NAME])?.build();
         Ok(())
     }
 
     fn run(&self, ctx: &Context) {
-        let transforms = ECS::view(ctx, self.transform);
-        let hierarchies = ECS::view(ctx, self.hierarchy);
-        let mut local_to_worlds: NativeSingleViewMut<LocalToWorld> =
-            ECS::view_mut(ctx, self.local_to_world);
-
         // Reset all flags
         let mut entities = Vec::new();
-        for e in ECS::query(ctx, self.query) {
-            local_to_worlds[e].dirty = true;
+        for e in self.query.query(ctx) {
+            self.local_to_world[e].dirty = true;
             entities.push(e);
         }
 
         for e in entities {
-            let mut local_to_world = local_to_worlds.get(e).cloned().unwrap();
+            let mut local_to_world = self.local_to_world.get(e).cloned().unwrap();
             if local_to_world.dirty {
-                if let Some(hierarcy) = hierarchies.get(e) {
-                    if let Some(parent) = hierarcy.parent() {
+                if let Some(hierarchy) = self.hierarchy.get(e) {
+                    if let Some(parent) = hierarchy.parent() {
                         let parent_matrix = recursive_propagate(
                             parent,
-                            &transforms,
-                            &mut local_to_worlds,
-                            &hierarchies,
+                            &self.transform,
+                            &mut self.local_to_world,
+                            &self.hierarchy,
                         );
-                        local_to_world.matrix = parent_matrix * transforms[e].matrix();
+                        local_to_world.matrix = parent_matrix * self.transform[e].matrix();
                     } else {
-                        local_to_world.matrix = transforms[e].matrix();
+                        local_to_world.matrix = self.transform[e].matrix();
                     }
                 } else {
-                    local_to_world.matrix = transforms[e].matrix();
+                    local_to_world.matrix = self.transform[e].matrix();
                 }
                 local_to_world.dirty = false;
-                local_to_worlds[e] = local_to_world;
+                self.local_to_world[e] = local_to_world;
             }
         }
     }

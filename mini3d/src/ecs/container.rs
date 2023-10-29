@@ -3,19 +3,14 @@ use std::{any::Any, cell::RefCell};
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
-    feature::core::component::{
-        ComponentId, ComponentType, PrivateComponentTableMut, PrivateComponentTableRef,
-    },
+    feature::core::component::{ComponentId, ComponentType},
     reflection::PropertyId,
     resource::{handle::ResourceHandle, ResourceManager},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{slotmap::SlotMap, uid::UID},
 };
 
-use super::{
-    entity::Entity,
-    view::{ComponentViewMut, ComponentViewRef},
-};
+use super::entity::Entity;
 
 pub mod native;
 
@@ -67,7 +62,7 @@ pub(crate) trait SingleContainer {
 pub(crate) trait ArrayContainer {}
 
 struct ContainerEntry {
-    pub(crate) container: RefCell<Box<dyn Container>>,
+    pub(crate) container: Box<dyn Container>,
     resource_type: ResourceHandle,
 }
 
@@ -112,17 +107,5 @@ impl ContainerTable {
             .get_mut()
             .as_mut()
             .remove(entity);
-    }
-
-    pub(crate) fn view<V: ComponentViewRef>(&self, component: ComponentId) -> V {
-        V::view(PrivateComponentTableRef(self), component)
-    }
-
-    pub(crate) fn view_mut<V: ComponentViewMut>(
-        &mut self,
-        component: ComponentId,
-        cycle: u32,
-    ) -> V {
-        V::view_mut(PrivateComponentTableMut(self), component, cycle)
     }
 }

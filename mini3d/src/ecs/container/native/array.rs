@@ -43,7 +43,7 @@ impl<C: Component> NativeArrayContainer<C> {
         })
     }
 
-    pub(crate) fn get_mut(&mut self, entity: Entity, cycle: u32) -> Option<&mut [C]> {
+    pub(crate) fn get_mut(&mut self, entity: Entity) -> Option<&mut [C]> {
         self.indices.get(entity.key()).and_then(|index| {
             let entry = &mut self.entries[*index];
             if entry.entity == entity {

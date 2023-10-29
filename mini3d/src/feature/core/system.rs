@@ -5,9 +5,9 @@ use crate::{
     ecs::{
         error::ResolverError,
         system::{
-            AnyNativeExclusiveSystemInstance, AnyNativeParallelSystemInstance, ExclusiveResolver,
-            ExclusiveSystem, ExclusiveSystemInstance, ParallelResolver, ParallelSystem,
-            ParallelSystemInstance, SystemInstance,
+            AnyNativeExclusiveSystemInstance, AnyNativeParallelSystemInstance, ExclusiveSystem,
+            ExclusiveSystemInstance, ParallelSystem, ParallelSystemInstance, SystemInstance,
+            SystemResolver,
         },
     },
     resource::handle::{ReferenceResolver, ResourceHandle},
@@ -30,7 +30,7 @@ impl<S: ExclusiveSystem> SystemReflection for NativeExclusiveSystemReflection<S>
             system: S,
         }
         impl<S: ExclusiveSystem> AnyNativeExclusiveSystemInstance for InstanceHolder<S> {
-            fn resolve(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), ResolverError> {
+            fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
                 self.system.setup(resolver)
             }
             fn run(&self, ctx: &mut Context) {
@@ -53,10 +53,7 @@ impl<S: ParallelSystem> SystemReflection for NativeParallelSystemReflection<S> {
             system: S,
         }
         impl<S: ParallelSystem> AnyNativeParallelSystemInstance for InstanceHolder<S> {
-            fn resolve(
-                &mut self,
-                resolver: &mut ParallelResolver<'_>,
-            ) -> Result<(), ResolverError> {
+            fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
                 self.system.setup(resolver)
             }
             fn run(&self, ctx: &Context) {

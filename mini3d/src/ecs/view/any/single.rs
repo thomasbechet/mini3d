@@ -1,21 +1,16 @@
 use crate::ecs::container::SingleContainer;
-use crate::ecs::view::ComponentViewMut;
-use crate::feature::core::component::{
-    ComponentId, PrivateComponentTableMut, PrivateComponentTableRef,
-};
+use crate::ecs::error::ResolverError;
+use crate::ecs::system::SystemResolver;
 use crate::reflection::PropertyId;
+use crate::utils::uid::ToUID;
 use crate::{ecs::entity::Entity, utils::uid::UID};
 
-use std::cell::{Ref, RefMut};
-
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
-
-use crate::ecs::view::ComponentViewRef;
 
 macro_rules! trait_property_ref_impl {
     ($type:ty, $read:ident) => {
         fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
-            self.container.$read(entity, id)
+            unsafe { *self.container }.$read(entity, id)
         }
     };
 }
@@ -23,21 +18,38 @@ macro_rules! trait_property_ref_impl {
 macro_rules! trait_property_mut_impl {
     ($type:ty, $read:ident, $write:ident) => {
         fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
-            self.container.$read(entity, id)
+            unsafe { *self.container }.$read(entity, id)
         }
         fn $write(&mut self, entity: Entity, id: PropertyId, value: $type) {
-            self.container.$write(entity, id, value)
+            unsafe { *self.container }.$write(entity, id, value)
         }
     };
 }
 
 // Property single reference
 
-pub struct PropertySingleViewRef<'a> {
-    pub(crate) container: Ref<'a, dyn SingleContainer>,
+pub struct PropertySingleViewRef {
+    pub(crate) container: *const dyn SingleContainer,
 }
 
-impl<'a> PropertySingleViewRef<'a> {
+impl PropertySingleViewRef {
+    pub fn resolve(
+        &mut self,
+        resolver: &mut SystemResolver,
+        component: impl ToUID,
+    ) -> Result<(), ResolverError> {
+        let id = resolver.read(component)?;
+        self.container = &resolver
+            .containers
+            .entries
+            .get(id)
+            .unwrap()
+            .container
+            .as_any()
+            .downcast_ref::<dyn SingleContainer>();
+        Ok(())
+    }
+
     trait_property_ref_impl!(bool, read_bool);
     trait_property_ref_impl!(u8, read_u8);
     trait_property_ref_impl!(i32, read_i32);
@@ -56,24 +68,30 @@ impl<'a> PropertySingleViewRef<'a> {
     trait_property_ref_impl!(UID, read_uid);
 }
 
-impl<'a> ComponentViewRef for PropertySingleViewRef<'a> {
-    fn view(table: PrivateComponentTableRef, id: ComponentId) -> Self {
-        Self {
-            container: Ref::map(
-                table.0.containers.get(id.0).unwrap().try_borrow().unwrap(),
-                |r| r.as_any().downcast_ref::<dyn SingleContainer>().unwrap(),
-            ),
-        }
-    }
-}
-
 // Property single mutable reference
 
-pub struct PropertySingleViewMut<'a> {
-    pub(crate) container: RefMut<'a, dyn SingleContainer>,
+pub struct PropertySingleViewMut {
+    pub(crate) container: *mut dyn SingleContainer,
 }
 
-impl<'a> PropertySingleViewMut<'a> {
+impl PropertySingleViewMut {
+    pub fn resolve(
+        &mut self,
+        resolver: &mut SystemResolver,
+        component: impl ToUID,
+    ) -> Result<(), ResolverError> {
+        let id = resolver.write(component)?;
+        self.container = &resolver
+            .containers
+            .entries
+            .get_mut(id)
+            .unwrap()
+            .container
+            .as_any_mut()
+            .downcast_mut::<dyn SingleContainer>();
+        Ok(())
+    }
+
     trait_property_mut_impl!(bool, read_bool, write_bool);
     trait_property_mut_impl!(u8, read_u8, write_u8);
     trait_property_mut_impl!(i32, read_i32, write_i32);
@@ -90,21 +108,4 @@ impl<'a> PropertySingleViewMut<'a> {
     trait_property_mut_impl!(Quat, read_quat, write_quat);
     trait_property_mut_impl!(Entity, read_entity, write_entity);
     trait_property_mut_impl!(UID, read_uid, write_uid);
-}
-
-impl<'a> ComponentViewMut for PropertySingleViewMut<'a> {
-    fn view_mut(table: PrivateComponentTableMut, id: ComponentId) -> Self {
-        Self {
-            container: RefMut::map(
-                table
-                    .0
-                    .containers
-                    .get_mut(id.0)
-                    .unwrap()
-                    .try_borrow_mut()
-                    .unwrap(),
-                |r| r.as_any().downcast_ref::<dyn SingleContainer>().unwrap(),
-            ),
-        }
-    }
 }

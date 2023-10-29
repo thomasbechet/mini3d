@@ -261,9 +261,9 @@ impl Engine {
         // ================= DISPATCH EVENTS STAGE ================= //
 
         // Prepare input manager
-        self.input.prepare_dispatch();
+        self.input.prepare_dispatch(&mut self.resource);
         // Dispatch input events
-        self.input.dispatch_events();
+        self.input.dispatch_events(&mut self.resource);
         // Dispatch system events
         self.system.dispatch_events();
         // Dispatch renderer events

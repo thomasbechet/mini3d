@@ -25,7 +25,7 @@ pub enum InputAxisRange {
     Infinite,
 }
 
-#[derive(Clone, Serialize, Resource, Reflect, Default)]
+#[derive(Clone, Serialize, Reflect, Default)]
 pub struct InputAxis {
     pub name: AsciiArray<MAX_INPUT_NAME_LEN>,
     pub display_name: AsciiArray<MAX_INPUT_DISPLAY_NAME_LEN>,
@@ -62,7 +62,7 @@ impl InputAxis {
     }
 }
 
-#[derive(Serialize, Clone, Resource)]
+#[derive(Clone, Resource)]
 pub struct InputAxisState {
     pub value: f32,
     pub(crate) handle: InputProviderHandle,

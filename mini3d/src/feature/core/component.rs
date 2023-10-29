@@ -9,9 +9,9 @@ use crate::{
 };
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ComponentId(pub(crate) SlotId);
+pub(crate) struct ComponentId(pub(crate) SlotId);
 
-pub struct ComponentContext<'a> {}
+pub struct ComponentContext {}
 
 pub trait Component: 'static + Default + Reflect {
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;

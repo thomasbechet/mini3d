@@ -7,7 +7,7 @@ use crate::{
     utils::{string::AsciiArray, uid::UID},
 };
 
-#[derive(Clone, Serialize, Reflect, Default)]
+#[derive(Clone, Reflect, Default)]
 pub struct InputAction {
     pub name: AsciiArray<MAX_INPUT_NAME_LEN>,
     pub display_name: AsciiArray<MAX_INPUT_DISPLAY_NAME_LEN>,
@@ -30,7 +30,7 @@ impl InputAction {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Clone)]
 pub struct InputActionState {
     pub(crate) pressed: bool,
     pub(crate) was_pressed: bool,
