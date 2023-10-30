@@ -58,6 +58,7 @@ impl<C: Component> Index<Entity> for NativeSingleViewRef<C> {
         self.get(entity).expect("Entity not found")
     }
 }
+
 // Native single mutable reference
 
 pub struct NativeSingleViewMut<C: Component> {
@@ -82,11 +83,11 @@ impl<C: Component> NativeSingleViewMut<C> {
         Ok(())
     }
 
-    pub fn get_mut(&mut self, ctx: &Context, entity: Entity) -> Option<&mut C> {
+    pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
         unsafe { &mut *self.container }.get_mut(entity)
     }
 
-    pub fn iter_mut(&mut self, ctx: &Context) -> impl Iterator<Item = &mut C> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
         self.container.iter_mut()
     }
 

@@ -31,6 +31,19 @@ impl Query {
     }
 }
 
+pub struct EntityIterator {
+    pub(crate) archetype_index: usize,
+    pub(crate) entity_index: usize,
+}
+
+impl Iterator for EntityIterator {
+    type Item = Entity;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct QueryEntry {
     pub(crate) all: Range<usize>,

@@ -74,12 +74,18 @@ impl ParallelSystem for FreeFlySystem {
 
     fn run(&self, ctx: &Context) {
         for e in self.query.query(ctx) {
-            let transform = self.transform.get_mut(ctx, e).unwrap();
-            let free_fly = self.free_fly.get_mut(ctx, e).unwrap();
+            let transform = self.transform.get_mut(e).unwrap();
+            let free_fly = self.free_fly.get_mut(e).unwrap();
 
             // Check active
             if !free_fly.active {
                 continue;
+            }
+
+            for e in self.query.iter() {
+                let e = ECS::create(ctx);
+                self.transform.add
+                ECS::destroy(ctx, e);
             }
 
             // Update view mod

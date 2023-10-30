@@ -61,11 +61,16 @@ pub(crate) struct EntityEntry {
 pub(crate) struct EntityTable {
     pub(crate) archetypes: ArchetypeTable,
     pub(crate) entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
-    free_entities: Vec<Entity>,
-    next_entity: Entity,
+    pub(crate) free_entities: Vec<Entity>,
+    pub(crate) next_entity: Entity,
+    pub(crate) remove_queue: Vec<Entity>,
 }
 
 impl EntityTable {
+    pub(crate) fn add_to_remove_queue(&mut self, entity: Entity) {
+        self.remove_queue.push(entity);
+    }
+
     pub(crate) fn next_entity(&mut self) -> Entity {
         if let Some(entity) = self.free_entities.pop() {
             return entity;
@@ -116,6 +121,7 @@ impl Default for EntityTable {
             entries: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
+            remove_queue: Vec::new(),
         }
     }
 }
