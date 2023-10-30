@@ -8,7 +8,7 @@ use crate::{
     },
     ecs::{
         container::ContainerTable,
-        entity::EntityTable,
+        entity::{EntityChange, EntityEntry, EntityTable},
         query::QueryTable,
         scheduler::Scheduler,
         system::{SystemInstance, SystemTable},
@@ -120,7 +120,6 @@ impl ActivityManager {
         // Begin frame
         activity.scheduler.begin_frame(context.delta_time);
 
-        // Update cycle
         // Run stages
         // TODO: protect against infinite loops
         loop {
@@ -180,6 +179,43 @@ impl ActivityManager {
                         };
                         // TODO: catch unwind
                         instance.run(ctx);
+                    }
+                }
+
+                // Flush structural changes
+                {
+                    // Entity changes
+                    for change in activity.entities.changes.drain(..) {
+                        match change {
+                            EntityChange::Added(entity) => {
+                                // Set default entity archetype
+                                let archetype = &mut activity.entities.archetypes
+                                    [activity.entities.archetypes.empty];
+                                let pool_index = archetype.pool.len();
+                                archetype.pool.push(entity);
+                                // Update entity info
+                                activity.entities.entries.set(
+                                    entity.key(),
+                                    EntityEntry {
+                                        archetype,
+                                        pool_index: pool_index as u32,
+                                    },
+                                );
+                            }
+                            EntityChange::Removed(entity) => {
+                                activity.entities.remove(entity, &mut activity.containers);
+                            }
+                        }
+                    }
+                    // Component changes
+                    for write in instance.writes {
+                        activity
+                            .containers
+                            .entries
+                            .get_mut(write.0)
+                            .unwrap()
+                            .container
+                            .flush_changes();
                     }
                 }
             } else {

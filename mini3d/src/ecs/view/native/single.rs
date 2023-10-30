@@ -20,6 +20,7 @@ pub trait NativeSingleView<C: Component> {
 
 pub struct NativeSingleViewRef<C: Component> {
     pub(crate) container: *const NativeSingleContainer<C>,
+    pub(crate) size: usize,
 }
 
 impl<C: Component> NativeSingleViewRef<C> {
@@ -63,6 +64,7 @@ impl<C: Component> Index<Entity> for NativeSingleViewRef<C> {
 
 pub struct NativeSingleViewMut<C: Component> {
     pub(crate) container: *mut NativeSingleContainer<C>,
+    pub(crate) size: usize,
 }
 
 impl<C: Component> NativeSingleViewMut<C> {
@@ -88,10 +90,10 @@ impl<C: Component> NativeSingleViewMut<C> {
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
-        self.container.iter_mut()
+        unsafe { &mut *self.container }.iter_mut().n
     }
 
-    pub fn add(&mut self, ctx: &mut Context, entity: Entity, component: C) {
+    pub fn add(&mut self, entity: Entity, component: C) {
         // Find currrent archetype
         let current_archetype = ctx.entities.entries.get(entity.key()).unwrap().archetype;
         // Find next archetype

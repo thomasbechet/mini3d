@@ -154,6 +154,7 @@ pub(crate) struct SystemInstanceEntry {
     pub(crate) set: ResourceHandle,
     pub(crate) index: usize,
     pub(crate) instance: SystemInstance,
+    pub(crate) writes: Vec<ComponentId>,
 }
 
 impl SystemInstanceEntry {
@@ -169,7 +170,7 @@ impl SystemInstanceEntry {
             system: self.system,
             component_type,
             reads: Vec::new(),
-            writes: Vec::new(),
+            writes: &mut self.writes,
             all: &mut Default::default(),
             any: &mut Default::default(),
             not: &mut Default::default(),
@@ -222,6 +223,7 @@ impl SystemTable {
                         set: handle,
                         index,
                         instance,
+                        writes: Vec::new(),
                     });
                 }
                 SystemKind::Script { script } => {

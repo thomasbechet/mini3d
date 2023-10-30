@@ -1,4 +1,7 @@
-use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use crate::{
+    feature::core::component::ComponentId,
+    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
+};
 
 use super::{
     archetype::{Archetype, ArchetypeTable},
@@ -52,6 +55,11 @@ impl Serialize for Entity {
     }
 }
 
+pub(crate) enum EntityChange {
+    Added(Entity),
+    Removed(Entity),
+}
+
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityEntry {
     pub(crate) archetype: Archetype,
@@ -63,15 +71,11 @@ pub(crate) struct EntityTable {
     pub(crate) entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
     pub(crate) free_entities: Vec<Entity>,
     pub(crate) next_entity: Entity,
-    pub(crate) remove_queue: Vec<Entity>,
+    pub(crate) changes: Vec<EntityChange>,
 }
 
 impl EntityTable {
-    pub(crate) fn add_to_remove_queue(&mut self, entity: Entity) {
-        self.remove_queue.push(entity);
-    }
-
-    pub(crate) fn next_entity(&mut self) -> Entity {
+    pub(crate) fn generate_entity(&mut self) -> Entity {
         if let Some(entity) = self.free_entities.pop() {
             return entity;
         }
@@ -121,7 +125,7 @@ impl Default for EntityTable {
             entries: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
-            remove_queue: Vec::new(),
+            changes: Vec::new(),
         }
     }
 }

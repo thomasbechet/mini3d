@@ -18,6 +18,7 @@ use crate::{
 pub(crate) struct NativeSingleContainer<C: Component> {
     data: Vec<(C, Entity)>,
     indices: PagedVector<usize>, // Entity -> Index
+    removed: Vec<Entity>,
 }
 
 impl<C: Component> NativeSingleContainer<C> {
@@ -25,6 +26,7 @@ impl<C: Component> NativeSingleContainer<C> {
         Self {
             data: Vec::with_capacity(size),
             indices: PagedVector::new(),
+            removed: Vec::new(),
         }
     }
 
@@ -72,6 +74,10 @@ impl<C: Component> Container for NativeSingleContainer<C> {
 
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) {
         self
+    }
+
+    fn mark_removed(&mut self, entity: Entity) {
+        self.removed.push(entity);
     }
 
     fn remove(&mut self, entity: Entity) {
