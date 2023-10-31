@@ -14,11 +14,6 @@ use super::entity::Entity;
 
 pub mod native;
 
-pub(crate) enum ComponentChange {
-    Added(Entity),
-    Removed(Entity),
-}
-
 pub(crate) trait Container {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -70,7 +65,6 @@ pub(crate) trait ArrayContainer {}
 
 struct ContainerEntry {
     pub(crate) container: Box<dyn Container>,
-    pub(crate) changes: Vec<ComponentChange>,
     resource_type: ResourceHandle,
 }
 
@@ -102,7 +96,6 @@ impl ContainerTable {
             .expect("Component type not found while preallocating");
         let entry = ContainerEntry {
             container: RefCell::new(ty.create_container()),
-            changes: Vec::new(),
             resource_type: resources.increment_ref(component),
         };
         ComponentId(self.entries.insert(entry))

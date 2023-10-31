@@ -1,7 +1,4 @@
-use crate::{
-    feature::core::component::ComponentId,
-    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 use super::{
     archetype::{Archetype, ArchetypeTable},

@@ -209,13 +209,8 @@ impl ActivityManager {
                     }
                     // Component changes
                     for write in instance.writes {
-                        activity
-                            .containers
-                            .entries
-                            .get_mut(write.0)
-                            .unwrap()
-                            .container
-                            .flush_changes();
+                        let entry = activity.containers.entries.get_mut(write.0).unwrap();
+                        entry.container.flush_changes();
                     }
                 }
             } else {

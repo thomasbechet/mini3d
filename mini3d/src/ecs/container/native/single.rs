@@ -5,10 +5,11 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 use crate::{
     ecs::{
         container::{Container, SingleContainer},
-        entity::Entity,
+        entity::{Entity, EntityTable},
+        query::QueryTable,
         sparse::PagedVector,
     },
-    feature::core::component::Component,
+    feature::core::component::{Component, ComponentId},
     reflection::PropertyId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     trait_property_impl,
@@ -18,20 +19,25 @@ use crate::{
 pub(crate) struct NativeSingleContainer<C: Component> {
     data: Vec<(C, Entity)>,
     indices: PagedVector<usize>, // Entity -> Index
+    view_size: usize,
     removed: Vec<Entity>,
+    id: ComponentId,
 }
 
 impl<C: Component> NativeSingleContainer<C> {
-    pub(crate) fn with_capacity(size: usize) -> Self {
+    pub(crate) fn with_capacity(size: usize, id: ComponentId) -> Self {
         Self {
             data: Vec::with_capacity(size),
             indices: PagedVector::new(),
             removed: Vec::new(),
+            view_size: 0,
+            id,
         }
     }
 
     pub(crate) fn get(&self, entity: Entity) -> Option<&C> {
         self.indices.get(entity.key()).and_then(|index| {
+            // TODO: check index in view size ?
             if self.data[*index].1 == entity {
                 Some(&self.data[*index].0)
             } else {
@@ -42,6 +48,7 @@ impl<C: Component> NativeSingleContainer<C> {
 
     pub(crate) fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
         self.indices.get(entity.key()).and_then(|index| {
+            // TODO: check index in view size ?
             let tuple = &mut self.data[*index];
             if tuple.1 == entity {
                 Some(&mut tuple.0)
@@ -52,11 +59,11 @@ impl<C: Component> NativeSingleContainer<C> {
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &C> {
-        self.data.iter().map(|(c, _)| c)
+        self.data[..self.view_size].iter().map(|(c, _)| c)
     }
 
     pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
-        self.data.iter_mut().map(|(c, _)| c)
+        self.data[..self.view_size].iter_mut().map(|(c, _)| c)
     }
 
     pub(crate) fn add(&mut self, entity: Entity, component: C) {
@@ -64,6 +71,9 @@ impl<C: Component> NativeSingleContainer<C> {
         self.data.push((component, entity));
         // Update indices
         self.indices.set(entity.key(), self.data.len() - 1);
+        // Structural change is implicit as we can find added components
+        // by comparing the size of the data with the size at the beginning
+        // of update.
     }
 }
 
@@ -88,6 +98,27 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         if index != self.data.len() {
             let swapped_entity = self.data[index].1;
             self.indices.set(swapped_entity.key(), index);
+        }
+    }
+
+    fn flush_changes(&mut self, entities: &mut EntityTable, queries: &mut QueryTable) {
+        // Added components
+        for (data, entity) in self.data[self.view_size..self.data.len()].iter() {
+            // TODO: notify systems ?
+            // Find currrent archetype
+            let current_archetype = entities.entries.get(entity.key()).unwrap().archetype;
+            // Find next archetype
+            let archetype = entities
+                .archetypes
+                .find_add(queries, current_archetype, self.id);
+            // Update archetype
+            entities.entries.get_mut(entity.key()).unwrap().archetype = archetype;
+        }
+        // Update size
+        self.view_size = self.data.len();
+        // Removed components
+        for entity in self.removed.drain(..) {
+            self.remove(entity);
         }
     }
 

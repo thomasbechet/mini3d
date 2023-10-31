@@ -1,4 +1,4 @@
-use mini3d_derive::{Reflect, Serialize};
+use mini3d_derive::Reflect;
 
 use crate::{
     api::Context,
@@ -75,7 +75,7 @@ pub(crate) enum SystemKind {
     },
 }
 
-#[derive(Default, Debug, Serialize, Reflect, Clone)]
+#[derive(Default, Debug, Reflect, Clone)]
 pub struct System {
     pub(crate) kind: SystemKind,
 }
@@ -91,7 +91,7 @@ impl Resource for System {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub struct SystemStage {
     pub(crate) name: AsciiArray<32>,
     pub(crate) periodic: Option<f64>,
@@ -114,6 +114,7 @@ pub struct SystemSetEntry {
     pub(crate) order: SystemOrder,
 }
 
+#[derive(Default, Reflect)]
 pub struct SystemSet(pub(crate) Vec<SystemSetEntry>);
 
 impl Resource for SystemSet {

@@ -17,7 +17,7 @@ impl Entity {
     }
 
     pub fn remove(ctx: &mut Context, entity: Entity) {
-        ctx.entities.changes.push(EntityChange::Remove(entity));
+        ctx.entities.changes.push(EntityChange::Removed(entity));
     }
 }
 

@@ -1,4 +1,4 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 use crate::{
     api::Context,
@@ -20,7 +20,6 @@ pub trait NativeSingleView<C: Component> {
 
 pub struct NativeSingleViewRef<C: Component> {
     pub(crate) container: *const NativeSingleContainer<C>,
-    pub(crate) size: usize,
 }
 
 impl<C: Component> NativeSingleViewRef<C> {
@@ -48,7 +47,7 @@ impl<C: Component> NativeSingleViewRef<C> {
 
 impl<C: Component> NativeSingleView<C> for NativeSingleViewRef<C> {
     fn get(&self, entity: Entity) -> Option<&C> {
-        self.container.get(entity)
+        unsafe { *self.container }.get(entity)
     }
 }
 
@@ -64,7 +63,6 @@ impl<C: Component> Index<Entity> for NativeSingleViewRef<C> {
 
 pub struct NativeSingleViewMut<C: Component> {
     pub(crate) container: *mut NativeSingleContainer<C>,
-    pub(crate) size: usize,
 }
 
 impl<C: Component> NativeSingleViewMut<C> {
@@ -90,25 +88,11 @@ impl<C: Component> NativeSingleViewMut<C> {
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut C> {
-        unsafe { &mut *self.container }.iter_mut().n
+        unsafe { &mut *self.container }.iter_mut()
     }
 
     pub fn add(&mut self, entity: Entity, component: C) {
-        // Find currrent archetype
-        let current_archetype = ctx.entities.entries.get(entity.key()).unwrap().archetype;
-        // Find next archetype
-        let archetype = ctx
-            .entities
-            .archetypes
-            .find_add(ctx.queries, current_archetype, component);
-        // Update archetype
-        ctx.entities
-            .entries
-            .get_mut(entity.key())
-            .unwrap()
-            .archetype = archetype;
-        // Add component to container
-        unsafe { &mut *self.container }.add(entity, component)
+        unsafe { &mut *self.container }.add(entity, component);
     }
 
     pub fn remove(&mut self, ctx: &mut Context, entity: Entity) {
@@ -119,5 +103,19 @@ impl<C: Component> NativeSingleViewMut<C> {
 impl<C: Component> NativeSingleView<C> for NativeSingleViewMut<C> {
     fn get(&self, ctx: &Context, entity: Entity) -> Option<&C> {
         self.container.get(entity)
+    }
+}
+
+impl<C: Component> Index<Entity> for NativeSingleViewMut<C> {
+    type Output = C;
+
+    fn index(&self, entity: Entity) -> &Self::Output {
+        self.get(entity).expect("Entity not found")
+    }
+}
+
+impl<C: Component> IndexMut<Entity> for NativeSingleViewMut<C> {
+    fn index_mut(&mut self, entity: Entity) -> &mut Self::Output {
+        self.get_mut(entity).expect("Entity not found")
     }
 }

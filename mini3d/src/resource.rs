@@ -250,9 +250,11 @@ impl ResourceManager {
         None
     }
 
-    pub(crate) fn find_type(&self, key: impl ToUID) -> Option<ResourceHandle> {
+    pub(crate) fn find_type(&self, key: impl ToUID) -> Option<ResourceTypeHandle> {
         self.find(self.resource_type_handle, key)
     }
+
+    pub(crate) fn add_type(...) // TODO:
 
     pub(crate) fn info(
         &self,
