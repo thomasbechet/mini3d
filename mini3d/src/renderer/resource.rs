@@ -16,7 +16,7 @@ pub mod tilemap;
 pub mod tileset;
 pub mod viewport;
 
-pub(crate) struct RendererTypes {
+pub(crate) struct RendererResources {
     pub(crate) texture: ResourceTypeHandle,
     pub(crate) material: ResourceTypeHandle,
     pub(crate) mesh: ResourceTypeHandle,

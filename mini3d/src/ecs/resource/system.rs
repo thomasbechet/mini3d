@@ -16,8 +16,6 @@ use crate::{
     utils::string::AsciiArray,
 };
 
-use super::resource::ResourceData;
-
 pub(crate) trait SystemReflection {
     fn create_instance(&self) -> SystemInstance;
 }

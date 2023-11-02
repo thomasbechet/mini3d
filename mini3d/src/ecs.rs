@@ -3,6 +3,7 @@ pub mod container;
 pub mod entity;
 pub mod error;
 pub mod query;
+pub mod resource;
 pub mod scheduler;
 pub mod sparse;
 pub mod system;

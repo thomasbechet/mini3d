@@ -1,8 +1,6 @@
 use crate::activity::ActivityId;
 use crate::feature::core;
-use crate::feature::core::component::{Component, ComponentHandle};
 use crate::feature::core::resource::{Resource, ResourceData};
-use crate::feature::core::system::System;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::prng::PCG32;
 use crate::utils::slotmap::{SlotId, SlotMap};
@@ -76,8 +74,6 @@ impl ResourceManager {
                     .unwrap()
             };
         }
-        manager.types.component = define_resource!(core::component::Component);
-        manager.types.system = define_resource!(core::system::System);
         define_resource!(core::system::SystemStage);
         define_resource!(core::system::SystemSet);
         define_resource!(core::activity::ActivityDescriptor);
@@ -291,31 +287,13 @@ impl ResourceManager {
         self.find(self.resource_type_handle, key)
     }
 
-    pub(crate) fn define_resource(
+    pub(crate) fn define_type(
         &mut self,
         name: &str,
         ty: Resource,
         owner: ActivityId,
     ) -> Result<ResourceTypeHandle, ResourceError> {
         Ok(self.add(self.resource_type_handle, Some(name), owner, ty)?)
-    }
-
-    pub(crate) fn define_component(
-        &mut self,
-        name: &str,
-        component: Component,
-        owner: ActivityId,
-    ) -> Result<ComponentHandle, ResourceError> {
-        Ok(self.add(self.component_type_handle, Some(name), owner, component)?)
-    }
-
-    pub(crate) fn define_system(
-        &mut self,
-        name: &str,
-        system: System,
-        owner: ActivityId,
-    ) -> Result<ResourceTypeHandle, ResourceError> {
-        Ok(self.add(self.system_type_handle, Some(name), owner, system)?)
     }
 
     pub(crate) fn info(

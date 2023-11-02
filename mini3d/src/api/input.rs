@@ -1,9 +1,8 @@
 use crate::{
-    feature::input::{
-        action::{InputAction, InputActionState},
-        axis::{InputAxis, InputAxisState},
+    input::{
+        handle::{InputActionHandle, InputAxisHandle},
+        resource::action::InputAction,
     },
-    input::handle::{InputActionHandle, InputAxisHandle},
     resource::error::ResourceError,
 };
 

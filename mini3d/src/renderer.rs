@@ -9,6 +9,7 @@ use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
+use self::resource::RendererResources;
 use self::{
     color::Color,
     provider::{RendererProvider, RendererProviderError},
@@ -20,7 +21,7 @@ pub mod event;
 pub mod graphics;
 pub mod provider;
 pub mod rasterizer;
-pub mod types;
+pub mod resource;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -58,10 +59,6 @@ pub struct RendererStatistics {
     pub draw_count: usize,
 }
 
-impl RendererTypes {
-    pub(crate) fn define(&mut self, resource: &mut ResourceManager) {}
-}
-
 #[derive(Default)]
 pub struct RendererManager {
     pub(crate) provider: Box<dyn RendererProvider>,
@@ -69,7 +66,7 @@ pub struct RendererManager {
     // Persistent data
     statistics: RendererStatistics,
     clear_color: Color,
-    types: RendererTypes,
+    resources: RendererResources,
 }
 
 impl RendererManager {
