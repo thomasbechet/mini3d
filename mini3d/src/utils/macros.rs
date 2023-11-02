@@ -42,5 +42,23 @@ macro_rules! define_resource_handle {
                 Self(handle)
             }
         }
+
+        impl $crate::serialize::Serialize for $name {
+            type Header = ();
+            fn serialize(
+                &self,
+                encoder: &mut impl $crate::serialize::Encoder,
+            ) -> Result<(), $crate::serialize::EncoderError> {
+                self.0.serialize(encoder)
+            }
+            fn deserialize(
+                decoder: &mut impl $crate::serialize::Decoder,
+                header: &Self::Header,
+            ) -> Result<(), $crate::serialize::DecoderError> {
+                Self($crate::resource::handle::ResourceHandle::deserialize(
+                    decoder, header,
+                ))
+            }
+        }
     };
 }

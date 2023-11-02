@@ -3,7 +3,9 @@ use mini3d_derive::Error;
 use crate::activity::{ActivityManager, ActivityUpdateContext};
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::feature::{common, input, physics, renderer};
+use crate::feature::core::component::{Component, ComponentStorage};
+use crate::feature::core::resource::Resource;
+use crate::feature::{common, core, input, physics, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
@@ -14,6 +16,7 @@ use crate::platform::PlatformManager;
 use crate::processor::Processor;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
+use crate::resource::error::ResourceError;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 
@@ -78,20 +81,24 @@ pub struct Engine {
 }
 
 impl Engine {
-    fn register_core_features(&mut self, features: &EngineFeatures) -> Result<(), RegistryError> {
+    fn register_core_features(&mut self, features: &EngineFeatures) -> Result<(), ResourceError> {
         macro_rules! define_resource {
             ($resource: ty) => {
-                self.registry
-                    .resource
-                    .add_static::<$resource>(<$resource>::NAME)?;
+                self.resource.define_resource_type(
+                    <$resource>::NAME,
+                    ResourceType::native::<$resource>(),
+                    self.activity.root,
+                )?;
             };
         }
 
         macro_rules! define_component {
             ($component: ty, $storage: expr) => {
-                self.registry
-                    .component
-                    .add_static::<$component>(<$component>::NAME, $storage)?;
+                self.resource.define_component_type(
+                    <$component>::NAME,
+                    ComponentType::native::<$component>($storage),
+                    self.activity.root,
+                )?;
             };
         }
 
@@ -154,10 +161,6 @@ impl Engine {
             define_component!(renderer::tileset::Tileset, ComponentStorage::Single);
             define_component!(renderer::viewport::Viewport, ComponentStorage::Single);
             define_component!(renderer::canvas::Canvas, ComponentStorage::Single);
-            define_system_exclusive!(
-                renderer::system::SynchronizeRendererResources,
-                SystemStage::UPDATE
-            );
         }
 
         if features.ui {

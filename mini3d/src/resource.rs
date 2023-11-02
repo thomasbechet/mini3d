@@ -1,7 +1,8 @@
-use core::result::Result;
-
 use crate::activity::ActivityId;
-use crate::feature::core::resource::{Resource, ResourceType};
+use crate::feature::core;
+use crate::feature::core::component::{Component, ComponentHandle};
+use crate::feature::core::resource::{Resource, ResourceData};
+use crate::feature::core::system::System;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::prng::PCG32;
 use crate::utils::slotmap::{SlotId, SlotMap};
@@ -39,33 +40,48 @@ struct ResourceEntry {
 pub struct ResourceManager {
     containers: SlotMap<ContainerEntry>,
     entries: SlotMap<ResourceEntry>,
-    type_container: SlotId,               // Container with list of types
-    resource_type_handle: ResourceHandle, // Handle to resource type
+    type_container: SlotId, // Container with list of types
+    resource_type_handle: ResourceTypeHandle,
     prng: PCG32,
 }
 
 impl ResourceManager {
-    pub(crate) fn new(root_activity: ActivityId) -> Self {
+    pub(crate) fn new(root: ActivityId) -> Self {
         let mut manager = Self {
             containers: Default::default(),
             entries: Default::default(),
             type_container: SlotId::null(),
-            resource_type_handle: ResourceHandle(0),
+            resource_type_handle: ResourceTypeHandle(SlotId::null()),
             prng: PCG32::new(1234),
         };
-        // Define core resource type
+        // Add resource type container
         manager.type_container = manager
             .containers
-            .add(Box::new(NativeResourceContainer::<ResourceType>::default()));
-        manager.resource_type_handle = ResourceHandle(manager.entries.add(ResourceEntry {
+            .add(Box::new(NativeResourceContainer::<Resource>::default()));
+        // As all container entry must have a resource type, we add a dummy resource type
+        manager.resource_type_handle = ResourceTypeHandle(manager.entries.add(ResourceEntry {
             key: "_resource_type",
-            ty: ResourceHandle::default(),
-            owner: root_activity,
+            ty: Default::default(),
+            owner: root,
             ref_count: 0,
             slot: SlotId::null(),
             prev: SlotId::null(),
             next: SlotId::null(),
         }));
+        // Define core resources
+        macro_rules! define_resource {
+            ($resource: ty) => {
+                manager
+                    .define_resource(<$resource>::NAME, Resource::native::<$resource>(), root)
+                    .unwrap()
+            };
+        }
+        manager.types.component = define_resource!(core::component::Component);
+        manager.types.system = define_resource!(core::system::System);
+        define_resource!(core::system::SystemStage);
+        define_resource!(core::system::SystemSet);
+        define_resource!(core::activity::ActivityDescriptor);
+        define_resource!(core::structure::StructDefinition);
         manager
     }
 }
@@ -79,7 +95,7 @@ impl ResourceManager {
         Ok(())
     }
 
-    pub(crate) fn add<R: Resource>(
+    pub(crate) fn add<R: ResourceData>(
         &mut self,
         ty: impl ToResourceHandle,
         key: Option<&str>,
@@ -87,13 +103,8 @@ impl ResourceManager {
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
         // Allocate container if missing
-        if self
-            .read::<ResourceType>(ty)
-            .unwrap()
-            .container_id
-            .is_null()
-        {
-            let container = self.read::<ResourceType>(ty).unwrap().create_container();
+        if self.get::<Resource>(ty).unwrap().container_id.is_null() {
+            let container = self.get::<Resource>(ty).unwrap().create_container();
             let container_id = self.containers.add(ContainerEntry {
                 container,
                 first: SlotId::null(),
@@ -104,7 +115,7 @@ impl ResourceManager {
                 .unwrap()
                 .container
                 .as_any_mut()
-                .downcast_mut::<NativeResourceContainer<ResourceType>>()
+                .downcast_mut::<NativeResourceContainer<Resource>>()
                 .unwrap()
                 .0
                 .get_mut(ty.to_handle().0)
@@ -135,7 +146,7 @@ impl ResourceManager {
         self.increment_ref(ty.to_handle())
             .expect("Failed to increment resource type ref count");
         // Append entry to container
-        let resource_ty = self.read::<ResourceType>(ty).unwrap();
+        let resource_ty = self.get::<Resource>(ty).unwrap();
         let container_id = resource_ty.container_id;
         entry.next = self.containers[container_id].first;
         let id = self.entries.add(entry);
@@ -174,7 +185,7 @@ impl ResourceManager {
     //     }
     // }
 
-    pub(crate) fn read<R: Resource>(
+    pub(crate) fn get<R: ResourceData>(
         &self,
         handle: impl ToResourceHandle,
     ) -> Result<&R, ResourceError> {
@@ -200,11 +211,37 @@ impl ResourceManager {
         }
     }
 
-    pub(crate) fn iter_mut<R: Resource>(
+    pub(crate) fn get_mut<R: ResourceData>(
+        &mut self,
+        handle: impl ToResourceHandle,
+    ) -> Result<&mut R, ResourceError> {
+        // Find entry
+        let id = handle.to_handle().0;
+        let entry = self
+            .entries
+            .get(id)
+            .ok_or(ResourceError::ResourceNotFound)?;
+        // Read resource
+        if !entry.slot.is_null() {
+            Ok(self
+                .containers
+                .get_mut(entry.ty.handle().0)
+                .ok_or(ResourceError::ResourceTypeNotFound)?
+                .as_any_mut()
+                .downcast_mut::<NativeResourceContainer<R>>()
+                .expect("Invalid native resource container")
+                .get_mut(entry.slot)
+                .expect("native static resource slot"))
+        } else {
+            Err(ResourceError::ResourceNotLoaded)
+        }
+    }
+
+    pub(crate) fn iter_mut<R: ResourceData>(
         &mut self,
         ty: ResourceTypeHandle,
     ) -> impl Iterator<Item = &mut R> {
-        let container_id = self.read::<ResourceType>(ty).unwrap().container_id;
+        let container_id = self.get::<Resource>(ty).unwrap().container_id;
         self.containers
             .get_mut(container_id)
             .unwrap()
@@ -216,7 +253,7 @@ impl ResourceManager {
             .iter_mut()
     }
 
-    pub(crate) fn get_mut_unchecked<R: Resource>(
+    pub(crate) fn get_mut_unchecked<R: ResourceData>(
         &mut self,
         ty: ResourceTypeHandle,
         handle: ResourceHandle,
@@ -254,7 +291,32 @@ impl ResourceManager {
         self.find(self.resource_type_handle, key)
     }
 
-    pub(crate) fn add_type(...) // TODO:
+    pub(crate) fn define_resource(
+        &mut self,
+        name: &str,
+        ty: Resource,
+        owner: ActivityId,
+    ) -> Result<ResourceTypeHandle, ResourceError> {
+        Ok(self.add(self.resource_type_handle, Some(name), owner, ty)?)
+    }
+
+    pub(crate) fn define_component(
+        &mut self,
+        name: &str,
+        component: Component,
+        owner: ActivityId,
+    ) -> Result<ComponentHandle, ResourceError> {
+        Ok(self.add(self.component_type_handle, Some(name), owner, component)?)
+    }
+
+    pub(crate) fn define_system(
+        &mut self,
+        name: &str,
+        system: System,
+        owner: ActivityId,
+    ) -> Result<ResourceTypeHandle, ResourceError> {
+        Ok(self.add(self.system_type_handle, Some(name), owner, system)?)
+    }
 
     pub(crate) fn info(
         &self,

@@ -9,29 +9,27 @@ use crate::{
         query::QueryTable,
         sparse::PagedVector,
     },
-    feature::core::component::{Component, ComponentId},
+    feature::core::component::{ComponentData, ComponentId},
     reflection::PropertyId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     trait_property_impl,
     utils::uid::UID,
 };
 
-pub(crate) struct NativeSingleContainer<C: Component> {
+pub(crate) struct NativeSingleContainer<C: ComponentData> {
     data: Vec<(C, Entity)>,
     indices: PagedVector<usize>, // Entity -> Index
     view_size: usize,
     removed: Vec<Entity>,
-    id: ComponentId,
 }
 
-impl<C: Component> NativeSingleContainer<C> {
-    pub(crate) fn with_capacity(size: usize, id: ComponentId) -> Self {
+impl<C: ComponentData> NativeSingleContainer<C> {
+    pub(crate) fn with_capacity(size: usize) -> Self {
         Self {
             data: Vec::with_capacity(size),
             indices: PagedVector::new(),
             removed: Vec::new(),
             view_size: 0,
-            id,
         }
     }
 
@@ -77,7 +75,7 @@ impl<C: Component> NativeSingleContainer<C> {
     }
 }
 
-impl<C: Component> Container for NativeSingleContainer<C> {
+impl<C: ComponentData> Container for NativeSingleContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -101,16 +99,19 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         }
     }
 
-    fn flush_changes(&mut self, entities: &mut EntityTable, queries: &mut QueryTable) {
+    fn flush_changes(
+        &mut self,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
+        id: ComponentId,
+    ) {
         // Added components
         for (data, entity) in self.data[self.view_size..self.data.len()].iter() {
             // TODO: notify systems ?
             // Find currrent archetype
             let current_archetype = entities.entries.get(entity.key()).unwrap().archetype;
             // Find next archetype
-            let archetype = entities
-                .archetypes
-                .find_add(queries, current_archetype, self.id);
+            let archetype = entities.archetypes.find_add(queries, current_archetype, id);
             // Update archetype
             entities.entries.get_mut(entity.key()).unwrap().archetype = archetype;
         }
@@ -131,7 +132,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
     }
 }
 
-impl<C: Component> SingleContainer for NativeSingleContainer<C> {
+impl<C: ComponentData> SingleContainer for NativeSingleContainer<C> {
     trait_property_impl!(bool, read_bool, write_bool);
     trait_property_impl!(u8, read_u8, write_u8);
     trait_property_impl!(i32, read_i32, write_i32);

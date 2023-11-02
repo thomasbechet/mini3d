@@ -1,8 +1,8 @@
 use crate::{
-    feature::core::resource::{self, ResourceHookContext, ResourceType},
+    feature::core::resource::{self, ResourceHookContext},
     resource::{
         error::ResourceError,
-        handle::{ResourceHandle, ToResourceHandle, ResourceTypeHandle},
+        handle::{ResourceHandle, ResourceTypeHandle, ToResourceHandle},
     },
     utils::uid::ToUID,
 };
@@ -12,7 +12,7 @@ use super::Context;
 pub struct Resource;
 
 impl Resource {
-    pub fn add<R: resource::Resource>(
+    pub fn add<R: resource::ResourceData>(
         ctx: &mut Context,
         ty: impl ToResourceHandle,
         key: Option<&str>,
@@ -44,14 +44,15 @@ impl Resource {
         ctx.resource.find(ty, key)
     }
 
-    pub fn find_type(ctx: &Context, key: impl ToUID) -> Option<ResourceTypeHandle> {
+    pub fn find_resource_type(ctx: &Context, key: impl ToUID) -> Option<ResourceTypeHandle> {
         ctx.resource.find_type(key)
     }
 
-    pub fn add_type(ctx: &mut Context, ty: impl ToResourceHandle) -> ResourceTypeHandle {
-        ResourceType {
-
-        }
-        ctx.resource.add(ctx.resource., key, owner, data)
+    pub fn define_resource_type(
+        ctx: &mut Context,
+        name: &str,
+        ty: Resource,
+    ) -> Result<ResourceTypeHandle, ResourceError> {
+        ctx.resource.define_resource(name, ty, ctx.activity)
     }
 }

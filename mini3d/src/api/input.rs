@@ -25,7 +25,7 @@ impl Input {
         action: InputActionHandle,
     ) -> Result<&'a InputActionState, ResourceError> {
         ctx.resource
-            .read::<InputAction>(action.0)
+            .get::<InputAction>(action.0)
             .map(|action| &action.state)
     }
 
@@ -34,7 +34,7 @@ impl Input {
         axis: InputAxisHandle,
     ) -> Result<&'a InputAxisState, ResourceError> {
         ctx.resource
-            .read::<InputAxis>(axis.0)
+            .get::<InputAxis>(axis.0)
             .map(|axis| &axis.state)
     }
 }

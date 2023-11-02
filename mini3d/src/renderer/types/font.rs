@@ -1,19 +1,24 @@
 use crate::{
-    define_resource_handle, math::rect::IRect, renderer::provider::RendererProviderHandle,
+    define_resource_handle,
+    feature::core::resource::{ResourceData, ResourceHookContext},
+    math::rect::IRect,
+    renderer::provider::RendererProviderHandle,
+    resource::handle::ResourceHandle,
 };
 use glam::{IVec2, UVec2};
-use mini3d_derive::{Reflect, Resource, Serialize};
+use mini3d_derive::{Reflect, Serialize};
 use std::collections::HashMap;
 
 use super::texture::{Texture, TextureFormat};
 
 define_resource_handle!(FontHandle);
 
-#[derive(Clone, Resource, Reflect, Serialize)]
+#[derive(Clone, Reflect, Serialize)]
 pub struct Font {
     pub glyph_size: UVec2,
     pub data: Vec<u8>,
     pub glyph_locations: HashMap<char, usize>,
+    #[serialize(skip)]
     pub(crate) handle: RendererProviderHandle,
 }
 
@@ -28,7 +33,20 @@ impl Default for Font {
             glyph_size: UVec2::new(glyph_width as u32, glyph_height as u32),
             data,
             glyph_locations,
+            handle: RendererProviderHandle::null(),
         }
+    }
+}
+
+impl ResourceData for Font {
+    fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
+        let font = ctx.resource.get_mut::<Font>(handle).unwrap();
+        ctx.renderer.on_font_added_hook(font, handle);
+    }
+
+    fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
+        let font = ctx.resource.get_mut::<Font>(handle).unwrap();
+        ctx.renderer.on_font_removed_hook(font, handle);
     }
 }
 
@@ -48,6 +66,7 @@ impl FontAtlas {
             format: TextureFormat::RGBA,
             width,
             height,
+            handle: ResourceHandle::null(),
         };
 
         let mut extents: HashMap<char, IRect> = Default::default();

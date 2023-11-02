@@ -1,8 +1,5 @@
 use mini3d_derive::Error;
 
-use crate::feature::input::action::InputAction;
-use crate::feature::input::axis::InputAxis;
-use crate::feature::input::text::InputText;
 use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError};
@@ -12,10 +9,12 @@ use crate::utils::uid::ToUID;
 use self::event::InputEvent;
 use self::handle::{InputActionHandle, InputAxisHandle};
 use self::provider::InputProvider;
+use self::resource::action::InputAction;
 
 pub mod event;
 pub mod handle;
 pub mod provider;
+pub mod resource;
 
 pub const MAX_INPUT_NAME_LEN: usize = 64;
 pub const MAX_INPUT_DISPLAY_NAME_LEN: usize = 64;

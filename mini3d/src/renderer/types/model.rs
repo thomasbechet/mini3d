@@ -6,5 +6,4 @@ use crate::renderer::provider::RendererProviderHandle;
 pub struct Model {
     pub mesh: RendererMeshHandle,
     pub materials: Vec<RendererMaterialHandle>,
-    pub(crate) handle: RendererProviderHandle,
 }

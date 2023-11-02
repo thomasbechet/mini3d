@@ -3,9 +3,9 @@ use std::{any::Any, cell::RefCell};
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
-    feature::core::component::{ComponentId, ComponentType},
+    feature::core::component::{Component, ComponentHandle, ComponentId},
     reflection::PropertyId,
-    resource::{handle::ResourceHandle, ResourceManager},
+    resource::ResourceManager,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{slotmap::SlotMap, uid::UID},
 };
@@ -65,7 +65,7 @@ pub(crate) trait ArrayContainer {}
 
 struct ContainerEntry {
     pub(crate) container: Box<dyn Container>,
-    resource_type: ResourceHandle,
+    component_type: ComponentHandle,
 }
 
 #[derive(Default)]
@@ -76,12 +76,12 @@ pub(crate) struct ContainerTable {
 impl ContainerTable {
     pub(crate) fn preallocate(
         &mut self,
-        component: ResourceHandle,
+        component: ComponentHandle,
         resources: &mut ResourceManager,
     ) -> ComponentId {
         // Find existing container
         let id = self.entries.iter().find_map(|(id, e)| {
-            if e.resource_type.handle() == component {
+            if e.component_type == component {
                 Some(ComponentId(id))
             } else {
                 None
@@ -92,11 +92,11 @@ impl ContainerTable {
         }
         // Create new container
         let ty = resources
-            .read::<ComponentType>(component)
+            .get::<Component>(component)
             .expect("Component type not found while preallocating");
         let entry = ContainerEntry {
             container: RefCell::new(ty.create_container()),
-            resource_type: resources.increment_ref(component),
+            component_type: resources.increment_ref(component),
         };
         ComponentId(self.entries.insert(entry))
     }

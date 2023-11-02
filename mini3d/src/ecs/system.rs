@@ -1,7 +1,7 @@
 use crate::{
     api::Context,
     feature::core::{
-        component::{ComponentId, ComponentType},
+        component::{Component, ComponentId},
         system::{System, SystemKind, SystemSet},
     },
     resource::{handle::ResourceHandle, ResourceManager},
@@ -212,10 +212,10 @@ impl SystemTable {
         }
         // Acquire resource
         self.sets.push(resources.increment_ref(handle));
-        let set = resources.read::<SystemSet>(handle).unwrap();
+        let set = resources.get::<SystemSet>(handle).unwrap();
         // Add systems
         for (index, entry) in set.0.iter().enumerate() {
-            let system = resources.read::<System>(entry.system).unwrap();
+            let system = resources.get::<System>(entry.system).unwrap();
             match system.kind {
                 SystemKind::Native { reflection } => {
                     let instance = reflection.create_instance();
@@ -232,7 +232,7 @@ impl SystemTable {
             }
         }
         // Setup instances
-        let component_type = resources.find_type(ComponentType::NAME).unwrap();
+        let component_type = resources.find_type(Component::NAME).unwrap();
         for entry in self.instances.values_mut() {
             entry.setup(entities, queries, containers, resources, component_type)?;
         }

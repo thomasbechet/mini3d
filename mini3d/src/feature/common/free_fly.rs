@@ -1,5 +1,5 @@
 use glam::{Quat, Vec3};
-use mini3d_derive::{Component, Reflect};
+use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     api::{input::Input, time::Time, Context},
@@ -15,7 +15,7 @@ use crate::{
 
 use super::transform::Transform;
 
-#[derive(Default, Component, Reflect, Clone)]
+#[derive(Default, Component, Reflect, Clone, Serialize)]
 pub struct FreeFly {
     // Control if free fly is active
     pub active: bool,
@@ -74,8 +74,8 @@ impl ParallelSystem for FreeFlySystem {
 
     fn run(&self, ctx: &Context) {
         for e in self.query.query(ctx) {
-            let transform = self.transform[e];
-            let free_fly = self.free_fly[e];
+            let transform = &self.transform[e];
+            let free_fly = &mut self.free_fly[e];
 
             // Check active
             if !free_fly.active {

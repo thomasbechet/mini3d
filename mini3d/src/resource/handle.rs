@@ -1,6 +1,13 @@
 use std::fmt::Debug;
 
-use crate::{ecs::entity::Entity, utils::slotmap::SlotId};
+use mini3d_derive::Serialize;
+
+use crate::{
+    define_resource_handle,
+    ecs::entity::Entity,
+    serialize::{Decoder, Encoder, Serialize},
+    utils::slotmap::SlotId,
+};
 
 use super::ResourceManager;
 
@@ -11,7 +18,7 @@ impl ReferenceResolver {
     pub(crate) fn resolve_entity(&mut self, entity: Entity) -> Entity {}
 }
 
-#[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Default, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize)]
 pub struct ResourceHandle(pub(crate) SlotId);
 
 impl ResourceHandle {
@@ -47,10 +54,4 @@ impl ToResourceHandle for ResourceHandle {
     }
 }
 
-pub struct ResourceTypeHandle(pub(crate) ResourceHandle);
-
-impl ToResourceHandle for ResourceTypeHandle {
-    fn to_handle(&self) -> ResourceHandle {
-        self.0
-    }
-}
+define_resource_handle!(ResourceTypeHandle);

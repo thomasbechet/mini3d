@@ -6,7 +6,7 @@ use crate::{
         entity::Entity,
         sparse::PagedVector,
     },
-    feature::core::component::Component,
+    feature::core::component::ComponentData,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
@@ -15,14 +15,14 @@ struct NativeArrayEntry {
     chunk_index: usize,
 }
 
-pub(crate) struct NativeArrayContainer<C: Component> {
+pub(crate) struct NativeArrayContainer<C: ComponentData> {
     chunk_size: usize,
     data: Vec<C>,
     entries: Vec<NativeArrayEntry>,
     indices: PagedVector<usize>, // Entity -> Entry Index
 }
 
-impl<C: Component> NativeArrayContainer<C> {
+impl<C: ComponentData> NativeArrayContainer<C> {
     pub(crate) fn with_capacity(size: usize, chunk_size: usize) -> Self {
         Self {
             chunk_size,
@@ -86,7 +86,7 @@ impl<C: Component> NativeArrayContainer<C> {
     }
 }
 
-impl<C: Component> Container for NativeArrayContainer<C> {
+impl<C: ComponentData> Container for NativeArrayContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -125,7 +125,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
     }
 }
 
-impl<C: Component> ArrayContainer for NativeArrayContainer<C> {}
+impl<C: ComponentData> ArrayContainer for NativeArrayContainer<C> {}
 
 pub(crate) struct DynamicArrayContainer {
     pub(crate) entities: Vec<Entity>,

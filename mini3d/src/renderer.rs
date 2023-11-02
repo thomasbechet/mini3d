@@ -1,13 +1,6 @@
 use crate::ecs::container::ContainerTable;
-use crate::feature::renderer::font::{Font, FontAtlas};
-use crate::feature::renderer::material::Material;
-use crate::feature::renderer::mesh::Mesh;
-use crate::feature::renderer::texture::Texture;
-use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Serialize};
-use crate::utils::slotmap::SecondaryMap;
-use crate::utils::uid::UID;
 use crate::{
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
@@ -18,15 +11,16 @@ use mini3d_derive::Serialize;
 use self::event::RendererEvent;
 use self::{
     color::Color,
-    provider::{ProviderMaterialDescriptor, RendererProvider, RendererProviderError},
+    provider::{RendererProvider, RendererProviderError},
 };
 
 pub mod color;
+pub mod command;
 pub mod event;
 pub mod graphics;
-pub mod command;
 pub mod provider;
 pub mod rasterizer;
+pub mod types;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -58,150 +52,24 @@ pub const TILE_SIZE: u32 = 8;
 pub const TILE_HCOUNT: u32 = SCREEN_WIDTH / TILE_SIZE;
 pub const TILE_VCOUNT: u32 = SCREEN_HEIGHT / TILE_SIZE;
 
-pub enum RendererModelDescriptor {
-    FromAsset(UID),
-}
-
 #[derive(Default, Clone, Copy, Serialize)]
 pub struct RendererStatistics {
     pub triangle_count: usize,
     pub draw_count: usize,
 }
 
-fn load_font(
-    handle: ResourceHandle,
-    provider: &mut dyn RendererProvider,
-    resource: &ResourceManager,
-) -> Result<RendererFont, RendererProviderError> {
-    let font = resource.read::<Font>(handle).unwrap();
-    let atlas = FontAtlas::new(font);
-    let handle = provider.texture_add(&atlas.texture)?;
-    Ok(RendererFont { atlas, handle })
-}
-
-fn load_mesh(
-    handle: ResourceHandle,
-    provider: &mut dyn RendererProvider,
-    resource: &ResourceManager,
-) -> Result<RendererMesh, RendererProviderError> {
-    let mesh = resource.read::<Mesh>(handle).unwrap();
-    let handle = provider.mesh_add(mesh)?;
-    Ok(RendererMesh { handle })
-}
-
-fn load_texture(
-    handle: ResourceHandle,
-    provider: &mut dyn RendererProvider,
-    resource: &ResourceManager,
-) -> Result<RendererTexture, RendererProviderError> {
-    let texture = resource.read::<Texture>(handle).unwrap();
-    let handle = provider.texture_add(texture)?;
-    Ok(RendererTexture { handle })
-}
-
-fn load_material(
-    handle: ResourceHandle,
-    textures: &SecondaryMap<RendererTexture>,
-    provider: &mut dyn RendererProvider,
-    resource: &ResourceManager,
-) -> Result<RendererMaterial, RendererProviderError> {
-    let material = resource.read::<Material>(handle).unwrap();
-    let info = resource.info(handle).unwrap();
-    let diffuse = textures.get(material.diffuse.id).unwrap().handle;
-    let handle = provider.material_add(ProviderMaterialDescriptor {
-        diffuse,
-        name: info.path,
-    })?;
-    Ok(RendererMaterial { handle })
-}
-
-impl RendererResourceManager {
-    fn reset(&mut self) {
-        self.fonts.clear();
-        self.textures.clear();
-        self.meshes.clear();
-        self.materials.clear();
-    }
-
-    pub(crate) fn request_font(
-        &mut self,
-        handle: ResourceHandle,
-        provider: &mut dyn RendererProvider,
-        resource: &ResourceManager,
-    ) -> Result<&RendererFont, RendererProviderError> {
-        if self.fonts.contains(handle.id) {
-            return Ok(self.fonts.get(handle.id).unwrap());
-        }
-        let font = load_font(handle, provider, resource)?;
-        self.fonts.insert(handle.id, font);
-        Ok(self.fonts.get(handle.id).unwrap())
-    }
-
-    pub(crate) fn request_mesh(
-        &mut self,
-        handle: ResourceHandle,
-        provider: &mut dyn RendererProvider,
-        resource: &ResourceManager,
-    ) -> Result<&RendererMesh, RendererProviderError> {
-        if self.meshes.contains(handle.id) {
-            return Ok(self.meshes.get(handle.id).unwrap());
-        }
-        self.meshes
-            .insert(handle.id, load_mesh(handle, provider, resource)?);
-        Ok(self.meshes.get(handle.id).unwrap())
-    }
-
-    pub(crate) fn request_texture(
-        &mut self,
-        handle: ResourceHandle,
-        provider: &mut dyn RendererProvider,
-        resource: &ResourceManager,
-    ) -> Result<&RendererTexture, RendererProviderError> {
-        if self.textures.contains(handle.id) {
-            return Ok(self.textures.get(handle.id).unwrap());
-        }
-        self.textures
-            .insert(handle.id, load_texture(handle, provider, resource)?);
-        Ok(self.textures.get(handle.id).unwrap())
-    }
-
-    pub(crate) fn request_material(
-        &mut self,
-        handle: ResourceHandle,
-        provider: &mut dyn RendererProvider,
-        resource: &ResourceManager,
-    ) -> Result<&RendererMaterial, RendererProviderError> {
-        if self.materials.contains(handle.id) {
-            return Ok(self.materials.get(handle.id).unwrap());
-        }
-        let material = resource.read::<Material>(handle).unwrap();
-        if !self.textures.contains(material.diffuse.id) {
-            let diffuse = load_texture(material.diffuse, provider, resource)?;
-            self.textures.insert(material.diffuse.id, diffuse);
-        }
-        self.materials.insert(
-            handle.id,
-            load_material(handle, &self.textures, provider, resource)?,
-        );
-        Ok(self.materials.get(handle.id).unwrap())
-    }
+impl RendererTypes {
+    pub(crate) fn define(&mut self, resource: &mut ResourceManager) {}
 }
 
 #[derive(Default)]
 pub struct RendererManager {
     pub(crate) provider: Box<dyn RendererProvider>,
 
-    // Resources
-    pub(crate) resources: RendererResourceManager,
-
     // Persistent data
     statistics: RendererStatistics,
-    graphics: Graphics,
     clear_color: Color,
-
-    // Resources
-    model: ResourceTypeHandle,
-    texture: ResourceTypeHandle,
+    types: RendererTypes,
 }
 
 impl RendererManager {
@@ -219,18 +87,14 @@ impl RendererManager {
         }
     }
 
-    pub(crate) fn prepare(&mut self) {
-        self.graphics.clear();
-    }
+    pub(crate) fn prepare(&mut self) {}
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.graphics.serialize(encoder)?;
         Ok(())
     }
 
     pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         // TODO: reset ECS resources
-        self.graphics = Graphics::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
@@ -247,15 +111,11 @@ impl RendererManager {
         self.graphics.submit_provider(
             None,
             Color::TRANSPARENT,
-            &mut self.resources,
+            &mut self.types,
             resource,
             &viewports,
             self.provider.as_mut(),
         )
-    }
-
-    pub(crate) fn graphics(&mut self) -> &mut Graphics {
-        &mut self.graphics
     }
 
     pub(crate) fn set_clear_color(&mut self, color: Color) {
@@ -266,24 +126,10 @@ impl RendererManager {
         self.statistics
     }
 
-    pub(crate) fn on_component_added_hook(
-        &mut self,
-        hook: RendererComponentHook,
-    )
-
-    pub(crate) fn on_resource_added_hook(
-        &mut self,
-        hook: RendererResourceHook,
-        handle: ResourceHandle,
-        resources: &mut ResourceManager,
-    ) {
-    }
-
-    pub(crate) fn on_resource_removed_hook(
-        &mut self,
-        hook: RendererResourceHook,
-        handle: ResourceHandle,
-        resources: &mut ResourceManager,
-    ) {
-    }
+    pub(crate) fn on_texture_added_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {}
+    pub(crate) fn on_texture_removed_hook(&mut self, texture: &mut Texture, handle: FontHandle) {}
+    pub(crate) fn on_mesh_added_hook(&mut self, mesh: &mut Mesh, handle: FontHandle) {}
+    pub(crate) fn on_mesh_removed_hook(&mut self, mesh: &mut Mesh, handle: FontHandle) {}
+    pub(crate) fn on_font_added_hook(&mut self, font: &mut Font, handle: FontHandle) {}
+    pub(crate) fn on_font_removed_hook(&mut self, font: &mut Font, handle: FontHandle) {}
 }

@@ -64,7 +64,7 @@ impl Scheduler {
         // Collect stages
         let mut stages = Vec::new();
         for set in table.sets.iter() {
-            let set = resources.read::<SystemSet>(set.handle()).unwrap();
+            let set = resources.get::<SystemSet>(set.handle()).unwrap();
             for entry in &set.0 {
                 if stages
                     .iter()
@@ -72,7 +72,7 @@ impl Scheduler {
                     .is_none()
                 {
                     stages.push(entry.stage.handle());
-                    let stage = resources.read::<SystemStage>(entry.stage.handle()).unwrap();
+                    let stage = resources.get::<SystemStage>(entry.stage.handle()).unwrap();
                     if let Some(periodic) = stage.periodic {
                         self.periodic_stages.push(PeriodicStage {
                             stage: entry.stage.handle(),
@@ -89,7 +89,7 @@ impl Scheduler {
                 .instances
                 .iter()
                 .filter(|(_, e)| {
-                    resources.read::<SystemSet>(e.set).unwrap().0[e.index]
+                    resources.get::<SystemSet>(e.set).unwrap().0[e.index]
                         .stage
                         .handle()
                         == *stage
@@ -98,7 +98,7 @@ impl Scheduler {
             // Sort instances based on system order
             // TODO:
             // Create stage entry
-            let stage = resources.read::<SystemStage>(*stage).unwrap();
+            let stage = resources.get::<SystemStage>(*stage).unwrap();
             self.stages.push(StageEntry {
                 handle: stage.handle(),
                 first_node: SlotId::null(),

@@ -4,21 +4,21 @@ use crate::{
         container::native::array::NativeArrayContainer, entity::Entity, error::ResolverError,
         system::SystemResolver,
     },
-    feature::core::component::Component,
+    feature::core::component::ComponentData,
     utils::uid::ToUID,
 };
 
-pub trait NativeArrayView<C: Component> {
+pub trait NativeArrayView<C: ComponentData> {
     fn get(&self, ctx: &Context, entity: Entity) -> Option<&[C]>;
 }
 
 // Native array reference
 
-pub struct NativeArrayViewRef<C: Component> {
+pub struct NativeArrayViewRef<C: ComponentData> {
     pub(crate) container: *const NativeArrayContainer<C>,
 }
 
-impl<C: Component> NativeArrayViewRef<C> {
+impl<C: ComponentData> NativeArrayViewRef<C> {
     pub fn resolve(
         &mut self,
         resolver: &mut SystemResolver,
@@ -41,7 +41,7 @@ impl<C: Component> NativeArrayViewRef<C> {
     }
 }
 
-impl<C: Component> NativeArrayView<C> for NativeArrayViewRef<C> {
+impl<C: ComponentData> NativeArrayView<C> for NativeArrayViewRef<C> {
     fn get(&self, ctx: &Context, entity: Entity) -> Option<&[C]> {
         unsafe { *self.container }.get(entity)
     }
@@ -49,11 +49,11 @@ impl<C: Component> NativeArrayView<C> for NativeArrayViewRef<C> {
 
 // Native array mutable reference
 
-pub struct NativeArrayViewMut<C: Component> {
+pub struct NativeArrayViewMut<C: ComponentData> {
     pub(crate) container: *mut NativeArrayContainer<C>,
 }
 
-impl<C: Component> NativeArrayViewMut<C> {
+impl<C: ComponentData> NativeArrayViewMut<C> {
     pub fn resolve(
         &mut self,
         resolver: &mut SystemResolver,
@@ -80,7 +80,7 @@ impl<C: Component> NativeArrayViewMut<C> {
     }
 }
 
-impl<C: Component> NativeArrayView<C> for NativeArrayViewMut<C> {
+impl<C: ComponentData> NativeArrayView<C> for NativeArrayViewMut<C> {
     fn get(&self, ctx: &Context, entity: Entity) -> Option<&[C]> {
         unsafe { *self.container }.get(entity)
     }

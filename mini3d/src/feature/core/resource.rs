@@ -1,3 +1,5 @@
+use mini3d_derive::{Reflect, Serialize};
+
 use crate::{
     input::InputManager,
     reflection::{Property, Reflect},
@@ -7,8 +9,8 @@ use crate::{
         handle::{ReferenceResolver, ResourceHandle},
         ResourceManager,
     },
-    serialize::{Decoder, DecoderError, Encoder, EncoderError},
-    utils::{slotmap::SlotId, string::AsciiArray},
+    serialize::Serialize,
+    utils::slotmap::SlotId,
 };
 
 pub struct ResourceHookContext<'a> {
@@ -17,10 +19,8 @@ pub struct ResourceHookContext<'a> {
     pub resource: &'a mut ResourceManager,
 }
 
-pub trait Resource: 'static + Default + Reflect {
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError>;
-    fn deserialize(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError>;
-    fn resolve_references(&mut self, resolver: &mut ReferenceResolver);
+pub trait ResourceData: 'static + Default + Reflect + Serialize {
+    fn resolve_references(&mut self, resolver: &mut ReferenceResolver) {}
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {}
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {}
 }
@@ -31,11 +31,11 @@ pub(crate) trait ResourceReflection {
     fn properties(&self) -> &[Property];
 }
 
-pub(crate) struct NativeResourceReflection<R: Resource> {
+pub(crate) struct NativeResourceReflection<R: ResourceData> {
     pub(crate) _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R: Resource> ResourceReflection for NativeResourceReflection<R> {
+impl<R: ResourceData> ResourceReflection for NativeResourceReflection<R> {
     fn create_resource_container(&self) -> Box<dyn ResourceContainer> {
         Box::new(NativeResourceContainer::<R>::with_capacity(128))
     }
@@ -59,20 +59,18 @@ pub(crate) enum ResourceKind {
     },
 }
 
-#[derive(Clone, Default)]
-pub struct ResourceType {
-    pub(crate) display_name: AsciiArray<32>,
+#[derive(Clone, Default, Serialize, Debug, Reflect)]
+pub struct Resource {
     pub(crate) kind: ResourceKind,
     pub(crate) container_id: SlotId,
 }
 
-impl ResourceType {
-    pub fn native<R: Resource>(name: &str) -> Self {
+impl Resource {
+    pub fn native<R: ResourceData>() -> Self {
         let reflection = NativeResourceReflection::<R> {
             _phantom: std::marker::PhantomData,
         };
         Self {
-            display_name: AsciiArray::from_str(name),
             kind: ResourceKind::Native {
                 reflection: Box::new(reflection),
             },
@@ -80,9 +78,8 @@ impl ResourceType {
         }
     }
 
-    pub fn structure(name: &str, structure: ResourceHandle) -> Self {
+    pub fn structure(structure: ResourceHandle) -> Self {
         Self {
-            display_name: AsciiArray::from_str(name),
             kind: ResourceKind::Struct { structure },
             container_id: SlotId::null(),
         }
