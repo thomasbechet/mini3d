@@ -33,6 +33,10 @@ pub struct InputAxis {
     pub(crate) state: InputAxisState,
 }
 
+impl InputAxis {
+    pub const NAME: &'static str = "input_axis.type";
+}
+
 impl Resource for InputAxis {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
         ctx.input.on_axis_added(handle.into(), ctx.resource);

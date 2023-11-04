@@ -191,13 +191,14 @@ impl ResourceManager {
         Ok(handle)
     }
 
-    pub(crate) fn add_type(
+    pub(crate) fn add_resource_type(
         &mut self,
         data: ResourceType,
         owner: ActivityId,
         key: Option<&str>,
-    ) -> Result<ResourceHandle, ResourceError> {
+    ) -> Result<ResourceTypeHandle, ResourceError> {
         self.add(data, self.meta_type, owner, key)
+            .map(|handle| handle.into())
     }
 
     pub(crate) fn get<R: Resource>(

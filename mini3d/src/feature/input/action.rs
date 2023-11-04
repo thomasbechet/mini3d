@@ -14,6 +14,10 @@ pub struct InputAction {
     pub(crate) state: InputActionState,
 }
 
+impl InputAction {
+    pub const NAME: &'static str = "input_action.type";
+}
+
 impl Resource for InputAction {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
         ctx.input.on_action_added(handle.into(), ctx.resource);

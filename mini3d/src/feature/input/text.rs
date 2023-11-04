@@ -11,6 +11,10 @@ pub struct InputText {
     pub(crate) state: InputTextState,
 }
 
+impl InputText {
+    pub const NAME: &'static str = "input_text.type";
+}
+
 impl Resource for InputText {}
 
 #[derive(Clone, Resource, Serialize, Reflect, Default)]

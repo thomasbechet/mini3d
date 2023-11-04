@@ -35,6 +35,10 @@ pub struct Texture {
     pub(crate) handle: RendererProviderHandle,
 }
 
+impl Texture {
+    pub const NAME: &'static str = "texture.type";
+}
+
 impl Resource for Texture {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
         let texture = ctx.resource.get_mut::<Texture>(handle).unwrap();

@@ -92,7 +92,7 @@ pub struct System {
 define_resource_handle!(SystemHandle);
 
 impl System {
-    pub const NAME: &'static str = "_system";
+    pub const NAME: &'static str = "system.type";
 
     pub fn native_exclusive<S: ExclusiveSystem>() -> Self {
         let reflection = NativeExclusiveSystemReflection::<S> {

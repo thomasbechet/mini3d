@@ -4,6 +4,10 @@ use crate::activity::{ActivityEntry, ActivityId, ActivityManager};
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
 use crate::ecs::{ECSManager, ECSUpdateContext};
+use crate::feature::core::resource::ResourceType;
+use crate::feature::ecs::component::{ComponentStorage, ComponentType};
+use crate::feature::ecs::system::System;
+use crate::feature::{common, ecs, input, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
@@ -11,10 +15,8 @@ use crate::logger::LoggerManager;
 use crate::physics::PhysicsManager;
 use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
-use crate::processor::Processor;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::RendererManager;
-use crate::resource::error::ResourceError;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 
@@ -31,8 +33,6 @@ const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 #[derive(Clone)]
 pub struct EngineFeatures {
     common: bool,
-    input: bool,
-    physics: bool,
     renderer: bool,
     ui: bool,
 }
@@ -41,8 +41,6 @@ impl EngineFeatures {
     pub fn all() -> Self {
         Self {
             common: true,
-            input: true,
-            physics: true,
             renderer: true,
             ui: true,
         }
@@ -51,8 +49,6 @@ impl EngineFeatures {
     pub fn none() -> Self {
         Self {
             common: false,
-            input: false,
-            physics: false,
             renderer: false,
             ui: false,
         }
@@ -93,17 +89,80 @@ impl Engine {
         self.resource.define_meta_type(self.activity.root);
     }
 
-    fn define_types(&mut self, features: &EngineFeatures) {
-        self.input.types.define(&mut self.resource);
-        self.renderer.types.define(&mut self.resource);
-    }
+    fn define_resource_types(&mut self, features: &EngineFeatures) {
+        macro_rules! define_resource {
+            ($resource: ty) => {
+                self.resource
+                    .add_resource_type(
+                        ResourceType::native::<$resource>(),
+                        self.activity.root,
+                        Some(<$resource>::NAME),
+                    )
+                    .unwrap()
+            };
+        }
 
-    fn register_core_features(&mut self, features: &EngineFeatures) -> Result<(), ResourceError> {
-        // Define features
+        self.ecs.types.component = define_resource!(ecs::component::ComponentType);
+        self.ecs.types.system = define_resource!(ecs::system::System);
+        self.ecs.types.system_set = define_resource!(ecs::system::SystemSet);
+        self.ecs.types.system_stage = define_resource!(ecs::system::SystemStage);
+
+        self.input.types.action = define_resource!(input::action::InputAction);
+        self.input.types.axis = define_resource!(input::axis::InputAxis);
+        self.input.types.text = define_resource!(input::text::InputText);
+
+        self.renderer.types.font = define_resource!(renderer::font::Font);
+        self.renderer.types.material = define_resource!(renderer::material::Material);
+        self.renderer.types.mesh = define_resource!(renderer::mesh::Mesh);
+        self.renderer.types.texture = define_resource!(renderer::texture::Texture);
 
         if features.common {
             define_resource!(common::script::Script);
             define_resource!(common::program::Program);
+        }
+    }
+
+    fn define_component_types(&mut self, features: &EngineFeatures) {
+        macro_rules! define_component {
+            ($component: ty, $storage: expr) => {
+                self.resource
+                    .add(
+                        ComponentType::native::<$component>($storage),
+                        self.ecs.types.component,
+                        self.activity.root,
+                        Some(<$component>::NAME),
+                    )
+                    .unwrap()
+            };
+        }
+
+        macro_rules! define_exclusive_system {
+            ($system: ty) => {
+                self.resource
+                    .add(
+                        System::native_exclusive::<$system>(),
+                        self.ecs.types.system,
+                        self.activity.root,
+                        Some(<$system>::NAME),
+                    )
+                    .unwrap()
+            };
+        }
+
+        macro_rules! define_parallel_system {
+            ($system: ty) => {
+                self.resource
+                    .add(
+                        System::native_parallel::<$system>(),
+                        self.ecs.types.system,
+                        self.activity.root,
+                        Some(<$system>::NAME),
+                    )
+                    .unwrap()
+            };
+        }
+
+        if features.common {
             define_component!(common::free_fly::FreeFly, ComponentStorage::Single);
             define_component!(common::rotator::Rotator, ComponentStorage::Single);
             define_component!(common::transform::Transform, ComponentStorage::Single);
@@ -112,26 +171,13 @@ impl Engine {
                 common::local_to_world::LocalToWorld,
                 ComponentStorage::Single
             );
-            define_system_parallel!(common::free_fly::FreeFlySystem, SystemStage::UPDATE);
-            define_system_parallel!(common::rotator::RotatorSystem, SystemStage::UPDATE);
-            define_system_parallel!(common::transform::PropagateTransforms, SystemStage::UPDATE);
-        }
 
-        if features.input {
-            define_resource!(input::action::InputAction);
-            define_resource!(input::axis::InputAxis);
-        }
-
-        if features.physics {
-            define_component!(physics::rigid_body::RigidBody, ComponentStorage::Single);
+            define_parallel_system!(common::free_fly::FreeFlySystem);
+            define_parallel_system!(common::rotator::RotatorSystem);
+            define_parallel_system!(common::transform::PropagateTransforms);
         }
 
         if features.renderer {
-            define_resource!(renderer::font::Font);
-            define_resource!(renderer::material::Material);
-            define_resource!(renderer::mesh::Mesh);
-            define_resource!(renderer::model::Model);
-            define_resource!(renderer::texture::Texture);
             define_component!(renderer::camera::Camera, ComponentStorage::Single);
             define_component!(renderer::static_mesh::StaticMesh, ComponentStorage::Single);
             define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
@@ -147,16 +193,6 @@ impl Engine {
             // define_system_parallel!(ui::update_ui::UpdateUI, SystemStage::UPDATE);
             // define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
         }
-
-        Ok(())
-    }
-
-    fn setup(&mut self, features: &EngineFeatures) {
-        // Create root activity
-
-        // Register core features
-        self.register_core_features(features)
-            .expect("Failed to define core features");
     }
 
     pub fn new(features: EngineFeatures) -> Self {
@@ -174,7 +210,7 @@ impl Engine {
         };
         engine.setup_root_activity();
         engine.setup_resource_manager();
-        engine.setup(&features);
+        engine.define_resource_types(&features);
         engine
     }
 

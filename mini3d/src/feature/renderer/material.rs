@@ -7,4 +7,8 @@ pub struct Material {
     pub diffuse: ResourceTypeHandle,
 }
 
+impl Material {
+    pub const NAME: &'static str = "material.type";
+}
+
 impl Resource for Material {}

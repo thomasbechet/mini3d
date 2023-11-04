@@ -29,6 +29,10 @@ pub struct Mesh {
     pub(crate) handle: RendererProviderHandle,
 }
 
+impl Mesh {
+    pub const NAME: &'static str = "mesh.type";
+}
+
 impl Resource for Mesh {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
         let mesh = ctx.resource.get_mut::<Mesh>(handle).unwrap();

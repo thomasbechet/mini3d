@@ -38,6 +38,10 @@ impl Default for Font {
     }
 }
 
+impl Font {
+    pub const NAME: &'static str = "font.type";
+}
+
 impl Resource for Font {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
         let font = ctx.resource.get_mut::<Font>(handle).unwrap();
