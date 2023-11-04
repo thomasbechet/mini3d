@@ -93,10 +93,7 @@ impl Renderer {
         todo!()
     }
 
-    pub fn begin_graphics_pass<'a>(
-        ctx: &'a Context,
-        pass: GraphicsPassHandle,
-    ) -> GraphicsCommandBuffer<'a> {
+    pub fn begin_graphics_pass(ctx: &Context, pass: GraphicsPassHandle) -> GraphicsCommandBuffer {
         todo!()
     }
 
@@ -110,10 +107,7 @@ impl Renderer {
         todo!()
     }
 
-    pub fn begin_canvas_pass<'a>(
-        ctx: &'a Context,
-        pass: CanvasPassHandle,
-    ) -> CanvasCommandBuffer<'a> {
+    pub fn begin_canvas_pass(ctx: &Context, pass: CanvasPassHandle) -> CanvasCommandBuffer {
         todo!()
     }
 
@@ -127,10 +121,7 @@ impl Renderer {
         todo!()
     }
 
-    pub fn begin_compute_pass<'a>(
-        ctx: &'a Context,
-        pass: ComputePassHandle,
-    ) -> ComputeCommandBuffer<'a> {
+    pub fn begin_compute_pass(ctx: &Context, pass: ComputePassHandle) -> ComputeCommandBuffer {
         todo!()
     }
 
@@ -144,7 +135,7 @@ impl Renderer {
         todo!()
     }
 
-    pub fn begin_copy_pass<'a>(ctx: &'a Context, pass: CopyPassHandle) -> CopyCommandBuffer<'a> {
+    pub fn begin_copy_pass(ctx: &Context, pass: CopyPassHandle) -> CopyCommandBuffer {
         todo!()
     }
 

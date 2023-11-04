@@ -1,6 +1,10 @@
 use crate::ecs::container::ContainerTable;
+use crate::feature::core::resource::ResourceTypeHandle;
+use crate::feature::renderer::font::{Font, FontHandle};
+use crate::feature::renderer::mesh::{Mesh, MeshHandle};
+use crate::feature::renderer::texture::{Texture, TextureHandle};
 use crate::resource::ResourceManager;
-use crate::serialize::{Decoder, DecoderError, Serialize};
+use crate::serialize::{Decoder, DecoderError};
 use crate::{
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
@@ -9,7 +13,6 @@ use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
-use self::resource::RendererResources;
 use self::{
     color::Color,
     provider::{RendererProvider, RendererProviderError},
@@ -21,7 +24,6 @@ pub mod event;
 pub mod graphics;
 pub mod provider;
 pub mod rasterizer;
-pub mod resource;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -60,13 +62,19 @@ pub struct RendererStatistics {
 }
 
 #[derive(Default)]
+pub(crate) struct RendererTypes {
+    pub(crate) texture: ResourceTypeHandle,
+    pub(crate) material: ResourceTypeHandle,
+    pub(crate) mesh: ResourceTypeHandle,
+    pub(crate) font: ResourceTypeHandle,
+}
+
+#[derive(Default)]
 pub struct RendererManager {
     pub(crate) provider: Box<dyn RendererProvider>,
-
-    // Persistent data
     statistics: RendererStatistics,
     clear_color: Color,
-    resources: RendererResources,
+    pub(crate) types: RendererTypes,
 }
 
 impl RendererManager {
@@ -124,9 +132,10 @@ impl RendererManager {
     }
 
     pub(crate) fn on_texture_added_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {}
-    pub(crate) fn on_texture_removed_hook(&mut self, texture: &mut Texture, handle: FontHandle) {}
-    pub(crate) fn on_mesh_added_hook(&mut self, mesh: &mut Mesh, handle: FontHandle) {}
-    pub(crate) fn on_mesh_removed_hook(&mut self, mesh: &mut Mesh, handle: FontHandle) {}
+    pub(crate) fn on_texture_removed_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {
+    }
+    pub(crate) fn on_mesh_added_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}
+    pub(crate) fn on_mesh_removed_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}
     pub(crate) fn on_font_added_hook(&mut self, font: &mut Font, handle: FontHandle) {}
     pub(crate) fn on_font_removed_hook(&mut self, font: &mut Font, handle: FontHandle) {}
 }

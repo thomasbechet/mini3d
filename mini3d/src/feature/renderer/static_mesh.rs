@@ -1,16 +1,18 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{renderer::provider::RendererProviderHandle, resource::handle::ResourceHandle};
+use crate::{
+    feature::core::resource::ResourceTypeHandle, renderer::provider::RendererProviderHandle,
+};
 
 #[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct StaticMesh {
-    pub model: ResourceHandle,
+    pub model: ResourceTypeHandle,
     #[serialize(skip)]
     pub(crate) handle: RendererProviderHandle,
 }
 
 impl StaticMesh {
-    pub fn new(model: ResourceHandle) -> Self {
+    pub fn new(model: ResourceTypeHandle) -> Self {
         Self {
             model,
             handle: Default::default(),

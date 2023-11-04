@@ -1,10 +1,13 @@
 use crate::{
     api::Context,
-    feature::core::{
-        component::{Component, ComponentId},
-        system::{System, SystemKind, SystemSet},
+    feature::{
+        core::resource::ResourceTypeHandle,
+        ecs::{
+            component::{ComponentId, ComponentType, ComponentTypeHandle},
+            system::{System, SystemKind, SystemSet, SystemSetHandle},
+        },
     },
-    resource::{handle::ResourceHandle, ResourceManager},
+    resource::ResourceManager,
     utils::slotmap::{SlotId, SlotMap},
 };
 
@@ -34,10 +37,9 @@ use super::{
 };
 
 pub struct SystemResolver<'a> {
-    system: SystemInstanceId,
-    component_type: ResourceHandle,
+    component_type: ResourceTypeHandle,
     reads: Vec<ComponentId>,
-    writes: Vec<ComponentId>,
+    writes: &'a mut Vec<ComponentId>,
     all: &'a mut Vec<ComponentId>,
     any: &'a mut Vec<ComponentId>,
     not: &'a mut Vec<ComponentId>,
@@ -49,10 +51,11 @@ pub struct SystemResolver<'a> {
 
 impl<'a> SystemResolver<'a> {
     fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
-        let handle = self
-            .resources
-            .find(self.component_type, component)
-            .ok_or(ResolverError::ComponentNotFound)?;
+        let handle = ComponentTypeHandle(
+            self.resources
+                .find_typed(component, self.component_type)
+                .ok_or(ResolverError::ComponentNotFound)?,
+        );
         Ok(self.containers.preallocate(handle, self.resources))
     }
 
@@ -80,7 +83,6 @@ impl<'a> SystemResolver<'a> {
         self.any.clear();
         self.not.clear();
         QueryBuilder {
-            system: self.system,
             component_type: self.component_type,
             all: self.all,
             any: self.any,
@@ -151,7 +153,7 @@ pub(crate) enum SystemInstance {
 }
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) set: ResourceHandle,
+    pub(crate) set: SystemSetHandle,
     pub(crate) index: usize,
     pub(crate) instance: SystemInstance,
     pub(crate) writes: Vec<ComponentId>,
@@ -164,10 +166,9 @@ impl SystemInstanceEntry {
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
         resources: &mut ResourceManager,
-        component_type: ResourceHandle,
+        component_type: ResourceTypeHandle,
     ) -> Result<(), ResolverError> {
         let mut resolver = SystemResolver {
-            system: self.system,
             component_type,
             reads: Vec::new(),
             writes: &mut self.writes,
@@ -193,31 +194,32 @@ impl SystemInstanceEntry {
 
 #[derive(Default)]
 pub(crate) struct SystemTable {
-    pub(crate) sets: Vec<ResourceHandle>,
+    pub(crate) sets: Vec<SystemSetHandle>,
     pub(crate) instances: SlotMap<SystemInstanceEntry>,
 }
 
 impl SystemTable {
     pub(crate) fn insert_system_set(
         &mut self,
-        handle: ResourceHandle,
+        handle: SystemSetHandle,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
         resources: &mut ResourceManager,
     ) -> Result<(), ResolverError> {
         // Check existing system set
-        if self.sets.iter().find(|e| e.handle() == handle).is_some() {
+        if self.sets.iter().find(|e| **e == handle).is_some() {
             return Ok(());
         }
         // Acquire resource
-        self.sets.push(resources.increment_ref(handle));
+        resources.increment_ref(handle);
+        self.sets.push(handle);
         let set = resources.get::<SystemSet>(handle).unwrap();
         // Add systems
         for (index, entry) in set.0.iter().enumerate() {
             let system = resources.get::<System>(entry.system).unwrap();
             match system.kind {
-                SystemKind::Native { reflection } => {
+                SystemKind::Native(reflection) => {
                     let instance = reflection.create_instance();
                     self.instances.add(SystemInstanceEntry {
                         set: handle,
@@ -226,13 +228,13 @@ impl SystemTable {
                         writes: Vec::new(),
                     });
                 }
-                SystemKind::Script { script } => {
+                SystemKind::Script(script) => {
                     todo!()
                 }
             }
         }
         // Setup instances
-        let component_type = resources.find_type(Component::NAME).unwrap();
+        let component_type = resources.find_type(ComponentType::NAME).unwrap();
         for entry in self.instances.values_mut() {
             entry.setup(entities, queries, containers, resources, component_type)?;
         }

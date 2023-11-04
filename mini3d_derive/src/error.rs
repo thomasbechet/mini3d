@@ -38,7 +38,7 @@ pub(crate) fn derive_enum(
                         .iter()
                         .map(|field| &field.ident)
                         .collect::<Vec<_>>();
-                    formats.push(quote!{ Self::#ident { #(ref #field_idents),* } => core::write!(f, #format, #(#field_idents = #field_idents),*) })
+                    formats.push(quote!{ Self::#ident { #(ref #field_idents),* } => ::core::write!(f, #format, #(#field_idents = #field_idents),*) })
                 }
                 Fields::Unnamed(fields) => {
                     let ident = &variant.ident;
@@ -48,21 +48,21 @@ pub(crate) fn derive_enum(
                         .enumerate()
                         .map(|(i, _)| Ident::new(&format!("field{}", i), Span::call_site()))
                         .collect::<Vec<_>>();
-                    formats.push(quote!{ Self::#ident(#(ref #field_indices),*) => core::write!(f, #format, #(#field_indices),*) })
+                    formats.push(quote!{ Self::#ident(#(ref #field_indices),*) => ::core::write!(f, #format, #(#field_indices),*) })
                 }
                 Fields::Unit => {
                     let ident = &variant.ident;
-                    formats.push(quote! { Self::#ident => core::write!(f, #format) })
+                    formats.push(quote! { Self::#ident => ::core::write!(f, #format) })
                 }
             }
         } else {
             let ident = &variant.ident;
-            formats.push(quote! { Self::#ident => core::write!(f, #ident) })
+            formats.push(quote! { Self::#ident => ::core::write!(f, #ident) })
         }
     }
     Ok(quote! {
-        impl #impl_generics core::fmt::Display for #ident #ty_generics #where_clause {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        impl #impl_generics ::core::fmt::Display for #ident #ty_generics #where_clause {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 match self {
                     #(#formats),*
                 }

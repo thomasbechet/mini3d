@@ -1,7 +1,8 @@
 use crate::{
-    input::{
-        handle::{InputActionHandle, InputAxisHandle},
-        resource::action::InputAction,
+    feature::input::{
+        action::{InputAction, InputActionHandle, InputActionState},
+        axis::{InputAxis, InputAxisHandle, InputAxisState},
+        text::InputTextHandle,
     },
     resource::error::ResourceError,
 };
@@ -17,6 +18,10 @@ impl Input {
 
     pub fn find_axis(ctx: &Context, name: &str) -> Option<InputAxisHandle> {
         ctx.input.find_axis(name, &ctx.resource)
+    }
+
+    pub fn find_text(ctx: &Context, name: &str) -> Option<InputTextHandle> {
+        ctx.input.find_text(name, &ctx.resource)
     }
 
     pub fn action<'a>(

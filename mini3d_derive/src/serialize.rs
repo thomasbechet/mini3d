@@ -635,7 +635,7 @@ pub(crate) fn derive_struct(
     // Generate deserialization
     let field_deserialize = entries
         .iter()
-        .map(|entry| generate_struct_field_deserialize(entry))
+        .map(generate_struct_field_deserialize)
         .collect::<Result<Vec<_>>>()?;
 
     // Generate tokens
@@ -697,7 +697,7 @@ pub(crate) fn derive_tuple(
     // Generate deserialization
     let field_deserialize = entries
         .iter()
-        .map(|entry| generate_tuple_field_deserialize(entry))
+        .map(generate_tuple_field_deserialize)
         .collect::<Result<Vec<_>>>()?;
 
     Ok(quote! {
@@ -792,7 +792,7 @@ pub(crate) fn derive_enum(
                 // Generate deserialize
                 let field_deserialize = entries
                     .iter()
-                    .map(|entry| generate_struct_field_deserialize(entry))
+                    .map(generate_struct_field_deserialize)
                     .collect::<Result<Vec<_>>>()?;
                 variant_match_deserialize.push(quote! {
                     #hash => {
@@ -848,7 +848,7 @@ pub(crate) fn derive_enum(
                 // Generate deserialize
                 let field_deserialize = entries
                     .iter()
-                    .map(|entry| generate_tuple_field_deserialize(entry))
+                    .map(generate_tuple_field_deserialize)
                     .collect::<Result<Vec<_>>>()?;
                 variant_match_deserialize.push(quote! {
                     #hash => {

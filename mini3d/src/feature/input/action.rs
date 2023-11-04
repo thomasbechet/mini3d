@@ -1,36 +1,30 @@
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
-    feature::core::resource::{ResourceData, ResourceHookContext},
-    input::{provider::InputProviderHandle, MAX_INPUT_DISPLAY_NAME_LEN, MAX_INPUT_NAME_LEN},
+    define_resource_handle,
+    feature::core::resource::{Resource, ResourceHookContext},
+    input::{provider::InputProviderHandle, MAX_INPUT_DISPLAY_NAME_LEN},
     resource::handle::ResourceHandle,
-    utils::{string::AsciiArray, uid::UID},
+    utils::string::AsciiArray,
 };
 
 #[derive(Clone, Reflect, Default, Serialize)]
 pub struct InputAction {
-    pub name: AsciiArray<MAX_INPUT_NAME_LEN>,
     pub display_name: AsciiArray<MAX_INPUT_DISPLAY_NAME_LEN>,
     pub(crate) state: InputActionState,
 }
 
-impl ResourceData for InputAction {
+impl Resource for InputAction {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
-        ctx.input.on_action_added(handle, ctx.resource);
+        ctx.input.on_action_added(handle.into(), ctx.resource);
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
-        ctx.input.on_action_removed(handle, ctx.resource);
+        ctx.input.on_action_removed(handle.into(), ctx.resource);
     }
 }
 
-impl InputAction {
-    pub fn uid(&self) -> UID {
-        UID::new(&self.name)
-    }
-}
-
-#[derive(Clone, Serialize)]
+#[derive(Default, Clone, Serialize)]
 pub struct InputActionState {
     pub(crate) pressed: bool,
     pub(crate) was_pressed: bool,
@@ -55,3 +49,5 @@ impl InputActionState {
         !self.pressed && self.was_pressed
     }
 }
+
+define_resource_handle!(InputActionHandle);

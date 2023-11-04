@@ -1,6 +1,6 @@
 use crate::{
     define_resource_handle,
-    feature::core::resource::{ResourceData, ResourceHookContext},
+    feature::core::resource::{Resource, ResourceHookContext},
     math::rect::IRect,
     renderer::provider::RendererProviderHandle,
     resource::handle::ResourceHandle,
@@ -38,15 +38,15 @@ impl Default for Font {
     }
 }
 
-impl ResourceData for Font {
+impl Resource for Font {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
         let font = ctx.resource.get_mut::<Font>(handle).unwrap();
-        ctx.renderer.on_font_added_hook(font, handle);
+        ctx.renderer.on_font_added_hook(font, handle.into());
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
         let font = ctx.resource.get_mut::<Font>(handle).unwrap();
-        ctx.renderer.on_font_removed_hook(font, handle);
+        ctx.renderer.on_font_removed_hook(font, handle.into());
     }
 }
 
@@ -66,7 +66,7 @@ impl FontAtlas {
             format: TextureFormat::RGBA,
             width,
             height,
-            handle: ResourceHandle::null(),
+            handle: Default::default(),
         };
 
         let mut extents: HashMap<char, IRect> = Default::default();

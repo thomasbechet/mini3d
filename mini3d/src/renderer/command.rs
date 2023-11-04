@@ -12,9 +12,9 @@ use crate::{
 
 use super::color::Color;
 
-pub struct GraphicsCommandBuffer<'a> {}
+pub struct GraphicsCommandBuffer {}
 
-impl<'a> GraphicsCommandBuffer<'a> {
+impl GraphicsCommandBuffer {
     pub fn set_pipeline(&mut self, pipeline: GraphicsPipelineHandle) {}
 
     pub fn set_vertex_buffer(&mut self, buffer: BufferHandle) {}
@@ -30,9 +30,9 @@ impl<'a> GraphicsCommandBuffer<'a> {
     pub fn draw(&mut self, vertex_count: u32, instance_count: u32) {}
 }
 
-pub struct CanvasCommandBuffer<'a> {}
+pub struct CanvasCommandBuffer {}
 
-impl<'a> CanvasCommandBuffer<'a> {
+impl CanvasCommandBuffer {
     pub fn scissor(&mut self, extent: Option<IRect>) {}
 
     pub fn set_font(&mut self, font: FontHandle, binding: u32) {}
@@ -61,14 +61,14 @@ impl<'a> CanvasCommandBuffer<'a> {
     pub fn print(&mut self, position: IVec2, text: &str, font: FontHandle) {}
 }
 
-pub struct ComputeCommandBuffer<'a> {}
+pub struct ComputeCommandBuffer {}
 
-impl<'a> ComputeCommandBuffer<'a> {
+impl ComputeCommandBuffer {
     pub fn set_pipeline(&mut self, pipeline: ComputePipelineHandle) {}
 
     pub fn dispatch(&mut self, x: u32, y: u32, z: u32) {}
 }
 
-pub struct CopyCommandBuffer<'a> {}
+pub struct CopyCommandBuffer {}
 
-impl<'a> CopyCommandBuffer<'a> {}
+impl CopyCommandBuffer {}

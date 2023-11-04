@@ -1,11 +1,17 @@
 use mini3d_derive::{Reflect, Resource, Serialize};
 
-use crate::{input::provider::InputProviderHandle, utils::string::AsciiArray};
+use crate::{
+    define_resource_handle, feature::core::resource::Resource,
+    input::provider::InputProviderHandle, utils::string::AsciiArray,
+};
 
+#[derive(Serialize, Default, Reflect)]
 pub struct InputText {
     pub name: AsciiArray<32>,
     pub(crate) state: InputTextState,
 }
+
+impl Resource for InputText {}
 
 #[derive(Clone, Resource, Serialize, Reflect, Default)]
 pub struct InputTextState {
@@ -13,3 +19,5 @@ pub struct InputTextState {
     #[serialize(skip)]
     pub(crate) handle: InputProviderHandle,
 }
+
+define_resource_handle!(InputTextHandle);

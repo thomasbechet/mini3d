@@ -1,3 +1,5 @@
+use mini3d_derive::Serialize;
+
 use crate::script::frontend::{
     error::CompileError,
     source::operator::{BinaryOperator, UnaryOperator},
@@ -10,7 +12,7 @@ pub(crate) enum ReferenceType {
     Query,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
 pub(crate) enum PrimitiveType {
     Nil,
     Boolean,

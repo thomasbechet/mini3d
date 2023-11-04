@@ -1,10 +1,11 @@
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
-    feature::core::resource::{ResourceData, ResourceHookContext},
+    define_resource_handle,
+    feature::core::resource::{Resource, ResourceHookContext},
     input::{provider::InputProviderHandle, MAX_INPUT_DISPLAY_NAME_LEN},
     resource::handle::ResourceHandle,
-    utils::{string::AsciiArray, uid::UID},
+    utils::string::AsciiArray,
 };
 
 #[derive(Default, Clone, Copy, Serialize)]
@@ -32,13 +33,13 @@ pub struct InputAxis {
     pub(crate) state: InputAxisState,
 }
 
-impl ResourceData for InputAxis {
+impl Resource for InputAxis {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
-        ctx.input.on_axis_added(handle, ctx.resource);
+        ctx.input.on_axis_added(handle.into(), ctx.resource);
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
-        ctx.input.on_axis_removed(handle, ctx.resource);
+        ctx.input.on_axis_removed(handle.into(), ctx.resource);
     }
 }
 
@@ -55,15 +56,11 @@ impl InputAxis {
     }
 }
 
-impl InputAxis {
-    pub fn uid(&self) -> UID {
-        UID::new(&self.name)
-    }
-}
-
 #[derive(Clone, Reflect, Default, Serialize)]
 pub struct InputAxisState {
     pub value: f32,
     #[serialize(skip)]
     pub(crate) handle: InputProviderHandle,
 }
+
+define_resource_handle!(InputAxisHandle);

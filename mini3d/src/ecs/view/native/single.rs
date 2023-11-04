@@ -8,50 +8,59 @@ use crate::{
         error::ResolverError,
         system::SystemResolver,
     },
-    feature::core::component::ComponentData,
+    feature::ecs::component::Component,
     utils::uid::ToUID,
 };
 
-pub trait NativeSingleView<C: ComponentData> {
+pub trait NativeSingleView<C: Component> {
     fn get(&self, entity: Entity) -> Option<&C>;
 }
 
 // Native single reference
 
-pub struct NativeSingleViewRef<C: ComponentData> {
+pub struct NativeSingleViewRef<C: Component> {
     pub(crate) container: *const NativeSingleContainer<C>,
 }
 
-impl<C: ComponentData> NativeSingleViewRef<C> {
+impl<C: Component> Default for NativeSingleViewRef<C> {
+    fn default() -> Self {
+        Self {
+            container: std::ptr::null(),
+        }
+    }
+}
+
+impl<C: Component> NativeSingleViewRef<C> {
     pub fn resolve(
         &mut self,
         resolver: &mut SystemResolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.read(component)?;
-        self.container = &resolver
+        self.container = resolver
             .containers
             .entries
-            .get(id)
+            .get(id.0)
             .unwrap()
             .container
             .as_any()
-            .downcast_ref::<NativeSingleContainer<C>>();
+            .downcast_ref::<NativeSingleContainer<C>>()
+            .unwrap();
         Ok(())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &C> {
-        self.container.iter()
+        unsafe { &*self.container }.iter()
     }
 }
 
-impl<C: ComponentData> NativeSingleView<C> for NativeSingleViewRef<C> {
+impl<C: Component> NativeSingleView<C> for NativeSingleViewRef<C> {
     fn get(&self, entity: Entity) -> Option<&C> {
-        unsafe { *self.container }.get(entity)
+        unsafe { &*self.container }.get(entity)
     }
 }
 
-impl<C: ComponentData> Index<Entity> for NativeSingleViewRef<C> {
+impl<C: Component> Index<Entity> for NativeSingleViewRef<C> {
     type Output = C;
 
     fn index(&self, entity: Entity) -> &Self::Output {
@@ -61,25 +70,34 @@ impl<C: ComponentData> Index<Entity> for NativeSingleViewRef<C> {
 
 // Native single mutable reference
 
-pub struct NativeSingleViewMut<C: ComponentData> {
+pub struct NativeSingleViewMut<C: Component> {
     pub(crate) container: *mut NativeSingleContainer<C>,
 }
 
-impl<C: ComponentData> NativeSingleViewMut<C> {
+impl<C: Component> Default for NativeSingleViewMut<C> {
+    fn default() -> Self {
+        Self {
+            container: std::ptr::null_mut(),
+        }
+    }
+}
+
+impl<C: Component> NativeSingleViewMut<C> {
     pub fn resolve(
         &mut self,
         resolver: &mut SystemResolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.write(component)?;
-        self.container = &resolver
+        self.container = resolver
             .containers
             .entries
-            .get_mut(id)
+            .get_mut(id.0)
             .unwrap()
             .container
             .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<C>>();
+            .downcast_mut::<NativeSingleContainer<C>>()
+            .unwrap();
         Ok(())
     }
 
@@ -100,13 +118,13 @@ impl<C: ComponentData> NativeSingleViewMut<C> {
     }
 }
 
-impl<C: ComponentData> NativeSingleView<C> for NativeSingleViewMut<C> {
-    fn get(&self, ctx: &Context, entity: Entity) -> Option<&C> {
-        self.container.get(entity)
+impl<C: Component> NativeSingleView<C> for NativeSingleViewMut<C> {
+    fn get(&self, entity: Entity) -> Option<&C> {
+        unsafe { &*self.container }.get(entity)
     }
 }
 
-impl<C: ComponentData> Index<Entity> for NativeSingleViewMut<C> {
+impl<C: Component> Index<Entity> for NativeSingleViewMut<C> {
     type Output = C;
 
     fn index(&self, entity: Entity) -> &Self::Output {
@@ -114,7 +132,7 @@ impl<C: ComponentData> Index<Entity> for NativeSingleViewMut<C> {
     }
 }
 
-impl<C: ComponentData> IndexMut<Entity> for NativeSingleViewMut<C> {
+impl<C: Component> IndexMut<Entity> for NativeSingleViewMut<C> {
     fn index_mut(&mut self, entity: Entity) -> &mut Self::Output {
         self.get_mut(entity).expect("Entity not found")
     }

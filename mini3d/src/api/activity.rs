@@ -1,54 +1,34 @@
-use crate::{activity::ActivityId, resource::handle::ResourceHandle};
+use crate::{
+    activity::ActivityId,
+    feature::{core::activity::ActivityDescriptorHandle, ecs::system::SystemSetHandle},
+};
 
 use super::Context;
-
-pub enum ActivityCommand {
-    Start(ActivityId, ResourceHandle),
-    Stop(ActivityId),
-    InjectSystemSet(ActivityId, ResourceHandle),
-}
-
-pub(crate) struct ActivityContext {
-    pub(crate) active: ActivityId,
-    pub(crate) commands: Vec<ActivityCommand>,
-    pub(crate) next_id: ActivityId,
-}
-
-impl Default for ActivityContext {
-    fn default() -> Self {
-        Self {
-            active: Default::default(),
-            commands: Default::default(),
-            next_id: ActivityId(1),
-        }
-    }
-}
 
 pub struct Activity;
 
 impl Activity {
-    pub fn start(ctx: &mut Context, descriptor: ResourceHandle) -> ActivityId {
-        let next = ctx.activity.next_id;
-        ctx.activity.next_id.0 += 1;
-        ctx.activity
-            .commands
-            .push(ActivityCommand::Start(next, descriptor));
-        next
+    pub fn start(
+        ctx: &mut Context,
+        name: &str,
+        descriptor: ActivityDescriptorHandle,
+    ) -> ActivityId {
+        ctx.activity.add(name, ctx.activity.active, descriptor)
     }
 
-    pub fn stop(ctx: &mut Context, id: ActivityId) {
-        ctx.activity.commands.push(ActivityCommand::Stop(id));
+    pub fn stop(ctx: &mut Context, activity: ActivityId) {
+        ctx.activity.remove(activity);
     }
 
     pub fn active(ctx: &Context) -> ActivityId {
-        ctx.activity
+        ctx.activity.active
     }
 
-    pub fn add_system_set(ctx: &mut Context, activity: ActivityId, set: ResourceHandle) {
+    pub fn add_system_set(ctx: &mut Context, activity: ActivityId, set: SystemSetHandle) {
         todo!()
     }
 
-    pub fn remove_system_set(ctx: &mut Context, activity: ActivityId, set: ResourceHandle) {
+    pub fn remove_system_set(ctx: &mut Context, activity: ActivityId, set: SystemSetHandle) {
         todo!()
     }
 }

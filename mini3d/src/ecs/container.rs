@@ -1,27 +1,37 @@
-use std::{any::Any, cell::RefCell};
+use std::any::Any;
 
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
-    feature::core::component::{Component, ComponentHandle, ComponentId},
+    feature::ecs::component::{ComponentId, ComponentType, ComponentTypeHandle},
     reflection::PropertyId,
     resource::ResourceManager,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     utils::{slotmap::SlotMap, uid::UID},
 };
 
-use super::entity::Entity;
+use super::{
+    entity::{Entity, EntityTable},
+    query::QueryTable,
+};
 
 pub mod native;
 
 pub(crate) trait Container {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_single(&self) -> &dyn SingleContainer;
+    fn as_single_mut(&mut self) -> &mut dyn SingleContainer;
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
     fn mark_removed(&mut self, entity: Entity);
     fn remove(&mut self, entity: Entity);
-    fn flush_changes(&mut self);
+    fn flush_changes(
+        &mut self,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
+        id: ComponentId,
+    );
 }
 
 #[macro_export]
@@ -65,7 +75,7 @@ pub(crate) trait ArrayContainer {}
 
 struct ContainerEntry {
     pub(crate) container: Box<dyn Container>,
-    component_type: ComponentHandle,
+    component_type: ComponentTypeHandle,
 }
 
 #[derive(Default)]
@@ -76,7 +86,7 @@ pub(crate) struct ContainerTable {
 impl ContainerTable {
     pub(crate) fn preallocate(
         &mut self,
-        component: ComponentHandle,
+        component: ComponentTypeHandle,
         resources: &mut ResourceManager,
     ) -> ComponentId {
         // Find existing container
@@ -92,13 +102,14 @@ impl ContainerTable {
         }
         // Create new container
         let ty = resources
-            .get::<Component>(component)
+            .get::<ComponentType>(component)
             .expect("Component type not found while preallocating");
+        resources.increment_ref(component.0).unwrap();
         let entry = ContainerEntry {
-            container: RefCell::new(ty.create_container()),
-            component_type: resources.increment_ref(component),
+            container: ty.create_container(),
+            component_type: component,
         };
-        ComponentId(self.entries.insert(entry))
+        ComponentId(self.entries.add(entry))
     }
 
     pub(crate) fn remove(&mut self, entity: Entity, component: ComponentId) {
@@ -106,7 +117,6 @@ impl ContainerTable {
             .get_mut(component.0)
             .expect("Component container not found while removing entity")
             .container
-            .get_mut()
             .as_mut()
             .remove(entity);
     }

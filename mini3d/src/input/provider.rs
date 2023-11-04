@@ -1,6 +1,9 @@
 use mini3d_derive::Error;
 
-use crate::define_provider_handle;
+use crate::{
+    define_provider_handle,
+    feature::input::{action::InputAction, axis::InputAxis},
+};
 
 use super::event::InputEvent;
 
@@ -29,6 +32,8 @@ pub trait InputProvider {
         axis: &InputAxis,
         id: u32,
     ) -> Result<InputProviderHandle, InputProviderError>;
+    fn remove_action(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
+    fn remove_axis(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
 }
 
 #[derive(Default)]
@@ -42,8 +47,26 @@ impl InputProvider for PassiveInputProvider {
         None
     }
 
-    fn add_action(&mut self, _id: u32, _action: &InputAction) {}
-    fn add_axis(&mut self, _id: u32, _axis: &InputAxis) {}
+    fn add_action(
+        &mut self,
+        _action: &InputAction,
+        _id: u32,
+    ) -> Result<InputProviderHandle, InputProviderError> {
+        Ok(Default::default())
+    }
+    fn add_axis(
+        &mut self,
+        _axis: &InputAxis,
+        _id: u32,
+    ) -> Result<InputProviderHandle, InputProviderError> {
+        Ok(Default::default())
+    }
+    fn remove_action(&mut self, _handle: InputProviderHandle) -> Result<(), InputProviderError> {
+        Ok(())
+    }
+    fn remove_axis(&mut self, _handle: InputProviderHandle) -> Result<(), InputProviderError> {
+        Ok(())
+    }
 }
 
 impl Default for Box<dyn InputProvider> {

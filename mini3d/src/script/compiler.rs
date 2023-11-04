@@ -1,8 +1,4 @@
-use crate::{
-    api::{resource::Resource, Context},
-    feature::common::script::Script,
-    utils::uid::ToUID,
-};
+use crate::{api::Context, feature::common::script::Script, utils::uid::ToUID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -81,8 +77,8 @@ impl Compiler {
         while i < self.compilation_unit.len() {
             let module = self.compilation_unit.get(i);
             match self.modules.get(module).unwrap() {
-                Module::Source { resource } => {
-                    let script = Resource::read::<Script>(ctx, *resource).unwrap();
+                Module::Source(script) => {
+                    let script = ctx.resource.get::<Script>(*script).unwrap();
                     self.source_compiler.resolve_cu_and_exports(
                         script,
                         &mut self.modules,
@@ -104,8 +100,8 @@ impl Compiler {
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
-                Module::Source { resource } => {
-                    let script = Resource::read::<Script>(ctx, *resource).unwrap();
+                Module::Source(script) => {
+                    let script = ctx.resource.get::<Script>(*script).unwrap();
                     self.source_compiler
                         .generate_mir(script, &self.modules, *module, mir)?;
                 }

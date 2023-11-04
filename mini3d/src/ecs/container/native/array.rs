@@ -3,10 +3,11 @@ use std::any::Any;
 use crate::{
     ecs::{
         container::{ArrayContainer, Container},
-        entity::Entity,
+        entity::{Entity, EntityTable},
+        query::QueryTable,
         sparse::PagedVector,
     },
-    feature::core::component::ComponentData,
+    feature::ecs::component::{Component, ComponentId},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
@@ -15,20 +16,24 @@ struct NativeArrayEntry {
     chunk_index: usize,
 }
 
-pub(crate) struct NativeArrayContainer<C: ComponentData> {
+pub(crate) struct NativeArrayContainer<C: Component> {
     chunk_size: usize,
     data: Vec<C>,
     entries: Vec<NativeArrayEntry>,
     indices: PagedVector<usize>, // Entity -> Entry Index
+    view_size: usize,
+    removed: Vec<Entity>,
 }
 
-impl<C: ComponentData> NativeArrayContainer<C> {
+impl<C: Component> NativeArrayContainer<C> {
     pub(crate) fn with_capacity(size: usize, chunk_size: usize) -> Self {
         Self {
             chunk_size,
             data: Vec::with_capacity(size * chunk_size),
             entries: Vec::with_capacity(size),
             indices: PagedVector::new(),
+            view_size: 0,
+            removed: Vec::new(),
         }
     }
 
@@ -86,13 +91,25 @@ impl<C: ComponentData> NativeArrayContainer<C> {
     }
 }
 
-impl<C: ComponentData> Container for NativeArrayContainer<C> {
+impl<C: Component> Container for NativeArrayContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) {
         self
+    }
+
+    fn as_single(&self) -> &dyn crate::ecs::container::SingleContainer {
+        panic!("Container is not single")
+    }
+
+    fn as_single_mut(&mut self) -> &mut dyn crate::ecs::container::SingleContainer {
+        panic!("Container is not single")
+    }
+
+    fn mark_removed(&mut self, entity: Entity) {
+        self.removed.push(entity);
     }
 
     fn remove(&mut self, entity: Entity) {
@@ -116,6 +133,33 @@ impl<C: ComponentData> Container for NativeArrayContainer<C> {
         }
     }
 
+    fn flush_changes(
+        &mut self,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
+        id: ComponentId,
+    ) {
+        // Added components
+        for entry in self.entries[self.view_size..].iter() {
+            // Find currrent archetype
+            let current_archetype = entities.entries.get(entry.entity.key()).unwrap().archetype;
+            // Find next archetype
+            let archetype = entities.archetypes.find_add(queries, current_archetype, id);
+            // Update archetype
+            entities
+                .entries
+                .get_mut(entry.entity.key())
+                .unwrap()
+                .archetype = archetype;
+        }
+        // Update size
+        self.view_size = self.entries.len();
+        // Remove components
+        for entity in self.removed.drain(..) {
+            self.remove(entity);
+        }
+    }
+
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
         Ok(())
     }
@@ -125,33 +169,33 @@ impl<C: ComponentData> Container for NativeArrayContainer<C> {
     }
 }
 
-impl<C: ComponentData> ArrayContainer for NativeArrayContainer<C> {}
+impl<C: Component> ArrayContainer for NativeArrayContainer<C> {}
 
-pub(crate) struct DynamicArrayContainer {
-    pub(crate) entities: Vec<Entity>,
-    pub(crate) indices: PagedVector<usize>,
-}
+// pub(crate) struct DynamicArrayContainer {
+//     pub(crate) entities: Vec<Entity>,
+//     pub(crate) indices: PagedVector<usize>,
+// }
 
-impl Container for DynamicArrayContainer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+// impl Container for DynamicArrayContainer {
+//     fn as_any(&self) -> &dyn Any {
+//         self
+//     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+//     fn as_any_mut(&mut self) -> &mut dyn Any {
+//         self
+//     }
 
-    fn remove(&mut self, entity: Entity) {
-        todo!()
-    }
+//     fn remove(&mut self, entity: Entity) {
+//         todo!()
+//     }
 
-    fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
-        todo!()
-    }
+//     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError> {
+//         todo!()
+//     }
 
-    fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
-        todo!()
-    }
-}
+//     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError> {
+//         todo!()
+//     }
+// }
 
-impl ArrayContainer for DynamicArrayContainer {}
+// impl ArrayContainer for DynamicArrayContainer {}

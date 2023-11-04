@@ -13,14 +13,14 @@ pub struct ResourceKey(AsciiArray<MAX_RESOURCE_KEY_LEN>);
 
 impl ResourceKey {
     pub(crate) fn new(key: &str) -> Self {
-        Self(AsciiArray::from_str(key).unwrap())
+        Self(AsciiArray::from(key))
     }
 
     pub(crate) fn random(prng: &mut PCG32) -> Self {
         let mut key = AsciiArray::default();
         for i in 0..MAX_RESOURCE_KEY_LEN {
             let c = prng.next_u32() % 26;
-            let c = (c + 65) as char;
+            let c = char::from_u32(c + 65).unwrap();
             key.push(c);
         }
         Self(key)
@@ -40,5 +40,11 @@ impl ToUID for ResourceKey {
 impl AsRef<str> for ResourceKey {
     fn as_ref(&self) -> &str {
         self.0.as_str()
+    }
+}
+
+impl From<&str> for ResourceKey {
+    fn from(key: &str) -> Self {
+        Self::new(key)
     }
 }

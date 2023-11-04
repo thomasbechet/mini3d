@@ -90,9 +90,9 @@ fn recursive_propagate(
 
 #[derive(Default)]
 pub struct PropagateTransforms {
-    transform: NativeSingleViewMut<Transform>,
+    transform: NativeSingleViewRef<Transform>,
     hierarchy: NativeSingleViewRef<Hierarchy>,
-    local_to_world: NativeSingleViewRef<LocalToWorld>,
+    local_to_world: NativeSingleViewMut<LocalToWorld>,
     query: Query,
 }
 

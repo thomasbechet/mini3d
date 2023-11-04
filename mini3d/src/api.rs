@@ -1,4 +1,5 @@
 use crate::{
+    activity::ActivityManager,
     ecs::{
         container::ContainerTable, entity::EntityTable, query::QueryTable, scheduler::Scheduler,
     },
@@ -9,7 +10,7 @@ use crate::{
     resource::ResourceManager,
 };
 
-use self::{activity::ActivityContext, time::TimeAPI};
+use self::time::TimeAPI;
 
 pub mod activity;
 pub mod ecs;
@@ -21,7 +22,7 @@ pub mod runtime;
 pub mod time;
 
 pub struct Context<'a> {
-    pub(crate) activity: &'a mut ActivityContext,
+    pub(crate) activity: &'a mut ActivityManager,
     pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,

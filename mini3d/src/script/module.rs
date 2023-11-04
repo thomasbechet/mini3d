@@ -1,5 +1,5 @@
 use crate::{
-    resource::handle::ResourceHandle,
+    feature::common::script::ScriptHandle,
     utils::uid::{ToUID, UID},
 };
 
@@ -10,9 +10,9 @@ pub struct ModuleId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Module {
-    Source { resource: ResourceHandle },
-    Node { resource: ResourceHandle },
-    Interface { id: InterfaceId },
+    Source(ScriptHandle),
+    Node,
+    Interface(InterfaceId),
     Builtin,
 }
 

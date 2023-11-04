@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut, Range};
 
 use crate::{
-    feature::core::component::ComponentId,
+    feature::ecs::component::ComponentId,
     utils::slotmap::{SlotId, SlotMap},
 };
 

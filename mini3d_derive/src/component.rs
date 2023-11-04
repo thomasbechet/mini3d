@@ -119,7 +119,9 @@ fn derive_struct(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::feature::core::component::ComponentData for #ident #ty_generics #where_clause {}
+        impl mini3d::feature::ecs::component::Component for #ident #ty_generics #where_clause {
+            fn resolve_references(&mut self, references: &mut mini3d::resource::handle::ReferenceResolver) {}
+        }
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #component_name;
@@ -147,7 +149,7 @@ pub(crate) fn derive_tuple(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::feature::core::component::ComponentData for #ident #ty_generics #where_clause {}
+        impl mini3d::feature::ecs::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #component_name;
@@ -175,7 +177,7 @@ fn derive_enum(
     let component_name = meta.name;
 
     let q = quote! {
-        impl mini3d::feature::core::component::ComponentData for #ident #ty_generics #where_clause {}
+        impl mini3d::feature::ecs::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #component_name;

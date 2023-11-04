@@ -1,11 +1,9 @@
 use mini3d_derive::Error;
 
-use crate::activity::{ActivityManager, ActivityUpdateContext};
+use crate::activity::{ActivityEntry, ActivityId, ActivityManager};
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::feature::core::component::{Component, ComponentStorage};
-use crate::feature::core::resource::Resource;
-use crate::feature::{common, core, input, physics, renderer};
+use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
@@ -69,7 +67,7 @@ impl Default for EngineFeatures {
 
 pub struct Engine {
     pub(crate) activity: ActivityManager,
-    pub(crate) processor: Processor,
+    pub(crate) ecs: ECSManager,
     pub(crate) resource: ResourceManager,
     pub(crate) storage: DiskManager,
     pub(crate) input: InputManager,
@@ -81,47 +79,26 @@ pub struct Engine {
 }
 
 impl Engine {
+    fn setup_root_activity(&mut self) {
+        self.activity.root = ActivityId(self.activity.entries.add(ActivityEntry {
+            name: "root".into(),
+            parent: Default::default(),
+            ecs: Default::default(),
+        }));
+        self.activity.entries[self.activity.root.0].ecs = self.ecs.add(self.activity.root);
+        self.activity.active = self.activity.root;
+    }
+
+    fn setup_resource_manager(&mut self) {
+        self.resource.define_meta_type(self.activity.root);
+    }
+
+    fn define_types(&mut self, features: &EngineFeatures) {
+        self.input.types.define(&mut self.resource);
+        self.renderer.types.define(&mut self.resource);
+    }
+
     fn register_core_features(&mut self, features: &EngineFeatures) -> Result<(), ResourceError> {
-        macro_rules! define_resource {
-            ($resource: ty) => {
-                self.resource.define_resource_type(
-                    <$resource>::NAME,
-                    ResourceType::native::<$resource>(),
-                    self.activity.root,
-                )?;
-            };
-        }
-
-        macro_rules! define_component {
-            ($component: ty, $storage: expr) => {
-                self.resource.define_component_type(
-                    <$component>::NAME,
-                    ComponentType::native::<$component>($storage),
-                    self.activity.root,
-                )?;
-            };
-        }
-
-        macro_rules! define_system_exclusive {
-            ($system: ty, $stage: expr) => {
-                self.registry.system.add_static_exclusive::<$system>(
-                    <$system>::NAME,
-                    $stage,
-                    SystemOrder::default(),
-                )?;
-            };
-        }
-
-        macro_rules! define_system_parallel {
-            ($system: ty, $stage: expr) => {
-                self.registry.system.add_static_parallel::<$system>(
-                    <$system>::NAME,
-                    $stage,
-                    SystemOrder::default(),
-                )?;
-            };
-        }
-
         // Define features
 
         if features.common {
@@ -175,37 +152,30 @@ impl Engine {
     }
 
     fn setup(&mut self, features: &EngineFeatures) {
+        // Create root activity
+
         // Register core features
         self.register_core_features(features)
             .expect("Failed to define core features");
-        // Setup ECS
-        self.ecs
-            .scheduler
-            .set_periodic_invoke(SystemStage::FIXED_UPDATE_60HZ, 1.0 / 60.0);
-        // Update ECS and resources
-        self.ecs.scheduler.on_registry_update(&self.registry.system);
-        self.resource.on_registry_update(&self.registry.resource);
-        // Setup managers
-        self.renderer
-            .reload_components_and_resources(&self.registry)
-            .expect("Failed to reload component handles");
     }
 
     pub fn new(features: EngineFeatures) -> Self {
-        let mut instance = Self {
+        let mut engine = Self {
+            activity: Default::default(),
+            ecs: Default::default(),
             storage: Default::default(),
             resource: Default::default(),
             input: Default::default(),
-            activity: Default::default(),
-            processor: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
             system: Default::default(),
             logger: Default::default(),
             global_time: 0.0,
         };
-        instance.setup(&features);
-        instance
+        engine.setup_root_activity();
+        engine.setup_resource_manager();
+        engine.setup(&features);
+        engine
     }
 
     pub fn set_renderer_provider(&mut self, provider: impl RendererProvider + 'static) {
@@ -229,22 +199,10 @@ impl Engine {
     }
 
     pub fn save(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        // self.resource
-        //     .save_state(&self.registry.component, encoder)?;
-        // self.renderer.save_state(encoder)?;
-        // self.ecs.save_state(&self.registry.component, encoder)?;
-        // self.input.save_state(encoder)?;
-        // self.global_time.serialize(encoder)?;
         Ok(())
     }
 
     pub fn load(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
-        // self.resource
-        //     .load_state(&self.registry.component, decoder)?;
-        // self.renderer.load_state(decoder)?;
-        // self.ecs.load_state(&self.registry.component, decoder)?;
-        // self.input.load_state(decoder)?;
-        // self.global_time = Serialize::deserialize(decoder, &Default::default())?;
         Ok(())
     }
 
@@ -280,8 +238,10 @@ impl Engine {
 
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
-        self.activity
-            .update(ActivityUpdateContext {
+        // Update ECS
+        self.ecs
+            .update(ECSUpdateContext {
+                activity: &mut self.activity,
                 resource: &mut self.resource,
                 input: &mut self.input,
                 renderer: &mut self.renderer,
@@ -291,6 +251,10 @@ impl Engine {
                 global_time: self.global_time,
             })
             .map_err(|err| ProgressError::System)?;
+
+        // Flush activity commands
+        self.activity
+            .flush_commands(&mut self.ecs, &mut self.resource);
 
         // ================= POST-UPDATE STAGE ================== //
         self.renderer

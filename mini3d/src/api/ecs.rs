@@ -1,9 +1,9 @@
 use crate::{
     ecs::{
         entity::{Entity, EntityChange},
-        resource::system::SystemStage,
         scheduler::Invocation,
     },
+    feature::ecs::system::SystemStage,
     utils::uid::ToUID,
 };
 

@@ -9,27 +9,27 @@ use crate::{
         query::QueryTable,
         sparse::PagedVector,
     },
-    feature::core::component::{ComponentData, ComponentId},
+    feature::ecs::component::{Component, ComponentId},
     reflection::PropertyId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     trait_property_impl,
     utils::uid::UID,
 };
 
-pub(crate) struct NativeSingleContainer<C: ComponentData> {
+pub(crate) struct NativeSingleContainer<C: Component> {
     data: Vec<(C, Entity)>,
     indices: PagedVector<usize>, // Entity -> Index
     view_size: usize,
     removed: Vec<Entity>,
 }
 
-impl<C: ComponentData> NativeSingleContainer<C> {
+impl<C: Component> NativeSingleContainer<C> {
     pub(crate) fn with_capacity(size: usize) -> Self {
         Self {
             data: Vec::with_capacity(size),
             indices: PagedVector::new(),
-            removed: Vec::new(),
             view_size: 0,
+            removed: Vec::new(),
         }
     }
 
@@ -75,12 +75,20 @@ impl<C: ComponentData> NativeSingleContainer<C> {
     }
 }
 
-impl<C: ComponentData> Container for NativeSingleContainer<C> {
+impl<C: Component> Container for NativeSingleContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut (dyn Any + 'static) {
+        self
+    }
+
+    fn as_single(&self) -> &dyn SingleContainer {
+        self
+    }
+
+    fn as_single_mut(&mut self) -> &mut dyn SingleContainer {
         self
     }
 
@@ -106,7 +114,7 @@ impl<C: ComponentData> Container for NativeSingleContainer<C> {
         id: ComponentId,
     ) {
         // Added components
-        for (data, entity) in self.data[self.view_size..self.data.len()].iter() {
+        for (data, entity) in self.data[self.view_size..].iter() {
             // TODO: notify systems ?
             // Find currrent archetype
             let current_archetype = entities.entries.get(entity.key()).unwrap().archetype;
@@ -132,7 +140,7 @@ impl<C: ComponentData> Container for NativeSingleContainer<C> {
     }
 }
 
-impl<C: ComponentData> SingleContainer for NativeSingleContainer<C> {
+impl<C: Component> SingleContainer for NativeSingleContainer<C> {
     trait_property_impl!(bool, read_bool, write_bool);
     trait_property_impl!(u8, read_u8, write_u8);
     trait_property_impl!(i32, read_i32, write_i32);

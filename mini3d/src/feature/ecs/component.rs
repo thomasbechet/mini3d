@@ -1,10 +1,11 @@
-use mini3d_derive::{Reflect, Resource, Serialize};
+use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
     ecs::container::{native::single::NativeSingleContainer, Container, ContainerTable},
+    feature::core::{resource::Resource, structure::StructDefinitionHandle},
     reflection::{Property, Reflect},
-    resource::handle::{ReferenceResolver, ResourceHandle},
+    resource::handle::ReferenceResolver,
     serialize::Serialize,
     utils::slotmap::SlotId,
 };
@@ -14,9 +15,7 @@ pub(crate) struct ComponentId(pub(crate) SlotId);
 
 pub struct ComponentContext {}
 
-pub trait ComponentData: 'static + Default + Reflect + Serialize {
-    fn on_create(&mut self, ctx: &mut ComponentContext);
-    fn on_destroy(&mut self, ctx: &mut ComponentContext);
+pub trait Component: 'static + Default + Reflect + Serialize {
     fn resolve_references(&mut self, references: &mut ReferenceResolver);
 }
 
@@ -29,11 +28,11 @@ pub(crate) trait ComponentReflection {
     fn properties(&self) -> &[Property];
 }
 
-pub(crate) struct NativeComponentReflection<C: ComponentData> {
+pub(crate) struct NativeComponentReflection<C: Component> {
     pub(crate) _phantom: std::marker::PhantomData<C>,
 }
 
-impl<C: ComponentData> ComponentReflection for NativeComponentReflection<C> {
+impl<C: Component> ComponentReflection for NativeComponentReflection<C> {
     fn create_container(&self) -> Box<dyn Container> {
         Box::new(NativeSingleContainer::<C>::with_capacity(128))
     }
@@ -47,58 +46,64 @@ impl<C: ComponentData> ComponentReflection for NativeComponentReflection<C> {
     }
 }
 
+#[derive(Serialize, Reflect, Default)]
 pub(crate) enum ComponentKind {
-    Native {
-        reflection: Box<dyn ComponentReflection>,
-    },
-    Struct {
-        structure: ResourceHandle,
-    },
+    Native(#[serialize(skip)] Box<dyn ComponentReflection>),
+    Struct(StructDefinitionHandle),
     Raw,
+    #[default]
     Tag,
 }
 
+impl Default for Box<dyn ComponentReflection> {
+    fn default() -> Self {
+        panic!("Invalid deserialize for native component reflection")
+    }
+}
+
+#[derive(Serialize, Default)]
 pub enum ComponentStorage {
+    #[default]
     Single,
     Array(usize),
     List,
     Map,
 }
 
-#[derive(Clone, Default, Resource, Serialize, Reflect)]
-pub struct Component {
+#[derive(Default, Serialize, Reflect)]
+pub struct ComponentType {
     pub(crate) kind: ComponentKind,
     pub(crate) storage: ComponentStorage,
 }
 
-impl Component {
+impl ComponentType {
     pub const NAME: &'static str = "_component_type";
 
-    pub fn native<C: ComponentData>(storage: ComponentStorage) -> Self {
+    pub fn native<C: Component>(storage: ComponentStorage) -> Self {
         let reflection = NativeComponentReflection::<C> {
             _phantom: std::marker::PhantomData,
         };
         Self {
-            kind: ComponentKind::Native {
-                reflection: Box::new(reflection),
-            },
+            kind: ComponentKind::Native(Box::new(reflection)),
             storage,
         }
     }
 
-    pub fn structure(storage: ComponentStorage, structure: ResourceHandle) -> Self {
+    pub fn structure(storage: ComponentStorage, structure: StructDefinitionHandle) -> Self {
         Self {
-            kind: ComponentKind::Struct { structure },
+            kind: ComponentKind::Struct(structure),
             storage,
         }
     }
 
     pub(crate) fn create_container(&self) -> Box<dyn Container> {
         match &self.kind {
-            ComponentKind::Native { reflection } => reflection.create_container(),
+            ComponentKind::Native(reflection) => reflection.create_container(),
             _ => unimplemented!(),
         }
     }
 }
 
-define_resource_handle!(ComponentHandle);
+impl Resource for ComponentType {}
+
+define_resource_handle!(ComponentTypeHandle);

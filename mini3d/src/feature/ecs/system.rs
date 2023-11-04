@@ -1,4 +1,4 @@
-use mini3d_derive::{Reflect, Resource, Serialize};
+use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     api::Context,
@@ -11,8 +11,8 @@ use crate::{
             SystemResolver,
         },
     },
-    feature::common::script::ScriptHandle,
-    resource::handle::{ReferenceResolver, ResourceHandle},
+    feature::{common::script::ScriptHandle, core::resource::Resource},
+    resource::handle::ReferenceResolver,
     utils::string::AsciiArray,
 };
 
@@ -66,18 +66,26 @@ impl<S: ParallelSystem> SystemReflection for NativeParallelSystemReflection<S> {
     }
 }
 
+#[derive(Serialize)]
 pub(crate) enum SystemKind {
-    Native {
-        reflection: Box<dyn SystemReflection>,
-    },
-    Script {
-        script: ResourceHandle,
-    },
+    Native(#[serialize(skip)] Box<dyn SystemReflection>),
+    Script(ScriptHandle),
 }
 
-#[derive(Default, Serialize, Debug, Reflect, Clone)]
+impl Default for SystemKind {
+    fn default() -> Self {
+        Self::Script(ScriptHandle::default())
+    }
+}
+
+impl Default for Box<dyn SystemReflection> {
+    fn default() -> Self {
+        panic!("Invalid deserialize for native system reflection")
+    }
+}
+
+#[derive(Default, Serialize, Reflect)]
 pub struct System {
-    #[serialize(skip)]
     pub(crate) kind: SystemKind,
 }
 
@@ -91,9 +99,7 @@ impl System {
             _phantom: std::marker::PhantomData,
         };
         Self {
-            kind: SystemKind::Native {
-                reflection: Box::new(reflection),
-            },
+            kind: SystemKind::Native(Box::new(reflection)),
         }
     }
 
@@ -102,33 +108,30 @@ impl System {
             _phantom: std::marker::PhantomData,
         };
         Self {
-            kind: SystemKind::Native {
-                reflection: Box::new(reflection),
-            },
+            kind: SystemKind::Native(Box::new(reflection)),
         }
     }
 
     pub fn script(script: ScriptHandle) -> Self {
         Self {
-            kind: SystemKind::Script { script },
+            kind: SystemKind::Script(script),
         }
     }
 }
 
-impl ResourceData for System {
+impl Resource for System {
     fn resolve_references(&mut self, resolver: &mut ReferenceResolver) {
         match self {
             Self {
-                kind: SystemKind::Script { script },
+                kind: SystemKind::Script(script),
             } => script.resolve(resolver),
             _ => {}
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Reflect, Serialize, Resource)]
+#[derive(Default, Clone, Reflect, Serialize)]
 pub struct SystemStage {
-    pub(crate) name: AsciiArray<32>,
     pub(crate) periodic: Option<f64>,
 }
 
@@ -139,6 +142,8 @@ impl SystemStage {
     pub const UPDATE: &'static str = "update";
     pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
 }
+
+impl Resource for SystemStage {}
 
 #[derive(Default, Serialize, Reflect)]
 pub struct SystemOrder {}
@@ -170,14 +175,14 @@ impl SystemSet {
         stage: SystemStageHandle,
         order: SystemOrder,
     ) -> Self {
-        if let Some(entry) = self.0.iter_mut().find(|e| e.name == name) {
+        if let Some(entry) = self.0.iter_mut().find(|e| e.name.as_str() == name) {
             entry.system = system;
             entry.stage = stage;
             entry.order = order;
             return self;
         } else {
             self.0.push(SystemSetEntry {
-                name: AsciiArray::from_str(name),
+                name: AsciiArray::from(name),
                 system,
                 stage,
                 order,
@@ -187,7 +192,7 @@ impl SystemSet {
     }
 }
 
-impl ResourceData for SystemSet {
+impl Resource for SystemSet {
     fn resolve_references(&mut self, resolver: &mut ReferenceResolver) {
         for system in self.0.iter_mut() {
             system.system.resolve(resolver);

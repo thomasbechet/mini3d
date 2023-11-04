@@ -1,14 +1,15 @@
 use std::ops::Range;
 
-use mini3d_derive::Error;
-
 use crate::{
     api::Context,
-    feature::core::component::ComponentId,
-    resource::{handle::ResourceHandle, ResourceManager},
+    feature::{
+        core::resource::ResourceTypeHandle,
+        ecs::component::{ComponentId, ComponentTypeHandle},
+    },
+    resource::ResourceManager,
     utils::{
         slotmap::{SlotId, SlotMap},
-        uid::ToUID,
+        uid::{ToUID, UID},
     },
 };
 
@@ -16,14 +17,14 @@ use super::{
     archetype::{Archetype, ArchetypeEntry},
     container::ContainerTable,
     entity::{Entity, EntityTable},
-    system::SystemInstanceId,
+    error::ResolverError,
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub struct Query(pub(crate) SlotId);
 
 impl Query {
-    pub fn query(&self, ctx: &Context) -> impl Iterator<Item = Entity> {
+    pub fn query<'a>(&self, ctx: &'a Context) -> impl Iterator<Item = Entity> + 'a {
         ctx.queries.entries[self.0]
             .archetypes
             .iter()
@@ -167,15 +168,8 @@ impl QueryTable {
     }
 }
 
-#[derive(Error)]
-pub enum QueryError {
-    #[error("component not found")]
-    ComponentNotFound,
-}
-
 pub struct QueryBuilder<'a> {
-    pub(crate) system: SystemInstanceId,
-    pub(crate) component_type: ResourceHandle,
+    pub(crate) component_type: ResourceTypeHandle,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
     pub(crate) not: &'a mut Vec<ComponentId>,
@@ -186,39 +180,40 @@ pub struct QueryBuilder<'a> {
 }
 
 impl<'a> QueryBuilder<'a> {
-    fn find_component(&self, component: impl ToUID) -> Result<ComponentId, QueryError> {
-        let handle = self
-            .resources
-            .find(self.component_type, component)
-            .ok_or(QueryError::ComponentNotFound)?;
+    fn find_component(&self, component: UID) -> Result<ComponentId, ResolverError> {
+        let handle = ComponentTypeHandle(
+            self.resources
+                .find_typed(component, self.component_type)
+                .ok_or(ResolverError::ComponentNotFound)?,
+        );
         Ok(self.containers.preallocate(handle, self.resources))
     }
 
-    pub fn all(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
+    pub fn all(self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
         for component in components {
-            let id = self.find_component(component)?;
-            if self.all.iter().all(|c| *c != component) {
+            let id = self.find_component(component.to_uid())?;
+            if self.all.iter().all(|c| *c != id) {
                 self.all.push(id);
             }
         }
         Ok(self)
     }
 
-    pub fn any(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
+    pub fn any(self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
         for component in components {
-            let id = self.find_component(component)?;
-            if self.any.iter().all(|c| *c != component) {
-                self.any.push(component);
+            let id = self.find_component(component.to_uid())?;
+            if self.any.iter().all(|c| *c != id) {
+                self.any.push(id);
             }
         }
         Ok(self)
     }
 
-    pub fn not(self, components: &[impl ToUID]) -> Result<Self, QueryError> {
+    pub fn not(self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
         for component in components {
-            let id = self.find_component(component)?;
-            if self.not.iter().all(|c| *c != component) {
-                self.not.push(component);
+            let id = self.find_component(component.to_uid())?;
+            if self.not.iter().all(|c| *c != id) {
+                self.not.push(id);
             }
         }
         Ok(self)

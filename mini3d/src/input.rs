@@ -1,20 +1,20 @@
 use mini3d_derive::Error;
 
-use crate::resource::handle::{ResourceHandle, ResourceTypeHandle};
+use crate::feature::core::resource::ResourceTypeHandle;
+use crate::feature::input::action::{InputAction, InputActionHandle};
+use crate::feature::input::axis::{InputAxis, InputAxisHandle};
+use crate::feature::input::text::{InputText, InputTextHandle};
+use crate::resource::handle::ResourceHandle;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
 use crate::utils::uid::ToUID;
 
 use self::event::InputEvent;
-use self::handle::{InputActionHandle, InputAxisHandle};
 use self::provider::InputProvider;
-use self::resource::action::InputAction;
 
 pub mod event;
-pub mod handle;
 pub mod provider;
-pub mod resource;
 
 pub const MAX_INPUT_NAME_LEN: usize = 64;
 pub const MAX_INPUT_DISPLAY_NAME_LEN: usize = 64;
@@ -36,11 +36,16 @@ pub enum InputError {
 }
 
 #[derive(Default)]
+pub(crate) struct InputTypes {
+    pub(crate) action: ResourceTypeHandle,
+    pub(crate) axis: ResourceTypeHandle,
+    pub(crate) text: ResourceTypeHandle,
+}
+
+#[derive(Default)]
 pub struct InputManager {
     provider: Box<dyn InputProvider>,
-    action_type: ResourceTypeHandle,
-    axis_type: ResourceTypeHandle,
-    text_type: ResourceTypeHandle,
+    pub(crate) types: InputTypes,
 }
 
 impl InputManager {
@@ -53,31 +58,27 @@ impl InputManager {
     /// Reset action states and mouse motion
     pub(crate) fn prepare_dispatch(&mut self, resources: &mut ResourceManager) {
         // Save the previous action state
-        for action in resources.iter_mut::<InputAction>(self.action_type) {
+        for action in resources.iter_native_values_mut::<InputAction>(self.types.action) {
             action.state.was_pressed = action.state.pressed;
         }
         // Reset text for current frame
-        for text in resources.iter_mut::<InputText>(self.text_type) {
+        for text in resources.iter_native_values_mut::<InputText>(self.types.text) {
             text.state.value.clear();
         }
     }
 
     /// Process input events
-    pub(crate) fn dispatch_events(&mut self, resources: &mut ResourceManager) {
+    pub(crate) fn dispatch_events(&mut self, resource: &mut ResourceManager) {
         while let Some(event) = self.provider.next_event() {
             match event {
                 InputEvent::Action(event) => {
-                    let action = resources.get_mut_unchecked::<InputAction>(
-                        self.action_type,
-                        ResourceHandle::from_raw(event.id),
-                    );
+                    let action = resource
+                        .get_mut_unchecked::<InputAction>(ResourceHandle::from_raw(event.id));
                     action.state.pressed = event.pressed;
                 }
                 InputEvent::Axis(event) => {
-                    let axis = resources.get_mut_unchecked::<InputAxis>(
-                        self.axis_type,
-                        ResourceHandle::from_raw(event.id),
-                    );
+                    let axis =
+                        resource.get_mut_unchecked::<InputAxis>(ResourceHandle::from_raw(event.id));
                     axis.set_value(event.value);
                 }
                 InputEvent::Text(event) => {
@@ -97,34 +98,44 @@ impl InputManager {
 
     pub(crate) fn on_action_added(
         &mut self,
-        handle: ResourceHandle,
+        handle: InputActionHandle,
         resources: &mut ResourceManager,
     ) {
-        let action = resources.get_mut_unchecked::<InputAction>(self.action_type, handle);
-        action.state.handle = self.provider.add_action(action, handle.0.raw());
+        let action = resources.get_mut_unchecked::<InputAction>(handle);
+        action.state.handle = self
+            .provider
+            .add_action(action, handle.0 .0.raw())
+            .expect("Input provider failed to add action");
     }
 
     pub(crate) fn on_axis_added(
         &mut self,
-        handle: ResourceHandle,
+        handle: InputAxisHandle,
         resources: &mut ResourceManager,
     ) {
-        let axis = resources.get_mut_unchecked::<InputAxis>(self.axis_type, handle);
-        axis.state.handle = self.provider.add_axis(axis, handle.0.raw());
+        let axis = resources.get_mut_unchecked::<InputAxis>(handle);
+        axis.state.handle = self
+            .provider
+            .add_axis(axis, handle.0 .0.raw())
+            .expect("Input provider failed to add axis");
     }
 
     pub(crate) fn on_action_removed(
         &mut self,
-        handle: ResourceHandle,
-        resources: &mut ResourceManager,
+        handle: InputActionHandle,
+        resources: &ResourceManager,
     ) {
+        let action = resources.get_unchecked::<InputAction>(handle);
+        self.provider
+            .remove_action(action.state.handle)
+            .expect("Input provider failed to remove action");
     }
 
-    pub(crate) fn on_axis_removed(
-        &mut self,
-        handle: ResourceHandle,
-        resources: &mut ResourceManager,
-    ) {
+    pub(crate) fn on_axis_removed(&mut self, handle: InputAxisHandle, resources: &ResourceManager) {
+        let axis = resources.get_unchecked::<InputAxis>(handle);
+        self.provider
+            .remove_axis(axis.state.handle)
+            .expect("Input provider failed to remove axis");
     }
 
     pub(crate) fn find_action(
@@ -132,9 +143,7 @@ impl InputManager {
         key: impl ToUID,
         resource: &ResourceManager,
     ) -> Option<InputActionHandle> {
-        resource
-            .find(self.action_type, key)
-            .map(|handle| handle.into())
+        resource.find_typed(key, self.types.action)
     }
 
     pub(crate) fn find_axis(
@@ -142,18 +151,14 @@ impl InputManager {
         key: impl ToUID,
         resource: &ResourceManager,
     ) -> Option<InputAxisHandle> {
-        resource
-            .find(self.axis_type, key)
-            .map(|handle| handle.into())
+        resource.find_typed(key, self.types.axis)
     }
 
     pub(crate) fn find_text(
         &self,
         key: impl ToUID,
         resource: &ResourceManager,
-    ) -> Option<&InputText> {
-        resource
-            .find(self.text_type, key)
-            .map(|handle| handle.into())
+    ) -> Option<InputTextHandle> {
+        resource.find_typed(key, self.types.text)
     }
 }

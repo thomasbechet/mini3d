@@ -10,7 +10,7 @@ use crate::{
         view::native::single::NativeSingleViewMut,
     },
     expect,
-    input::handle::{InputActionHandle, InputAxisHandle},
+    feature::input::{action::InputActionHandle, axis::InputAxisHandle},
 };
 
 use super::transform::Transform;

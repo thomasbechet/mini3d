@@ -1,6 +1,8 @@
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
+    define_resource_handle,
+    feature::core::structure::StructDefinitionHandle,
     input::InputManager,
     reflection::{Property, Reflect},
     renderer::RendererManager,
@@ -9,7 +11,7 @@ use crate::{
         handle::{ReferenceResolver, ResourceHandle},
         ResourceManager,
     },
-    serialize::Serialize,
+    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::SlotId,
 };
 
@@ -19,7 +21,7 @@ pub struct ResourceHookContext<'a> {
     pub resource: &'a mut ResourceManager,
 }
 
-pub trait ResourceData: 'static + Default + Reflect + Serialize {
+pub trait Resource: 'static + Default + Reflect + Serialize {
     fn resolve_references(&mut self, resolver: &mut ReferenceResolver) {}
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {}
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {}
@@ -31,11 +33,24 @@ pub(crate) trait ResourceReflection {
     fn properties(&self) -> &[Property];
 }
 
-pub(crate) struct NativeResourceReflection<R: ResourceData> {
+impl Serialize for Box<dyn ResourceReflection> {
+    type Header = ();
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        Ok(())
+    }
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        panic!("Cannot deserialize ResourceReflection")
+    }
+}
+
+pub(crate) struct NativeResourceReflection<R: Resource> {
     pub(crate) _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R: ResourceData> ResourceReflection for NativeResourceReflection<R> {
+impl<R: Resource> ResourceReflection for NativeResourceReflection<R> {
     fn create_resource_container(&self) -> Box<dyn ResourceContainer> {
         Box::new(NativeResourceContainer::<R>::with_capacity(128))
     }
@@ -49,47 +64,57 @@ impl<R: ResourceData> ResourceReflection for NativeResourceReflection<R> {
     }
 }
 
+#[derive(Default, Serialize, Reflect)]
 pub(crate) enum ResourceKind {
-    Native {
-        reflection: Box<dyn ResourceReflection>,
-    },
+    Native(Box<dyn ResourceReflection>),
+    #[default]
     Raw,
-    Struct {
-        structure: ResourceHandle,
-    },
+    Struct(StructDefinitionHandle),
 }
 
-#[derive(Clone, Default, Serialize, Debug, Reflect)]
-pub struct Resource {
+#[derive(Default, Serialize, Reflect)]
+pub struct ResourceType {
     pub(crate) kind: ResourceKind,
-    pub(crate) container_id: SlotId,
+    pub(crate) container: SlotId,
 }
 
-impl Resource {
-    pub fn native<R: ResourceData>() -> Self {
+impl ResourceType {
+    pub fn native<R: Resource>() -> Self {
         let reflection = NativeResourceReflection::<R> {
             _phantom: std::marker::PhantomData,
         };
         Self {
-            kind: ResourceKind::Native {
-                reflection: Box::new(reflection),
-            },
-            container_id: SlotId::null(),
+            kind: ResourceKind::Native(Box::new(reflection)),
+            container: SlotId::null(),
         }
     }
 
-    pub fn structure(structure: ResourceHandle) -> Self {
+    pub fn structure(structure: StructDefinitionHandle) -> Self {
         Self {
-            kind: ResourceKind::Struct { structure },
-            container_id: SlotId::null(),
+            kind: ResourceKind::Struct(structure),
+            container: SlotId::null(),
         }
     }
 
     pub(crate) fn create_container(&self) -> Box<dyn ResourceContainer> {
         match &self.kind {
-            ResourceKind::Native { reflection } => reflection.create_resource_container(),
+            ResourceKind::Native(reflection) => reflection.create_resource_container(),
             ResourceKind::Raw => unimplemented!(),
-            ResourceKind::Struct { structure } => unimplemented!(),
+            ResourceKind::Struct(structure) => unimplemented!(),
         }
     }
 }
+
+impl Resource for ResourceType {
+    fn resolve_references(&mut self, resolver: &mut ReferenceResolver) {
+        match &mut self.kind {
+            ResourceKind::Native(_) => {}
+            ResourceKind::Raw => unimplemented!(),
+            ResourceKind::Struct(structure) => {
+                *structure = resolver.resolve_resource(*structure);
+            }
+        }
+    }
+}
+
+define_resource_handle!(ResourceTypeHandle);

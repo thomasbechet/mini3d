@@ -36,6 +36,12 @@ impl Entity {
     // }
 }
 
+impl Default for Entity {
+    fn default() -> Self {
+        Self::null()
+    }
+}
+
 impl Serialize for Entity {
     type Header = ();
 

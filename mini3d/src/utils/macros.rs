@@ -3,6 +3,11 @@ macro_rules! define_provider_handle {
     ($name:ident) => {
         #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(u64);
+        impl $name {
+            pub fn null() -> Self {
+                Self(0)
+            }
+        }
         impl From<u64> for $name {
             fn from(value: u64) -> Self {
                 Self(value)
@@ -29,11 +34,24 @@ macro_rules! define_provider_handle {
 #[macro_export]
 macro_rules! define_resource_handle {
     ($name:ident) => {
+        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name(pub(crate) $crate::resource::handle::ResourceHandle);
+
+        impl $name {
+            pub fn null() -> Self {
+                Self($crate::resource::handle::ResourceHandle::null())
+            }
+            pub fn resolve(&mut self, resolver: &mut $crate::resource::handle::ReferenceResolver) {
+                self.0.resolve(resolver);
+            }
+        }
 
         impl $crate::resource::handle::ToResourceHandle for $name {
             fn to_handle(&self) -> $crate::resource::handle::ResourceHandle {
                 self.0
+            }
+            fn from_handle(handle: $crate::resource::handle::ResourceHandle) -> Self {
+                Self(handle)
             }
         }
 
@@ -54,10 +72,11 @@ macro_rules! define_resource_handle {
             fn deserialize(
                 decoder: &mut impl $crate::serialize::Decoder,
                 header: &Self::Header,
-            ) -> Result<(), $crate::serialize::DecoderError> {
-                Self($crate::resource::handle::ResourceHandle::deserialize(
-                    decoder, header,
-                ))
+            ) -> Result<Self, $crate::serialize::DecoderError> {
+                Ok(Self($crate::resource::handle::ResourceHandle::deserialize(
+                    decoder,
+                    &Default::default(),
+                )?))
             }
         }
     };

@@ -39,14 +39,13 @@ impl PropertySingleViewRef {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.read(component)?;
-        self.container = &resolver
+        self.container = resolver
             .containers
             .entries
-            .get(id)
+            .get(id.0)
             .unwrap()
             .container
-            .as_any()
-            .downcast_ref::<dyn SingleContainer>();
+            .as_single();
         Ok(())
     }
 
@@ -81,14 +80,13 @@ impl PropertySingleViewMut {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.write(component)?;
-        self.container = &resolver
+        self.container = resolver
             .containers
             .entries
-            .get_mut(id)
+            .get_mut(id.0)
             .unwrap()
             .container
-            .as_any_mut()
-            .downcast_mut::<dyn SingleContainer>();
+            .as_single_mut();
         Ok(())
     }
 

@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    feature::core::resource::ResourceData,
+    feature::core::resource::Resource,
     serialize::{Decoder, Encoder},
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -9,18 +9,23 @@ use crate::{
     },
 };
 
-use super::{error::ResourceError, key::ResourceKey};
+use super::error::ResourceError;
 
 pub struct PrivateResourceContainerRef<'a>(pub(crate) &'a dyn ResourceContainer);
 pub struct PrivateResourceContainerMut<'a>(pub(crate) &'a mut dyn ResourceContainer);
 
 #[derive(Default)]
-pub(crate) struct NativeResourceContainer<R: ResourceData>(pub(crate) SlotMap<R>);
+pub(crate) struct NativeResourceContainer<R: Resource>(pub(crate) SlotMap<R>);
+
+impl<R: Resource> NativeResourceContainer<R> {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
+        Self(SlotMap::with_capacity(capacity))
+    }
+}
 
 pub(crate) trait ResourceContainer: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn find(&self, key: ResourceKey) -> Option<SlotId>;
     fn remove(&mut self, slot: SlotId);
     fn clear(&mut self);
     fn serialize_entries(
@@ -35,7 +40,7 @@ pub(crate) trait ResourceContainer: Any {
     ) -> Result<(), ResourceError>;
 }
 
-impl<R: ResourceData> ResourceContainer for NativeResourceContainer<R> {
+impl<R: Resource> ResourceContainer for NativeResourceContainer<R> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -57,21 +62,6 @@ impl<R: ResourceData> ResourceContainer for NativeResourceContainer<R> {
         set: &HashSet<UID>,
         mut encoder: &mut dyn Encoder,
     ) -> Result<(), ResourceError> {
-        // C::Header::default()
-        //     .serialize(&mut encoder)
-        //     .map_err(|_| AssetError::SerializationError)?;
-        // encoder
-        //     .write_u32(set.len() as u32)
-        //     .map_err(|_| AssetError::SerializationError)?;
-        // for uid in set {
-        //     let entry = self
-        //         .0
-        //         .get(uid)
-        //         .ok_or(AssetError::AssetNotFound { uid: *uid })?;
-        //     entry
-        //         .serialize(&mut encoder)
-        //         .map_err(|_| AssetError::SerializationError)?;
-        // }
         Ok(())
     }
 
@@ -80,17 +70,6 @@ impl<R: ResourceData> ResourceContainer for NativeResourceContainer<R> {
         bundle: UID,
         mut decoder: &mut dyn Decoder,
     ) -> Result<(), ResourceError> {
-        // let header = C::Header::deserialize(&mut decoder, &Default::default())
-        //     .map_err(|_| AssetError::DeserializationError)?;
-        // let len = decoder
-        //     .read_u32()
-        //     .map_err(|_| AssetError::DeserializationError)? as usize;
-        // for _ in 0..len {
-        //     let mut entry = StaticAssetEntry::<C>::deserialize(&mut decoder, &header)
-        //         .map_err(|_| AssetError::DeserializationError)?;
-        //     entry.bundle = bundle;
-        //     self.0.insert(entry.uid(), entry);
-        // }
         Ok(())
     }
 }
