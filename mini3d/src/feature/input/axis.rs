@@ -3,7 +3,7 @@ use mini3d_derive::{Reflect, Serialize};
 use crate::{
     define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
-    input::{provider::InputProviderHandle, MAX_INPUT_DISPLAY_NAME_LEN},
+    input::provider::InputProviderHandle,
     resource::handle::ResourceHandle,
     utils::string::AsciiArray,
 };
@@ -28,13 +28,13 @@ pub enum InputAxisRange {
 
 #[derive(Clone, Reflect, Default, Serialize)]
 pub struct InputAxis {
-    pub display_name: AsciiArray<MAX_INPUT_DISPLAY_NAME_LEN>,
+    pub display_name: AsciiArray<64>,
     pub range: InputAxisRange,
     pub(crate) state: InputAxisState,
 }
 
 impl InputAxis {
-    pub const NAME: &'static str = "input_axis.type";
+    pub const NAME: &'static str = "RTY_InputAxis";
 }
 
 impl Resource for InputAxis {

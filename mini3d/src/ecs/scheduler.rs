@@ -1,12 +1,9 @@
 use std::collections::VecDeque;
 
 use crate::{
-    feature::ecs::system::{SystemSet, SystemStage, SystemStageHandle},
+    feature::ecs::system::{SystemStage, SystemStageHandle},
     resource::ResourceManager,
-    utils::{
-        slotmap::{SlotId, SlotMap},
-        uid::{ToUID, UID},
-    },
+    utils::slotmap::{SlotId, SlotMap},
 };
 
 use super::system::SystemTable;
@@ -25,13 +22,12 @@ pub(crate) struct SystemPipelineNode {
 }
 
 struct PeriodicStage {
-    stage: UID,
+    stage: SystemStageHandle,
     frequency: f64,
     accumulator: f64,
 }
 
 struct StageEntry {
-    uid: UID,
     handle: SystemStageHandle,
     first_node: SlotId,
 }
@@ -43,74 +39,75 @@ pub(crate) struct Scheduler {
     // Baked nodes
     nodes: SlotMap<SystemPipelineNode>,
     // Instances
-    pub(crate) instances: Vec<SlotId>,
+    pub(crate) instance_indices: Vec<usize>,
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next frame stage
-    next_frame_stages: VecDeque<UID>,
+    next_frame_stages: VecDeque<SystemStageHandle>,
     // Runtime stages
-    frame_stages: VecDeque<UID>,
+    frame_stages: VecDeque<SystemStageHandle>,
     // Runtime active node
     next_node: SlotId,
 }
 
 impl Scheduler {
-    pub(crate) fn rebuild(&mut self, table: &SystemTable, resources: &ResourceManager) {
+    pub(crate) fn rebuild(&mut self, table: &SystemTable, resource: &ResourceManager) {
         // Reset baked resources
         self.stages.clear();
         self.nodes.clear();
-        self.instances.clear();
+        self.instance_indices.clear();
         self.next_node = SlotId::null();
 
         // Collect stages
         let mut stages = Vec::new();
-        for set in table.sets.iter() {
-            let set = resources.get::<SystemSet>(*set).unwrap();
-            for entry in &set.0 {
-                if stages.iter().find(|stage| **stage == entry.stage).is_none() {
-                    stages.push(entry.stage);
-                    let stage = resources.get::<SystemStage>(entry.stage).unwrap();
-                    let stage_uid = resources.info(entry.stage).unwrap().key.to_uid();
-                    if let Some(periodic) = stage.periodic {
-                        self.periodic_stages.push(PeriodicStage {
-                            stage: stage_uid,
-                            frequency: 1.0 / periodic,
-                            accumulator: 0.0,
-                        });
-                    }
+        for instance in table.instances.iter() {
+            if !stages.iter().any(|stage| *stage == instance.stage) {
+                stages.push(instance.stage);
+                let stage = resource.get::<SystemStage>(instance.stage).unwrap();
+                if let Some(periodic) = stage.periodic {
+                    self.periodic_stages.push(PeriodicStage {
+                        stage: instance.stage,
+                        frequency: 1.0 / periodic,
+                        accumulator: 0.0,
+                    });
                 }
             }
         }
         for (stage_index, stage) in stages.iter().enumerate() {
-            // Collect instances in stage
-            let instances = table
+            // Collect instance indices in stage
+            let indices = table
                 .instances
                 .iter()
-                .filter(|(_, e)| {
-                    resources.get::<SystemSet>(e.set).unwrap().0[e.index].stage == *stage
-                })
+                .enumerate()
+                .filter_map(
+                    |(index, e)| {
+                        if e.stage == *stage {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    },
+                )
                 .collect::<Vec<_>>();
             // Sort instances based on system order
             // TODO:
             // Create stage entry
             // let stage = resources.get::<SystemStage>(*stage).unwrap();
-            let uid = resources.info(*stage).unwrap().key.to_uid();
             self.stages.push(StageEntry {
-                uid,
                 handle: *stage,
                 first_node: SlotId::null(),
             });
             // Build nodes
             let mut previous_node = None;
-            for (id, instance) in instances {
+            for index in indices {
                 // TODO: detect parallel nodes
 
                 // Insert instance
-                self.instances.push(id);
+                self.instance_indices.push(index);
 
-                // Create node
+                // Create exclusive node
                 let node = self.nodes.add(SystemPipelineNode {
-                    first: self.instances.len() - 1,
+                    first: self.instance_indices.len() - 1,
                     count: 1,
                     next: SlotId::null(),
                 });
@@ -129,7 +126,7 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn begin_frame(&mut self, delta_time: f64) {
+    pub(crate) fn invoke_frame_stages(&mut self, delta_time: f64, update_stage: SystemStageHandle) {
         // Collect previous frame stages
         self.frame_stages.clear();
         for stage in self.next_frame_stages.drain(..) {
@@ -148,7 +145,7 @@ impl Scheduler {
         }
 
         // Append update stage
-        self.frame_stages.push_back(SystemStage::UPDATE.into());
+        self.frame_stages.push_back(update_stage);
     }
 
     pub(crate) fn next_node(&mut self) -> Option<SystemPipelineNode> {
@@ -157,7 +154,7 @@ impl Scheduler {
             // Find next stage
             if let Some(stage) = self.frame_stages.pop_front() {
                 // If the stage exists, find first node
-                if let Some(index) = self.stages.iter().position(|e| e.uid == stage) {
+                if let Some(index) = self.stages.iter().position(|e| e.handle == stage) {
                     self.next_node = self.stages[index].first_node;
                 }
             } else {
@@ -171,32 +168,17 @@ impl Scheduler {
         Some(node)
     }
 
-    pub(crate) fn invoke(&mut self, stage: impl ToUID, invocation: Invocation) {
+    pub(crate) fn invoke(&mut self, stage: SystemStageHandle, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
-                self.frame_stages.push_front(stage.to_uid());
+                self.frame_stages.push_front(stage);
             }
             Invocation::EndFrame => {
-                self.frame_stages.push_back(stage.to_uid());
+                self.frame_stages.push_back(stage);
             }
             Invocation::NextFrame => {
-                self.next_frame_stages.push_back(stage.to_uid());
+                self.next_frame_stages.push_back(stage);
             }
         }
-    }
-
-    pub(crate) fn set_periodic_invoke(&mut self, stage: impl ToUID, frequency: f64) {
-        let stage = stage.to_uid();
-        for periodic_stage in self.periodic_stages.iter_mut() {
-            if periodic_stage.stage == stage {
-                periodic_stage.frequency = frequency;
-                return;
-            }
-        }
-        self.periodic_stages.push(PeriodicStage {
-            stage,
-            frequency,
-            accumulator: 0.0,
-        });
     }
 }

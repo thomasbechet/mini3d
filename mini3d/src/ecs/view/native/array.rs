@@ -1,5 +1,4 @@
 use crate::{
-    api::Context,
     ecs::{
         container::native::array::NativeArrayContainer, entity::Entity, error::ResolverError,
         system::SystemResolver,
@@ -9,7 +8,7 @@ use crate::{
 };
 
 pub trait NativeArrayView<C: Component> {
-    fn get(&self, ctx: &Context, entity: Entity) -> Option<&[C]>;
+    fn get(&self, entity: Entity) -> Option<&[C]>;
 }
 
 // Native array reference
@@ -25,15 +24,18 @@ impl<C: Component> NativeArrayViewRef<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.read(component)?;
-        self.container = resolver
-            .containers
-            .entries
-            .get(id.0)
-            .unwrap()
-            .container
-            .as_any()
-            .downcast_ref::<NativeArrayContainer<C>>()
-            .unwrap();
+        unsafe {
+            self.container = (&*resolver
+                .containers
+                .entries
+                .get(id.0)
+                .unwrap()
+                .container
+                .get())
+                .as_any()
+                .downcast_ref::<NativeArrayContainer<C>>()
+                .unwrap();
+        }
         Ok(())
     }
 
@@ -43,8 +45,8 @@ impl<C: Component> NativeArrayViewRef<C> {
 }
 
 impl<C: Component> NativeArrayView<C> for NativeArrayViewRef<C> {
-    fn get(&self, ctx: &Context, entity: Entity) -> Option<&[C]> {
-        unsafe { *self.container }.get(entity)
+    fn get(&self, entity: Entity) -> Option<&[C]> {
+        unsafe { &*self.container }.get(entity)
     }
 }
 
@@ -61,20 +63,23 @@ impl<C: Component> NativeArrayViewMut<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.write(component)?;
-        self.container = resolver
-            .containers
-            .entries
-            .get_mut(id.0)
-            .unwrap()
-            .container
-            .as_any_mut()
-            .downcast_mut::<NativeArrayContainer<C>>()
-            .unwrap();
+        unsafe {
+            self.container = (&mut *resolver
+                .containers
+                .entries
+                .get_mut(id.0)
+                .unwrap()
+                .container
+                .get())
+                .as_any_mut()
+                .downcast_mut::<NativeArrayContainer<C>>()
+                .unwrap();
+        }
         Ok(())
     }
 
     pub fn get_mut(&mut self, entity: Entity) -> Option<&mut [C]> {
-        unsafe { &*self.container }.get_mut(entity)
+        unsafe { &mut *self.container }.get_mut(entity)
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut [C]> {
@@ -83,7 +88,7 @@ impl<C: Component> NativeArrayViewMut<C> {
 }
 
 impl<C: Component> NativeArrayView<C> for NativeArrayViewMut<C> {
-    fn get(&self, ctx: &Context, entity: Entity) -> Option<&[C]> {
-        unsafe { *self.container }.get(entity)
+    fn get(&self, entity: Entity) -> Option<&[C]> {
+        unsafe { &*self.container }.get(entity)
     }
 }

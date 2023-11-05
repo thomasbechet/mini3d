@@ -18,13 +18,31 @@ use super::{
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
+    system::SystemResolver,
 };
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub struct Query(pub(crate) SlotId);
 
 impl Query {
-    pub fn query<'a>(&self, ctx: &'a Context) -> impl Iterator<Item = Entity> + 'a {
+    pub fn resolve<'a>(&'a mut self, resolver: &'a mut SystemResolver) -> QueryBuilder<'a> {
+        resolver.all.clear();
+        resolver.any.clear();
+        resolver.not.clear();
+        QueryBuilder {
+            id: &mut self.0,
+            component_type: resolver.component_type,
+            all: resolver.all,
+            any: resolver.any,
+            not: resolver.not,
+            entities: resolver.entities,
+            queries: resolver.queries,
+            containers: resolver.containers,
+            resources: resolver.resources,
+        }
+    }
+
+    pub fn iter<'a>(&self, ctx: &'a Context) -> impl Iterator<Item = Entity> + 'a {
         ctx.queries.entries[self.0]
             .archetypes
             .iter()
@@ -107,7 +125,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> Option<Query> {
+    ) -> Option<SlotId> {
         for (id, query) in self.entries.iter() {
             if query.all.len() != all.len() {
                 continue;
@@ -130,7 +148,7 @@ impl QueryTable {
             if not.iter().any(|c| !not2.contains(c)) {
                 continue;
             }
-            return Some(Query(id));
+            return Some(id);
         }
         None
     }
@@ -141,7 +159,7 @@ impl QueryTable {
         all: &[ComponentId],
         any: &[ComponentId],
         not: &[ComponentId],
-    ) -> Query {
+    ) -> SlotId {
         let mut query = QueryEntry::default();
         let start = self.components.len();
         self.components.extend_from_slice(all);
@@ -150,18 +168,18 @@ impl QueryTable {
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
-        let id = Query(self.entries.add(query));
+        let id = self.entries.add(query);
         // Bind new query to existing archetypes
         for archetype in entities.archetypes.entries.keys() {
             let archetype_entry = &entities.archetypes[archetype];
-            let query_entry = &self.entries[id.0];
+            let query_entry = &self.entries[id];
             if query_archetype_match(
                 query_entry,
                 &self.components,
                 archetype_entry,
                 &entities.archetypes.components,
             ) {
-                self.entries[id.0].archetypes.push(archetype);
+                self.entries[id].archetypes.push(archetype);
             }
         }
         id
@@ -169,6 +187,7 @@ impl QueryTable {
 }
 
 pub struct QueryBuilder<'a> {
+    pub(crate) id: &'a mut SlotId,
     pub(crate) component_type: ResourceTypeHandle,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
@@ -180,7 +199,7 @@ pub struct QueryBuilder<'a> {
 }
 
 impl<'a> QueryBuilder<'a> {
-    fn find_component(&self, component: UID) -> Result<ComponentId, ResolverError> {
+    fn find_component(&mut self, component: UID) -> Result<ComponentId, ResolverError> {
         let handle = ComponentTypeHandle(
             self.resources
                 .find_typed(component, self.component_type)
@@ -189,7 +208,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self.containers.preallocate(handle, self.resources))
     }
 
-    pub fn all(self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
+    pub fn all(mut self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
         for component in components {
             let id = self.find_component(component.to_uid())?;
             if self.all.iter().all(|c| *c != id) {
@@ -199,7 +218,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn any(self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
+    pub fn any(mut self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
         for component in components {
             let id = self.find_component(component.to_uid())?;
             if self.any.iter().all(|c| *c != id) {
@@ -209,7 +228,7 @@ impl<'a> QueryBuilder<'a> {
         Ok(self)
     }
 
-    pub fn not(self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
+    pub fn not(mut self, components: &[impl ToUID]) -> Result<Self, ResolverError> {
         for component in components {
             let id = self.find_component(component.to_uid())?;
             if self.not.iter().all(|c| *c != id) {
@@ -218,12 +237,15 @@ impl<'a> QueryBuilder<'a> {
         }
         Ok(self)
     }
+}
 
-    pub fn build(mut self) -> Query {
+impl<'a> Drop for QueryBuilder<'a> {
+    fn drop(&mut self) {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
-            return id;
+            *self.id = id;
         }
-        self.queries
-            .add_query(self.entities, self.all, self.any, self.not)
+        *self.id = self
+            .queries
+            .add_query(self.entities, self.all, self.any, self.not);
     }
 }

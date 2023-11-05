@@ -1,4 +1,4 @@
-use crate::activity::ActivityId;
+use crate::activity::ActivityHandle;
 use crate::feature::core::resource::{Resource, ResourceType, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::prng::PCG32;
@@ -17,19 +17,20 @@ pub mod handle;
 pub mod iterator;
 pub mod key;
 
+#[derive(Debug)]
 pub struct ResourceInfo<'a> {
     pub key: &'a str,
     pub ty_name: &'a str,
     pub ty: ResourceTypeHandle,
-    pub owner: ActivityId,
+    pub owner: ActivityHandle,
     pub ref_count: usize,
     pub handle: ResourceHandle,
 }
 
-struct ResourceEntry {
+pub(crate) struct ResourceEntry {
     key: ResourceKey,
     ty: ResourceTypeHandle,
-    owner: ActivityId,
+    owner: ActivityHandle,
     ref_count: usize,
     slot: SlotId,         // Null if not loaded
     prev: ResourceHandle, // Previous entry of same type
@@ -62,7 +63,7 @@ impl Default for ResourceManager {
 }
 
 impl ResourceManager {
-    pub(crate) fn define_meta_type(&mut self, root: ActivityId) {
+    pub(crate) fn define_meta_type(&mut self, root: ActivityHandle) {
         // Create container
         self.type_container = self.containers.add(ContainerEntry {
             container: Box::new(NativeResourceContainer::<ResourceType>::with_capacity(128)),
@@ -70,7 +71,7 @@ impl ResourceManager {
         });
         // Create meta type entry
         self.meta_type = ResourceHandle(self.entries.add(ResourceEntry {
-            key: ResourceKey::new("resource.type"),
+            key: ResourceKey::new(ResourceType::NAME),
             ty: ResourceTypeHandle::null(),
             owner: root,
             ref_count: 1, // Keep it alive (reference itslef)
@@ -141,14 +142,18 @@ impl ResourceManager {
 
     pub(crate) fn add<R: Resource>(
         &mut self,
-        data: R,
-        ty: ResourceTypeHandle,
-        owner: ActivityId,
         key: Option<&str>,
+        ty: ResourceTypeHandle,
+        owner: ActivityHandle,
+        data: R,
     ) -> Result<ResourceHandle, ResourceError> {
-        // Allocate container if missing
-        if self.get_type(ty).is_none() {
-            self.create_container(ty);
+        // Check existing type and container
+        if let Some(resource) = self.get_type(ty) {
+            if resource.container.is_null() {
+                self.create_container(ty);
+            }
+        } else {
+            return Err(ResourceError::ResourceTypeNotFound);
         }
         // Check duplicated entry or generate new key
         let key = if let Some(key) = key {
@@ -193,11 +198,11 @@ impl ResourceManager {
 
     pub(crate) fn add_resource_type(
         &mut self,
-        data: ResourceType,
-        owner: ActivityId,
         key: Option<&str>,
+        owner: ActivityHandle,
+        data: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
-        self.add(data, self.meta_type, owner, key)
+        self.add(key, self.meta_type, owner, data)
             .map(|handle| handle.into())
     }
 
@@ -299,7 +304,7 @@ impl ResourceManager {
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = ResourceHandle> + '_ {
-        self.entries.keys().map(|id| ResourceHandle(id))
+        self.entries.keys().map(ResourceHandle)
     }
 
     pub(crate) fn iter_typed(&self, ty: ResourceTypeHandle) -> TypedResourceIterator<'_> {
@@ -317,20 +322,22 @@ impl ResourceManager {
     ) -> TypedNativeResourceIteratorMut<'_, R> {
         if let Some(ty) = self.get_type(ty) {
             let container = ty.container;
-            TypedNativeResourceIteratorMut::new(
-                &self.entries,
-                Some(
-                    self.containers[container]
-                        .container
-                        .as_any_mut()
-                        .downcast_mut()
-                        .unwrap(),
-                ),
-                self.containers[container].first,
-            )
-        } else {
-            TypedNativeResourceIteratorMut::new(&self.entries, None, ResourceHandle::null())
+            if !container.is_null() {
+                let first = self.containers[container].first;
+                return TypedNativeResourceIteratorMut::new(
+                    &self.entries,
+                    Some(
+                        self.containers[container]
+                            .container
+                            .as_any_mut()
+                            .downcast_mut()
+                            .unwrap(),
+                    ),
+                    first,
+                );
+            }
         }
+        TypedNativeResourceIteratorMut::new(&self.entries, None, ResourceHandle::null())
     }
 
     pub(crate) fn iter_native_values_mut<R: Resource>(

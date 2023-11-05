@@ -88,7 +88,7 @@ fn recursive_propagate(
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PropagateTransforms {
     transform: NativeSingleViewRef<Transform>,
     hierarchy: NativeSingleViewRef<Hierarchy>,
@@ -97,7 +97,7 @@ pub struct PropagateTransforms {
 }
 
 impl PropagateTransforms {
-    pub const NAME: &'static str = "propagate_transforms";
+    pub const NAME: &'static str = "SYS_PropagateTransforms";
 }
 
 impl ParallelSystem for PropagateTransforms {
@@ -105,14 +105,14 @@ impl ParallelSystem for PropagateTransforms {
         self.transform.resolve(resolver, Transform::NAME)?;
         self.hierarchy.resolve(resolver, Hierarchy::NAME)?;
         self.local_to_world.resolve(resolver, LocalToWorld::NAME)?;
-        self.query = resolver.query().all(&[LocalToWorld::NAME])?.build();
+        self.query.resolve(resolver).all(&[LocalToWorld::NAME])?;
         Ok(())
     }
 
-    fn run(&self, ctx: &Context) {
+    fn run(mut self, ctx: &Context) {
         // Reset all flags
         let mut entities = Vec::new();
-        for e in self.query.query(ctx) {
+        for e in self.query.iter(ctx) {
             self.local_to_world[e].dirty = true;
             entities.push(e);
         }

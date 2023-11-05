@@ -18,7 +18,7 @@ pub struct Rotator {
     pub speed: f32,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RotatorSystem {
     transform: NativeSingleViewMut<Transform>,
     rotator: NativeSingleViewRef<Rotator>,
@@ -26,22 +26,21 @@ pub struct RotatorSystem {
 }
 
 impl RotatorSystem {
-    pub const NAME: &'static str = "rotator_system";
+    pub const NAME: &'static str = "SYS_Rotator";
 }
 
 impl ParallelSystem for RotatorSystem {
     fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         self.transform.resolve(resolver, Transform::NAME)?;
         self.rotator.resolve(resolver, Rotator::NAME)?;
-        self.query = resolver
-            .query()
-            .all(&[Transform::NAME, Rotator::NAME])?
-            .build();
+        self.query
+            .resolve(resolver)
+            .all(&[Transform::NAME, Rotator::NAME])?;
         Ok(())
     }
 
-    fn run(&self, ctx: &Context) {
-        for e in self.query.query(ctx) {
+    fn run(mut self, ctx: &Context) {
+        for e in self.query.iter(ctx) {
             self.transform[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
                 Time::delta(ctx) as f32 * f32::to_radians(self.rotator[e].speed),

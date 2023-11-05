@@ -126,7 +126,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         // Update size
         self.view_size = self.data.len();
         // Removed components
-        for entity in self.removed.drain(..) {
+        while let Some(entity) = self.removed.pop() {
             self.remove(entity);
         }
     }

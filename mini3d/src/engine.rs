@@ -1,13 +1,15 @@
 use mini3d_derive::Error;
 
-use crate::activity::{ActivityEntry, ActivityId, ActivityManager};
+use crate::activity::{ActivityEntry, ActivityHandle, ActivityManager};
+use crate::api::time::TimeAPI;
+use crate::api::Context;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::core::resource::ResourceType;
 use crate::feature::ecs::component::{ComponentStorage, ComponentType};
-use crate::feature::ecs::system::System;
-use crate::feature::{common, ecs, input, renderer};
+use crate::feature::ecs::system::{System, SystemSet, SystemStage};
+use crate::feature::{common, core, ecs, input, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
 use crate::logger::provider::LoggerProvider;
@@ -31,33 +33,28 @@ pub enum ProgressError {
 const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 #[derive(Clone)]
-pub struct EngineFeatures {
+pub struct EngineConfig {
+    bootstrap: Option<fn(&mut Context)>,
     common: bool,
     renderer: bool,
     ui: bool,
 }
 
-impl EngineFeatures {
-    pub fn all() -> Self {
+impl Default for EngineConfig {
+    fn default() -> Self {
         Self {
+            bootstrap: None,
             common: true,
             renderer: true,
             ui: true,
         }
     }
-
-    pub fn none() -> Self {
-        Self {
-            common: false,
-            renderer: false,
-            ui: false,
-        }
-    }
 }
 
-impl Default for EngineFeatures {
-    fn default() -> Self {
-        Self::all()
+impl EngineConfig {
+    pub fn bootstrap(mut self, bootstrap: fn(&mut Context)) -> Self {
+        self.bootstrap = Some(bootstrap);
+        self
     }
 }
 
@@ -69,19 +66,19 @@ pub struct Engine {
     pub(crate) input: InputManager,
     pub(crate) renderer: RendererManager,
     pub(crate) physics: PhysicsManager,
-    pub(crate) system: PlatformManager,
+    pub(crate) platform: PlatformManager,
     pub(crate) logger: LoggerManager,
     global_time: f64,
 }
 
 impl Engine {
     fn setup_root_activity(&mut self) {
-        self.activity.root = ActivityId(self.activity.entries.add(ActivityEntry {
+        self.activity.root = ActivityHandle(self.activity.activities.add(ActivityEntry {
             name: "root".into(),
             parent: Default::default(),
             ecs: Default::default(),
         }));
-        self.activity.entries[self.activity.root.0].ecs = self.ecs.add(self.activity.root);
+        self.activity.activities[self.activity.root.0].ecs = self.ecs.add(self.activity.root);
         self.activity.active = self.activity.root;
     }
 
@@ -89,48 +86,52 @@ impl Engine {
         self.resource.define_meta_type(self.activity.root);
     }
 
-    fn define_resource_types(&mut self, features: &EngineFeatures) {
+    fn define_resource_types(&mut self, config: &EngineConfig) {
         macro_rules! define_resource {
             ($resource: ty) => {
                 self.resource
                     .add_resource_type(
-                        ResourceType::native::<$resource>(),
-                        self.activity.root,
                         Some(<$resource>::NAME),
+                        self.activity.root,
+                        ResourceType::native::<$resource>(),
                     )
                     .unwrap()
             };
         }
 
-        self.ecs.types.component = define_resource!(ecs::component::ComponentType);
-        self.ecs.types.system = define_resource!(ecs::system::System);
-        self.ecs.types.system_set = define_resource!(ecs::system::SystemSet);
-        self.ecs.types.system_stage = define_resource!(ecs::system::SystemStage);
+        self.ecs.handles.component = define_resource!(ecs::component::ComponentType);
+        self.ecs.handles.system = define_resource!(ecs::system::System);
+        self.ecs.handles.system_set = define_resource!(ecs::system::SystemSet);
+        self.ecs.handles.system_stage = define_resource!(ecs::system::SystemStage);
 
-        self.input.types.action = define_resource!(input::action::InputAction);
-        self.input.types.axis = define_resource!(input::axis::InputAxis);
-        self.input.types.text = define_resource!(input::text::InputText);
+        self.input.handles.action = define_resource!(input::action::InputAction);
+        self.input.handles.axis = define_resource!(input::axis::InputAxis);
+        self.input.handles.text = define_resource!(input::text::InputText);
 
-        self.renderer.types.font = define_resource!(renderer::font::Font);
-        self.renderer.types.material = define_resource!(renderer::material::Material);
-        self.renderer.types.mesh = define_resource!(renderer::mesh::Mesh);
-        self.renderer.types.texture = define_resource!(renderer::texture::Texture);
+        self.renderer.handles.font = define_resource!(renderer::font::Font);
+        self.renderer.handles.material = define_resource!(renderer::material::Material);
+        self.renderer.handles.mesh = define_resource!(renderer::mesh::Mesh);
+        self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
+        define_resource!(renderer::model::Model);
 
-        if features.common {
+        define_resource!(core::activity::ActivityDescriptor);
+        define_resource!(core::structure::StructDefinition);
+
+        if config.common {
             define_resource!(common::script::Script);
             define_resource!(common::program::Program);
         }
     }
 
-    fn define_component_types(&mut self, features: &EngineFeatures) {
+    fn define_component_types(&mut self, config: &EngineConfig) {
         macro_rules! define_component {
             ($component: ty, $storage: expr) => {
                 self.resource
                     .add(
-                        ComponentType::native::<$component>($storage),
-                        self.ecs.types.component,
-                        self.activity.root,
                         Some(<$component>::NAME),
+                        self.ecs.handles.component,
+                        self.activity.root,
+                        ComponentType::native::<$component>($storage),
                     )
                     .unwrap()
             };
@@ -140,10 +141,10 @@ impl Engine {
             ($system: ty) => {
                 self.resource
                     .add(
-                        System::native_exclusive::<$system>(),
-                        self.ecs.types.system,
-                        self.activity.root,
+                        self.ecs.handles.system,
                         Some(<$system>::NAME),
+                        self.activity.root,
+                        System::native_exclusive::<$system>(),
                     )
                     .unwrap()
             };
@@ -153,16 +154,16 @@ impl Engine {
             ($system: ty) => {
                 self.resource
                     .add(
-                        System::native_parallel::<$system>(),
-                        self.ecs.types.system,
-                        self.activity.root,
                         Some(<$system>::NAME),
+                        self.ecs.handles.system,
+                        self.activity.root,
+                        System::native_parallel::<$system>(),
                     )
                     .unwrap()
             };
         }
 
-        if features.common {
+        if config.common {
             define_component!(common::free_fly::FreeFly, ComponentStorage::Single);
             define_component!(common::rotator::Rotator, ComponentStorage::Single);
             define_component!(common::transform::Transform, ComponentStorage::Single);
@@ -177,7 +178,7 @@ impl Engine {
             define_parallel_system!(common::transform::PropagateTransforms);
         }
 
-        if features.renderer {
+        if config.renderer {
             define_component!(renderer::camera::Camera, ComponentStorage::Single);
             define_component!(renderer::static_mesh::StaticMesh, ComponentStorage::Single);
             define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
@@ -186,16 +187,71 @@ impl Engine {
             define_component!(renderer::canvas::Canvas, ComponentStorage::Single);
         }
 
-        if features.ui {
+        if config.ui {
             // define_component!(ui::ui_stylesheet::UIStyleSheet);
             // define_component!(ui::ui::UI);
             // define_component!(ui::ui::UIRenderTarget);
             // define_system_parallel!(ui::update_ui::UpdateUI, SystemStage::UPDATE);
             // define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
         }
+
+        self.ecs.handles.update_stage = self
+            .resource
+            .add(
+                Some(SystemStage::UPDATE),
+                self.ecs.handles.system_stage,
+                self.activity.root,
+                SystemStage::default(),
+            )
+            .unwrap()
+            .into();
+        self.ecs.handles.start_stage = self
+            .resource
+            .add(
+                Some(SystemStage::START),
+                self.ecs.handles.system_stage,
+                self.activity.root,
+                SystemStage::default(),
+            )
+            .unwrap()
+            .into();
+        self.resource
+            .add(
+                Some(SystemStage::UPDATE_60HZ),
+                self.ecs.handles.system_stage,
+                self.activity.root,
+                SystemStage::periodic(1.0 / 60.0),
+            )
+            .unwrap();
     }
 
-    pub fn new(features: EngineFeatures) -> Self {
+    fn run_bootstrap(&mut self, config: &EngineConfig) {
+        if let Some(bootstrap) = config.bootstrap {
+            let root = &mut self.ecs.instances[self.activity.root.0];
+            bootstrap(&mut Context {
+                activity: &mut self.activity,
+                resource: &mut self.resource,
+                input: &mut self.input,
+                renderer: &mut self.renderer,
+                platform: &mut self.platform,
+                logger: &mut self.logger,
+                time: TimeAPI {
+                    delta: 0.0,
+                    global: 0.0,
+                },
+                containers: &mut root.containers,
+                entities: &mut root.entities,
+                queries: &mut root.queries,
+                scheduler: &mut root.scheduler,
+                ecs_types: &self.ecs.handles,
+            });
+            // Flush activity commands
+            self.activity
+                .flush_commands(&mut self.ecs, &mut self.resource);
+        }
+    }
+
+    pub fn new(config: EngineConfig) -> Self {
         let mut engine = Self {
             activity: Default::default(),
             ecs: Default::default(),
@@ -204,13 +260,15 @@ impl Engine {
             input: Default::default(),
             renderer: Default::default(),
             physics: Default::default(),
-            system: Default::default(),
+            platform: Default::default(),
             logger: Default::default(),
             global_time: 0.0,
         };
         engine.setup_root_activity();
         engine.setup_resource_manager();
-        engine.define_resource_types(&features);
+        engine.define_resource_types(&config);
+        engine.define_component_types(&config);
+        engine.run_bootstrap(&config);
         engine
     }
 
@@ -222,8 +280,8 @@ impl Engine {
         self.input.set_provider(Box::new(provider));
     }
 
-    pub fn set_system_provider(&mut self, provider: impl PlatformProvider + 'static) {
-        self.system.set_provider(Box::new(provider));
+    pub fn set_platform_provider(&mut self, provider: impl PlatformProvider + 'static) {
+        self.platform.set_provider(Box::new(provider));
     }
 
     pub fn set_storage_provider(&mut self, provider: impl DiskProvider + 'static) {
@@ -245,9 +303,6 @@ impl Engine {
     pub fn progress(&mut self, mut delta_time: f64) -> Result<(), ProgressError> {
         // ================= PREPARE STAGE ================== //
 
-        // Reset graphics state
-        self.renderer.prepare();
-
         // Compute delta time
         if delta_time > MAXIMUM_TIMESTEP {
             delta_time = MAXIMUM_TIMESTEP; // Slowing down
@@ -261,8 +316,8 @@ impl Engine {
         self.input.prepare_dispatch(&mut self.resource);
         // Dispatch input events
         self.input.dispatch_events(&mut self.resource);
-        // Dispatch system events
-        self.system.dispatch_events();
+        // Dispatch platform events
+        self.platform.dispatch_events();
         // Dispatch renderer events
         self.renderer.dispatch_events();
 
@@ -281,7 +336,7 @@ impl Engine {
                 resource: &mut self.resource,
                 input: &mut self.input,
                 renderer: &mut self.renderer,
-                system: &mut self.system,
+                platform: &mut self.platform,
                 logger: &mut self.logger,
                 delta_time,
                 global_time: self.global_time,
@@ -293,8 +348,6 @@ impl Engine {
             .flush_commands(&mut self.ecs, &mut self.resource);
 
         // ================= POST-UPDATE STAGE ================== //
-        self.renderer
-            .submit_graphics(&mut self.resource, &self.ecs.containers);
 
         Ok(())
     }

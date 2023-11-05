@@ -3,19 +3,19 @@ use mini3d_derive::{Reflect, Serialize};
 use crate::{
     define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
-    input::{provider::InputProviderHandle, MAX_INPUT_DISPLAY_NAME_LEN},
+    input::provider::InputProviderHandle,
     resource::handle::ResourceHandle,
     utils::string::AsciiArray,
 };
 
 #[derive(Clone, Reflect, Default, Serialize)]
 pub struct InputAction {
-    pub display_name: AsciiArray<MAX_INPUT_DISPLAY_NAME_LEN>,
+    pub display_name: AsciiArray<64>,
     pub(crate) state: InputActionState,
 }
 
 impl InputAction {
-    pub const NAME: &'static str = "input_action.type";
+    pub const NAME: &'static str = "RTY_InputAction";
 }
 
 impl Resource for InputAction {

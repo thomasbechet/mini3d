@@ -5,6 +5,7 @@ pub mod font;
 pub mod graph;
 pub mod material;
 pub mod mesh;
+pub mod model;
 pub mod pass;
 pub mod pipeline;
 pub mod static_mesh;

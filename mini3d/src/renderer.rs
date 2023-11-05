@@ -1,9 +1,7 @@
-use crate::ecs::container::ContainerTable;
 use crate::feature::core::resource::ResourceTypeHandle;
 use crate::feature::renderer::font::{Font, FontHandle};
 use crate::feature::renderer::mesh::{Mesh, MeshHandle};
 use crate::feature::renderer::texture::{Texture, TextureHandle};
-use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
     math::rect::IRect,
@@ -13,10 +11,7 @@ use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
-use self::{
-    color::Color,
-    provider::{RendererProvider, RendererProviderError},
-};
+use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
 pub mod command;
@@ -62,7 +57,7 @@ pub struct RendererStatistics {
 }
 
 #[derive(Default)]
-pub(crate) struct RendererTypes {
+pub(crate) struct RendererHandles {
     pub(crate) texture: ResourceTypeHandle,
     pub(crate) material: ResourceTypeHandle,
     pub(crate) mesh: ResourceTypeHandle,
@@ -74,7 +69,7 @@ pub struct RendererManager {
     pub(crate) provider: Box<dyn RendererProvider>,
     statistics: RendererStatistics,
     clear_color: Color,
-    pub(crate) types: RendererTypes,
+    pub(crate) handles: RendererHandles,
 }
 
 impl RendererManager {
@@ -92,8 +87,6 @@ impl RendererManager {
         }
     }
 
-    pub(crate) fn prepare(&mut self) {}
-
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         Ok(())
     }
@@ -101,26 +94,6 @@ impl RendererManager {
     pub(crate) fn load_state(&mut self, decoder: &mut impl Decoder) -> Result<(), DecoderError> {
         // TODO: reset ECS resources
         Ok(())
-    }
-
-    pub(crate) fn submit_graphics(
-        &mut self,
-        resource: &mut ResourceManager,
-        containers: &ContainerTable,
-    ) -> Result<(), RendererProviderError> {
-        // Acquire active scene
-        let viewports = containers
-            .view(self.viewport)
-            .expect("Failed to acquire viewport view");
-        // Render main screen
-        self.graphics.submit_provider(
-            None,
-            Color::TRANSPARENT,
-            &mut self.types,
-            resource,
-            &viewports,
-            self.provider.as_mut(),
-        )
     }
 
     pub(crate) fn set_clear_color(&mut self, color: Color) {

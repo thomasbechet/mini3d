@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::{any::Any, cell::UnsafeCell};
 
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
@@ -73,8 +73,8 @@ pub(crate) trait SingleContainer {
 
 pub(crate) trait ArrayContainer {}
 
-struct ContainerEntry {
-    pub(crate) container: Box<dyn Container>,
+pub(crate) struct ContainerEntry {
+    pub(crate) container: UnsafeCell<Box<dyn Container>>,
     component_type: ComponentTypeHandle,
 }
 
@@ -87,7 +87,7 @@ impl ContainerTable {
     pub(crate) fn preallocate(
         &mut self,
         component: ComponentTypeHandle,
-        resources: &mut ResourceManager,
+        resource: &mut ResourceManager,
     ) -> ComponentId {
         // Find existing container
         let id = self.entries.iter().find_map(|(id, e)| {
@@ -101,14 +101,14 @@ impl ContainerTable {
             return id;
         }
         // Create new container
-        let ty = resources
+        let ty = resource
             .get::<ComponentType>(component)
             .expect("Component type not found while preallocating");
-        resources.increment_ref(component.0).unwrap();
         let entry = ContainerEntry {
-            container: ty.create_container(),
+            container: UnsafeCell::new(ty.create_container()),
             component_type: component,
         };
+        resource.increment_ref(component.0).unwrap();
         ComponentId(self.entries.add(entry))
     }
 
@@ -117,7 +117,7 @@ impl ContainerTable {
             .get_mut(component.0)
             .expect("Component container not found while removing entity")
             .container
-            .as_mut()
+            .get_mut()
             .remove(entity);
     }
 }

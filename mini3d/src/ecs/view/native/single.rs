@@ -1,7 +1,6 @@
 use std::ops::{Index, IndexMut};
 
 use crate::{
-    api::Context,
     ecs::{
         container::{native::single::NativeSingleContainer, Container},
         entity::Entity,
@@ -30,6 +29,14 @@ impl<C: Component> Default for NativeSingleViewRef<C> {
     }
 }
 
+impl<C: Component> Clone for NativeSingleViewRef<C> {
+    fn clone(&self) -> Self {
+        Self {
+            container: self.container,
+        }
+    }
+}
+
 impl<C: Component> NativeSingleViewRef<C> {
     pub fn resolve(
         &mut self,
@@ -37,15 +44,18 @@ impl<C: Component> NativeSingleViewRef<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.read(component)?;
-        self.container = resolver
-            .containers
-            .entries
-            .get(id.0)
-            .unwrap()
-            .container
-            .as_any()
-            .downcast_ref::<NativeSingleContainer<C>>()
-            .unwrap();
+        unsafe {
+            self.container = (&*resolver
+                .containers
+                .entries
+                .get(id.0)
+                .unwrap()
+                .container
+                .get())
+                .as_any()
+                .downcast_ref::<NativeSingleContainer<C>>()
+                .unwrap();
+        }
         Ok(())
     }
 
@@ -82,6 +92,14 @@ impl<C: Component> Default for NativeSingleViewMut<C> {
     }
 }
 
+impl<C: Component> Clone for NativeSingleViewMut<C> {
+    fn clone(&self) -> Self {
+        Self {
+            container: self.container,
+        }
+    }
+}
+
 impl<C: Component> NativeSingleViewMut<C> {
     pub fn resolve(
         &mut self,
@@ -89,15 +107,18 @@ impl<C: Component> NativeSingleViewMut<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let id = resolver.write(component)?;
-        self.container = resolver
-            .containers
-            .entries
-            .get_mut(id.0)
-            .unwrap()
-            .container
-            .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<C>>()
-            .unwrap();
+        unsafe {
+            self.container = (&mut *resolver
+                .containers
+                .entries
+                .get_mut(id.0)
+                .unwrap()
+                .container
+                .get())
+                .as_any_mut()
+                .downcast_mut::<NativeSingleContainer<C>>()
+                .unwrap();
+        }
         Ok(())
     }
 
@@ -113,7 +134,7 @@ impl<C: Component> NativeSingleViewMut<C> {
         unsafe { &mut *self.container }.add(entity, component);
     }
 
-    pub fn remove(&mut self, ctx: &mut Context, entity: Entity) {
+    pub fn remove(&mut self, entity: Entity) {
         unsafe { &mut *self.container }.remove(entity)
     }
 }

@@ -39,7 +39,7 @@ impl Default for Font {
 }
 
 impl Font {
-    pub const NAME: &'static str = "font.type";
+    pub const NAME: &'static str = "RTY_Font";
 }
 
 impl Resource for Font {

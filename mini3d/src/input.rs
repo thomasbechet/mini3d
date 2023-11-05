@@ -16,9 +16,6 @@ use self::provider::InputProvider;
 pub mod event;
 pub mod provider;
 
-pub const MAX_INPUT_NAME_LEN: usize = 64;
-pub const MAX_INPUT_DISPLAY_NAME_LEN: usize = 64;
-
 #[derive(Debug, Error)]
 pub enum InputError {
     #[error("Action not found")]
@@ -36,7 +33,7 @@ pub enum InputError {
 }
 
 #[derive(Default)]
-pub(crate) struct InputTypes {
+pub(crate) struct InputHandles {
     pub(crate) action: ResourceTypeHandle,
     pub(crate) axis: ResourceTypeHandle,
     pub(crate) text: ResourceTypeHandle,
@@ -45,7 +42,7 @@ pub(crate) struct InputTypes {
 #[derive(Default)]
 pub struct InputManager {
     provider: Box<dyn InputProvider>,
-    pub(crate) types: InputTypes,
+    pub(crate) handles: InputHandles,
 }
 
 impl InputManager {
@@ -58,11 +55,11 @@ impl InputManager {
     /// Reset action states and mouse motion
     pub(crate) fn prepare_dispatch(&mut self, resources: &mut ResourceManager) {
         // Save the previous action state
-        for action in resources.iter_native_values_mut::<InputAction>(self.types.action) {
+        for action in resources.iter_native_values_mut::<InputAction>(self.handles.action) {
             action.state.was_pressed = action.state.pressed;
         }
         // Reset text for current frame
-        for text in resources.iter_native_values_mut::<InputText>(self.types.text) {
+        for text in resources.iter_native_values_mut::<InputText>(self.handles.text) {
             text.state.value.clear();
         }
     }
@@ -143,7 +140,7 @@ impl InputManager {
         key: impl ToUID,
         resource: &ResourceManager,
     ) -> Option<InputActionHandle> {
-        resource.find_typed(key, self.types.action)
+        resource.find_typed(key, self.handles.action)
     }
 
     pub(crate) fn find_axis(
@@ -151,7 +148,7 @@ impl InputManager {
         key: impl ToUID,
         resource: &ResourceManager,
     ) -> Option<InputAxisHandle> {
-        resource.find_typed(key, self.types.axis)
+        resource.find_typed(key, self.handles.axis)
     }
 
     pub(crate) fn find_text(
@@ -159,6 +156,6 @@ impl InputManager {
         key: impl ToUID,
         resource: &ResourceManager,
     ) -> Option<InputTextHandle> {
-        resource.find_typed(key, self.types.text)
+        resource.find_typed(key, self.handles.text)
     }
 }

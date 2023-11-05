@@ -67,7 +67,8 @@ pub(crate) fn camelcase_to_snakecase(name: &str) -> String {
 impl ResourceMeta {
     fn new(ident: &Ident) -> Self {
         Self {
-            name: camelcase_to_snakecase(&ident.to_string()),
+            // name: camelcase_to_snakecase(&ident.to_string()),
+            name: "RTY_".to_owned() + &ident.to_string(),
         }
     }
 
@@ -116,13 +117,13 @@ fn derive_struct(
         }
     }
 
-    let resource_name = meta.name;
+    let name = meta.name;
 
     let q = quote! {
         impl mini3d::feature::core::resource::Resource for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #resource_name;
+            pub const NAME: &'static str = #name;
         }
     };
     Ok(q)
@@ -144,13 +145,13 @@ pub(crate) fn derive_tuple(
         }
     }
 
-    let resource_name = meta.name;
+    let name = meta.name;
 
     let q = quote! {
         impl mini3d::feature::core::resource::Resource for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #resource_name;
+            pub const NAME: &'static str = #name;
         }
     };
     Ok(q)
@@ -172,13 +173,13 @@ fn derive_enum(
         }
     }
 
-    let resource_name = meta.name;
+    let name = meta.name;
 
     let q = quote! {
         impl mini3d::feature::core::resource::Resource for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #resource_name;
+            pub const NAME: &'static str = #name;
         }
     };
     Ok(q)

@@ -1,67 +1,55 @@
 use mini3d::{
+    api::{activity::Activity, resource::Resource, time::Time, Context},
     ecs::{
-        api::{context::Context, ecs::ECS, registry::ComponentRegistry, time::Time},
-        instance::ExclusiveResolver,
+        entity::Entity,
+        error::ResolverError,
         query::Query,
-        scheduler::Invocation,
+        system::{ExclusiveSystem, SystemResolver},
+        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
-    engine::{Engine, EngineFeatures},
-    feature::common::transform::Transform,
+    engine::{Engine, EngineConfig},
+    feature::{
+        common::transform::Transform,
+        ecs::system::{System, SystemOrder, SystemSet, SystemStage},
+    },
     info,
-    registry::{
-        component::StaticComponentType,
-        error::RegistryError,
-        system::{ExclusiveSystem, SystemStage},
-    },
 };
 use mini3d_utils::stdout::StdoutLogger;
 
-#[derive(Default)]
-struct SpawnSystem;
+#[derive(Default, Clone)]
+struct SpawnSystem {
+    transform: NativeSingleViewMut<Transform>,
+}
 
 impl ExclusiveSystem for SpawnSystem {
-    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
-        // let transforms = ctx
-        //     .registry
-        //     .components
-        //     .add_static::<Transform>(Transform::NAME)
-        //     .unwrap();
-        let transforms: StaticComponentType<Transform> =
-            ComponentRegistry::find(ctx, Transform::NAME).unwrap();
-        let entity = ecs
-            .create()
-            .with(
-                transforms,
-                Transform::from_translation([0.0, 0.0, 0.0].into()),
-            )
-            .build();
-        info!(ctx, "Spawned entity: {:?}", entity);
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+        self.transform.resolve(resolver, Transform::NAME)?;
+        Ok(())
+    }
+    fn run(mut self, ctx: &mut Context) {
+        let e = Entity::add(ctx);
+        self.transform
+            .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
+        info!(ctx, "Spawned entity: {:?}", e);
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct TestSystem {
-    transforms: StaticComponentType<Transform>,
-    transform_query: Query,
+    transform: NativeSingleViewRef<Transform>,
+    query: Query,
 }
 
 impl ExclusiveSystem for TestSystem {
-    fn setup(&mut self, resolver: &mut ExclusiveResolver) -> Result<(), RegistryError> {
-        self.transforms = resolver.find(Transform::NAME)?;
-        self.transform_query = resolver.query().all(&[Transform::NAME])?.build();
+    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+        self.transform.resolve(resolver, Transform::NAME)?;
+        self.query.resolve(resolver).all(&[Transform::NAME])?;
         Ok(())
     }
 
-    fn run(&self, ecs: &mut ECS, ctx: &mut Context) {
-        // let ui = ecs.add().with(self.ui, UI::new()).build();
-        // ecs.add().with(self.button, UIButton::new(ui)).build();
-
-        let transforms = ecs.view(self.transforms);
-        // for transform in transforms.iter() {
-        //     info!(ctx, "{:?}", transform);
-        // }
-        for (i, e) in ecs.query(self.transform_query).enumerate() {
-            let transform = &transforms[e];
+    fn run(self, ctx: &mut Context) {
+        for (i, e) in self.query.iter(ctx).enumerate() {
+            let transform = &self.transform[e];
             info!(ctx, "{} {:?}", i, transform);
         }
         info!(ctx, "{:.3} {:.3}", Time::global(ctx), Time::delta(ctx));
@@ -69,14 +57,24 @@ impl ExclusiveSystem for TestSystem {
 }
 
 fn main() {
-    let mut engine = Engine::new(EngineFeatures::all());
+    let mut engine = Engine::new(EngineConfig::default().bootstrap(|ctx| {
+        let spawn = System::add_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
+        let test = System::add_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
+        let stage = SystemStage::find(ctx, SystemStage::UPDATE).unwrap();
+        let set = SystemSet::add(
+            ctx,
+            "SST_Root",
+            SystemSet::new()
+                .with("spawn", spawn, stage, SystemOrder::default())
+                .with("test", test, stage, SystemOrder::default()),
+        )
+        .unwrap();
+        Activity::add_system_set(ctx, Activity::active(ctx), set);
+        for (i, handle) in Resource::iter(ctx).enumerate() {
+            let info = Resource::info(ctx, handle).unwrap();
+            println!("[{}] {}   {}", i + 1, info.key, info.ty_name);
+        }
+    }));
     engine.set_logger_provider(StdoutLogger);
-    engine
-        .register_system::<TestSystem>("test_system", SystemStage::FIXED_UPDATE_60HZ)
-        .unwrap();
-    engine
-        .register_system::<SpawnSystem>("spawn_system", "startup")
-        .unwrap();
-    engine.invoke("startup", Invocation::NextFrame).unwrap();
     engine.progress(1.0 / 120.0).expect("Instance error");
 }

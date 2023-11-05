@@ -27,18 +27,19 @@ struct NativeExclusiveSystemReflection<S: ExclusiveSystem> {
 impl<S: ExclusiveSystem> SystemReflection for NativeExclusiveSystemReflection<S> {
     fn create_instance(&self) -> SystemInstance {
         struct InstanceHolder<S: ExclusiveSystem> {
-            system: S,
+            data: S,
         }
         impl<S: ExclusiveSystem> AnyNativeExclusiveSystemInstance for InstanceHolder<S> {
             fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-                self.system.setup(resolver)
+                self.data = Default::default();
+                self.data.setup(resolver)
             }
             fn run(&self, ctx: &mut Context) {
-                self.system.run(ctx);
+                S::run(self.data.clone(), ctx);
             }
         }
         SystemInstance::Exclusive(ExclusiveSystemInstance::Native(Box::new(InstanceHolder {
-            system: S::default(),
+            data: S::default(),
         })))
     }
 }
@@ -57,7 +58,7 @@ impl<S: ParallelSystem> SystemReflection for NativeParallelSystemReflection<S> {
                 self.system.setup(resolver)
             }
             fn run(&self, ctx: &Context) {
-                self.system.run(ctx);
+                S::run(self.system.clone(), ctx);
             }
         }
         SystemInstance::Parallel(ParallelSystemInstance::Native(Box::new(InstanceHolder {
@@ -92,7 +93,7 @@ pub struct System {
 define_resource_handle!(SystemHandle);
 
 impl System {
-    pub const NAME: &'static str = "system.type";
+    pub const NAME: &'static str = "RTY_System";
 
     pub fn native_exclusive<S: ExclusiveSystem>() -> Self {
         let reflection = NativeExclusiveSystemReflection::<S> {
@@ -138,9 +139,16 @@ pub struct SystemStage {
 define_resource_handle!(SystemStageHandle);
 
 impl SystemStage {
-    pub const NAME: &'static str = "_system_stage";
-    pub const UPDATE: &'static str = "update";
-    pub const FIXED_UPDATE_60HZ: &'static str = "fixed_update_60hz";
+    pub const NAME: &'static str = "RTY_SystemStage";
+    pub const START: &'static str = "STA_Start";
+    pub const UPDATE: &'static str = "STA_Update";
+    pub const UPDATE_60HZ: &'static str = "STA_Update60Hz";
+
+    pub fn periodic(frequency: f64) -> Self {
+        Self {
+            periodic: Some(frequency),
+        }
+    }
 }
 
 impl Resource for SystemStage {}
@@ -162,7 +170,7 @@ pub struct SystemSet(pub(crate) Vec<SystemSetEntry>);
 define_resource_handle!(SystemSetHandle);
 
 impl SystemSet {
-    pub const NAME: &'static str = "_system_set";
+    pub const NAME: &'static str = "RTY_SystemSet";
 
     pub fn new() -> Self {
         Self(Vec::new())

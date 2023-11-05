@@ -92,9 +92,7 @@ impl ModelImporter {
         // Iterate over objects
         for (object_index, object) in obj.objects.iter().enumerate() {
             // Create object mesh
-            let mut mesh = Mesh {
-                submeshes: Default::default(),
-            };
+            let mut mesh = Mesh::default();
 
             // Iterate over geometries
             for geometry in &object.geometry {

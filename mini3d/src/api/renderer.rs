@@ -31,9 +31,13 @@ impl Renderer {
 
     /// Render graphs
 
-    pub fn create_render_graph(ctx: &mut Context) -> RenderGraphHandle {}
+    pub fn create_render_graph(ctx: &mut Context) -> RenderGraphHandle {
+        Default::default()
+    }
 
-    pub fn destroy_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {}
+    pub fn destroy_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {
+        Default::default()
+    }
 
     pub fn compile_render_graph(
         ctx: &mut Context,
@@ -51,7 +55,9 @@ impl Renderer {
 
     /// Buffers
 
-    pub fn create_buffer(ctx: &mut Context) -> BufferHandle {}
+    pub fn create_buffer(ctx: &mut Context) -> BufferHandle {
+        Default::default()
+    }
 
     pub fn destroy_buffer(ctx: &mut Context, buffer: BufferHandle) {}
 
@@ -65,7 +71,9 @@ impl Renderer {
 
     /// Textures
 
-    pub fn create_texture(ctx: &mut Context) -> TextureHandle {}
+    pub fn create_texture(ctx: &mut Context) -> TextureHandle {
+        Default::default()
+    }
 
     pub fn destroy_texture(ctx: &mut Context, texture: TextureHandle) {}
 
@@ -73,17 +81,23 @@ impl Renderer {
 
     /// Font
 
-    pub fn create_font(ctx: &mut Context) -> FontHandle {}
+    pub fn create_font(ctx: &mut Context) -> FontHandle {
+        Default::default()
+    }
 
     pub fn destroy_font(ctx: &mut Context, font: FontHandle) {}
 
     /// Pipelines
 
-    pub fn create_graphics_pipeline(ctx: &mut Context) -> GraphicsPipelineHandle {}
+    pub fn create_graphics_pipeline(ctx: &mut Context) -> GraphicsPipelineHandle {
+        Default::default()
+    }
 
     pub fn destroy_graphics_pipeline(ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
 
-    pub fn create_compute_pipeline(ctx: &mut Context) -> ComputePipelineHandle {}
+    pub fn create_compute_pipeline(ctx: &mut Context) -> ComputePipelineHandle {
+        Default::default()
+    }
 
     pub fn destroy_compute_pipeline(ctx: &mut Context, pipeline: ComputePipelineHandle) {}
 

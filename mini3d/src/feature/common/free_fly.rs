@@ -50,31 +50,31 @@ impl FreeFly {
     pub const ZOOM_SPEED: f32 = 10.0;
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FreeFlySystem {
     free_fly: NativeSingleViewMut<FreeFly>,
     transform: NativeSingleViewMut<Transform>,
     query: Query,
+    value: u32,
 }
 
 impl FreeFlySystem {
-    pub const NAME: &'static str = "free_fly_system";
+    pub const NAME: &'static str = "SYS_FreeFly";
 }
 
 impl ParallelSystem for FreeFlySystem {
     fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         self.free_fly.resolve(resolver, FreeFly::NAME)?;
         self.transform.resolve(resolver, Transform::NAME)?;
-        self.query = resolver
-            .query()
-            .all(&[FreeFly::NAME, Transform::NAME])?
-            .build();
+        self.query
+            .resolve(resolver)
+            .all(&[FreeFly::NAME, Transform::NAME])?;
         Ok(())
     }
 
-    fn run(&self, ctx: &Context) {
-        for e in self.query.query(ctx) {
-            let transform = &self.transform[e];
+    fn run(mut self, ctx: &Context) {
+        for e in self.query.iter(ctx) {
+            let transform = &mut self.transform[e];
             let free_fly = &mut self.free_fly[e];
 
             // Check active

@@ -57,7 +57,8 @@ impl<'a, R: Resource> Iterator for TypedNativeResourceIteratorMut<'a, R> {
             let current = self.current;
             let entry = &self.entries[self.current.0];
             self.current = entry.next;
-            Some((current, &mut self.container.unwrap().0[entry.slot]))
+            let data = &mut self.container.take().unwrap().0[entry.slot];
+            Some((current, data))
         }
     }
 }

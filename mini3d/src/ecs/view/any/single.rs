@@ -10,7 +10,7 @@ use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 macro_rules! trait_property_ref_impl {
     ($type:ty, $read:ident) => {
         fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
-            unsafe { *self.container }.$read(entity, id)
+            unsafe { &*self.container }.$read(entity, id)
         }
     };
 }
@@ -18,10 +18,10 @@ macro_rules! trait_property_ref_impl {
 macro_rules! trait_property_mut_impl {
     ($type:ty, $read:ident, $write:ident) => {
         fn $read(&self, entity: Entity, id: PropertyId) -> Option<$type> {
-            unsafe { *self.container }.$read(entity, id)
+            unsafe { &*self.container }.$read(entity, id)
         }
         fn $write(&mut self, entity: Entity, id: PropertyId, value: $type) {
-            unsafe { *self.container }.$write(entity, id, value)
+            unsafe { &mut *self.container }.$write(entity, id, value)
         }
     };
 }
@@ -33,21 +33,22 @@ pub struct PropertySingleViewRef {
 }
 
 impl PropertySingleViewRef {
-    pub fn resolve(
-        &mut self,
-        resolver: &mut SystemResolver,
-        component: impl ToUID,
-    ) -> Result<(), ResolverError> {
-        let id = resolver.read(component)?;
-        self.container = resolver
-            .containers
-            .entries
-            .get(id.0)
-            .unwrap()
-            .container
-            .as_single();
-        Ok(())
-    }
+    // pub fn resolve(
+    //     &mut self,
+    //     resolver: &mut SystemResolver,
+    //     component: impl ToUID,
+    // ) -> Result<(), ResolverError> {
+    //     let id = resolver.read(component)?;
+    //     self.container = resolver
+    //         .containers
+    //         .entries
+    //         .get(id.0)
+    //         .unwrap()
+    //         .container
+    //         .get_mut()
+    //         .as_single();
+    //     Ok(())
+    // }
 
     trait_property_ref_impl!(bool, read_bool);
     trait_property_ref_impl!(u8, read_u8);
@@ -74,21 +75,22 @@ pub struct PropertySingleViewMut {
 }
 
 impl PropertySingleViewMut {
-    pub fn resolve(
-        &mut self,
-        resolver: &mut SystemResolver,
-        component: impl ToUID,
-    ) -> Result<(), ResolverError> {
-        let id = resolver.write(component)?;
-        self.container = resolver
-            .containers
-            .entries
-            .get_mut(id.0)
-            .unwrap()
-            .container
-            .as_single_mut();
-        Ok(())
-    }
+    // pub fn resolve(
+    //     &mut self,
+    //     resolver: &mut SystemResolver,
+    //     component: impl ToUID,
+    // ) -> Result<(), ResolverError> {
+    //     let id = resolver.write(component)?;
+    //     self.container = resolver
+    //         .containers
+    //         .entries
+    //         .get_mut(id.0)
+    //         .unwrap()
+    //         .container
+    //         .get_mut()
+    //         .as_single_mut();
+    //     Ok(())
+    // }
 
     trait_property_mut_impl!(bool, read_bool, write_bool);
     trait_property_mut_impl!(u8, read_u8, write_u8);

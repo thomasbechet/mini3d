@@ -1,0 +1,11 @@
+RTY -> ResourceType
+CTY -> ComponentType
+TEX -> Texture
+MAT -> Material
+MSH -> Mesh
+IAX -> InputAxis
+IAC -> InputAction
+ITX -> InputText
+SYS -> System
+SST -> SystemSet
+STA -> SystemStage

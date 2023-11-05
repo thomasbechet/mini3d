@@ -3,6 +3,7 @@ use crate::{
     resource::{
         error::ResourceError,
         handle::{ResourceHandle, ToResourceHandle},
+        ResourceInfo,
     },
     utils::uid::ToUID,
 };
@@ -15,16 +16,16 @@ impl Resource {
     pub fn add<R: resource::Resource>(
         ctx: &mut Context,
         ty: ResourceTypeHandle,
-        key: Option<&str>,
+        key: &str,
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
-        let handle = ctx.resource.add(data, ty, ctx.activity.active, key)?;
+        let handle = ctx.resource.add(Some(key), ty, ctx.activity.active, data)?;
         R::hook_added(
             handle,
             ResourceHookContext {
-                input: &mut ctx.input,
-                renderer: &mut ctx.renderer,
-                resource: &mut ctx.resource,
+                input: ctx.input,
+                renderer: ctx.renderer,
+                resource: ctx.resource,
             },
         );
         Ok(handle)
@@ -38,15 +39,29 @@ impl Resource {
         ctx.resource.find(key)
     }
 
-    pub fn find_type(ctx: &Context, key: impl ToUID) -> Option<ResourceTypeHandle> {
-        ctx.resource.find_type(key)
+    pub fn iter<'a>(ctx: &'a Context) -> impl Iterator<Item = ResourceHandle> + 'a {
+        ctx.resource.iter()
     }
 
-    pub fn define_type(
+    pub fn info<'a>(
+        ctx: &'a Context,
+        handle: impl ToResourceHandle,
+    ) -> Result<ResourceInfo<'a>, ResourceError> {
+        ctx.resource.info(handle)
+    }
+}
+
+impl ResourceType {
+    pub fn add(
         ctx: &mut Context,
-        name: &str,
+        key: &str,
         ty: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
-        ctx.resource.define_type(name, ty, ctx.activity.active)
+        ctx.resource
+            .add_resource_type(Some(key), ctx.activity.active, ty)
+    }
+
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ResourceTypeHandle> {
+        ctx.resource.find_type(key)
     }
 }

@@ -30,7 +30,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub const NAME: &'static str = "mesh.type";
+    pub const NAME: &'static str = "RTY_Mesh";
 }
 
 impl Resource for Mesh {

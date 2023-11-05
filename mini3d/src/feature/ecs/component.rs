@@ -77,7 +77,7 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    pub const NAME: &'static str = "component.type";
+    pub const NAME: &'static str = "RTY_ComponentType";
 
     pub fn native<C: Component>(storage: ComponentStorage) -> Self {
         let reflection = NativeComponentReflection::<C> {

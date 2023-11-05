@@ -155,7 +155,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         // Update size
         self.view_size = self.entries.len();
         // Remove components
-        for entity in self.removed.drain(..) {
+        while let Some(entity) = self.removed.pop() {
             self.remove(entity);
         }
     }

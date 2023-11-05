@@ -79,6 +79,8 @@ pub struct ResourceType {
 }
 
 impl ResourceType {
+    pub const NAME: &'static str = "RTY_Resource";
+
     pub fn native<R: Resource>() -> Self {
         let reflection = NativeResourceReflection::<R> {
             _phantom: std::marker::PhantomData,

@@ -54,12 +54,12 @@ impl ImageImporter {
         // Convert to rgba8
         let data = image.to_rgba8();
         // Build the texture
-        let texture = Texture {
-            format: TextureFormat::RGBA,
-            data: data.to_vec(),
-            width: image.width(),
-            height: image.height(),
-        };
+        let texture = Texture::new(
+            TextureFormat::RGBA,
+            data.to_vec(),
+            image.width(),
+            image.height(),
+        );
         // Return the texture import
         Ok(ImageImport {
             texture: AssetImportEntry::<Texture> {

@@ -11,7 +11,7 @@ use gui::{WindowControl, WindowGUI};
 use mapper::InputMapper;
 use mini3d::{
     ecs::scheduler::Invocation,
-    engine::{Engine, EngineFeatures},
+    engine::{Engine, EngineConfig},
     feature::common::script::Script,
     glam::Vec2,
     platform::{
@@ -145,10 +145,10 @@ fn main_run() {
     // System
     let system_status = Rc::new(RefCell::new(WinitSystemStatus::default()));
 
-    let mut instance = Engine::new(EngineFeatures::all());
+    let mut instance = Engine::new(EngineConfig::all());
     instance.set_input_provider(WinitInputProvider::new(mapper.clone()));
     instance.set_storage_provider(WinitStorageProvider::new(disk));
-    instance.set_system_provider(WinitSystemProvider::new(system_status.clone()));
+    instance.set_platform_provider(WinitSystemProvider::new(system_status.clone()));
     instance.set_renderer_provider(WinitRendererProvider::new(renderer.clone()));
     instance.set_logger_provider(StdoutLogger);
     instance

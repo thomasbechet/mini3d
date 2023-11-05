@@ -27,8 +27,8 @@ define_resource_handle!(TextureHandle);
 
 #[derive(Clone, Serialize, Default, Reflect)]
 pub struct Texture {
-    pub data: Vec<u8>,
     pub format: TextureFormat,
+    pub data: Vec<u8>,
     pub width: u32,
     pub height: u32,
     #[serialize(skip)]
@@ -36,7 +36,17 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub const NAME: &'static str = "texture.type";
+    pub const NAME: &'static str = "RTY_Texture";
+
+    pub fn new(format: TextureFormat, data: Vec<u8>, width: u32, height: u32) -> Self {
+        Self {
+            data,
+            format,
+            width,
+            height,
+            handle: RendererProviderHandle::null(),
+        }
+    }
 }
 
 impl Resource for Texture {

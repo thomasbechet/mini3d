@@ -12,7 +12,7 @@ pub struct InputText {
 }
 
 impl InputText {
-    pub const NAME: &'static str = "input_text.type";
+    pub const NAME: &'static str = "RTY_InputText";
 }
 
 impl Resource for InputText {}

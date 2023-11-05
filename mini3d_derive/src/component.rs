@@ -40,6 +40,7 @@ pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
 
 struct ComponentMeta {
     name: String,
+    script_name: String,
 }
 
 pub(crate) fn camelcase_to_snakecase(name: &str) -> String {
@@ -67,7 +68,8 @@ pub(crate) fn camelcase_to_snakecase(name: &str) -> String {
 impl ComponentMeta {
     fn new(ident: &Ident) -> Self {
         Self {
-            name: camelcase_to_snakecase(&ident.to_string()),
+            name: "CTY_".to_owned() + &ident.to_string(),
+            script_name: camelcase_to_snakecase(&ident.to_string()),
         }
     }
 
@@ -116,7 +118,8 @@ fn derive_struct(
         }
     }
 
-    let component_name = meta.name;
+    let component_type_name = meta.name;
+    let script_name = meta.script_name;
 
     let q = quote! {
         impl mini3d::feature::ecs::component::Component for #ident #ty_generics #where_clause {
@@ -124,7 +127,8 @@ fn derive_struct(
         }
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #component_name;
+            pub const NAME: &'static str = #component_type_name;
+            pub const SCRIPT_NAME: &'static str = #script_name;
         }
     };
     Ok(q)
@@ -146,13 +150,15 @@ pub(crate) fn derive_tuple(
         }
     }
 
-    let component_name = meta.name;
+    let name = meta.name;
+    let script_name = meta.script_name;
 
     let q = quote! {
         impl mini3d::feature::ecs::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #component_name;
+            pub const NAME: &'static str = #name;
+            pub const SCRIPT_NAME: &'static str = #script_name;
         }
     };
     Ok(q)
@@ -174,13 +180,15 @@ fn derive_enum(
         }
     }
 
-    let component_name = meta.name;
+    let name = meta.name;
+    let script_name = meta.script_name;
 
     let q = quote! {
         impl mini3d::feature::ecs::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
-            pub const NAME: &'static str = #component_name;
+            pub const NAME: &'static str = #name;
+            pub const SCRIPT_NAME: &'static str = #script_name;
         }
     };
     Ok(q)

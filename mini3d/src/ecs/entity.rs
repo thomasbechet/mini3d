@@ -58,6 +58,7 @@ impl Serialize for Entity {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum EntityChange {
     Added(Entity),
     Removed(Entity),

@@ -4,47 +4,43 @@ use crate::{
         core::resource::ResourceTypeHandle,
         ecs::{
             component::{ComponentId, ComponentType, ComponentTypeHandle},
-            system::{System, SystemKind, SystemSet, SystemSetHandle},
+            system::{
+                System, SystemHandle, SystemKind, SystemSet, SystemSetHandle, SystemStageHandle,
+            },
         },
     },
     resource::ResourceManager,
-    utils::slotmap::{SlotId, SlotMap},
 };
 
 use super::{container::ContainerTable, error::ResolverError};
 
-pub(crate) struct SystemInstanceId(pub(crate) SlotId);
-
-pub trait ExclusiveSystem: 'static + Default {
-    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+pub trait ExclusiveSystem: 'static + Default + Clone {
+    fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         Ok(())
     }
-    fn run(&self, ctx: &mut Context) {}
+    fn run(self, _ctx: &mut Context) {}
 }
 
-pub trait ParallelSystem: 'static + Default {
-    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+pub trait ParallelSystem: 'static + Default + Clone {
+    fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         Ok(())
     }
-    fn run(&self, ctx: &Context) {}
+    fn run(self, _ctx: &Context) {}
 }
 
 use crate::{feature::common::program::Program, utils::uid::ToUID};
 
-use super::{
-    entity::EntityTable,
-    query::{QueryBuilder, QueryTable},
-};
+use super::{entity::EntityTable, query::QueryTable};
 
 pub struct SystemResolver<'a> {
-    component_type: ResourceTypeHandle,
-    reads: Vec<ComponentId>,
-    writes: &'a mut Vec<ComponentId>,
-    all: &'a mut Vec<ComponentId>,
-    any: &'a mut Vec<ComponentId>,
-    not: &'a mut Vec<ComponentId>,
-    entities: &'a mut EntityTable,
-    queries: &'a mut QueryTable,
+    pub(crate) component_type: ResourceTypeHandle,
+    pub(crate) reads: Vec<ComponentId>,
+    pub(crate) writes: &'a mut Vec<ComponentId>,
+    pub(crate) all: &'a mut Vec<ComponentId>,
+    pub(crate) any: &'a mut Vec<ComponentId>,
+    pub(crate) not: &'a mut Vec<ComponentId>,
+    pub(crate) entities: &'a mut EntityTable,
+    pub(crate) queries: &'a mut QueryTable,
     pub(crate) containers: &'a mut ContainerTable,
     pub(crate) resources: &'a mut ResourceManager,
 }
@@ -76,22 +72,6 @@ impl<'a> SystemResolver<'a> {
             self.writes.push(id);
         }
         Ok(id)
-    }
-
-    pub fn query(&mut self) -> QueryBuilder<'_> {
-        self.all.clear();
-        self.any.clear();
-        self.not.clear();
-        QueryBuilder {
-            component_type: self.component_type,
-            all: self.all,
-            any: self.any,
-            not: self.not,
-            entities: self.entities,
-            queries: self.queries,
-            containers: self.containers,
-            resources: self.resources,
-        }
     }
 }
 
@@ -154,7 +134,8 @@ pub(crate) enum SystemInstance {
 
 pub(crate) struct SystemInstanceEntry {
     pub(crate) set: SystemSetHandle,
-    pub(crate) index: usize,
+    pub(crate) stage: SystemStageHandle,
+    pub(crate) system: SystemHandle,
     pub(crate) instance: SystemInstance,
     pub(crate) writes: Vec<ComponentId>,
 }
@@ -194,36 +175,35 @@ impl SystemInstanceEntry {
 
 #[derive(Default)]
 pub(crate) struct SystemTable {
-    pub(crate) sets: Vec<SystemSetHandle>,
-    pub(crate) instances: SlotMap<SystemInstanceEntry>,
+    pub(crate) instances: Vec<SystemInstanceEntry>,
 }
 
 impl SystemTable {
     pub(crate) fn insert_system_set(
         &mut self,
-        handle: SystemSetHandle,
+        set: SystemSetHandle,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
-        resources: &mut ResourceManager,
+        resource: &mut ResourceManager,
     ) -> Result<(), ResolverError> {
-        // Check existing system set
-        if self.sets.iter().find(|e| **e == handle).is_some() {
+        // Check already existing system set
+        if self.instances.iter().any(|instance| instance.set == set) {
             return Ok(());
         }
         // Acquire resource
-        resources.increment_ref(handle);
-        self.sets.push(handle);
-        let set = resources.get::<SystemSet>(handle).unwrap();
-        // Add systems
-        for (index, entry) in set.0.iter().enumerate() {
-            let system = resources.get::<System>(entry.system).unwrap();
-            match system.kind {
+        resource.increment_ref(set).unwrap();
+        let system_set = resource.get::<SystemSet>(set).unwrap();
+        // Add instances
+        for entry in system_set.0.iter() {
+            let system = resource.get::<System>(entry.system).unwrap();
+            match &system.kind {
                 SystemKind::Native(reflection) => {
                     let instance = reflection.create_instance();
-                    self.instances.add(SystemInstanceEntry {
-                        set: handle,
-                        index,
+                    self.instances.push(SystemInstanceEntry {
+                        set,
+                        system: entry.system,
+                        stage: entry.stage,
                         instance,
                         writes: Vec::new(),
                     });
@@ -234,10 +214,14 @@ impl SystemTable {
             }
         }
         // Setup instances
-        let component_type = resources.find_type(ComponentType::NAME).unwrap();
-        for entry in self.instances.values_mut() {
-            entry.setup(entities, queries, containers, resources, component_type)?;
+        let component_type = resource.find_type(ComponentType::NAME).unwrap();
+        for entry in self.instances.iter_mut() {
+            entry.setup(entities, queries, containers, resource, component_type)?;
         }
         Ok(())
+    }
+
+    pub(crate) fn remove_system_set(&mut self, set: SystemSetHandle) {
+        self.instances.retain(|instance| instance.set != set);
     }
 }

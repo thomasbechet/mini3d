@@ -3,10 +3,6 @@ use mini3d_derive::Error;
 use crate::{
     ecs::ECSManager,
     feature::{core::activity::ActivityDescriptorHandle, ecs::system::SystemSetHandle},
-    input::InputManager,
-    logger::LoggerManager,
-    platform::PlatformManager,
-    renderer::RendererManager,
     resource::ResourceManager,
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -15,28 +11,18 @@ use crate::{
 };
 
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ActivityId(pub(crate) SlotId);
+pub struct ActivityHandle(pub(crate) SlotId);
 
-impl ActivityId {
-    pub(crate) fn null() -> Self {
+impl ActivityHandle {
+    pub fn null() -> Self {
         Self(SlotId::null())
     }
 }
 
 pub(crate) struct ActivityEntry {
     pub(crate) name: AsciiArray<32>,
-    pub(crate) parent: ActivityId,
+    pub(crate) parent: ActivityHandle,
     pub(crate) ecs: SlotId,
-}
-
-pub(crate) struct ActivityUpdateContext<'a> {
-    pub(crate) resource: &'a mut ResourceManager,
-    pub(crate) input: &'a mut InputManager,
-    pub(crate) renderer: &'a mut RendererManager,
-    pub(crate) system: &'a mut PlatformManager,
-    pub(crate) logger: &'a mut LoggerManager,
-    pub(crate) delta_time: f64,
-    pub(crate) global_time: f64,
 }
 
 #[derive(Debug, Error)]
@@ -46,27 +32,28 @@ pub enum ActivityError {
 }
 
 pub enum ActivityCommand {
-    Start(ActivityId, ActivityDescriptorHandle),
-    Stop(ActivityId),
-    InjectSystemSet(ActivityId, SystemSetHandle),
+    Start(ActivityHandle, ActivityDescriptorHandle),
+    Stop(ActivityHandle),
+    AddSystemSet(ActivityHandle, SystemSetHandle),
+    RemoveSystemSet(ActivityHandle, SystemSetHandle),
 }
 
 #[derive(Default)]
 pub(crate) struct ActivityManager {
-    pub(crate) root: ActivityId,
-    pub(crate) active: ActivityId,
-    pub(crate) entries: SlotMap<ActivityEntry>,
+    pub(crate) root: ActivityHandle,
+    pub(crate) active: ActivityHandle,
+    pub(crate) activities: SlotMap<ActivityEntry>,
     pub(crate) commands: Vec<ActivityCommand>,
 }
 
 impl ActivityManager {
-    pub(crate) fn add(
+    pub(crate) fn start(
         &mut self,
         name: &str,
-        parent: ActivityId,
+        parent: ActivityHandle,
         descriptor: ActivityDescriptorHandle,
-    ) -> ActivityId {
-        let activity = ActivityId(self.entries.add(ActivityEntry {
+    ) -> ActivityHandle {
+        let activity = ActivityHandle(self.activities.add(ActivityEntry {
             name: name.into(),
             parent,
             ecs: SlotId::null(),
@@ -76,30 +63,56 @@ impl ActivityManager {
         activity
     }
 
-    pub(crate) fn remove(&mut self, activity: ActivityId) {
+    pub(crate) fn stop(&mut self, activity: ActivityHandle) {
         self.commands.push(ActivityCommand::Stop(activity));
     }
 
+    pub(crate) fn add_system_set(&mut self, activity: ActivityHandle, set: SystemSetHandle) {
+        self.commands
+            .push(ActivityCommand::AddSystemSet(activity, set));
+    }
+
+    pub(crate) fn remove_system_set(&mut self, activity: ActivityHandle, set: SystemSetHandle) {
+        self.commands
+            .push(ActivityCommand::RemoveSystemSet(activity, set));
+    }
+
     pub(crate) fn flush_commands(&mut self, ecs: &mut ECSManager, resource: &mut ResourceManager) {
-        for command in self.commands.drain(..) {
+        for command in self.commands.drain(..).collect::<Vec<_>>() {
             match command {
-                ActivityCommand::Start(id, desc) => self.entries[id.0].ecs = ecs.add(id),
-                ActivityCommand::Stop(id) => {
-                    self.remove_entry(id);
+                ActivityCommand::Start(activity, desc) => {
+                    self.activities[activity.0].ecs = ecs.add(activity)
                 }
-                ActivityCommand::InjectSystemSet(id, set) => todo!(),
+                ActivityCommand::Stop(activity) => {
+                    self.remove_entry(activity);
+                }
+                ActivityCommand::AddSystemSet(activity, set) => {
+                    let instance = &mut ecs.instances[self.activities[activity.0].ecs];
+                    instance
+                        .systems
+                        .insert_system_set(
+                            set,
+                            &mut instance.entities,
+                            &mut instance.queries,
+                            &mut instance.containers,
+                            resource,
+                        )
+                        .expect("Failed to insert system set");
+                    instance.scheduler.rebuild(&instance.systems, resource);
+                }
+                ActivityCommand::RemoveSystemSet(activity, set) => todo!(),
             }
         }
     }
 
-    fn remove_entry(&mut self, activity: ActivityId) {
+    fn remove_entry(&mut self, activity: ActivityHandle) {
         // Find childs
         let childs = self
-            .entries
+            .activities
             .iter()
             .filter_map(|(id, e)| {
                 if e.parent == activity {
-                    Some(ActivityId(id))
+                    Some(ActivityHandle(id))
                 } else {
                     None
                 }
@@ -111,10 +124,10 @@ impl ActivityManager {
         }
         // Remove activity
         let slot = self
-            .entries
+            .activities
             .iter()
             .find_map(|(id, e)| if id == activity.0 { Some(id) } else { None })
             .unwrap();
-        self.entries.remove(slot);
+        self.activities.remove(slot);
     }
 }
