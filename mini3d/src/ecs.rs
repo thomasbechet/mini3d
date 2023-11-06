@@ -1,7 +1,10 @@
 use crate::{
     activity::{ActivityError, ActivityHandle, ActivityManager},
     api::{time::TimeAPI, Context},
-    feature::{core::resource::ResourceTypeHandle, ecs::system::SystemStageHandle},
+    feature::{
+        core::resource::ResourceTypeHandle,
+        ecs::{component::ComponentId, system::SystemStageHandle},
+    },
     input::InputManager,
     logger::LoggerManager,
     platform::PlatformManager,
@@ -69,7 +72,7 @@ impl ECSInstance {
             }
             self.entities.changes.clear();
             // Component changes
-            for write in &self.instance.writes {
+            for write in &self.systems.instances[instance].writes {
                 let entry = self.containers.entries.get_mut(write.0).unwrap();
                 entry.container.get_mut().flush_changes(
                     &mut self.entities,
@@ -150,8 +153,8 @@ impl ECSManager {
             // Execute node
             if node.count == 1 {
                 // Find instance
-                let instance = ecs.scheduler.instance_indices[node.first];
-                let instance = &ecs.systems.instances[instance];
+                let instance_index = ecs.scheduler.instance_indices[node.first];
+                let instance = &ecs.systems.instances[instance_index];
 
                 // Run the system
                 match &instance.instance {
@@ -200,44 +203,46 @@ impl ECSManager {
                 }
 
                 // Flush structural changes
-                {
-                    // Entity changes
-                    let mut i = 0;
-                    while i < ecs.entities.changes.len() {
-                        let change = ecs.entities.changes[i];
-                        match change {
-                            EntityChange::Added(entity) => {
-                                // Set default entity archetype
-                                let archetype = &mut ecs.entities.archetypes.entries
-                                    [ecs.entities.archetypes.empty];
-                                let pool_index = archetype.pool.len();
-                                archetype.pool.push(entity);
-                                // Update entity info
-                                ecs.entities.entries.set(
-                                    entity.key(),
-                                    EntityEntry {
-                                        archetype: ecs.entities.archetypes.empty,
-                                        pool_index: pool_index as u32,
-                                    },
-                                );
-                            }
-                            EntityChange::Removed(entity) => {
-                                ecs.entities.remove(entity, &mut ecs.containers);
-                            }
-                        }
-                        i += 1;
-                    }
-                    ecs.entities.changes.clear();
-                    // Component changes
-                    for write in &instance.writes {
-                        let entry = ecs.containers.entries.get_mut(write.0).unwrap();
-                        entry.container.get_mut().flush_changes(
-                            &mut ecs.entities,
-                            &mut ecs.queries,
-                            *write,
-                        );
-                    }
-                }
+                ecs.flush_changes(instance_index);
+                println!("FLUSHED!");
+                // {
+                //     // Entity changes
+                //     let mut i = 0;
+                //     while i < ecs.entities.changes.len() {
+                //         let change = ecs.entities.changes[i];
+                //         match change {
+                //             EntityChange::Added(entity) => {
+                //                 // Set default entity archetype
+                //                 let archetype = &mut ecs.entities.archetypes.entries
+                //                     [ecs.entities.archetypes.empty];
+                //                 let pool_index = archetype.pool.len();
+                //                 archetype.pool.push(entity);
+                //                 // Update entity info
+                //                 ecs.entities.entries.set(
+                //                     entity.key(),
+                //                     EntityEntry {
+                //                         archetype: ecs.entities.archetypes.empty,
+                //                         pool_index: pool_index as u32,
+                //                     },
+                //                 );
+                //             }
+                //             EntityChange::Removed(entity) => {
+                //                 ecs.entities.remove(entity, &mut ecs.containers);
+                //             }
+                //         }
+                //         i += 1;
+                //     }
+                //     ecs.entities.changes.clear();
+                //     // Component changes
+                //     for write in &instance.writes {
+                //         let entry = ecs.containers.entries.get_mut(write.0).unwrap();
+                //         entry.container.get_mut().flush_changes(
+                //             &mut ecs.entities,
+                //             &mut ecs.queries,
+                //             *write,
+                //         );
+                //     }
+                // }
             } else {
                 // TODO: use thread pool
             }

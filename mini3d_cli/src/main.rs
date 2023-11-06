@@ -24,6 +24,7 @@ struct SpawnSystem {
 impl ExclusiveSystem for SpawnSystem {
     fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         self.transform.resolve(resolver, Transform::NAME)?;
+        println!("RESOLVED");
         Ok(())
     }
     fn run(mut self, ctx: &mut Context) {
