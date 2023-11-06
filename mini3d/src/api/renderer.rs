@@ -3,11 +3,14 @@ use glam::{Mat4, Vec4};
 use crate::{
     feature::renderer::{
         buffer::BufferHandle,
-        font::FontHandle,
+        font::{Font, FontHandle},
         graph::{RenderGraphError, RenderGraphHandle},
-        pass::{CanvasPassHandle, ComputePassHandle, CopyPassHandle, GraphicsPassHandle},
+        pass::{
+            CanvasPass, CanvasPassHandle, ComputePass, ComputePassHandle, CopyPass, CopyPassHandle,
+            GraphicsPass, GraphicsPassHandle,
+        },
         pipeline::{ComputePipelineHandle, GraphicsPipelineHandle},
-        texture::TextureHandle,
+        texture::{Texture, TextureHandle},
     },
     renderer::{
         command::{
@@ -19,6 +22,30 @@ use crate::{
 };
 
 use super::Context;
+
+impl Texture {
+    pub fn create(ctx: &mut Context) -> TextureHandle {
+        todo!()
+    }
+
+    pub fn destroy(ctx: &mut Context, texture: TextureHandle) {}
+
+    pub fn find(ctx: &Context, name: impl ToUID) -> TextureHandle {
+        todo!()
+    }
+}
+
+impl Font {
+    pub fn create(ctx: &mut Context) -> FontHandle {
+        todo!()
+    }
+
+    pub fn destroy(ctx: &mut Context, font: FontHandle) {}
+
+    pub fn find(ctx: &Context, name: impl ToUID) -> FontHandle {
+        todo!()
+    }
+}
 
 pub struct Renderer;
 
@@ -69,24 +96,6 @@ impl Renderer {
 
     pub fn write_buffer_mat4(ctx: &mut Context, buffer: BufferHandle, index: u32, data: Mat4) {}
 
-    /// Textures
-
-    pub fn create_texture(ctx: &mut Context) -> TextureHandle {
-        Default::default()
-    }
-
-    pub fn destroy_texture(ctx: &mut Context, texture: TextureHandle) {}
-
-    pub fn update_texture(ctx: &mut Context, texture: TextureHandle) {}
-
-    /// Font
-
-    pub fn create_font(ctx: &mut Context) -> FontHandle {
-        Default::default()
-    }
-
-    pub fn destroy_font(ctx: &mut Context, font: FontHandle) {}
-
     /// Pipelines
 
     pub fn create_graphics_pipeline(ctx: &mut Context) -> GraphicsPipelineHandle {
@@ -100,60 +109,60 @@ impl Renderer {
     }
 
     pub fn destroy_compute_pipeline(ctx: &mut Context, pipeline: ComputePipelineHandle) {}
+}
 
-    /// Graphics passes
-
-    pub fn find_graphics_pass(ctx: &Context, name: impl ToUID) -> GraphicsPassHandle {
+impl GraphicsPass {
+    pub fn find(ctx: &Context, name: impl ToUID) -> GraphicsPassHandle {
         todo!()
     }
 
-    pub fn begin_graphics_pass(ctx: &Context, pass: GraphicsPassHandle) -> GraphicsCommandBuffer {
+    pub fn begin(ctx: &Context, pass: GraphicsPassHandle) -> GraphicsCommandBuffer {
         todo!()
     }
 
-    pub fn end_graphics_pass(cmd: GraphicsCommandBuffer) {
+    pub fn end(cmd: GraphicsCommandBuffer) {
+        todo!()
+    }
+}
+
+impl CanvasPass {
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<CanvasPassHandle> {
         todo!()
     }
 
-    /// Canvas passes
-
-    pub fn find_canvas_pass(ctx: &Context, name: impl ToUID) -> Option<CanvasPassHandle> {
+    pub fn begin(ctx: &Context, pass: CanvasPassHandle) -> CanvasCommandBuffer {
         todo!()
     }
 
-    pub fn begin_canvas_pass(ctx: &Context, pass: CanvasPassHandle) -> CanvasCommandBuffer {
+    pub fn end(cmd: CanvasCommandBuffer) {
+        todo!()
+    }
+}
+
+impl ComputePass {
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<ComputePassHandle> {
         todo!()
     }
 
-    pub fn end_canvas_pass(cmd: CanvasCommandBuffer) {
+    pub fn begin(ctx: &Context, pass: ComputePassHandle) -> ComputeCommandBuffer {
         todo!()
     }
 
-    /// Compute passes
+    pub fn end(cmd: ComputeCommandBuffer) {
+        todo!()
+    }
+}
 
-    pub fn find_compute_pass(ctx: &Context, name: impl ToUID) -> Option<ComputePassHandle> {
+impl CopyPass {
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<CopyPassHandle> {
         todo!()
     }
 
-    pub fn begin_compute_pass(ctx: &Context, pass: ComputePassHandle) -> ComputeCommandBuffer {
+    pub fn begin(ctx: &Context, pass: CopyPassHandle) -> CopyCommandBuffer {
         todo!()
     }
 
-    pub fn end_compute_pass(cmd: ComputeCommandBuffer) {
-        todo!()
-    }
-
-    /// Copy passes
-
-    pub fn find_copy_pass(ctx: &Context, name: impl ToUID) -> Option<CopyPassHandle> {
-        todo!()
-    }
-
-    pub fn begin_copy_pass(ctx: &Context, pass: CopyPassHandle) -> CopyCommandBuffer {
-        todo!()
-    }
-
-    pub fn end_copy_pass(cmd: CopyCommandBuffer) {
+    pub fn end(cmd: CopyCommandBuffer) {
         todo!()
     }
 }
