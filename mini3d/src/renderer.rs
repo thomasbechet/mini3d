@@ -62,6 +62,8 @@ pub(crate) struct RendererHandles {
     pub(crate) material: ResourceTypeHandle,
     pub(crate) mesh: ResourceTypeHandle,
     pub(crate) font: ResourceTypeHandle,
+    pub(crate) render_graph: ResourceTypeHandle,
+    pub(crate) model: ResourceTypeHandle,
 }
 
 #[derive(Default)]

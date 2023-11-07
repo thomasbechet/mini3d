@@ -112,7 +112,8 @@ impl Engine {
         self.renderer.handles.material = define_resource!(renderer::material::Material);
         self.renderer.handles.mesh = define_resource!(renderer::mesh::Mesh);
         self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
-        define_resource!(renderer::model::Model);
+        self.renderer.handles.render_graph = define_resource!(renderer::graph::RenderGraph);
+        self.renderer.handles.model = define_resource!(renderer::model::Model);
 
         define_resource!(core::activity::ActivityDescriptor);
         define_resource!(core::structure::StructDefinition);

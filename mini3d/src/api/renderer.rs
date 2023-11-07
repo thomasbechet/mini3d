@@ -4,7 +4,9 @@ use crate::{
     feature::renderer::{
         buffer::BufferHandle,
         font::{Font, FontHandle},
-        graph::{RenderGraphError, RenderGraphHandle},
+        graph::{RenderGraph, RenderGraphError, RenderGraphHandle},
+        mesh::{Mesh, MeshHandle},
+        model::{Model, ModelHandle},
         pass::{
             CanvasPass, CanvasPassHandle, ComputePass, ComputePassHandle, CopyPass, CopyPassHandle,
             GraphicsPass, GraphicsPassHandle,
@@ -30,8 +32,8 @@ impl Texture {
 
     pub fn destroy(ctx: &mut Context, texture: TextureHandle) {}
 
-    pub fn find(ctx: &Context, name: impl ToUID) -> TextureHandle {
-        todo!()
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<TextureHandle> {
+        ctx.resource.find_typed(key, ctx.renderer.handles.texture)
     }
 }
 
@@ -42,8 +44,45 @@ impl Font {
 
     pub fn destroy(ctx: &mut Context, font: FontHandle) {}
 
-    pub fn find(ctx: &Context, name: impl ToUID) -> FontHandle {
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<FontHandle> {
+        ctx.resource.find_typed(key, ctx.renderer.handles.font)
+    }
+}
+
+impl Mesh {
+    pub fn create(ctx: &mut Context) -> MeshHandle {
         todo!()
+    }
+
+    pub fn destroy(ctx: &mut Context, mesh: MeshHandle) {}
+
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<MeshHandle> {
+        ctx.resource.find_typed(key, ctx.renderer.handles.mesh)
+    }
+}
+
+impl RenderGraph {
+    pub fn create(ctx: &mut Context) -> RenderGraphHandle {
+        todo!()
+    }
+
+    pub fn destroy(ctx: &mut Context, graph: RenderGraphHandle) {}
+
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<RenderGraphHandle> {
+        ctx.resource
+            .find_typed(key, ctx.renderer.handles.render_graph)
+    }
+}
+
+impl Model {
+    pub fn create(ctx: &mut Context) -> ModelHandle {
+        todo!()
+    }
+
+    pub fn destroy(ctx: &mut Context, model: ModelHandle) {}
+
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ModelHandle> {
+        ctx.resource.find_typed(key, ctx.renderer.handles.model)
     }
 }
 
@@ -57,14 +96,6 @@ impl Renderer {
     }
 
     /// Render graphs
-
-    pub fn create_render_graph(ctx: &mut Context) -> RenderGraphHandle {
-        Default::default()
-    }
-
-    pub fn destroy_render_graph(ctx: &mut Context, graph: RenderGraphHandle) {
-        Default::default()
-    }
 
     pub fn compile_render_graph(
         ctx: &mut Context,
