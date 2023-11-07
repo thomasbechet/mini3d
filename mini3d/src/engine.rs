@@ -90,7 +90,7 @@ impl Engine {
         macro_rules! define_resource {
             ($resource: ty) => {
                 self.resource
-                    .add_resource_type(
+                    .create_resource_type(
                         Some(<$resource>::NAME),
                         self.activity.root,
                         ResourceType::native::<$resource>(),
@@ -128,7 +128,7 @@ impl Engine {
         macro_rules! define_component {
             ($component: ty, $storage: expr) => {
                 self.resource
-                    .add(
+                    .create(
                         Some(<$component>::NAME),
                         self.ecs.handles.component,
                         self.activity.root,
@@ -141,7 +141,7 @@ impl Engine {
         macro_rules! define_exclusive_system {
             ($system: ty) => {
                 self.resource
-                    .add(
+                    .create(
                         self.ecs.handles.system,
                         Some(<$system>::NAME),
                         self.activity.root,
@@ -154,7 +154,7 @@ impl Engine {
         macro_rules! define_parallel_system {
             ($system: ty) => {
                 self.resource
-                    .add(
+                    .create(
                         Some(<$system>::NAME),
                         self.ecs.handles.system,
                         self.activity.root,
@@ -198,7 +198,7 @@ impl Engine {
 
         self.ecs.handles.update_stage = self
             .resource
-            .add(
+            .create(
                 Some(SystemStage::UPDATE),
                 self.ecs.handles.system_stage,
                 self.activity.root,
@@ -208,7 +208,7 @@ impl Engine {
             .into();
         self.ecs.handles.start_stage = self
             .resource
-            .add(
+            .create(
                 Some(SystemStage::START),
                 self.ecs.handles.system_stage,
                 self.activity.root,
@@ -217,7 +217,7 @@ impl Engine {
             .unwrap()
             .into();
         self.resource
-            .add(
+            .create(
                 Some(SystemStage::UPDATE_60HZ),
                 self.ecs.handles.system_stage,
                 self.activity.root,

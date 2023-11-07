@@ -140,7 +140,7 @@ impl ResourceManager {
         container
     }
 
-    pub(crate) fn add<R: Resource>(
+    pub(crate) fn create<R: Resource>(
         &mut self,
         key: Option<&str>,
         ty: ResourceTypeHandle,
@@ -196,13 +196,13 @@ impl ResourceManager {
         Ok(handle)
     }
 
-    pub(crate) fn add_resource_type(
+    pub(crate) fn create_resource_type(
         &mut self,
         key: Option<&str>,
         owner: ActivityHandle,
         data: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
-        self.add(key, self.meta_type, owner, data)
+        self.create(key, self.meta_type, owner, data)
             .map(|handle| handle.into())
     }
 

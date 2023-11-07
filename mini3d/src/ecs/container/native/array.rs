@@ -137,25 +137,20 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-        id: ComponentId,
+        component: ComponentId,
     ) {
         // Added components
         for entry in self.entries[self.view_size..].iter() {
-            // Find currrent archetype
-            let current_archetype = entities.entries.get(entry.entity.key()).unwrap().archetype;
-            // Find next archetype
-            let archetype = entities.archetypes.find_add(queries, current_archetype, id);
-            // Update archetype
-            entities
-                .entries
-                .get_mut(entry.entity.key())
-                .unwrap()
-                .archetype = archetype;
+            // Move entity
+            entities.move_entity_add(queries, entry.entity, component);
         }
         // Update size
         self.view_size = self.entries.len();
         // Remove components
         while let Some(entity) = self.removed.pop() {
+            // Move entity
+            entities.move_entity_remove(queries, entity, component);
+            // Remove component
             self.remove(entity);
         }
     }

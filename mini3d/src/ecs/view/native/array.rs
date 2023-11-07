@@ -25,16 +25,16 @@ impl<C: Component> NativeArrayViewRef<C> {
     ) -> Result<(), ResolverError> {
         let id = resolver.read(component)?;
         unsafe {
-            self.container = (&*resolver
+            self.container = (*resolver
                 .containers
                 .entries
                 .get(id.0)
                 .unwrap()
                 .container
                 .get())
-                .as_any()
-                .downcast_ref::<NativeArrayContainer<C>>()
-                .unwrap();
+            .as_any()
+            .downcast_ref::<NativeArrayContainer<C>>()
+            .unwrap();
         }
         Ok(())
     }
@@ -64,16 +64,16 @@ impl<C: Component> NativeArrayViewMut<C> {
     ) -> Result<(), ResolverError> {
         let id = resolver.write(component)?;
         unsafe {
-            self.container = (&mut *resolver
+            self.container = (*resolver
                 .containers
                 .entries
                 .get_mut(id.0)
                 .unwrap()
                 .container
                 .get())
-                .as_any_mut()
-                .downcast_mut::<NativeArrayContainer<C>>()
-                .unwrap();
+            .as_any_mut()
+            .downcast_mut::<NativeArrayContainer<C>>()
+            .unwrap();
         }
         Ok(())
     }

@@ -49,7 +49,7 @@ impl ECSInstance {
             while i < self.entities.changes.len() {
                 let change = self.entities.changes[i];
                 match change {
-                    EntityChange::Added(entity) => {
+                    EntityChange::Created(entity) => {
                         // Set default entity archetype
                         let archetype =
                             &mut self.entities.archetypes.entries[self.entities.archetypes.empty];
@@ -64,7 +64,7 @@ impl ECSInstance {
                             },
                         );
                     }
-                    EntityChange::Removed(entity) => {
+                    EntityChange::Destroyed(entity) => {
                         self.entities.remove(entity, &mut self.containers);
                     }
                 }
@@ -204,45 +204,6 @@ impl ECSManager {
 
                 // Flush structural changes
                 ecs.flush_changes(instance_index);
-                println!("FLUSHED!");
-                // {
-                //     // Entity changes
-                //     let mut i = 0;
-                //     while i < ecs.entities.changes.len() {
-                //         let change = ecs.entities.changes[i];
-                //         match change {
-                //             EntityChange::Added(entity) => {
-                //                 // Set default entity archetype
-                //                 let archetype = &mut ecs.entities.archetypes.entries
-                //                     [ecs.entities.archetypes.empty];
-                //                 let pool_index = archetype.pool.len();
-                //                 archetype.pool.push(entity);
-                //                 // Update entity info
-                //                 ecs.entities.entries.set(
-                //                     entity.key(),
-                //                     EntityEntry {
-                //                         archetype: ecs.entities.archetypes.empty,
-                //                         pool_index: pool_index as u32,
-                //                     },
-                //                 );
-                //             }
-                //             EntityChange::Removed(entity) => {
-                //                 ecs.entities.remove(entity, &mut ecs.containers);
-                //             }
-                //         }
-                //         i += 1;
-                //     }
-                //     ecs.entities.changes.clear();
-                //     // Component changes
-                //     for write in &instance.writes {
-                //         let entry = ecs.containers.entries.get_mut(write.0).unwrap();
-                //         entry.container.get_mut().flush_changes(
-                //             &mut ecs.entities,
-                //             &mut ecs.queries,
-                //             *write,
-                //         );
-                //     }
-                // }
             } else {
                 // TODO: use thread pool
             }

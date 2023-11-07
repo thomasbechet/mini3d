@@ -28,7 +28,7 @@ impl ExclusiveSystem for SpawnSystem {
         Ok(())
     }
     fn run(mut self, ctx: &mut Context) {
-        let e = Entity::add(ctx);
+        let e = Entity::create(ctx);
         self.transform
             .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
         info!(ctx, "Spawned entity: {:?}", e);
@@ -59,10 +59,10 @@ impl ExclusiveSystem for TestSystem {
 
 fn main() {
     let mut engine = Engine::new(EngineConfig::default().bootstrap(|ctx| {
-        let spawn = System::add_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
-        let test = System::add_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
+        let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
+        let test = System::create_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
         let stage = SystemStage::find(ctx, SystemStage::UPDATE).unwrap();
-        let set = SystemSet::add(
+        let set = SystemSet::create(
             ctx,
             "SST_Root",
             SystemSet::new()
@@ -78,4 +78,5 @@ fn main() {
     }));
     engine.set_logger_provider(StdoutLogger);
     engine.progress(1.0 / 120.0).expect("Instance error");
+    println!("DONE");
 }

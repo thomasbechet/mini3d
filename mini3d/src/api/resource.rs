@@ -13,13 +13,15 @@ use super::Context;
 pub struct Resource;
 
 impl Resource {
-    pub fn add<R: resource::Resource>(
+    pub fn create<R: resource::Resource>(
         ctx: &mut Context,
         ty: ResourceTypeHandle,
         key: &str,
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
-        let handle = ctx.resource.add(Some(key), ty, ctx.activity.active, data)?;
+        let handle = ctx
+            .resource
+            .create(Some(key), ty, ctx.activity.active, data)?;
         R::hook_added(
             handle,
             ResourceHookContext {
@@ -31,7 +33,7 @@ impl Resource {
         Ok(handle)
     }
 
-    pub fn add_any(ctx: &mut Context, ty: impl ToResourceHandle, key: Option<&str>) {
+    pub fn create_any(ctx: &mut Context, ty: impl ToResourceHandle, key: Option<&str>) {
         todo!()
     }
 
@@ -52,13 +54,13 @@ impl Resource {
 }
 
 impl ResourceType {
-    pub fn add(
+    pub fn create(
         ctx: &mut Context,
         key: &str,
         ty: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
         ctx.resource
-            .add_resource_type(Some(key), ctx.activity.active, ty)
+            .create_resource_type(Some(key), ctx.activity.active, ty)
     }
 
     pub fn find(ctx: &Context, key: impl ToUID) -> Option<ResourceTypeHandle> {

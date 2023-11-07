@@ -10,19 +10,10 @@ pub struct StructField {
     ty: PrimitiveType,
 }
 
-#[derive(Serialize, Reflect, Resource)]
+#[derive(Default, Serialize, Reflect, Resource)]
 pub struct StructDefinition {
     name: AsciiArray<32>,
     fields: Vec<StructField>,
-}
-
-impl Default for StructDefinition {
-    fn default() -> Self {
-        Self {
-            name: AsciiArray::default(),
-            fields: Vec::new(),
-        }
-    }
 }
 
 define_resource_handle!(StructDefinitionHandle);

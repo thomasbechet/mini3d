@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    archetype::{Archetype, ArchetypeEntry},
+    archetype::{ArchetypeEntry, ArchetypeId},
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
@@ -43,6 +43,7 @@ impl Query {
     }
 
     pub fn iter<'a>(&self, ctx: &'a Context) -> impl Iterator<Item = Entity> + 'a {
+        println!("Query: {:?}", self.0);
         ctx.queries.entries[self.0]
             .archetypes
             .iter()
@@ -68,7 +69,7 @@ pub(crate) struct QueryEntry {
     pub(crate) all: Range<usize>,
     pub(crate) any: Range<usize>,
     pub(crate) not: Range<usize>,
-    pub(crate) archetypes: Vec<Archetype>,
+    pub(crate) archetypes: Vec<ArchetypeId>,
 }
 
 #[derive(Default)]

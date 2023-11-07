@@ -1,9 +1,10 @@
 use glam::{IVec2, Mat4, Vec2};
 
 use crate::{
+    api::Context,
     feature::renderer::{
-        buffer::BufferHandle,
         font::FontHandle,
+        mesh::MeshHandle,
         pipeline::{ComputePipelineHandle, GraphicsPipelineHandle},
         texture::{TextureHandle, TextureWrapMode},
     },
@@ -15,19 +16,21 @@ use super::color::Color;
 pub struct GraphicsCommandBuffer {}
 
 impl GraphicsCommandBuffer {
-    pub fn set_pipeline(&mut self, pipeline: GraphicsPipelineHandle) {}
+    pub fn set_pipeline(&mut self, ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
 
-    pub fn set_vertex_buffer(&mut self, buffer: BufferHandle) {}
+    pub fn set_vertex_buffer(&mut self, ctx: &mut Context, binding: u32) {}
 
-    pub fn set_texture(&mut self, texture: TextureHandle, binding: u32) {}
+    pub fn set_texture(&mut self, ctx: &mut Context, texture: TextureHandle, binding: u32) {}
 
-    pub fn push_vec2(&mut self, binding: u32, value: Vec2) {}
+    pub fn set_vec2(&mut self, ctx: &mut Context, binding: u32, value: Vec2) {}
 
-    pub fn push_vec4(&mut self, binding: u32, value: Vec2) {}
+    pub fn set_vec4(&mut self, ctx: &mut Context, binding: u32, value: Vec2) {}
 
-    pub fn push_mat4(&mut self, binding: u32, value: Mat4) {}
+    pub fn set_mat4(&mut self, ctx: &mut Context, binding: u32, value: Mat4) {}
 
-    pub fn draw(&mut self, vertex_count: u32, instance_count: u32) {}
+    pub fn draw(&mut self, ctx: &mut Context, vertex_count: u32, instance_count: u32) {}
+
+    pub fn draw_mesh(&mut self, ctx: &mut Context, mesh: MeshHandle) {}
 }
 
 pub struct CanvasCommandBuffer {}

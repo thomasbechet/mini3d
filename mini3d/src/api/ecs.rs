@@ -17,24 +17,24 @@ use crate::{
 use super::Context;
 
 impl Entity {
-    pub fn add(ctx: &mut Context) -> Entity {
+    pub fn create(ctx: &mut Context) -> Entity {
         let entity = ctx.entities.generate_entity();
-        ctx.entities.changes.push(EntityChange::Added(entity));
+        ctx.entities.changes.push(EntityChange::Created(entity));
         entity
     }
 
-    pub fn remove(ctx: &mut Context, entity: Entity) {
-        ctx.entities.changes.push(EntityChange::Removed(entity));
+    pub fn destroy(ctx: &mut Context, entity: Entity) {
+        ctx.entities.changes.push(EntityChange::Destroyed(entity));
     }
 }
 
 impl System {
-    pub fn add_native_exclusive<S: ExclusiveSystem>(
+    pub fn create_native_exclusive<S: ExclusiveSystem>(
         ctx: &mut Context,
         key: &str,
     ) -> Result<SystemHandle, ResourceError> {
         ctx.resource
-            .add(
+            .create(
                 Some(key),
                 ctx.ecs_types.system,
                 ctx.activity.active,
@@ -43,12 +43,12 @@ impl System {
             .map(SystemHandle)
     }
 
-    pub fn add_native_parallel<S: ParallelSystem>(
+    pub fn create_native_parallel<S: ParallelSystem>(
         ctx: &mut Context,
         key: &str,
     ) -> Result<SystemHandle, ResourceError> {
         ctx.resource
-            .add(
+            .create(
                 Some(key),
                 ctx.ecs_types.system,
                 ctx.activity.active,
@@ -59,13 +59,13 @@ impl System {
 }
 
 impl SystemSet {
-    pub fn add(
+    pub fn create(
         ctx: &mut Context,
         key: &str,
         set: SystemSet,
     ) -> Result<SystemSetHandle, ResourceError> {
         ctx.resource
-            .add(
+            .create(
                 Some(key),
                 ctx.ecs_types.system_set,
                 ctx.activity.active,
@@ -86,13 +86,13 @@ impl SystemStage {
 }
 
 impl ComponentType {
-    pub fn add(
+    pub fn create(
         ctx: &mut Context,
         key: &str,
         ty: ComponentType,
     ) -> Result<ComponentTypeHandle, ResourceError> {
         ctx.resource
-            .add(Some(key), ctx.ecs_types.component, ctx.activity.active, ty)
+            .create(Some(key), ctx.ecs_types.component, ctx.activity.active, ty)
             .map(ComponentTypeHandle)
     }
 

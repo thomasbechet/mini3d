@@ -10,7 +10,7 @@ use super::{
     query::{query_archetype_match, QueryTable},
 };
 
-pub(crate) type Archetype = SlotId;
+pub(crate) type ArchetypeId = SlotId;
 
 #[derive(Debug)]
 pub(crate) struct ArchetypeEntry {
@@ -45,8 +45,8 @@ type ArchetypeEdgeId = usize;
 #[derive(Debug)]
 struct ArchetypeEdge {
     component: ComponentId,
-    add: Option<Archetype>,
-    remove: Option<Archetype>,
+    add: Option<ArchetypeId>,
+    remove: Option<ArchetypeId>,
     previous: Option<ArchetypeEdgeId>,
 }
 
@@ -54,7 +54,7 @@ pub(crate) struct ArchetypeTable {
     pub(crate) components: Vec<ComponentId>,
     pub(crate) entries: SlotMap<ArchetypeEntry>,
     edges: Vec<ArchetypeEdge>,
-    pub(crate) empty: Archetype,
+    pub(crate) empty: ArchetypeId,
 }
 
 impl ArchetypeTable {
@@ -69,7 +69,11 @@ impl ArchetypeTable {
         table
     }
 
-    fn found_edge(&self, archetype: Archetype, component: ComponentId) -> Option<ArchetypeEdgeId> {
+    fn found_edge(
+        &self,
+        archetype: ArchetypeId,
+        component: ComponentId,
+    ) -> Option<ArchetypeEdgeId> {
         let mut current = self.entries[archetype].last_edge;
         while let Some(edge) = current {
             if self.edges[edge].component == component {
@@ -80,7 +84,7 @@ impl ArchetypeTable {
         None
     }
 
-    fn link(&mut self, a: Archetype, b: Archetype, component: ComponentId) {
+    fn link(&mut self, a: ArchetypeId, b: ArchetypeId, component: ComponentId) {
         assert!(a != b);
         // Link a to b (add)
         if let Some(id) = self.found_edge(a, component) {
@@ -110,7 +114,7 @@ impl ArchetypeTable {
         }
     }
 
-    fn link_if_previous(&mut self, a: Archetype, b: Archetype) {
+    fn link_if_previous(&mut self, a: ArchetypeId, b: ArchetypeId) {
         // Check if previous
         if self.entries[a].component_range.len() == self.entries[b].component_range.len() + 1
             && self.entries[b].is_subset_of(&self.entries[b], &self.components)
@@ -133,9 +137,9 @@ impl ArchetypeTable {
     pub(crate) fn find_add(
         &mut self,
         queries: &mut QueryTable,
-        archetype: Archetype,
+        archetype: ArchetypeId,
         component: ComponentId,
-    ) -> Archetype {
+    ) -> ArchetypeId {
         // Find from existing edges
         if let Some(id) = self.found_edge(archetype, component) {
             if let Some(add) = self.edges[id].add {
@@ -177,22 +181,44 @@ impl ArchetypeTable {
         new_archetype
     }
 
-    pub(crate) fn components(&self, archetype: Archetype) -> &[ComponentId] {
+    pub(crate) fn find_remove(
+        &mut self,
+        queries: &mut QueryTable,
+        archetype: ArchetypeId,
+        component: ComponentId,
+    ) -> ArchetypeId {
+        // Find edge
+        if let Some(id) = self.found_edge(archetype, component) {
+            if let Some(remove) = self.edges[id].remove {
+                return remove;
+            }
+        }
+        // Find brut force
+        let mut next = self.empty;
+        for i in self.entries[archetype].component_range.clone() {
+            if self.components[i] != component {
+                next = self.find_add(queries, next, self.components[i]);
+            }
+        }
+        next
+    }
+
+    pub(crate) fn components(&self, archetype: ArchetypeId) -> &[ComponentId] {
         let archetype = &self.entries[archetype];
         &self.components[archetype.component_range.clone()]
     }
 }
 
-impl Index<Archetype> for ArchetypeTable {
+impl Index<ArchetypeId> for ArchetypeTable {
     type Output = ArchetypeEntry;
 
-    fn index(&self, id: Archetype) -> &Self::Output {
+    fn index(&self, id: ArchetypeId) -> &Self::Output {
         self.entries.get(id).unwrap()
     }
 }
 
-impl IndexMut<Archetype> for ArchetypeTable {
-    fn index_mut(&mut self, id: Archetype) -> &mut Self::Output {
+impl IndexMut<ArchetypeId> for ArchetypeTable {
+    fn index_mut(&mut self, id: ArchetypeId) -> &mut Self::Output {
         self.entries.get_mut(id).unwrap()
     }
 }

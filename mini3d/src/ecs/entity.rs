@@ -1,8 +1,13 @@
-use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use crate::{
+    feature::ecs::component::ComponentId,
+    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
+    utils::slotmap::SlotId,
+};
 
 use super::{
-    archetype::{Archetype, ArchetypeTable},
+    archetype::{ArchetypeId, ArchetypeTable},
     container::ContainerTable,
+    query::QueryTable,
     sparse::PagedVector,
 };
 
@@ -60,13 +65,13 @@ impl Serialize for Entity {
 
 #[derive(Clone, Copy)]
 pub(crate) enum EntityChange {
-    Added(Entity),
-    Removed(Entity),
+    Created(Entity),
+    Destroyed(Entity),
 }
 
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityEntry {
-    pub(crate) archetype: Archetype,
+    pub(crate) archetype: ArchetypeId,
     pub(crate) pool_index: u32,
 }
 
@@ -100,7 +105,7 @@ impl EntityTable {
             .for_each(|component| {
                 containers.remove(entity, *component);
             });
-        // In all cases, we want to remove the entity from the pool
+        // Remove the entity from the pool
         let archetype = &mut self.archetypes[info.archetype];
         let last_entity = archetype.pool.last().copied();
         archetype.pool.swap_remove(info.pool_index as usize);
@@ -110,9 +115,49 @@ impl EntityTable {
         }
     }
 
+    pub(crate) fn move_entity_add(
+        &mut self,
+        queries: &mut QueryTable,
+        entity: Entity,
+        component: ComponentId,
+    ) {
+        let archetype = self.entries.get(entity.key()).unwrap().archetype;
+        let new_archetype = self.archetypes.find_add(queries, archetype, component);
+        self.move_entity(entity, new_archetype);
+    }
+
+    pub(crate) fn move_entity_remove(
+        &mut self,
+        queries: &mut QueryTable,
+        entity: Entity,
+        component: ComponentId,
+    ) {
+        let archetype = self.entries.get(entity.key()).unwrap().archetype;
+        let new_archetype = self.archetypes.find_remove(queries, archetype, component);
+        self.move_entity(entity, new_archetype);
+    }
+
+    fn move_entity(&mut self, entity: Entity, new_archetype: SlotId) {
+        // Find currrent archetype
+        let entity_entry = self.entries.get(entity.key()).unwrap();
+        let current_archetype = entity_entry.archetype;
+        // Remove from current archetype
+        let archetype = &mut self.archetypes.entries[current_archetype];
+        let last_entity = archetype.pool.last().copied();
+        archetype.pool.swap_remove(entity_entry.pool_index as usize);
+        if let Some(last_entity) = last_entity {
+            // Remap last entity
+            self.entries.get_mut(last_entity.key()).unwrap().pool_index = entity_entry.pool_index;
+        }
+        // Update archetype
+        self.entries.get_mut(entity.key()).unwrap().archetype = new_archetype;
+        // Add to new archetype
+        self.archetypes.entries[new_archetype].pool.push(entity);
+    }
+
     pub(crate) fn iter_pool_entities(
         &self,
-        archetype: Archetype,
+        archetype: ArchetypeId,
     ) -> impl Iterator<Item = Entity> + '_ {
         if let Some(archetype) = self.archetypes.entries.get(archetype) {
             archetype.pool.iter().copied()
