@@ -146,11 +146,11 @@ fn main_run() {
     let system_status = Rc::new(RefCell::new(WinitSystemStatus::default()));
 
     let mut instance = Engine::new(EngineConfig::all());
-    instance.set_input_provider(WinitInputProvider::new(mapper.clone()));
-    instance.set_storage_provider(WinitStorageProvider::new(disk));
-    instance.set_platform_provider(WinitSystemProvider::new(system_status.clone()));
-    instance.set_renderer_provider(WinitRendererProvider::new(renderer.clone()));
-    instance.set_logger_provider(StdoutLogger);
+    instance.set_input(WinitInputProvider::new(mapper.clone()));
+    instance.set_storage(WinitStorageProvider::new(disk));
+    instance.set_platform(WinitSystemProvider::new(system_status.clone()));
+    instance.set_renderer(WinitRendererProvider::new(renderer.clone()));
+    instance.set_logger(StdoutLogger);
     instance
         .register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
         .unwrap();

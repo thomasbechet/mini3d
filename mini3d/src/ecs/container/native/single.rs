@@ -107,7 +107,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         }
     }
 
-    fn flush_changes(
+    fn flush_added(
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
@@ -116,17 +116,25 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         // Added components
         for (data, entity) in self.data[self.view_size..].iter() {
             // Move entity
-            entities.move_entity_add(queries, *entity, component);
+            entities.move_added_entity(queries, *entity, component);
         }
-        // Update size
-        self.view_size = self.data.len();
+    }
+
+    fn flush_removed(
+        &mut self,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
+        component: ComponentId,
+    ) {
         // Removed components
         while let Some(entity) = self.removed.pop() {
             // Move entity
-            entities.move_entity_remove(queries, entity, component);
+            entities.move_removed_entity(queries, entity, component);
             // Remove component
             self.remove(entity);
         }
+        // Update size
+        self.view_size = self.data.len();
     }
 
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {

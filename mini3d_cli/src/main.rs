@@ -9,7 +9,10 @@ use mini3d::{
     },
     engine::{Engine, EngineConfig},
     feature::{
-        common::transform::Transform,
+        common::{
+            free_fly::FreeFlySystem,
+            transform::{PropagateTransforms, Transform},
+        },
         ecs::system::{System, SystemOrder, SystemSet, SystemStage},
     },
     info,
@@ -29,6 +32,14 @@ impl ExclusiveSystem for SpawnSystem {
     }
     fn run(mut self, ctx: &mut Context) {
         let e = Entity::create(ctx);
+        for i in 0..2 {
+            let e = Entity::create(ctx);
+            self.transform
+                .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
+            if i == 1 {
+                Entity::destroy(ctx, e);
+            }
+        }
         self.transform
             .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
         info!(ctx, "Spawned entity: {:?}", e);
@@ -61,13 +72,22 @@ fn main() {
     let mut engine = Engine::new(EngineConfig::default().bootstrap(|ctx| {
         let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
         let test = System::create_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
+        let propagate_transform = System::find(ctx, PropagateTransforms::NAME).unwrap();
+        let free_fly = System::find(ctx, FreeFlySystem::NAME).unwrap();
         let stage = SystemStage::find(ctx, SystemStage::UPDATE).unwrap();
         let set = SystemSet::create(
             ctx,
             "SST_Root",
             SystemSet::new()
                 .with("spawn", spawn, stage, SystemOrder::default())
-                .with("test", test, stage, SystemOrder::default()),
+                .with("test", test, stage, SystemOrder::default())
+                .with(
+                    "propagate_transforms",
+                    propagate_transform,
+                    stage,
+                    SystemOrder::default(),
+                )
+                .with("free_fly", free_fly, stage, SystemOrder::default()),
         )
         .unwrap();
         Activity::add_system_set(ctx, Activity::active(ctx), set);
@@ -76,7 +96,7 @@ fn main() {
             println!("[{}] {}   {}", i + 1, info.key, info.ty_name);
         }
     }));
-    engine.set_logger_provider(StdoutLogger);
+    engine.set_logger(StdoutLogger);
     engine.progress(1.0 / 120.0).expect("Instance error");
     println!("DONE");
 }

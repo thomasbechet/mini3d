@@ -8,7 +8,7 @@ use crate::disk::DiskManager;
 use crate::ecs::{ECSManager, ECSUpdateContext};
 use crate::feature::core::resource::ResourceType;
 use crate::feature::ecs::component::{ComponentStorage, ComponentType};
-use crate::feature::ecs::system::{System, SystemSet, SystemStage};
+use crate::feature::ecs::system::{System, SystemStage};
 use crate::feature::{common, core, ecs, input, renderer};
 use crate::input::provider::InputProvider;
 use crate::input::InputManager;
@@ -228,7 +228,7 @@ impl Engine {
 
     fn run_bootstrap(&mut self, config: &EngineConfig) {
         if let Some(bootstrap) = config.bootstrap {
-            let root = &mut self.ecs.instances[self.activity.root.0];
+            let (root, _) = &mut self.ecs.instances[self.activity.root.0];
             bootstrap(&mut Context {
                 activity: &mut self.activity,
                 resource: &mut self.resource,
@@ -240,10 +240,7 @@ impl Engine {
                     delta: 0.0,
                     global: 0.0,
                 },
-                containers: &mut root.containers,
-                entities: &mut root.entities,
-                queries: &mut root.queries,
-                scheduler: &mut root.scheduler,
+                ecs: root,
                 ecs_types: &self.ecs.handles,
             });
             // Flush activity commands
@@ -273,23 +270,23 @@ impl Engine {
         engine
     }
 
-    pub fn set_renderer_provider(&mut self, provider: impl RendererProvider + 'static) {
+    pub fn set_renderer(&mut self, provider: impl RendererProvider + 'static) {
         self.renderer.set_provider(Box::new(provider));
     }
 
-    pub fn set_input_provider(&mut self, provider: impl InputProvider + 'static) {
+    pub fn set_input(&mut self, provider: impl InputProvider + 'static) {
         self.input.set_provider(Box::new(provider));
     }
 
-    pub fn set_platform_provider(&mut self, provider: impl PlatformProvider + 'static) {
+    pub fn set_platform(&mut self, provider: impl PlatformProvider + 'static) {
         self.platform.set_provider(Box::new(provider));
     }
 
-    pub fn set_storage_provider(&mut self, provider: impl DiskProvider + 'static) {
+    pub fn set_storage(&mut self, provider: impl DiskProvider + 'static) {
         self.storage.set_provider(Box::new(provider));
     }
 
-    pub fn set_logger_provider(&mut self, provider: impl LoggerProvider + 'static) {
+    pub fn set_logger(&mut self, provider: impl LoggerProvider + 'static) {
         self.logger.set_provider(Box::new(provider));
     }
 

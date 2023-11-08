@@ -55,7 +55,6 @@ pub struct FreeFlySystem {
     free_fly: NativeSingleViewMut<FreeFly>,
     transform: NativeSingleViewMut<Transform>,
     query: Query,
-    value: u32,
 }
 
 impl FreeFlySystem {

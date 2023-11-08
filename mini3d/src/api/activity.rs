@@ -31,4 +31,12 @@ impl Activity {
     pub fn remove_system_set(ctx: &mut Context, activity: ActivityHandle, set: SystemSetHandle) {
         ctx.activity.remove_system_set(activity, set);
     }
+
+    pub fn enable_system_set(
+        ctx: &mut Context,
+        activity: ActivityHandle,
+        set: SystemSetHandle,
+        enabled: bool,
+    ) {
+    }
 }

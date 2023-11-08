@@ -26,7 +26,13 @@ pub(crate) trait Container {
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
     fn mark_removed(&mut self, entity: Entity);
     fn remove(&mut self, entity: Entity);
-    fn flush_changes(
+    fn flush_added(
+        &mut self,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
+        id: ComponentId,
+    );
+    fn flush_removed(
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,

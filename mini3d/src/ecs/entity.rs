@@ -65,12 +65,6 @@ impl Serialize for Entity {
     }
 }
 
-#[derive(Clone, Copy)]
-pub(crate) enum EntityChange {
-    Created(Entity),
-    Destroyed(Entity),
-}
-
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityEntry {
     pub(crate) archetype: ArchetypeId,
@@ -82,7 +76,6 @@ pub(crate) struct EntityTable {
     pub(crate) entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
     pub(crate) free_entities: Vec<Entity>,
     pub(crate) next_entity: Entity,
-    pub(crate) changes: Vec<EntityChange>,
 }
 
 impl EntityTable {
@@ -118,7 +111,7 @@ impl EntityTable {
         }
     }
 
-    pub(crate) fn move_entity_add(
+    pub(crate) fn move_added_entity(
         &mut self,
         queries: &mut QueryTable,
         entity: Entity,
@@ -132,7 +125,7 @@ impl EntityTable {
         self.move_entity(entity, new_archetype);
     }
 
-    pub(crate) fn move_entity_remove(
+    pub(crate) fn move_removed_entity(
         &mut self,
         queries: &mut QueryTable,
         entity: Entity,
@@ -174,7 +167,6 @@ impl Default for EntityTable {
             entries: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),
-            changes: Vec::new(),
         }
     }
 }

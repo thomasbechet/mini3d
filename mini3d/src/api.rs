@@ -1,9 +1,6 @@
 use crate::{
     activity::ActivityManager,
-    ecs::{
-        container::ContainerTable, entity::EntityTable, query::QueryTable, scheduler::Scheduler,
-        ECSHandles,
-    },
+    ecs::{ECSHandles, ECSInstance},
     input::InputManager,
     logger::LoggerManager,
     platform::PlatformManager,
@@ -30,9 +27,6 @@ pub struct Context<'a> {
     pub(crate) platform: &'a mut PlatformManager,
     pub(crate) logger: &'a mut LoggerManager,
     pub(crate) time: TimeAPI,
-    pub(crate) containers: &'a mut ContainerTable,
-    pub(crate) entities: &'a mut EntityTable,
-    pub(crate) queries: &'a mut QueryTable,
-    pub(crate) scheduler: &'a mut Scheduler,
+    pub(crate) ecs: &'a mut ECSInstance,
     pub(crate) ecs_types: &'a ECSHandles,
 }

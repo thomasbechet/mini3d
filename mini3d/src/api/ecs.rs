@@ -1,6 +1,6 @@
 use crate::{
     ecs::{
-        entity::{Entity, EntityChange},
+        entity::Entity,
         scheduler::Invocation,
         system::{ExclusiveSystem, ParallelSystem},
     },
@@ -18,13 +18,13 @@ use super::Context;
 
 impl Entity {
     pub fn create(ctx: &mut Context) -> Entity {
-        let entity = ctx.entities.generate_entity();
-        ctx.entities.changes.push(EntityChange::Created(entity));
+        let entity = ctx.ecs.entities.generate_entity();
+        ctx.ecs.entity_created.push(entity);
         entity
     }
 
     pub fn destroy(ctx: &mut Context, entity: Entity) {
-        ctx.entities.changes.push(EntityChange::Destroyed(entity));
+        ctx.ecs.entity_destroyed.push(entity);
     }
 }
 
@@ -56,6 +56,10 @@ impl System {
             )
             .map(SystemHandle)
     }
+
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<SystemHandle> {
+        ctx.resource.find_typed(key, ctx.ecs_types.system)
+    }
 }
 
 impl SystemSet {
@@ -77,7 +81,7 @@ impl SystemSet {
 
 impl SystemStage {
     pub fn invoke(ctx: &mut Context, stage: SystemStageHandle, invocation: Invocation) {
-        ctx.scheduler.invoke(stage, invocation)
+        ctx.ecs.scheduler.invoke(stage, invocation)
     }
 
     pub fn find(ctx: &Context, key: impl ToUID) -> Option<SystemStageHandle> {

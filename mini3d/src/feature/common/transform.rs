@@ -109,7 +109,7 @@ impl ParallelSystem for PropagateTransforms {
         Ok(())
     }
 
-    fn run(mut self, ctx: &Context) {
+    fn run(mut self, _ctx: &Context) {
         // Reset all flags
         let mut entities = Vec::new();
         for e in self.query.iter() {

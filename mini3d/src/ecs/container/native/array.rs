@@ -133,7 +133,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         }
     }
 
-    fn flush_changes(
+    fn flush_added(
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
@@ -142,17 +142,25 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         // Added components
         for entry in self.entries[self.view_size..].iter() {
             // Move entity
-            entities.move_entity_add(queries, entry.entity, component);
+            entities.move_added_entity(queries, entry.entity, component);
         }
-        // Update size
-        self.view_size = self.entries.len();
+    }
+
+    fn flush_removed(
+        &mut self,
+        entities: &mut EntityTable,
+        queries: &mut QueryTable,
+        component: ComponentId,
+    ) {
         // Remove components
         while let Some(entity) = self.removed.pop() {
             // Move entity
-            entities.move_entity_remove(queries, entity, component);
+            entities.move_removed_entity(queries, entity, component);
             // Remove component
             self.remove(entity);
         }
+        // Update size
+        self.view_size = self.entries.len();
     }
 
     fn serialize(&self, mut encoder: &mut dyn Encoder) -> Result<(), EncoderError> {

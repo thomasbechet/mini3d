@@ -87,18 +87,17 @@ impl ActivityManager {
                     self.remove_entry(activity);
                 }
                 ActivityCommand::AddSystemSet(activity, set) => {
-                    let instance = &mut ecs.instances[self.activities[activity.0].ecs];
-                    instance
-                        .systems
+                    let (ecs, systems) = &mut ecs.instances[self.activities[activity.0].ecs];
+                    systems
                         .insert_system_set(
                             set,
-                            &mut instance.entities,
-                            &mut instance.queries,
-                            &mut instance.containers,
+                            &mut ecs.entities,
+                            &mut ecs.queries,
+                            &mut ecs.containers,
                             resource,
                         )
                         .expect("Failed to insert system set");
-                    instance.scheduler.rebuild(&instance.systems, resource);
+                    ecs.scheduler.rebuild(&systems, resource);
                 }
                 ActivityCommand::RemoveSystemSet(activity, set) => todo!(),
             }
