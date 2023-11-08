@@ -1,7 +1,6 @@
-use std::ops::Range;
+use std::{cell::UnsafeCell, ops::Range};
 
 use crate::{
-    api::Context,
     feature::{
         core::resource::ResourceTypeHandle,
         ecs::component::{ComponentId, ComponentTypeHandle},
@@ -14,15 +13,27 @@ use crate::{
 };
 
 use super::{
-    archetype::{ArchetypeEntry, ArchetypeId},
+    archetype::{ArchetypeEntry, ArchetypeId, ArchetypeTable},
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
     system::SystemResolver,
 };
 
-#[derive(Default, PartialEq, Eq, Clone, Copy)]
-pub struct Query(pub(crate) SlotId);
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub struct Query {
+    pub(crate) query: *const QueryEntry,
+    pub(crate) archetypes: *const ArchetypeTable,
+}
+
+impl Default for Query {
+    fn default() -> Self {
+        Self {
+            query: std::ptr::null(),
+            archetypes: std::ptr::null(),
+        }
+    }
+}
 
 impl Query {
     pub fn resolve<'a>(&'a mut self, resolver: &'a mut SystemResolver) -> QueryBuilder<'a> {
@@ -30,7 +41,7 @@ impl Query {
         resolver.any.clear();
         resolver.not.clear();
         QueryBuilder {
-            id: &mut self.0,
+            query: &mut self.query,
             component_type: resolver.component_type,
             all: resolver.all,
             any: resolver.any,
@@ -42,25 +53,19 @@ impl Query {
         }
     }
 
-    pub fn iter<'a>(&self, ctx: &'a Context) -> impl Iterator<Item = Entity> + 'a {
-        println!("Query: {:?}", self.0);
-        ctx.queries.entries[self.0]
+    pub fn iter(&'_ self) -> impl Iterator<Item = Entity> + '_ {
+        unsafe { &*self.query }
             .archetypes
             .iter()
-            .flat_map(|archetype| ctx.entities.iter_pool_entities(*archetype))
-    }
-}
-
-pub struct EntityIterator {
-    pub(crate) archetype_index: usize,
-    pub(crate) entity_index: usize,
-}
-
-impl Iterator for EntityIterator {
-    type Item = Entity;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        None
+            .flat_map(|archetype| {
+                unsafe { &*self.archetypes }
+                    .entries
+                    .get(*archetype)
+                    .unwrap()
+                    .pool
+                    .iter()
+                    .copied()
+            })
     }
 }
 
@@ -75,7 +80,7 @@ pub(crate) struct QueryEntry {
 #[derive(Default)]
 pub(crate) struct QueryTable {
     pub(crate) components: Vec<ComponentId>,
-    pub(crate) entries: SlotMap<QueryEntry>,
+    pub(crate) entries: SlotMap<Box<UnsafeCell<QueryEntry>>>,
 }
 
 pub(crate) fn query_archetype_match(
@@ -128,6 +133,7 @@ impl QueryTable {
         not: &[ComponentId],
     ) -> Option<SlotId> {
         for (id, query) in self.entries.iter() {
+            let query = unsafe { &*query.get() };
             if query.all.len() != all.len() {
                 continue;
             }
@@ -169,18 +175,19 @@ impl QueryTable {
         query.all = start..start + all.len();
         query.any = start + all.len()..start + all.len() + any.len();
         query.not = start + all.len() + any.len()..start + all.len() + any.len() + not.len();
-        let id = self.entries.add(query);
+        let id = self.entries.add(Box::new(UnsafeCell::new(query)));
         // Bind new query to existing archetypes
-        for archetype in entities.archetypes.entries.keys() {
-            let archetype_entry = &entities.archetypes[archetype];
-            let query_entry = &self.entries[id];
+        let archetypes = entities.archetypes.get_mut();
+        for archetype in archetypes.entries.keys() {
+            let archetype_entry = &archetypes[archetype];
+            let query_entry = self.entries[id].get_mut();
             if query_archetype_match(
                 query_entry,
                 &self.components,
                 archetype_entry,
-                &entities.archetypes.components,
+                &archetypes.components,
             ) {
-                self.entries[id].archetypes.push(archetype);
+                self.entries[id].get_mut().archetypes.push(archetype);
             }
         }
         id
@@ -188,7 +195,7 @@ impl QueryTable {
 }
 
 pub struct QueryBuilder<'a> {
-    pub(crate) id: &'a mut SlotId,
+    pub(crate) query: &'a mut *const QueryEntry,
     pub(crate) component_type: ResourceTypeHandle,
     pub(crate) all: &'a mut Vec<ComponentId>,
     pub(crate) any: &'a mut Vec<ComponentId>,
@@ -243,10 +250,11 @@ impl<'a> QueryBuilder<'a> {
 impl<'a> Drop for QueryBuilder<'a> {
     fn drop(&mut self) {
         if let Some(id) = self.queries.find_same_query(self.all, self.any, self.not) {
-            *self.id = id;
+            *self.query = self.queries.entries.get(id).unwrap().get();
         }
-        *self.id = self
+        let id = self
             .queries
             .add_query(self.entities, self.all, self.any, self.not);
+        *self.query = self.queries.entries.get(id).unwrap().get();
     }
 }

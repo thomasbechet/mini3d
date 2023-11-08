@@ -170,12 +170,12 @@ impl ArchetypeTable {
         for query_entry in queries.entries.values_mut() {
             let archetype_entry = &self.entries[new_archetype];
             if query_archetype_match(
-                query_entry,
+                query_entry.get_mut(),
                 &queries.components,
                 archetype_entry,
                 &self.components,
             ) {
-                query_entry.archetypes.push(new_archetype);
+                query_entry.get_mut().archetypes.push(new_archetype);
             }
         }
         new_archetype

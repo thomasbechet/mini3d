@@ -112,7 +112,7 @@ impl ParallelSystem for PropagateTransforms {
     fn run(mut self, ctx: &Context) {
         // Reset all flags
         let mut entities = Vec::new();
-        for e in self.query.iter(ctx) {
+        for e in self.query.iter() {
             self.local_to_world[e].dirty = true;
             entities.push(e);
         }

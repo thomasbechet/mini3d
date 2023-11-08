@@ -40,7 +40,7 @@ impl ParallelSystem for RotatorSystem {
     }
 
     fn run(mut self, ctx: &Context) {
-        for e in self.query.iter(ctx) {
+        for e in self.query.iter() {
             self.transform[e].rotation *= Quat::from_axis_angle(
                 Vec3::Y,
                 Time::delta(ctx) as f32 * f32::to_radians(self.rotator[e].speed),

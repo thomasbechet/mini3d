@@ -1,3 +1,5 @@
+use std::cell::UnsafeCell;
+
 use crate::{
     feature::ecs::component::ComponentId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
@@ -76,7 +78,7 @@ pub(crate) struct EntityEntry {
 }
 
 pub(crate) struct EntityTable {
-    pub(crate) archetypes: ArchetypeTable,
+    pub(crate) archetypes: UnsafeCell<ArchetypeTable>,
     pub(crate) entries: PagedVector<EntityEntry>, // EntityKey -> EntityInfo
     pub(crate) free_entities: Vec<Entity>,
     pub(crate) next_entity: Entity,
@@ -100,13 +102,14 @@ impl EntityTable {
             .push(Entity::new(entity.key(), entity.version() + 1));
         // Remove components from containers
         self.archetypes
+            .get_mut()
             .components(info.archetype)
             .iter()
             .for_each(|component| {
                 containers.remove(entity, *component);
             });
         // Remove the entity from the pool
-        let archetype = &mut self.archetypes[info.archetype];
+        let archetype = &mut self.archetypes.get_mut()[info.archetype];
         let last_entity = archetype.pool.last().copied();
         archetype.pool.swap_remove(info.pool_index as usize);
         if let Some(last_entity) = last_entity {
@@ -122,7 +125,10 @@ impl EntityTable {
         component: ComponentId,
     ) {
         let archetype = self.entries.get(entity.key()).unwrap().archetype;
-        let new_archetype = self.archetypes.find_add(queries, archetype, component);
+        let new_archetype = self
+            .archetypes
+            .get_mut()
+            .find_add(queries, archetype, component);
         self.move_entity(entity, new_archetype);
     }
 
@@ -133,7 +139,10 @@ impl EntityTable {
         component: ComponentId,
     ) {
         let archetype = self.entries.get(entity.key()).unwrap().archetype;
-        let new_archetype = self.archetypes.find_remove(queries, archetype, component);
+        let new_archetype = self
+            .archetypes
+            .get_mut()
+            .find_remove(queries, archetype, component);
         self.move_entity(entity, new_archetype);
     }
 
@@ -142,7 +151,7 @@ impl EntityTable {
         let entity_entry = self.entries.get(entity.key()).unwrap();
         let current_archetype = entity_entry.archetype;
         // Remove from current archetype
-        let archetype = &mut self.archetypes.entries[current_archetype];
+        let archetype = &mut self.archetypes.get_mut().entries[current_archetype];
         let last_entity = archetype.pool.last().copied();
         archetype.pool.swap_remove(entity_entry.pool_index as usize);
         if let Some(last_entity) = last_entity {
@@ -152,25 +161,16 @@ impl EntityTable {
         // Update archetype
         self.entries.get_mut(entity.key()).unwrap().archetype = new_archetype;
         // Add to new archetype
-        self.archetypes.entries[new_archetype].pool.push(entity);
-    }
-
-    pub(crate) fn iter_pool_entities(
-        &self,
-        archetype: ArchetypeId,
-    ) -> impl Iterator<Item = Entity> + '_ {
-        if let Some(archetype) = self.archetypes.entries.get(archetype) {
-            archetype.pool.iter().copied()
-        } else {
-            [].iter().copied()
-        }
+        self.archetypes.get_mut().entries[new_archetype]
+            .pool
+            .push(entity);
     }
 }
 
 impl Default for EntityTable {
     fn default() -> Self {
         Self {
-            archetypes: ArchetypeTable::new(),
+            archetypes: UnsafeCell::new(ArchetypeTable::new()),
             entries: PagedVector::new(),
             free_entities: Vec::new(),
             next_entity: Entity::new(1, 0),

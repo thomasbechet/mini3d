@@ -49,7 +49,7 @@ impl ExclusiveSystem for TestSystem {
     }
 
     fn run(self, ctx: &mut Context) {
-        for (i, e) in self.query.iter(ctx).enumerate() {
+        for (i, e) in self.query.iter().enumerate() {
             let transform = &self.transform[e];
             info!(ctx, "{} {:?}", i, transform);
         }

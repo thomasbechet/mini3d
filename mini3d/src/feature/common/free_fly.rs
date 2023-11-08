@@ -73,7 +73,7 @@ impl ParallelSystem for FreeFlySystem {
     }
 
     fn run(mut self, ctx: &Context) {
-        for e in self.query.iter(ctx) {
+        for e in self.query.iter() {
             let transform = &mut self.transform[e];
             let free_fly = &mut self.free_fly[e];
 

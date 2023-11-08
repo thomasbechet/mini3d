@@ -1,10 +1,7 @@
 use crate::{
     activity::{ActivityError, ActivityHandle, ActivityManager},
     api::{time::TimeAPI, Context},
-    feature::{
-        core::resource::ResourceTypeHandle,
-        ecs::{component::ComponentId, system::SystemStageHandle},
-    },
+    feature::{core::resource::ResourceTypeHandle, ecs::system::SystemStageHandle},
     input::InputManager,
     logger::LoggerManager,
     platform::PlatformManager,
@@ -18,7 +15,7 @@ use self::{
     entity::{EntityChange, EntityEntry, EntityTable},
     query::QueryTable,
     scheduler::{Invocation, Scheduler},
-    system::{SystemInstance, SystemInstanceEntry, SystemTable},
+    system::{SystemInstance, SystemTable},
 };
 
 pub mod archetype;
@@ -51,15 +48,15 @@ impl ECSInstance {
                 match change {
                     EntityChange::Created(entity) => {
                         // Set default entity archetype
-                        let archetype =
-                            &mut self.entities.archetypes.entries[self.entities.archetypes.empty];
+                        let archetypes = self.entities.archetypes.get_mut();
+                        let archetype = &mut archetypes.entries[archetypes.empty];
                         let pool_index = archetype.pool.len();
                         archetype.pool.push(entity);
                         // Update entity info
                         self.entities.entries.set(
                             entity.key(),
                             EntityEntry {
-                                archetype: self.entities.archetypes.empty,
+                                archetype: self.entities.archetypes.get_mut().empty,
                                 pool_index: pool_index as u32,
                             },
                         );
