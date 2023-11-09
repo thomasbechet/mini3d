@@ -36,9 +36,11 @@ impl ExclusiveSystem for SpawnSystem {
             let e = Entity::create(ctx);
             self.transform
                 .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
-            if i == 1 {
+            if i == 5 {
                 Entity::destroy(ctx, e);
             }
+            self.transform
+                .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
         }
         self.transform
             .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));

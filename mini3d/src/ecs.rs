@@ -65,13 +65,7 @@ impl ECSInstance {
             for write in writes {
                 let entry = self.containers.entries.get_mut(write.0).unwrap();
                 // Component added
-                entry.container.get_mut().flush_added(
-                    &mut self.entities,
-                    &mut self.queries,
-                    *write,
-                );
-                // Component removed
-                entry.container.get_mut().flush_removed(
+                entry.container.get_mut().flush_added_removed(
                     &mut self.entities,
                     &mut self.queries,
                     *write,
@@ -80,6 +74,11 @@ impl ECSInstance {
             // Destroyed entities
             for entity in self.entity_destroyed.drain(..) {
                 self.entities.remove(entity, &mut self.containers);
+            }
+            // Update view sizes
+            for write in writes {
+                let entry = self.containers.entries.get_mut(write.0).unwrap();
+                entry.container.get_mut().update_view_size();
             }
         }
     }

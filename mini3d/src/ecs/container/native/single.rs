@@ -65,6 +65,14 @@ impl<C: Component> NativeSingleContainer<C> {
     }
 
     pub(crate) fn add(&mut self, entity: Entity, component: C) {
+        // Check existing component
+        if let Some(index) = self.indices.get(entity.key()) {
+            if self.data[*index].1 == entity {
+                // Update component value
+                self.data[*index].0 = component;
+                return;
+            }
+        }
         // Append component
         self.data.push((component, entity));
         // Update indices
@@ -97,17 +105,20 @@ impl<C: Component> Container for NativeSingleContainer<C> {
     }
 
     fn remove(&mut self, entity: Entity) {
-        let index = *self.indices.get(entity.key()).expect("Entity not found");
-        // Swap remove component
-        self.data.swap_remove(index);
-        // Remap swapped entity
-        if index != self.data.len() {
-            let swapped_entity = self.data[index].1;
-            self.indices.set(swapped_entity.key(), index);
+        if let Some(index) = self.indices.get(entity.key()).copied() {
+            if self.data[index].1 == entity {
+                // Swap remove component
+                self.data.swap_remove(index);
+                // Remap swapped entity
+                if index != self.data.len() {
+                    let swapped_entity = self.data[index].1;
+                    self.indices.set(swapped_entity.key(), index);
+                }
+            }
         }
     }
 
-    fn flush_added(
+    fn flush_added_removed(
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
@@ -118,14 +129,6 @@ impl<C: Component> Container for NativeSingleContainer<C> {
             // Move entity
             entities.move_added_entity(queries, *entity, component);
         }
-    }
-
-    fn flush_removed(
-        &mut self,
-        entities: &mut EntityTable,
-        queries: &mut QueryTable,
-        component: ComponentId,
-    ) {
         // Removed components
         while let Some(entity) = self.removed.pop() {
             // Move entity
@@ -133,7 +136,9 @@ impl<C: Component> Container for NativeSingleContainer<C> {
             // Remove component
             self.remove(entity);
         }
-        // Update size
+    }
+
+    fn update_view_size(&mut self) {
         self.view_size = self.data.len();
     }
 

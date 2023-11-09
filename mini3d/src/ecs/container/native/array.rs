@@ -133,7 +133,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         }
     }
 
-    fn flush_added(
+    fn flush_added_removed(
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
@@ -144,14 +144,6 @@ impl<C: Component> Container for NativeArrayContainer<C> {
             // Move entity
             entities.move_added_entity(queries, entry.entity, component);
         }
-    }
-
-    fn flush_removed(
-        &mut self,
-        entities: &mut EntityTable,
-        queries: &mut QueryTable,
-        component: ComponentId,
-    ) {
         // Remove components
         while let Some(entity) = self.removed.pop() {
             // Move entity
@@ -159,7 +151,9 @@ impl<C: Component> Container for NativeArrayContainer<C> {
             // Remove component
             self.remove(entity);
         }
-        // Update size
+    }
+
+    fn update_view_size(&mut self) {
         self.view_size = self.entries.len();
     }
 
