@@ -19,6 +19,7 @@ pub mod event;
 pub mod graphics;
 pub mod provider;
 pub mod rasterizer;
+pub mod vertex;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;

@@ -5,6 +5,7 @@ use crate::{
     feature::renderer::{
         font::FontHandle,
         mesh::MeshHandle,
+        model::ModelHandle,
         pipeline::{ComputePipelineHandle, GraphicsPipelineHandle},
         texture::{TextureHandle, TextureWrapMode},
     },
@@ -13,32 +14,32 @@ use crate::{
 
 use super::color::Color;
 
+// Sort order: pipeline/material/mesh
+
+pub struct PipelineLayout {}
+
+pub struct DrawCommand {
+    pub pipeline: GraphicsPipelineHandle,
+    pub mesh: MeshHandle,
+    pub texture: TextureHandle,
+    pub transform: Mat4,
+    pub color: Color,
+}
+
 pub struct GraphicsCommandBuffer {}
 
 impl GraphicsCommandBuffer {
-    pub fn set_pipeline(&mut self, ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
-
-    pub fn set_vertex_buffer(&mut self, ctx: &mut Context, binding: u32) {}
-
-    pub fn set_texture(&mut self, ctx: &mut Context, texture: TextureHandle, binding: u32) {}
-
-    pub fn set_vec2(&mut self, ctx: &mut Context, binding: u32, value: Vec2) {}
-
-    pub fn set_vec4(&mut self, ctx: &mut Context, binding: u32, value: Vec2) {}
-
-    pub fn set_mat4(&mut self, ctx: &mut Context, binding: u32, value: Mat4) {}
-
     pub fn draw(&mut self, ctx: &mut Context, vertex_count: u32, instance_count: u32) {}
 
     pub fn draw_mesh(&mut self, ctx: &mut Context, mesh: MeshHandle) {}
+
+    pub fn draw_model(&mut self, ctx: &mut Context, model: ModelHandle) {}
 }
 
 pub struct CanvasCommandBuffer {}
 
 impl CanvasCommandBuffer {
     pub fn scissor(&mut self, extent: Option<IRect>) {}
-
-    pub fn set_font(&mut self, font: FontHandle, binding: u32) {}
 
     pub fn draw_rect(&mut self, extent: IRect, color: Color) {}
 
@@ -67,8 +68,6 @@ impl CanvasCommandBuffer {
 pub struct ComputeCommandBuffer {}
 
 impl ComputeCommandBuffer {
-    pub fn set_pipeline(&mut self, pipeline: ComputePipelineHandle) {}
-
     pub fn dispatch(&mut self, x: u32, y: u32, z: u32) {}
 }
 
