@@ -1,4 +1,4 @@
-use crate::activity::ActivityHandle;
+use crate::activity::ActivityInstanceHandle;
 use crate::feature::core::resource::{Resource, ResourceType, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::utils::prng::PCG32;
@@ -22,7 +22,7 @@ pub struct ResourceInfo<'a> {
     pub key: &'a str,
     pub ty_name: &'a str,
     pub ty: ResourceTypeHandle,
-    pub owner: ActivityHandle,
+    pub owner: ActivityInstanceHandle,
     pub ref_count: usize,
     pub handle: ResourceHandle,
 }
@@ -30,7 +30,7 @@ pub struct ResourceInfo<'a> {
 pub(crate) struct ResourceEntry {
     key: ResourceKey,
     ty: ResourceTypeHandle,
-    owner: ActivityHandle,
+    owner: ActivityInstanceHandle,
     ref_count: usize,
     slot: SlotId,         // Null if not loaded
     prev: ResourceHandle, // Previous entry of same type
@@ -63,7 +63,7 @@ impl Default for ResourceManager {
 }
 
 impl ResourceManager {
-    pub(crate) fn define_meta_type(&mut self, root: ActivityHandle) {
+    pub(crate) fn define_meta_type(&mut self, root: ActivityInstanceHandle) {
         // Create container
         self.type_container = self.containers.add(ContainerEntry {
             container: Box::new(NativeResourceContainer::<ResourceType>::with_capacity(128)),
@@ -144,7 +144,7 @@ impl ResourceManager {
         &mut self,
         key: Option<&str>,
         ty: ResourceTypeHandle,
-        owner: ActivityHandle,
+        owner: ActivityInstanceHandle,
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
         // Check existing type and container
@@ -199,7 +199,7 @@ impl ResourceManager {
     pub(crate) fn create_resource_type(
         &mut self,
         key: Option<&str>,
-        owner: ActivityHandle,
+        owner: ActivityInstanceHandle,
         data: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
         self.create(key, self.meta_type, owner, data)

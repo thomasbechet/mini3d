@@ -2,7 +2,7 @@ use mini3d_derive::Error;
 
 use crate::{
     ecs::ECSManager,
-    feature::{core::activity::ActivityDescriptorHandle, ecs::system::SystemSetHandle},
+    feature::{core::activity::ActivityHandle, ecs::system::SystemSetHandle},
     resource::ResourceManager,
     utils::{
         slotmap::{SlotId, SlotMap},
@@ -11,9 +11,9 @@ use crate::{
 };
 
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ActivityHandle(pub(crate) SlotId);
+pub struct ActivityInstanceHandle(pub(crate) SlotId);
 
-impl ActivityHandle {
+impl ActivityInstanceHandle {
     pub fn null() -> Self {
         Self(SlotId::null())
     }
@@ -21,7 +21,7 @@ impl ActivityHandle {
 
 pub(crate) struct ActivityEntry {
     pub(crate) name: AsciiArray<32>,
-    pub(crate) parent: ActivityHandle,
+    pub(crate) parent: ActivityInstanceHandle,
     pub(crate) ecs: SlotId,
 }
 
@@ -32,16 +32,16 @@ pub enum ActivityError {
 }
 
 pub enum ActivityCommand {
-    Start(ActivityHandle, ActivityDescriptorHandle),
-    Stop(ActivityHandle),
-    AddSystemSet(ActivityHandle, SystemSetHandle),
-    RemoveSystemSet(ActivityHandle, SystemSetHandle),
+    Start(ActivityInstanceHandle, ActivityHandle),
+    Stop(ActivityInstanceHandle),
+    AddSystemSet(ActivityInstanceHandle, SystemSetHandle),
+    RemoveSystemSet(ActivityInstanceHandle, SystemSetHandle),
 }
 
 #[derive(Default)]
 pub(crate) struct ActivityManager {
-    pub(crate) root: ActivityHandle,
-    pub(crate) active: ActivityHandle,
+    pub(crate) root: ActivityInstanceHandle,
+    pub(crate) active: ActivityInstanceHandle,
     pub(crate) activities: SlotMap<ActivityEntry>,
     pub(crate) commands: Vec<ActivityCommand>,
 }
@@ -50,10 +50,10 @@ impl ActivityManager {
     pub(crate) fn start(
         &mut self,
         name: &str,
-        parent: ActivityHandle,
-        descriptor: ActivityDescriptorHandle,
-    ) -> ActivityHandle {
-        let activity = ActivityHandle(self.activities.add(ActivityEntry {
+        parent: ActivityInstanceHandle,
+        descriptor: ActivityHandle,
+    ) -> ActivityInstanceHandle {
+        let activity = ActivityInstanceHandle(self.activities.add(ActivityEntry {
             name: name.into(),
             parent,
             ecs: SlotId::null(),
@@ -63,16 +63,24 @@ impl ActivityManager {
         activity
     }
 
-    pub(crate) fn stop(&mut self, activity: ActivityHandle) {
+    pub(crate) fn stop(&mut self, activity: ActivityInstanceHandle) {
         self.commands.push(ActivityCommand::Stop(activity));
     }
 
-    pub(crate) fn add_system_set(&mut self, activity: ActivityHandle, set: SystemSetHandle) {
+    pub(crate) fn add_system_set(
+        &mut self,
+        activity: ActivityInstanceHandle,
+        set: SystemSetHandle,
+    ) {
         self.commands
             .push(ActivityCommand::AddSystemSet(activity, set));
     }
 
-    pub(crate) fn remove_system_set(&mut self, activity: ActivityHandle, set: SystemSetHandle) {
+    pub(crate) fn remove_system_set(
+        &mut self,
+        activity: ActivityInstanceHandle,
+        set: SystemSetHandle,
+    ) {
         self.commands
             .push(ActivityCommand::RemoveSystemSet(activity, set));
     }
@@ -104,14 +112,14 @@ impl ActivityManager {
         }
     }
 
-    fn remove_entry(&mut self, activity: ActivityHandle) {
+    fn remove_entry(&mut self, activity: ActivityInstanceHandle) {
         // Find childs
         let childs = self
             .activities
             .iter()
             .filter_map(|(id, e)| {
                 if e.parent == activity {
-                    Some(ActivityHandle(id))
+                    Some(ActivityInstanceHandle(id))
                 } else {
                     None
                 }

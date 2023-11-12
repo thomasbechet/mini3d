@@ -1,23 +1,20 @@
-use glam::{Mat4, Vec4};
+use glam::{IVec2, Mat4, Vec2, Vec3, Vec4};
 
 use crate::{
     feature::renderer::{
-        buffer::BufferHandle,
+        buffer::{Buffer, BufferHandle, BufferUsage},
         font::{Font, FontHandle},
         graph::{RenderGraph, RenderGraphError, RenderGraphHandle},
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
-        pass::{
-            CanvasPass, CanvasPassHandle, ComputePass, ComputePassHandle, CopyPass, CopyPassHandle,
-            GraphicsPass, GraphicsPassHandle,
-        },
-        pipeline::{ComputePipelineHandle, GraphicsPipelineHandle},
-        texture::{Texture, TextureHandle},
+        pass::{CanvasPass, ComputePass, CopyPass, GraphicsPass},
+        texture::{Texture, TextureHandle, TextureWrapMode},
     },
+    math::rect::IRect,
     renderer::{
-        command::{
-            CanvasCommandBuffer, ComputeCommandBuffer, CopyCommandBuffer, GraphicsCommandBuffer,
-        },
+        color::Color,
+        pipeline::{BlendMode, GraphicsPipelineHandle},
+        queue::{CanvasQueueHandle, ComputeQueueHandle, CopyQueueHandle, GraphicsQueueHandle},
         RendererStatistics,
     },
     utils::uid::ToUID,
@@ -86,6 +83,64 @@ impl Model {
     }
 }
 
+impl Buffer {
+    pub fn create(ctx: &mut Context, usage: BufferUsage) -> BufferHandle {
+        todo!()
+    }
+
+    pub fn find_attribute(ctx: &Context, buffer: BufferHandle, name: impl ToUID) -> Option<u8> {
+        None
+    }
+
+    pub fn set_float(
+        ctx: &mut Context,
+        buffer: BufferHandle,
+        index: u32,
+        attribute: u8,
+        value: f32,
+    ) {
+    }
+
+    pub fn set_int(ctx: &mut Context, buffer: BufferHandle, index: u32, attribute: u8, value: i32) {
+    }
+
+    pub fn set_vec2(
+        ctx: &mut Context,
+        buffer: BufferHandle,
+        index: u32,
+        attribute: u8,
+        value: Vec2,
+    ) {
+    }
+
+    pub fn set_vec3(
+        ctx: &mut Context,
+        buffer: BufferHandle,
+        index: u32,
+        attribute: u8,
+        value: Vec3,
+    ) {
+    }
+
+    pub fn set_vec4(
+        ctx: &mut Context,
+        buffer: BufferHandle,
+        index: u32,
+        attribute: u8,
+        value: Vec4,
+    ) {
+    }
+
+    pub fn set_mat4(
+        ctx: &mut Context,
+        buffer: BufferHandle,
+        index: u32,
+        attribute: u8,
+        value: Mat4,
+    ) {
+    }
+}
+
 pub struct Renderer;
 
 impl Renderer {
@@ -97,103 +152,160 @@ impl Renderer {
 
     /// Render graphs
 
-    pub fn compile_render_graph(
+    pub fn set_render_graph(
         ctx: &mut Context,
         graph: RenderGraphHandle,
     ) -> Result<(), RenderGraphError> {
         Ok(())
     }
-
-    pub fn use_render_graph(
-        ctx: &mut Context,
-        graph: RenderGraphHandle,
-    ) -> Result<(), RenderGraphError> {
-        Ok(())
-    }
-
-    /// Buffers
-
-    pub fn create_buffer(ctx: &mut Context) -> BufferHandle {
-        Default::default()
-    }
-
-    pub fn destroy_buffer(ctx: &mut Context, buffer: BufferHandle) {}
-
-    pub fn write_buffer_f32(ctx: &mut Context, buffer: BufferHandle, index: u32, data: f32) {}
-
-    pub fn write_buffer_i32(ctx: &mut Context, buffer: BufferHandle, index: u32, data: i32) {}
-
-    pub fn write_buffer_vec4(ctx: &mut Context, buffer: BufferHandle, index: u32, data: Vec4) {}
-
-    pub fn write_buffer_mat4(ctx: &mut Context, buffer: BufferHandle, index: u32, data: Mat4) {}
-
-    /// Pipelines
-
-    pub fn create_graphics_pipeline(ctx: &mut Context) -> GraphicsPipelineHandle {
-        Default::default()
-    }
-
-    pub fn destroy_graphics_pipeline(ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
-
-    pub fn create_compute_pipeline(ctx: &mut Context) -> ComputePipelineHandle {
-        Default::default()
-    }
-
-    pub fn destroy_compute_pipeline(ctx: &mut Context, pipeline: ComputePipelineHandle) {}
 }
 
 impl GraphicsPass {
-    pub fn find(ctx: &Context, name: impl ToUID) -> GraphicsPassHandle {
+    pub fn queue(ctx: &Context, pass: impl ToUID) -> GraphicsQueueHandle {}
+}
+
+struct GraphicsCommand;
+
+impl GraphicsCommand {
+    pub fn set_vertex_buffer(ctx: &mut Context, queue: GraphicsQueueHandle, buffer: BufferHandle) {
+        let queue = &mut ctx.renderer.graph.graphics_queues[queue.0 as usize];
+        queue.draw.vertex_buffer = buffer;
+    }
+
+    pub fn set_pipeline(
+        ctx: &mut Context,
+        queue: GraphicsQueueHandle,
+        pipeline: GraphicsPipelineHandle,
+    ) {
+        let queue = &mut ctx.renderer.graph.graphics_queues[queue.0 as usize];
+        queue.draw.pipeline = pipeline;
+    }
+
+    pub fn set_viewport(ctx: &mut Context, queue: GraphicsQueueHandle, viewport: Vec4) {}
+
+    pub fn set_scissor(ctx: &mut Context, queue: GraphicsQueueHandle, scissor: Vec4) {}
+
+    pub fn set_blend_mode(ctx: &mut Context, queue: GraphicsQueueHandle, mode: BlendMode) {}
+
+    pub fn set_cull_mode(ctx: &mut Context, queue: GraphicsQueueHandle, mode: BlendMode) {}
+
+    pub fn bind_texture(
+        ctx: &mut Context,
+        queue: GraphicsQueueHandle,
+        slot: u8,
+        texture: TextureHandle,
+    ) {
+    }
+
+    pub fn bind_buffer(
+        ctx: &mut Context,
+        queue: GraphicsQueueHandle,
+        slot: u8,
+        buffer: BufferHandle,
+    ) {
+    }
+
+    pub fn push_int(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: i32) {}
+
+    pub fn push_vec2(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Vec2) {}
+
+    pub fn push_vec3(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Vec3) {}
+
+    pub fn push_vec4(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Vec4) {}
+
+    pub fn push_mat4(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Mat4) {}
+
+    pub fn draw(ctx: &mut Context, queue: GraphicsQueueHandle, first: u32, count: u32, key: u32) {
         todo!()
     }
 
-    pub fn begin(ctx: &Context, pass: GraphicsPassHandle) -> GraphicsCommandBuffer {
-        todo!()
-    }
-
-    pub fn end(cmd: GraphicsCommandBuffer) {
+    pub fn draw_instanced(
+        ctx: &mut Context,
+        queue: GraphicsQueueHandle,
+        first: u32,
+        count: u32,
+        instances: u32,
+        key: u32,
+    ) {
         todo!()
     }
 }
 
 impl CanvasPass {
-    pub fn find(ctx: &Context, name: impl ToUID) -> Option<CanvasPassHandle> {
+    pub fn queue(ctx: &Context, pass: impl ToUID) -> CanvasQueueHandle {
         todo!()
+    }
+}
+
+struct CanvasCommand;
+
+impl CanvasCommand {
+    pub fn set_scissor(ctx: &mut Context, queue: CanvasQueueHandle, extent: Option<IRect>) {}
+
+    pub fn draw_rect(ctx: &mut Context, queue: CanvasQueueHandle, extent: IRect, color: Color) {}
+
+    pub fn draw_line(
+        ctx: &mut Context,
+        queue: CanvasQueueHandle,
+        x0: IVec2,
+        x1: IVec2,
+        color: Color,
+    ) {
     }
 
-    pub fn begin(ctx: &Context, pass: CanvasPassHandle) -> CanvasCommandBuffer {
-        todo!()
+    pub fn draw_vline(
+        ctx: &mut Context,
+        queue: CanvasQueueHandle,
+        x: i32,
+        y0: i32,
+        y1: i32,
+        color: Color,
+    ) {
     }
 
-    pub fn end(cmd: CanvasCommandBuffer) {
-        todo!()
+    pub fn draw_hline(
+        ctx: &mut Context,
+        queue: CanvasQueueHandle,
+        y: i32,
+        x0: i32,
+        x1: i32,
+        color: Color,
+    ) {
     }
+
+    pub fn fill_rect(ctx: &mut Context, queue: CanvasQueueHandle, extent: IRect, color: Color) {}
+
+    pub fn blit_texture(
+        ctx: &mut Context,
+        queue: CanvasQueueHandle,
+        texture: TextureHandle,
+        extent: IRect,
+        texture_extent: IRect,
+        filtering: Color,
+        wrap_mode: TextureWrapMode,
+        alpha_threshold: u8,
+    ) {
+    }
+
+    pub fn print(&mut self, position: IVec2, text: &str, font: FontHandle) {}
 }
 
 impl ComputePass {
-    pub fn find(ctx: &Context, name: impl ToUID) -> Option<ComputePassHandle> {
-        todo!()
-    }
-
-    pub fn begin(ctx: &Context, pass: ComputePassHandle) -> ComputeCommandBuffer {
-        todo!()
-    }
-
-    pub fn end(cmd: ComputeCommandBuffer) {
+    pub fn queue(ctx: &Context, pass: impl ToUID) -> ComputeQueueHandle {
         todo!()
     }
 }
+
+struct ComputeCommand;
+
+impl ComputeCommand {}
 
 impl CopyPass {
-    pub fn find(ctx: &Context, name: impl ToUID) -> Option<CopyPassHandle> {
-        todo!()
-    }
-
-    pub fn begin(ctx: &Context, pass: CopyPassHandle) -> CopyCommandBuffer {
-        todo!()
-    }
-
-    pub fn end(cmd: CopyCommandBuffer) {
+    pub fn queue(ctx: &Context, pass: impl ToUID) -> CopyQueueHandle {
         todo!()
     }
 }
+
+struct CopyCommand;
+
+impl CopyCommand {}

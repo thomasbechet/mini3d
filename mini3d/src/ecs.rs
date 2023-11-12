@@ -1,5 +1,5 @@
 use crate::{
-    activity::{ActivityError, ActivityHandle, ActivityManager},
+    activity::{ActivityError, ActivityInstanceHandle, ActivityManager},
     api::{time::TimeAPI, Context},
     feature::{
         core::resource::ResourceTypeHandle,
@@ -32,7 +32,7 @@ pub mod system;
 pub mod view;
 
 pub(crate) struct ECSInstance {
-    pub(crate) owner: ActivityHandle,
+    pub(crate) owner: ActivityInstanceHandle,
     pub(crate) containers: ContainerTable,
     pub(crate) entities: EntityTable,
     pub(crate) queries: QueryTable,
@@ -112,7 +112,7 @@ pub(crate) struct ECSUpdateContext<'a> {
 }
 
 impl ECSManager {
-    pub(crate) fn add(&mut self, owner: ActivityHandle) -> SlotId {
+    pub(crate) fn add(&mut self, owner: ActivityInstanceHandle) -> SlotId {
         let id = self.instances.add((
             ECSInstance {
                 owner,

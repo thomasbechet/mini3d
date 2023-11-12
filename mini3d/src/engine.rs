@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::activity::{ActivityEntry, ActivityHandle, ActivityManager};
+use crate::activity::{ActivityEntry, ActivityInstanceHandle, ActivityManager};
 use crate::api::time::TimeAPI;
 use crate::api::Context;
 use crate::disk::provider::DiskProvider;
@@ -73,7 +73,7 @@ pub struct Engine {
 
 impl Engine {
     fn setup_root_activity(&mut self) {
-        self.activity.root = ActivityHandle(self.activity.activities.add(ActivityEntry {
+        self.activity.root = ActivityInstanceHandle(self.activity.activities.add(ActivityEntry {
             name: "root".into(),
             parent: Default::default(),
             ecs: Default::default(),
@@ -114,8 +114,9 @@ impl Engine {
         self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
         self.renderer.handles.render_graph = define_resource!(renderer::graph::RenderGraph);
         self.renderer.handles.model = define_resource!(renderer::model::Model);
+        self.renderer.handles.buffer = define_resource!(renderer::buffer::Buffer);
 
-        define_resource!(core::activity::ActivityDescriptor);
+        define_resource!(core::activity::Activity);
         define_resource!(core::structure::StructDefinition);
 
         if config.common {

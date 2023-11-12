@@ -7,15 +7,15 @@ use crate::{
 use super::resource::Resource;
 
 #[derive(Serialize, Default, Reflect)]
-pub struct ActivityDescriptor {
+pub struct Activity {
     pub(crate) system_sets: Vec<SystemSetHandle>,
     pub(crate) prefabs: Vec<ResourceHandle>,
 }
 
-impl ActivityDescriptor {
-    pub const NAME: &'static str = "RTY_ActivityDescriptor";
+impl Activity {
+    pub const NAME: &'static str = "RTY_Activity";
 }
 
-impl Resource for ActivityDescriptor {}
+impl Resource for Activity {}
 
-define_resource_handle!(ActivityDescriptorHandle);
+define_resource_handle!(ActivityHandle);

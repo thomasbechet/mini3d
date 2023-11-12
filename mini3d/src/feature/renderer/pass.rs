@@ -1,13 +1,8 @@
-use crate::{define_resource_handle, renderer::color::Color, utils::string::AsciiArray};
+use crate::{renderer::color::Color, utils::string::AsciiArray};
 
 use super::{buffer::BufferHandle, texture::TextureHandle};
 
-define_resource_handle!(GraphicsPassHandle);
-define_resource_handle!(CanvasPassHandle);
-define_resource_handle!(ComputePassHandle);
-define_resource_handle!(CopyPassHandle);
-
-pub(crate) struct ColorAttachment {
+pub(crate) struct RenderTarget {
     pub(crate) name: AsciiArray<32>,
     pub(crate) texture: TextureHandle,
     pub(crate) clear: Option<Color>,
@@ -18,28 +13,28 @@ pub(crate) struct DepthStencilAttachment {
     pub(crate) clear_stencil: Option<u32>,
 }
 
-pub(crate) enum ShaderResourceKind {
+pub(crate) enum RenderPassResourceKind {
     Texture(TextureHandle),
-    Buffer(BufferHandle),
+    UniformBuffer(BufferHandle),
 }
 
-pub(crate) struct ShaderResource {
+pub(crate) struct RenderPassResource {
     pub(crate) name: AsciiArray<32>,
     pub(crate) binding: u32,
-    pub(crate) kind: ShaderResourceKind,
+    pub(crate) kind: RenderPassResourceKind,
 }
 
 pub struct GraphicsPass {
-    shader_resources: Vec<ShaderResource>,
-    color_attachments: Vec<ColorAttachment>,
+    resources: Vec<RenderPassResource>,
+    render_targets: Vec<RenderTarget>,
     depth_stencil: Option<DepthStencilAttachment>,
 }
 
 impl GraphicsPass {
     pub fn new() -> Self {
         Self {
-            shader_resources: Vec::new(),
-            color_attachments: Vec::new(),
+            resources: Vec::new(),
+            render_targets: Vec::new(),
             depth_stencil: None,
         }
     }
@@ -56,7 +51,7 @@ impl GraphicsPass {
 }
 
 pub struct CanvasPass {
-    target: ColorAttachment,
+    target: RenderTarget,
 }
 
 impl CanvasPass {}

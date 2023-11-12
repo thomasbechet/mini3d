@@ -11,15 +11,17 @@ use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
+use self::graph::FrameGraphInstance;
 use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
-pub mod command;
 pub mod event;
+pub mod graph;
 pub mod graphics;
+pub mod pipeline;
 pub mod provider;
+pub mod queue;
 pub mod rasterizer;
-pub mod vertex;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -65,6 +67,7 @@ pub(crate) struct RendererHandles {
     pub(crate) font: ResourceTypeHandle,
     pub(crate) render_graph: ResourceTypeHandle,
     pub(crate) model: ResourceTypeHandle,
+    pub(crate) buffer: ResourceTypeHandle,
 }
 
 #[derive(Default)]
@@ -73,6 +76,7 @@ pub struct RendererManager {
     statistics: RendererStatistics,
     clear_color: Color,
     pub(crate) handles: RendererHandles,
+    pub(crate) graph: FrameGraphInstance,
 }
 
 impl RendererManager {
