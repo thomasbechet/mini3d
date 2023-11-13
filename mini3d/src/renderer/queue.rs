@@ -4,7 +4,7 @@ use mini3d_derive::Error;
 use crate::{
     define_resource_handle,
     feature::renderer::{
-        buffer::BufferHandle,
+        buffer::RenderBufferHandle,
         font::FontHandle,
         texture::{TextureHandle, TextureWrapMode},
     },
@@ -45,14 +45,19 @@ pub enum PushConstant {
 }
 
 pub enum ShaderResource {
-    Buffer { handle: BufferHandle, offset: usize },
-    Texture { handle: TextureHandle },
+    Buffer {
+        handle: RenderBufferHandle,
+        offset: usize,
+    },
+    Texture {
+        handle: TextureHandle,
+    },
 }
 
 #[derive(Default)]
 pub(crate) struct DrawCommand {
     pub pipeline: GraphicsPipelineHandle,
-    pub vertex_buffer: BufferHandle,
+    pub vertex_buffer: RenderBufferHandle,
     pub first: u16,
     pub count: u16,
     pub bind_group: BindGroupHandle,

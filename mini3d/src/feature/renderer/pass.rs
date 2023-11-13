@@ -1,6 +1,6 @@
 use crate::{renderer::color::Color, utils::string::AsciiArray};
 
-use super::{buffer::BufferHandle, texture::TextureHandle};
+use super::{buffer::RenderBufferHandle, texture::TextureHandle};
 
 pub(crate) struct RenderTarget {
     pub(crate) name: AsciiArray<32>,
@@ -15,7 +15,7 @@ pub(crate) struct DepthStencilAttachment {
 
 pub(crate) enum RenderPassResourceKind {
     Texture(TextureHandle),
-    UniformBuffer(BufferHandle),
+    UniformBuffer(RenderBufferHandle),
 }
 
 pub(crate) struct RenderPassResource {

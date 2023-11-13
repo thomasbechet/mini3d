@@ -2,7 +2,7 @@ use glam::{IVec2, Mat4, Vec2, Vec3, Vec4};
 
 use crate::{
     feature::renderer::{
-        buffer::{Buffer, BufferHandle, BufferUsage},
+        buffer::{RenderBuffer, RenderBufferDesc, RenderBufferHandle},
         font::{Font, FontHandle},
         graph::{RenderGraph, RenderGraphError, RenderGraphHandle},
         mesh::{Mesh, MeshHandle},
@@ -83,59 +83,69 @@ impl Model {
     }
 }
 
-impl Buffer {
-    pub fn create(ctx: &mut Context, usage: BufferUsage) -> BufferHandle {
+impl RenderBuffer {
+    pub fn create(ctx: &mut Context, desc: RenderBufferDesc) -> RenderBufferHandle {
         todo!()
     }
 
-    pub fn find_attribute(ctx: &Context, buffer: BufferHandle, name: impl ToUID) -> Option<u8> {
+    pub fn find_attribute(
+        ctx: &Context,
+        buffer: RenderBufferHandle,
+        name: impl ToUID,
+    ) -> Option<u8> {
         None
     }
 
     pub fn set_float(
         ctx: &mut Context,
-        buffer: BufferHandle,
-        index: u32,
+        buffer: RenderBufferHandle,
         attribute: u8,
+        index: u16,
         value: f32,
     ) {
     }
 
-    pub fn set_int(ctx: &mut Context, buffer: BufferHandle, index: u32, attribute: u8, value: i32) {
+    pub fn set_int(
+        ctx: &mut Context,
+        buffer: RenderBufferHandle,
+        attribute: u8,
+        index: u16,
+        value: i32,
+    ) {
     }
 
     pub fn set_vec2(
         ctx: &mut Context,
-        buffer: BufferHandle,
-        index: u32,
+        buffer: RenderBufferHandle,
         attribute: u8,
+        index: u16,
         value: Vec2,
     ) {
     }
 
     pub fn set_vec3(
         ctx: &mut Context,
-        buffer: BufferHandle,
-        index: u32,
+        buffer: RenderBufferHandle,
         attribute: u8,
+        index: u16,
         value: Vec3,
     ) {
     }
 
     pub fn set_vec4(
         ctx: &mut Context,
-        buffer: BufferHandle,
-        index: u32,
+        buffer: RenderBufferHandle,
         attribute: u8,
+        index: u16,
         value: Vec4,
     ) {
     }
 
     pub fn set_mat4(
         ctx: &mut Context,
-        buffer: BufferHandle,
-        index: u32,
+        buffer: RenderBufferHandle,
         attribute: u8,
+        index: u16,
         value: Mat4,
     ) {
     }
@@ -164,56 +174,40 @@ impl GraphicsPass {
     pub fn queue(ctx: &Context, pass: impl ToUID) -> GraphicsQueueHandle {}
 }
 
-struct GraphicsCommand;
+struct GraphicsCmd;
 
-impl GraphicsCommand {
-    pub fn set_vertex_buffer(ctx: &mut Context, queue: GraphicsQueueHandle, buffer: BufferHandle) {
-        let queue = &mut ctx.renderer.graph.graphics_queues[queue.0 as usize];
-        queue.draw.vertex_buffer = buffer;
-    }
+impl GraphicsCmd {
+    pub fn set_pipeline(ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
 
-    pub fn set_pipeline(
+    pub fn set_viewport(ctx: &mut Context, viewport: Vec4) {}
+
+    pub fn set_scissor(ctx: &mut Context, scissor: Vec4) {}
+
+    pub fn set_blend_mode(ctx: &mut Context, mode: BlendMode) {}
+
+    pub fn set_cull_mode(ctx: &mut Context, mode: BlendMode) {}
+
+    pub fn bind_vertex_buffer(
         ctx: &mut Context,
-        queue: GraphicsQueueHandle,
-        pipeline: GraphicsPipelineHandle,
-    ) {
-        let queue = &mut ctx.renderer.graph.graphics_queues[queue.0 as usize];
-        queue.draw.pipeline = pipeline;
-    }
-
-    pub fn set_viewport(ctx: &mut Context, queue: GraphicsQueueHandle, viewport: Vec4) {}
-
-    pub fn set_scissor(ctx: &mut Context, queue: GraphicsQueueHandle, scissor: Vec4) {}
-
-    pub fn set_blend_mode(ctx: &mut Context, queue: GraphicsQueueHandle, mode: BlendMode) {}
-
-    pub fn set_cull_mode(ctx: &mut Context, queue: GraphicsQueueHandle, mode: BlendMode) {}
-
-    pub fn bind_texture(
-        ctx: &mut Context,
-        queue: GraphicsQueueHandle,
-        slot: u8,
-        texture: TextureHandle,
+        buffer: RenderBufferHandle,
+        attribute: u8,
+        location: u8,
     ) {
     }
 
-    pub fn bind_buffer(
-        ctx: &mut Context,
-        queue: GraphicsQueueHandle,
-        slot: u8,
-        buffer: BufferHandle,
-    ) {
-    }
+    pub fn bind_texture(ctx: &mut Context, texture: TextureHandle, slot: u8) {}
 
-    pub fn push_int(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: i32) {}
+    pub fn bind_buffer(ctx: &mut Context, buffer: RenderBufferHandle, slot: u8) {}
 
-    pub fn push_vec2(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Vec2) {}
+    pub fn push_int(ctx: &mut Context, attribute: u8, value: i32) {}
 
-    pub fn push_vec3(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Vec3) {}
+    pub fn push_vec2(ctx: &mut Context, attribute: u8, value: Vec2) {}
 
-    pub fn push_vec4(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Vec4) {}
+    pub fn push_vec3(ctx: &mut Context, attribute: u8, value: Vec3) {}
 
-    pub fn push_mat4(ctx: &mut Context, queue: GraphicsQueueHandle, attribute: u8, value: Mat4) {}
+    pub fn push_vec4(ctx: &mut Context, attribute: u8, value: Vec4) {}
+
+    pub fn push_mat4(ctx: &mut Context, attribute: u8, value: Mat4) {}
 
     pub fn draw(ctx: &mut Context, queue: GraphicsQueueHandle, first: u32, count: u32, key: u32) {
         todo!()
@@ -237,10 +231,10 @@ impl CanvasPass {
     }
 }
 
-struct CanvasCommand;
+struct CanvasCmd;
 
-impl CanvasCommand {
-    pub fn set_scissor(ctx: &mut Context, queue: CanvasQueueHandle, extent: Option<IRect>) {}
+impl CanvasCmd {
+    pub fn set_scissor(ctx: &mut Context, extent: Option<IRect>) {}
 
     pub fn draw_rect(ctx: &mut Context, queue: CanvasQueueHandle, extent: IRect, color: Color) {}
 
@@ -296,9 +290,9 @@ impl ComputePass {
     }
 }
 
-struct ComputeCommand;
+struct ComputeCmd;
 
-impl ComputeCommand {}
+impl ComputeCmd {}
 
 impl CopyPass {
     pub fn queue(ctx: &Context, pass: impl ToUID) -> CopyQueueHandle {
@@ -306,6 +300,6 @@ impl CopyPass {
     }
 }
 
-struct CopyCommand;
+struct CopyCmd;
 
-impl CopyCommand {}
+impl CopyCmd {}

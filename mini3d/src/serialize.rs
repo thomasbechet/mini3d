@@ -15,6 +15,8 @@ pub enum DecoderError {
     Unsupported,
     #[error("Corrupted data")]
     CorruptedData,
+    #[error("Invalid size: found {found}, expected {expected}")]
+    InvalidSize { found: usize, expected: usize },
 }
 
 pub trait Encoder {
@@ -298,6 +300,21 @@ impl Serialize for u8 {
     }
 }
 
+impl Serialize for u16 {
+    type Header = ();
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u16(*self)
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        decoder.read_u16()
+    }
+}
+
 impl Serialize for u32 {
     type Header = ();
 
@@ -443,6 +460,36 @@ impl<T: Serialize> Serialize for Option<T> {
         } else {
             Ok(None)
         }
+    }
+}
+
+impl<T: Serialize, const N: usize> Serialize for [T; N] {
+    type Header = T::Header;
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u32(N as u32)?;
+        for value in self {
+            value.serialize(encoder)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        let len = decoder.read_u32()? as usize;
+        if len != N {
+            return Err(DecoderError::InvalidSize {
+                found: len,
+                expected: N,
+            });
+        }
+        let mut array = [T::default(); N];
+        for i in 0..N {
+            array[i] = T::deserialize(decoder, header)?;
+        }
+        Ok(array)
     }
 }
 

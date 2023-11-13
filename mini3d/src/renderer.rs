@@ -15,6 +15,7 @@ use self::graph::FrameGraphInstance;
 use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
+pub mod command;
 pub mod event;
 pub mod graph;
 pub mod graphics;

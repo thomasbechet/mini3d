@@ -12,5 +12,4 @@ pub mod system;
 pub mod texture;
 pub mod tilemap;
 pub mod tileset;
-pub mod vertex;
 pub mod viewport;

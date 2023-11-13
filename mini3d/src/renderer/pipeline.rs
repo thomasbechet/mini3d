@@ -39,7 +39,7 @@ pub struct UniformBinding {
     ty: AttributeFormat,
 }
 
-pub struct GraphicsPipelineState {
+pub struct GraphicsPipeline {
     pub vertex_input: VertexInputState,
     pub topology: PrimitiveTopology,
     pub blend_mode: BlendMode,
@@ -49,7 +49,10 @@ pub struct GraphicsPipelineState {
     pub fragment_shader: u32,
 }
 
-impl GraphicsPipelineState {
+impl GraphicsPipeline {
+    pub const MAX_VERTEX_ATTRIBUTE_COUNT: usize = 8;
+    pub const MAX_BINDINGS_COUNT: usize = 16;
+
     pub fn set_blend(&mut self, mode: BlendMode) {}
 }
 

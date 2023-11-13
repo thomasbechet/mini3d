@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    buffer::{BufferHandle, BufferUsage},
+    buffer::{BufferUsage, RenderBufferHandle},
     pass::RenderTarget,
     texture::{TextureFormat, TextureHandle},
 };

@@ -1,22 +1,22 @@
 use mini3d_derive::{Reflect, Serialize};
 
-use crate::{
-    define_resource_handle, feature::core::resource::Resource,
-    renderer::provider::RendererProviderHandle,
-};
+use crate::{feature::core::resource::Resource, renderer::provider::RendererProviderHandle};
 
 #[derive(Clone, Serialize, Reflect)]
 pub enum AttributeFormat {
-    Integer,
-    Float,
-    Vec2,
-    Vec3,
-    Vec4,
-    Mat4,
+    I8x2,
+    I8x4,
+    I16x2,
+    I16x4,
+    I32x2,
+    I32x4,
+    F32x2,
+    F32x4,
+    M4x4,
 }
 
 #[derive(Default, Serialize, Reflect)]
-pub enum BufferUsage {
+pub enum RenderBufferType {
     #[default]
     Uniform,
     Vertex,
@@ -24,18 +24,34 @@ pub enum BufferUsage {
 }
 
 #[derive(Default, Serialize, Reflect)]
-pub struct Buffer {
-    attributes: Vec<AttributeFormat>,
-    size: usize,
-    usage: BufferUsage,
+pub enum RenderBufferUsage {
+    #[default]
+    Static,
+    Dynamic,
+}
+
+pub struct RenderBufferDesc {
+    ty: RenderBufferType,
+    usage: RenderBufferUsage,
+    attributes: [AttributeFormat; RenderBuffer::MAX_ATTRIBUTE],
+    attribute_count: u8,
+    size: u16,
+}
+
+#[derive(Default, Serialize, Reflect)]
+pub struct RenderBuffer {
+    ty: RenderBufferType,
+    usage: RenderBufferUsage,
+    attributes: [AttributeFormat; RenderBuffer::MAX_ATTRIBUTE],
+    attribute_count: u8,
+    size: u16,
     #[serialize(skip)]
     handle: RendererProviderHandle,
 }
 
-impl Buffer {
-    pub const NAME: &'static str = "RTY_Buffer";
+impl RenderBuffer {
+    pub const MAX_ATTRIBUTE: usize = 8;
+    pub const MAX_SIZE: usize = 65535;
 }
 
-impl Resource for Buffer {}
-
-define_resource_handle!(BufferHandle);
+pub struct RenderBufferHandle(u16);
