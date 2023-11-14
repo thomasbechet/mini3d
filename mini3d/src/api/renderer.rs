@@ -187,27 +187,27 @@ impl GraphicsCmd {
 
     pub fn set_cull_mode(ctx: &mut Context, mode: BlendMode) {}
 
-    pub fn bind_vertex_buffer(
+    pub fn set_int(ctx: &mut Context, attribute: u8, value: i32) {}
+
+    pub fn set_vec2(ctx: &mut Context, attribute: u8, value: Vec2) {}
+
+    pub fn set_vec3(ctx: &mut Context, attribute: u8, value: Vec3) {}
+
+    pub fn set_vec4(ctx: &mut Context, attribute: u8, value: Vec4) {}
+
+    pub fn set_mat4(ctx: &mut Context, attribute: u8, value: Mat4) {}
+
+    pub fn set_vertex_buffer(
         ctx: &mut Context,
         buffer: RenderBufferHandle,
-        attribute: u8,
+        offset: u16,
         location: u8,
     ) {
     }
 
-    pub fn bind_texture(ctx: &mut Context, texture: TextureHandle, slot: u8) {}
+    pub fn set_texture(ctx: &mut Context, texture: TextureHandle, slot: u8) {}
 
-    pub fn bind_buffer(ctx: &mut Context, buffer: RenderBufferHandle, slot: u8) {}
-
-    pub fn push_int(ctx: &mut Context, attribute: u8, value: i32) {}
-
-    pub fn push_vec2(ctx: &mut Context, attribute: u8, value: Vec2) {}
-
-    pub fn push_vec3(ctx: &mut Context, attribute: u8, value: Vec3) {}
-
-    pub fn push_vec4(ctx: &mut Context, attribute: u8, value: Vec4) {}
-
-    pub fn push_mat4(ctx: &mut Context, attribute: u8, value: Mat4) {}
+    pub fn set_buffer(ctx: &mut Context, buffer: RenderBufferHandle, slot: u8) {}
 
     pub fn draw(ctx: &mut Context, queue: GraphicsQueueHandle, first: u32, count: u32, key: u32) {
         todo!()
