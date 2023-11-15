@@ -2,7 +2,6 @@ use glam::{IVec2, Mat4, Vec2, Vec3, Vec4};
 
 use crate::{
     feature::renderer::{
-        buffer::{RenderBuffer, RenderBufferDesc, RenderBufferHandle},
         font::{Font, FontHandle},
         graph::{RenderGraph, RenderGraphError, RenderGraphHandle},
         mesh::{Mesh, MeshHandle},
@@ -15,6 +14,9 @@ use crate::{
         color::Color,
         pipeline::{BlendMode, GraphicsPipelineHandle},
         queue::{CanvasQueueHandle, ComputeQueueHandle, CopyQueueHandle, GraphicsQueueHandle},
+        resource::{
+            GPUArray, GPUArrayHandle, GPUArrayUsage, GPUConstant, GPUConstantHandle, GPUFormat,
+        },
         RendererStatistics,
     },
     utils::uid::ToUID,
@@ -83,72 +85,45 @@ impl Model {
     }
 }
 
-impl RenderBuffer {
-    pub fn create(ctx: &mut Context, desc: RenderBufferDesc) -> RenderBufferHandle {
+impl GPUArray {
+    pub fn create(
+        ctx: &mut Context,
+        format: GPUFormat,
+        size: u32,
+        usage: GPUArrayUsage,
+    ) -> GPUArrayHandle {
         todo!()
     }
 
-    pub fn find_attribute(
-        ctx: &Context,
-        buffer: RenderBufferHandle,
-        name: impl ToUID,
-    ) -> Option<u8> {
-        None
+    pub fn set_float(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: f32) {}
+
+    pub fn set_int(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: i32) {}
+
+    pub fn set_vec2(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Vec2) {}
+
+    pub fn set_vec3(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Vec3) {}
+
+    pub fn set_vec4(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Vec4) {}
+
+    pub fn set_mat4(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Mat4) {}
+}
+
+impl GPUConstant {
+    pub fn create(ctx: &mut Context, format: GPUFormat) -> GPUConstantHandle {
+        todo!()
     }
 
-    pub fn set_float(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        attribute: u8,
-        index: u16,
-        value: f32,
-    ) {
-    }
+    pub fn set_float(ctx: &mut Context, constant: GPUConstantHandle, value: f32) {}
 
-    pub fn set_int(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        attribute: u8,
-        index: u16,
-        value: i32,
-    ) {
-    }
+    pub fn set_int(ctx: &mut Context, constant: GPUConstantHandle, value: i32) {}
 
-    pub fn set_vec2(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        attribute: u8,
-        index: u16,
-        value: Vec2,
-    ) {
-    }
+    pub fn set_vec2(ctx: &mut Context, constant: GPUConstantHandle, value: Vec2) {}
 
-    pub fn set_vec3(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        attribute: u8,
-        index: u16,
-        value: Vec3,
-    ) {
-    }
+    pub fn set_vec3(ctx: &mut Context, constant: GPUConstantHandle, value: Vec3) {}
 
-    pub fn set_vec4(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        attribute: u8,
-        index: u16,
-        value: Vec4,
-    ) {
-    }
+    pub fn set_vec4(ctx: &mut Context, constant: GPUConstantHandle, value: Vec4) {}
 
-    pub fn set_mat4(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        attribute: u8,
-        index: u16,
-        value: Mat4,
-    ) {
-    }
+    pub fn set_mat4(ctx: &mut Context, constant: GPUConstantHandle, value: Mat4) {}
 }
 
 pub struct Renderer;
@@ -187,27 +162,23 @@ impl GraphicsCmd {
 
     pub fn set_cull_mode(ctx: &mut Context, mode: BlendMode) {}
 
-    pub fn set_int(ctx: &mut Context, attribute: u8, value: i32) {}
-
-    pub fn set_vec2(ctx: &mut Context, attribute: u8, value: Vec2) {}
-
-    pub fn set_vec3(ctx: &mut Context, attribute: u8, value: Vec3) {}
-
-    pub fn set_vec4(ctx: &mut Context, attribute: u8, value: Vec4) {}
-
-    pub fn set_mat4(ctx: &mut Context, attribute: u8, value: Mat4) {}
-
-    pub fn set_vertex_buffer(
-        ctx: &mut Context,
-        buffer: RenderBufferHandle,
-        offset: u16,
-        location: u8,
-    ) {
-    }
+    pub fn set_vertex_array(ctx: &mut Context, array: GPUArrayHandle, location: u8) {}
 
     pub fn set_texture(ctx: &mut Context, texture: TextureHandle, slot: u8) {}
 
-    pub fn set_buffer(ctx: &mut Context, buffer: RenderBufferHandle, slot: u8) {}
+    pub fn set_array(ctx: &mut Context, array: GPUArrayHandle, slot: u8) {}
+
+    pub fn set_constant(ctx: &mut Context, constant: GPUConstantHandle, slot: u8) {}
+
+    pub fn push_int(ctx: &mut Context, slot: u8, value: i32) {}
+
+    pub fn push_vec2(ctx: &mut Context, slot: u8, value: Vec2) {}
+
+    pub fn push_vec3(ctx: &mut Context, slot: u8, value: Vec3) {}
+
+    pub fn push_vec4(ctx: &mut Context, slot: u8, value: Vec4) {}
+
+    pub fn push_mat4(ctx: &mut Context, slot: u8, value: Mat4) {}
 
     pub fn draw(ctx: &mut Context, queue: GraphicsQueueHandle, first: u32, count: u32, key: u32) {
         todo!()

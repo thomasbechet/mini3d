@@ -3,11 +3,7 @@ use mini3d_derive::Error;
 
 use crate::{
     define_resource_handle,
-    feature::renderer::{
-        buffer::RenderBufferHandle,
-        font::FontHandle,
-        texture::{TextureHandle, TextureWrapMode},
-    },
+    feature::renderer::texture::{TextureHandle, TextureWrapMode},
     math::rect::IRect,
 };
 
@@ -19,30 +15,6 @@ pub struct GraphicsQueueHandle(pub(crate) u32);
 pub struct ComputeQueueHandle(pub(crate) u32);
 pub struct CanvasQueueHandle(pub(crate) u32);
 pub struct CopyQueueHandle(pub(crate) u32);
-
-define_resource_handle!(BindGroupHandle);
-
-pub enum ShaderVariableType {
-    Float,
-    Vec2,
-    Vec3,
-    Vec4,
-    Mat4,
-    Texture,
-    TextureCube,
-}
-
-pub struct ShaderVariable {
-    ty: ShaderVariableType,
-}
-
-pub enum PushConstant {
-    Float(f32),
-    Vec2(Vec2),
-    Vec3(Vec3),
-    Vec4(Vec4),
-    Mat4(Mat4),
-}
 
 pub enum ShaderResource {
     Buffer {

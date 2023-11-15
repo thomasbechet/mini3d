@@ -23,6 +23,7 @@ pub mod pipeline;
 pub mod provider;
 pub mod queue;
 pub mod rasterizer;
+pub mod resource;
 pub mod uniform;
 
 // 3:2 aspect ratio

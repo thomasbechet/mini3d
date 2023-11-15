@@ -1,5 +1,3 @@
-use crate::feature::renderer::buffer::{AttributeFormat, RenderBufferHandle};
-
 use super::{
     pipeline::{BlendMode, CullMode, GraphicsPipeline, GraphicsPipelineHandle},
     uniform::UniformType,

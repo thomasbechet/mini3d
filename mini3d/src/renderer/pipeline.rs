@@ -1,4 +1,4 @@
-use crate::{define_resource_handle, feature::renderer::buffer::AttributeFormat};
+use crate::define_resource_handle;
 
 use super::uniform::UniformType;
 
