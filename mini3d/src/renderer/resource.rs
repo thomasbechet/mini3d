@@ -57,6 +57,9 @@ struct ResourceEntry {
     ty: GPUResourceType,
 }
 
-pub(crate) struct ResourceTable {
+pub(crate) struct GPUResourceTable {
     resources: Vec<ResourceEntry>,
+    textures: Vec<()>,
+    arrays: Vec<()>,
+    constants: Vec<()>,
 }

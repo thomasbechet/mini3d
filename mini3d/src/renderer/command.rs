@@ -1,18 +1,15 @@
+use crate::resource::handle::ResourceHandle;
+
 use super::{
     pipeline::{BlendMode, CullMode, GraphicsPipeline, GraphicsPipelineHandle},
+    resource::{GPUArray, GPUArrayHandle, GPUFormat, GPUResourceHandle, ShaderResourceType},
     uniform::UniformType,
 };
 
 type UniformHandle = u16;
 
 struct VertexAttributeEntry {
-    format: AttributeFormat,
-    buffer: RenderBufferHandle,
-}
-
-struct UniformEntry {
-    ty: UniformType,
-    handle: UniformHandle,
+    array: GPUArrayHandle,
 }
 
 struct PipelineState {
@@ -22,8 +19,8 @@ struct PipelineState {
 }
 
 pub(crate) struct GraphicsCommandEncoder {
-    vertex_buffers: [VertexAttributeEntry; GraphicsPipeline::MAX_VERTEX_ATTRIBUTE_COUNT],
-    uniforms: [UniformEntry; GraphicsPipeline::MAX_BINDINGS_COUNT],
+    vertex_buffers: [VertexAttributeEntry; 8],
+    uniforms: [GPUResourceHandle; 64],
     pso: PipelineState,
 }
 
