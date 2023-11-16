@@ -19,12 +19,12 @@ pub mod command;
 pub mod event;
 pub mod graph;
 pub mod graphics;
+pub mod pass;
 pub mod pipeline;
 pub mod provider;
 pub mod queue;
 pub mod rasterizer;
 pub mod resource;
-pub mod uniform;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;

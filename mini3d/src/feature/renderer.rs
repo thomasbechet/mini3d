@@ -1,4 +1,3 @@
-pub mod buffer;
 pub mod camera;
 pub mod canvas;
 pub mod font;
@@ -6,7 +5,6 @@ pub mod graph;
 pub mod material;
 pub mod mesh;
 pub mod model;
-pub mod pass;
 pub mod static_mesh;
 pub mod system;
 pub mod texture;
