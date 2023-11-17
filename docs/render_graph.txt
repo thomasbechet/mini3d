@@ -1,3 +1,15 @@
 Resources :
 - Transient -> Lifetime is limited to render frame
 - External -> Lifetime can be longer than render frame
+
+Render Graph:
+- Has a list of nodes
+
+Render Graph Node :
+- Sub Render Graph
+- Render Pass
+- 
+
+Render Pass:
+- Type (Graphics, Compute)
+- Resources (Input, Output, Read, Write)

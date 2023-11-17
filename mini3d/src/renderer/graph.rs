@@ -9,11 +9,11 @@ struct GraphicsPassEntry {
     queue: GraphicsQueue,
 }
 
-pub(crate) struct FrameGraphInstance {
+pub(crate) struct RenderGraphInstance {
     pub(crate) graphics_queues: Vec<GraphicsQueue>,
 }
 
-impl FrameGraphInstance {
+impl RenderGraphInstance {
     pub(crate) fn compile(
         &mut self,
         resources: &mut ResourceManager,

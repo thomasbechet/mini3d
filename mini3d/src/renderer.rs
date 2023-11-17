@@ -11,7 +11,7 @@ use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
-use self::graph::FrameGraphInstance;
+use self::graph::RenderGraphInstance;
 use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
@@ -79,7 +79,7 @@ pub struct RendererManager {
     statistics: RendererStatistics,
     clear_color: Color,
     pub(crate) handles: RendererHandles,
-    pub(crate) graph: FrameGraphInstance,
+    pub(crate) graph: RenderGraphInstance,
 }
 
 impl RendererManager {
