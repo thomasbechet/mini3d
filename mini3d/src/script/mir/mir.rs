@@ -1,4 +1,7 @@
-use crate::utils::slotmap::{SlotId, SlotMap};
+use crate::{
+    slot_map_key,
+    utils::slotmap::{Key, SlotMap},
+};
 
 use super::{
     data::{DataId, DataTable},
@@ -6,11 +9,11 @@ use super::{
     primitive::PrimitiveType,
 };
 
-pub(crate) type BasicBlockId = SlotId;
-pub(crate) type FunctionId = SlotId;
-pub(crate) type ConstantId = SlotId;
-pub(crate) type LocalId = SlotId;
-pub(crate) type InstructionId = SlotId;
+slot_map_key!(BasicBlockKey);
+slot_map_key!(FunctionKey);
+slot_map_key!(ConstantKey);
+slot_map_key!(LocalKey);
+slot_map_key!(InstructionKey);
 
 pub(crate) enum Branch {
     Equal,
@@ -26,11 +29,11 @@ pub(crate) enum Terminator {
         branch: Branch,
         lhs: Operand,
         rhs: Operand,
-        true_block: BasicBlockId,
-        false_block: BasicBlockId,
+        true_block: BasicBlockKey,
+        false_block: BasicBlockKey,
     },
     Jump {
-        block: BasicBlockId,
+        block: BasicBlockKey,
     },
     Return {
         value: Option<Operand>,
@@ -39,9 +42,9 @@ pub(crate) enum Terminator {
 
 #[derive(Default)]
 pub(crate) struct BasicBlock {
-    first: InstructionId,
-    last: InstructionId,
-    predecessors: Vec<BasicBlockId>,
+    first: InstructionKey,
+    last: InstructionKey,
+    predecessors: Vec<BasicBlockKey>,
     terminator: Option<Terminator>,
     sealed: bool,
 }
@@ -54,8 +57,8 @@ pub(crate) enum Function {
     Internal {
         name: DataId,
         return_ty: Option<PrimitiveType>,
-        first_arg: FunctionId,
-        entry_block: BasicBlockId,
+        first_arg: FunctionKey,
+        entry_block: BasicBlockKey,
         export: bool,
     },
     External {
@@ -65,7 +68,7 @@ pub(crate) enum Function {
     },
     Argument {
         ty: PrimitiveType,
-        next_arg: FunctionId,
+        next_arg: FunctionKey,
     },
 }
 
@@ -74,7 +77,7 @@ pub(crate) enum Constant {
         name: DataId,
         ty: PrimitiveType,
         value: Option<DataId>,
-        expression_block: BasicBlockId,
+        expression_block: BasicBlockKey,
         export: bool,
     },
     External {
@@ -87,10 +90,10 @@ pub(crate) enum Constant {
 #[derive(Default)]
 #[warn(clippy::upper_case_acronyms)]
 pub(crate) struct MIR {
-    pub(crate) instructions: SlotMap<Instruction>,
-    pub(crate) basic_blocks: SlotMap<BasicBlock>,
-    pub(crate) functions: SlotMap<Function>,
-    pub(crate) constants: SlotMap<Constant>,
+    pub(crate) instructions: SlotMap<InstructionKey, Instruction>,
+    pub(crate) basic_blocks: SlotMap<BasicBlockKey, BasicBlock>,
+    pub(crate) functions: SlotMap<FunctionKey, Function>,
+    pub(crate) constants: SlotMap<ConstantKey, Constant>,
     pub(crate) data: DataTable,
 }
 
@@ -101,7 +104,7 @@ impl MIR {
     //     id
     // }
 
-    fn add_basic_block(&mut self) -> BasicBlockId {
+    fn add_basic_block(&mut self) -> BasicBlockKey {
         self.basic_blocks.add(BasicBlock::default())
     }
 
@@ -118,11 +121,11 @@ impl MIR {
 
     pub(crate) fn add_branch(
         &mut self,
-        block: BasicBlockId,
+        block: BasicBlockKey,
         branch: Branch,
         lhs: Operand,
         rhs: Operand,
-    ) -> (BasicBlockId, BasicBlockId) {
+    ) -> (BasicBlockKey, BasicBlockKey) {
         let true_block = self.add_basic_block();
         let false_block = self.add_basic_block();
         let terminator = Terminator::Branch {
@@ -138,19 +141,19 @@ impl MIR {
 
     pub(crate) fn add_instruction(
         &mut self,
-        block: BasicBlockId,
+        block: BasicBlockKey,
         kind: InstructionKind,
         op0: Operand,
         op1: Operand,
         op2: Operand,
-    ) -> InstructionId {
+    ) -> InstructionKey {
         let id = self.instructions.add(Instruction {
             kind,
             op0,
             op1,
             op2,
-            next: InstructionId::null(),
-            prev: InstructionId::null(),
+            next: InstructionKey::null(),
+            prev: InstructionKey::null(),
         });
         if self.basic_blocks.get(block).unwrap().last.is_null() {
             let block = self.basic_blocks.get_mut(block).unwrap();

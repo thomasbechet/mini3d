@@ -1,8 +1,5 @@
 use crate::ecs::container::SingleContainer;
-use crate::ecs::error::ResolverError;
-use crate::ecs::system::SystemResolver;
 use crate::reflection::PropertyId;
-use crate::utils::uid::ToUID;
 use crate::{ecs::entity::Entity, utils::uid::UID};
 
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};

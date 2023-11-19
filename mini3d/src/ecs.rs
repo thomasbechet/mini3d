@@ -3,14 +3,15 @@ use crate::{
     api::{time::TimeAPI, Context},
     feature::{
         core::resource::ResourceTypeHandle,
-        ecs::{component::ComponentId, system::SystemStageHandle},
+        ecs::{component::ComponentKey, system::SystemStageHandle},
     },
     input::InputManager,
     logger::LoggerManager,
     platform::PlatformManager,
     renderer::RendererManager,
     resource::ResourceManager,
-    utils::slotmap::{SlotId, SlotMap},
+    slot_map_key,
+    utils::slotmap::SlotMap,
 };
 
 use self::{
@@ -42,7 +43,7 @@ pub(crate) struct ECSInstance {
 }
 
 impl ECSInstance {
-    pub(crate) fn flush_changes(&mut self, writes: &[ComponentId]) {
+    pub(crate) fn flush_changes(&mut self, writes: &[ComponentKey]) {
         // Flush structural changes
         {
             // Added entities
@@ -94,9 +95,11 @@ pub(crate) struct ECSHandles {
     pub(crate) update_stage: SystemStageHandle,
 }
 
+slot_map_key!(ECSInstanceHandle);
+
 #[derive(Default)]
 pub(crate) struct ECSManager {
-    pub(crate) instances: SlotMap<(ECSInstance, SystemTable)>,
+    pub(crate) instances: SlotMap<ECSInstanceHandle, (ECSInstance, SystemTable)>,
     pub(crate) handles: ECSHandles,
 }
 
@@ -112,7 +115,7 @@ pub(crate) struct ECSUpdateContext<'a> {
 }
 
 impl ECSManager {
-    pub(crate) fn add(&mut self, owner: ActivityInstanceHandle) -> SlotId {
+    pub(crate) fn add(&mut self, owner: ActivityInstanceHandle) -> ECSInstanceHandle {
         let id = self.instances.add((
             ECSInstance {
                 owner,
@@ -132,13 +135,13 @@ impl ECSManager {
         id
     }
 
-    pub(crate) fn remove(&mut self, slot: SlotId) {
-        self.instances.remove(slot);
+    pub(crate) fn remove(&mut self, handle: ECSInstanceHandle) {
+        self.instances.remove(handle);
     }
 
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> Result<(), ActivityError> {
         // Find active ECS
-        let active_ecs = context.activity.activities[context.activity.active.0].ecs;
+        let active_ecs = context.activity.activities[context.activity.active].ecs;
         let (ecs, systems) = self.instances.get_mut(active_ecs).unwrap();
 
         // Begin frame

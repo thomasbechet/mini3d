@@ -9,7 +9,7 @@ use crate::{
         query::QueryTable,
         sparse::PagedVector,
     },
-    feature::ecs::component::{Component, ComponentId},
+    feature::ecs::component::{Component, ComponentKey},
     reflection::PropertyId,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
     trait_property_impl,
@@ -122,7 +122,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-        component: ComponentId,
+        component: ComponentKey,
     ) {
         // Added components
         for (data, entity) in self.data[self.view_size..].iter() {

@@ -1,5 +1,3 @@
-use mini3d_derive::{Reflect, Serialize};
-
 pub(crate) enum ShaderResourceType {
     PushConstant,
     Constant,

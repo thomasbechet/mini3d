@@ -1,13 +1,13 @@
 use std::cell::UnsafeCell;
 
 use crate::{
-    feature::ecs::component::ComponentId,
+    feature::ecs::component::ComponentKey,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::slotmap::SlotId,
+    utils::slotmap::Key,
 };
 
 use super::{
-    archetype::{ArchetypeId, ArchetypeTable},
+    archetype::{ArchetypeKey, ArchetypeTable},
     container::ContainerTable,
     query::QueryTable,
     sparse::PagedVector,
@@ -67,7 +67,7 @@ impl Serialize for Entity {
 
 #[derive(Default, Clone, Copy)]
 pub(crate) struct EntityEntry {
-    pub(crate) archetype: ArchetypeId,
+    pub(crate) archetype: ArchetypeKey,
     pub(crate) pool_index: u32,
 }
 
@@ -115,7 +115,7 @@ impl EntityTable {
         &mut self,
         queries: &mut QueryTable,
         entity: Entity,
-        component: ComponentId,
+        component: ComponentKey,
     ) {
         let archetype = self.entries.get(entity.key()).unwrap().archetype;
         let new_archetype = self
@@ -129,7 +129,7 @@ impl EntityTable {
         &mut self,
         queries: &mut QueryTable,
         entity: Entity,
-        component: ComponentId,
+        component: ComponentKey,
     ) {
         let archetype = self.entries.get(entity.key()).unwrap().archetype;
         let new_archetype = self
@@ -139,7 +139,7 @@ impl EntityTable {
         self.move_entity(entity, new_archetype);
     }
 
-    fn move_entity(&mut self, entity: Entity, new_archetype: SlotId) {
+    fn move_entity(&mut self, entity: Entity, new_archetype: ArchetypeKey) {
         // Find currrent archetype
         let entity_entry = self.entries.get(entity.key()).unwrap();
         let current_archetype = entity_entry.archetype;

@@ -1,50 +1,100 @@
-use mini3d_derive::Serialize;
+use crate::utils::slotmap::{Key, KeyVersion};
 
-use crate::utils::{
-    prng::PCG32,
-    string::AsciiArray,
-    uid::{ToUID, UID},
-};
+pub(crate) struct ResourceSlotVersion(u8);
 
-pub(crate) const MAX_RESOURCE_KEY_LEN: usize = 64;
-
-#[derive(Default, Serialize)]
-pub struct ResourceKey(AsciiArray<MAX_RESOURCE_KEY_LEN>);
-
-impl ResourceKey {
-    pub(crate) fn new(key: &str) -> Self {
-        Self(AsciiArray::from(key))
+impl KeyVersion for ResourceSlotVersion {
+    fn default() -> Self {
+        Self(0)
     }
-
-    pub(crate) fn random(prng: &mut PCG32) -> Self {
-        let mut key = AsciiArray::default();
-        for i in 0..MAX_RESOURCE_KEY_LEN {
-            let c = prng.next_u32() % 26;
-            let c = char::from_u32(c + 65).unwrap();
-            key.push(c);
+    fn next(&self) -> Self {
+        // Ensure we don't generate a key version
+        // that can't be stored in the resource handle.
+        self.0 += 1;
+        if self.0 >= 64 {
+            self.0 = 0;
         }
-        Self(key)
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
     }
 }
 
-impl ToUID for ResourceKey {
-    fn to_uid(&self) -> UID {
-        self.0.as_str().to_uid()
+pub(crate) struct ResourceSlotKey {
+    version: ResourceSlotVersion,
+    index: u16,
+}
+
+impl Key for ResourceSlotKey {
+    type Version = ResourceSlotVersion;
+    type Index = u16;
+    fn new(index: Self::Index, version: Self::Version) -> Self {
+        Self {
+            version: version.0,
+            index,
+        }
+    }
+    fn index(&self) -> Self::Index {
+        self.index
+    }
+    fn version(&self) -> Self::Version {
+        self.version
+    }
+    fn null() -> Self {
+        Self {
+            version: ResourceSlotVersion::default(),
+            index: 0,
+        }
+    }
+    fn is_null(&self) -> bool {
+        self.index == 0
     }
 }
 
-impl AsRef<str> for ResourceKey {
-    fn as_ref(&self) -> &str {
-        self.0.as_str()
+pub(crate) struct ResourceTypeVersion(u8);
+
+impl KeyVersion for ResourceTypeVersion {
+    fn default() -> Self {
+        Self(0)
+    }
+    fn next(&self) -> Self {
+        // Ensure we don't generate a key version
+        // that can't be stored in the resource handle.
+        self.0 += 1;
+        if self.0 >= 4 {
+            self.0 = 0;
+        }
     }
 }
 
-impl From<&str> for ResourceKey {
-    fn from(key: &str) -> Self {
-        Self::new(key)
+pub(crate) struct ResourceTypeKey {
+    version: ResourceTypeVersion,
+    index: u16,
+}
+
+impl Key for ResourceTypeKey {
+    type Version = ResourceTypeVersion;
+    type Index = u16;
+
+    fn new(index: Self::Index, version: Self::Version) -> Self {
+        Self {
+            version: version.0,
+            index,
+        }
+    }
+
+    fn index(&self) -> Self::Index {
+        self.index
+    }
+
+    fn version(&self) -> Self::Version {
+        self.version
+    }
+
+    fn null() -> Self {
+        Self {
+            version: ResourceSlotVersion::default(),
+            index: 0,
+        }
+    }
+
+    fn is_null(&self) -> bool {
+        self.index == 0
     }
 }

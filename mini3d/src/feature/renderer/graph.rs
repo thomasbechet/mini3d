@@ -3,13 +3,12 @@ use mini3d_derive::{Error, Reflect, Serialize};
 use crate::{
     define_resource_handle,
     feature::core::resource::Resource,
-    renderer::{color::Color, SCREEN_RESOLUTION},
+    renderer::{color::Color},
     utils::string::AsciiArray,
 };
 
 use super::{
     array::{RenderArrayHandle, RenderFormat},
-    constant::RenderConstantHandle,
     texture::{TextureFormat, TextureHandle},
 };
 

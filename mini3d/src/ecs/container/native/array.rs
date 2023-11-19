@@ -7,7 +7,7 @@ use crate::{
         query::QueryTable,
         sparse::PagedVector,
     },
-    feature::ecs::component::{Component, ComponentId},
+    feature::ecs::component::{Component, ComponentKey},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 
@@ -137,7 +137,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-        component: ComponentId,
+        component: ComponentKey,
     ) {
         // Added components
         for entry in self.entries[self.view_size..].iter() {

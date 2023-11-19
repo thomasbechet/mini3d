@@ -9,7 +9,7 @@ use crate::{
         graph::{RenderGraph, RenderGraphError, RenderGraphHandle, RenderTarget},
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
-        pipeline::GraphicsPipelineHandle,
+        pipeline::{BlendMode, CullMode, GraphicsPipelineHandle},
         texture::{Texture, TextureHandle, TextureWrapMode},
     },
     math::rect::IRect,
@@ -161,7 +161,7 @@ impl GraphicsCommand {
 
     pub fn set_blend_mode(ctx: &mut Context, mode: BlendMode) {}
 
-    pub fn set_cull_mode(ctx: &mut Context, mode: BlendMode) {}
+    pub fn set_cull_mode(ctx: &mut Context, mode: CullMode) {}
 
     pub fn set_vertex_array(ctx: &mut Context, array: RenderArrayHandle, location: u8) {}
 

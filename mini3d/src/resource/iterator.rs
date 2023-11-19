@@ -1,14 +1,19 @@
 use crate::{feature::core::resource::Resource, utils::slotmap::SlotMap};
 
-use super::{container::NativeResourceContainer, handle::ResourceHandle, ResourceEntry};
+use super::{
+    container::NativeResourceContainer, handle::ResourceHandle, ResourceEntry, ResourceEntryKey,
+};
 
 pub struct TypedResourceIterator<'a> {
-    entries: &'a SlotMap<ResourceEntry>,
+    entries: &'a SlotMap<ResourceEntryKey, ResourceEntry>,
     current: ResourceHandle,
 }
 
 impl<'a> TypedResourceIterator<'a> {
-    pub(crate) fn new(entries: &'a SlotMap<ResourceEntry>, current: ResourceHandle) -> Self {
+    pub(crate) fn new(
+        entries: &'a SlotMap<ResourceEntryKey, ResourceEntry>,
+        current: ResourceHandle,
+    ) -> Self {
         Self { entries, current }
     }
 }
@@ -20,7 +25,7 @@ impl<'a> Iterator for TypedResourceIterator<'a> {
         if self.current.is_null() {
             None
         } else {
-            let entry = &self.entries[self.current.0];
+            let entry = &self.entries[self.current];
             self.current = entry.next;
             Some(self.current)
         }
@@ -28,14 +33,14 @@ impl<'a> Iterator for TypedResourceIterator<'a> {
 }
 
 pub(crate) struct TypedNativeResourceIteratorMut<'a, R: Resource> {
-    entries: &'a SlotMap<ResourceEntry>,
+    entries: &'a SlotMap<ResourceEntryKey, ResourceEntry>,
     container: Option<&'a mut NativeResourceContainer<R>>,
     current: ResourceHandle,
 }
 
 impl<'a, R: Resource> TypedNativeResourceIteratorMut<'a, R> {
     pub(crate) fn new(
-        entries: &'a SlotMap<ResourceEntry>,
+        entries: &'a SlotMap<ResourceEntryKey, ResourceEntry>,
         container: Option<&'a mut NativeResourceContainer<R>>,
         current: ResourceHandle,
     ) -> Self {
@@ -55,7 +60,7 @@ impl<'a, R: Resource> Iterator for TypedNativeResourceIteratorMut<'a, R> {
             None
         } else {
             let current = self.current;
-            let entry = &self.entries[self.current.0];
+            let entry = &self.entries[self.current];
             self.current = entry.next;
             let data = &mut self.container.take().unwrap().0[entry.slot];
             Some((current, data))

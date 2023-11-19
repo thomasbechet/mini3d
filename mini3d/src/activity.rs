@@ -1,28 +1,22 @@
 use mini3d_derive::Error;
 
 use crate::{
-    ecs::ECSManager,
+    ecs::{ECSInstanceHandle, ECSManager},
     feature::{core::activity::ActivityHandle, ecs::system::SystemSetHandle},
     resource::ResourceManager,
+    slot_map_key,
     utils::{
-        slotmap::{SlotId, SlotMap},
+        slotmap::{Key, SlotMap},
         string::AsciiArray,
     },
 };
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ActivityInstanceHandle(pub(crate) SlotId);
-
-impl ActivityInstanceHandle {
-    pub fn null() -> Self {
-        Self(SlotId::null())
-    }
-}
+slot_map_key!(ActivityInstanceHandle);
 
 pub(crate) struct ActivityEntry {
     pub(crate) name: AsciiArray<32>,
     pub(crate) parent: ActivityInstanceHandle,
-    pub(crate) ecs: SlotId,
+    pub(crate) ecs: ECSInstanceHandle,
 }
 
 #[derive(Debug, Error)]
@@ -42,7 +36,7 @@ pub enum ActivityCommand {
 pub(crate) struct ActivityManager {
     pub(crate) root: ActivityInstanceHandle,
     pub(crate) active: ActivityInstanceHandle,
-    pub(crate) activities: SlotMap<ActivityEntry>,
+    pub(crate) activities: SlotMap<ActivityInstanceHandle, ActivityEntry>,
     pub(crate) commands: Vec<ActivityCommand>,
 }
 
@@ -56,7 +50,7 @@ impl ActivityManager {
         let activity = ActivityInstanceHandle(self.activities.add(ActivityEntry {
             name: name.into(),
             parent,
-            ecs: SlotId::null(),
+            ecs: Key::null(),
         }));
         self.commands
             .push(ActivityCommand::Start(activity, descriptor));

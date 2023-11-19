@@ -3,17 +3,18 @@ use std::{cell::UnsafeCell, ops::Range};
 use crate::{
     feature::{
         core::resource::ResourceTypeHandle,
-        ecs::component::{ComponentId, ComponentTypeHandle},
+        ecs::component::{ComponentKey, ComponentTypeHandle},
     },
     resource::ResourceManager,
+    slot_map_key,
     utils::{
-        slotmap::{SlotId, SlotMap},
+        slotmap::{Key, SlotMap},
         uid::{ToUID, UID},
     },
 };
 
 use super::{
-    archetype::{ArchetypeEntry, ArchetypeId, ArchetypeTable},
+    archetype::{ArchetypeEntry, ArchetypeKey, ArchetypeTable},
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
@@ -75,20 +76,22 @@ pub(crate) struct QueryEntry {
     pub(crate) all: Range<usize>,
     pub(crate) any: Range<usize>,
     pub(crate) not: Range<usize>,
-    pub(crate) archetypes: Vec<ArchetypeId>,
+    pub(crate) archetypes: Vec<ArchetypeKey>,
 }
+
+slot_map_key!(QueryKey);
 
 #[derive(Default)]
 pub(crate) struct QueryTable {
-    pub(crate) components: Vec<ComponentId>,
-    pub(crate) entries: SlotMap<Box<UnsafeCell<QueryEntry>>>,
+    pub(crate) components: Vec<ComponentKey>,
+    pub(crate) entries: SlotMap<QueryKey, Box<UnsafeCell<QueryEntry>>>,
 }
 
 pub(crate) fn query_archetype_match(
     query: &QueryEntry,
-    query_components: &[ComponentId],
+    query_components: &[ComponentKey],
     archetype: &ArchetypeEntry,
-    archetype_components: &[ComponentId],
+    archetype_components: &[ComponentKey],
 ) -> bool {
     let components = &archetype_components[archetype.component_range.clone()];
     let all = &query_components[query.all.clone()];
@@ -129,10 +132,10 @@ pub(crate) fn query_archetype_match(
 impl QueryTable {
     fn find_same_query(
         &self,
-        all: &[ComponentId],
-        any: &[ComponentId],
-        not: &[ComponentId],
-    ) -> Option<SlotId> {
+        all: &[ComponentKey],
+        any: &[ComponentKey],
+        not: &[ComponentKey],
+    ) -> Option<QueryKey> {
         for (id, query) in self.entries.iter() {
             let query = unsafe { &*query.get() };
             if query.all.len() != all.len() {
@@ -164,10 +167,10 @@ impl QueryTable {
     fn add_query(
         &mut self,
         entities: &mut EntityTable,
-        all: &[ComponentId],
-        any: &[ComponentId],
-        not: &[ComponentId],
-    ) -> SlotId {
+        all: &[ComponentKey],
+        any: &[ComponentKey],
+        not: &[ComponentKey],
+    ) -> QueryKey {
         let mut query = QueryEntry::default();
         let start = self.components.len();
         self.components.extend_from_slice(all);
@@ -198,9 +201,9 @@ impl QueryTable {
 pub struct QueryBuilder<'a> {
     pub(crate) query: &'a mut *const QueryEntry,
     pub(crate) component_type: ResourceTypeHandle,
-    pub(crate) all: &'a mut Vec<ComponentId>,
-    pub(crate) any: &'a mut Vec<ComponentId>,
-    pub(crate) not: &'a mut Vec<ComponentId>,
+    pub(crate) all: &'a mut Vec<ComponentKey>,
+    pub(crate) any: &'a mut Vec<ComponentKey>,
+    pub(crate) not: &'a mut Vec<ComponentKey>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) containers: &'a mut ContainerTable,
     pub(crate) queries: &'a mut QueryTable,
@@ -208,7 +211,7 @@ pub struct QueryBuilder<'a> {
 }
 
 impl<'a> QueryBuilder<'a> {
-    fn find_component(&mut self, component: UID) -> Result<ComponentId, ResolverError> {
+    fn find_component(&mut self, component: UID) -> Result<ComponentKey, ResolverError> {
         let handle = ComponentTypeHandle(
             self.resources
                 .find_typed(component, self.component_type)

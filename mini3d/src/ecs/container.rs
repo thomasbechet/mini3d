@@ -3,10 +3,11 @@ use std::{any::Any, cell::UnsafeCell};
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
-    feature::ecs::component::{ComponentId, ComponentType, ComponentTypeHandle},
+    feature::ecs::component::{ComponentKey, ComponentType, ComponentTypeHandle},
     reflection::PropertyId,
     resource::ResourceManager,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
+    slot_map_key,
     utils::{slotmap::SlotMap, uid::UID},
 };
 
@@ -30,7 +31,7 @@ pub(crate) trait Container {
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
-        id: ComponentId,
+        id: ComponentKey,
     );
     fn update_view_size(&mut self);
 }
@@ -74,6 +75,8 @@ pub(crate) trait SingleContainer {
 
 pub(crate) trait ArrayContainer {}
 
+slot_map_key!(ContainerKey);
+
 pub(crate) struct ContainerEntry {
     pub(crate) container: UnsafeCell<Box<dyn Container>>,
     component_type: ComponentTypeHandle,
@@ -81,7 +84,7 @@ pub(crate) struct ContainerEntry {
 
 #[derive(Default)]
 pub(crate) struct ContainerTable {
-    pub(crate) entries: SlotMap<ContainerEntry>,
+    pub(crate) entries: SlotMap<ContainerKey, ContainerEntry>,
 }
 
 impl ContainerTable {
@@ -89,17 +92,17 @@ impl ContainerTable {
         &mut self,
         component: ComponentTypeHandle,
         resource: &mut ResourceManager,
-    ) -> ComponentId {
+    ) -> ComponentKey {
         // Find existing container
-        let id = self.entries.iter().find_map(|(id, e)| {
+        let key = self.entries.iter().find_map(|(key, e)| {
             if e.component_type == component {
-                Some(ComponentId(id))
+                Some(key)
             } else {
                 None
             }
         });
-        if let Some(id) = id {
-            return id;
+        if let Some(key) = key {
+            return key;
         }
         // Create new container
         let ty = resource
@@ -110,12 +113,12 @@ impl ContainerTable {
             component_type: component,
         };
         resource.increment_ref(component.0).unwrap();
-        ComponentId(self.entries.add(entry))
+        self.entries.add(entry)
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentId) {
+    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentKey) {
         self.entries
-            .get_mut(component.0)
+            .get_mut(component)
             .expect("Component container not found while removing entity")
             .container
             .get_mut()

@@ -1,6 +1,6 @@
 use mini3d_derive::Error;
 
-use crate::activity::{ActivityEntry, ActivityInstanceHandle, ActivityManager};
+use crate::activity::{ActivityEntry, ActivityManager};
 use crate::api::time::TimeAPI;
 use crate::api::Context;
 use crate::disk::provider::DiskProvider;
@@ -73,12 +73,12 @@ pub struct Engine {
 
 impl Engine {
     fn setup_root_activity(&mut self) {
-        self.activity.root = ActivityInstanceHandle(self.activity.activities.add(ActivityEntry {
+        self.activity.root = self.activity.activities.add(ActivityEntry {
             name: "root".into(),
             parent: Default::default(),
             ecs: Default::default(),
-        }));
-        self.activity.activities[self.activity.root.0].ecs = self.ecs.add(self.activity.root);
+        });
+        self.activity.activities[self.activity.root].ecs = self.ecs.add(self.activity.root);
         self.activity.active = self.activity.root;
     }
 
@@ -236,7 +236,7 @@ impl Engine {
 
     fn run_bootstrap(&mut self, config: &EngineConfig) {
         if let Some(bootstrap) = config.bootstrap {
-            let (root, _) = &mut self.ecs.instances[self.activity.root.0];
+            let (root, _) = &mut self.ecs.instances[self.activity.root];
             bootstrap(&mut Context {
                 activity: &mut self.activity,
                 resource: &mut self.resource,

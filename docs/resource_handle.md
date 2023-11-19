@@ -1,6 +1,8 @@
 
 ResourceHandle:
-- 14bits -> Asset ID          -> 16384
-- 6bits  -> Asset Version     -> 64
-- 10bits -> Container ID      -> 1024
-- 2bits  -> Container Version -> 4
+- 6bits  -> Slot Version -> 64
+- 14bits -> Slot ID      -> 16384
+- 2bits  -> Type Version -> 4
+- 10bits -> Type ID      -> 1024
+
+[SlotVersion][SlotID][TypeVersion][TypeID]

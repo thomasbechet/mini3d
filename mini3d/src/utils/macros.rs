@@ -81,3 +81,36 @@ macro_rules! define_resource_handle {
         }
     };
 }
+
+#[macro_export]
+macro_rules! slot_map_key {
+    ($name:ident) => {
+        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+        pub struct $name($crate::utils::slotmap::DefaultKey);
+
+        impl $crate::utils::slotmap::Key for $name {
+            type Version = u8;
+            type Index = usize;
+
+            fn new(index: usize, version: Self::Version) -> Self {
+                Self(index as u32 | ((version as u32) << 24))
+            }
+
+            fn index(&self) -> usize {
+                (self & 0xFFFFFF) as usize
+            }
+
+            fn version(&self) -> Self::Version {
+                ((self >> 24) & 0xFF) as u8
+            }
+
+            fn null() -> Self {
+                Self(0xFFFFFFFF)
+            }
+
+            fn is_null(&self) -> bool {
+                self & 0xFFFFFF == 0xFFFFFF
+            }
+        }
+    };
+}

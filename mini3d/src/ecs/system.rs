@@ -3,7 +3,7 @@ use crate::{
     feature::{
         core::resource::ResourceTypeHandle,
         ecs::{
-            component::{ComponentId, ComponentType, ComponentTypeHandle},
+            component::{ComponentKey, ComponentType, ComponentTypeHandle},
             system::{
                 System, SystemHandle, SystemKind, SystemSet, SystemSetHandle, SystemStageHandle,
             },
@@ -34,11 +34,11 @@ use super::{entity::EntityTable, query::QueryTable};
 
 pub struct SystemResolver<'a> {
     pub(crate) component_type: ResourceTypeHandle,
-    pub(crate) reads: Vec<ComponentId>,
-    pub(crate) writes: &'a mut Vec<ComponentId>,
-    pub(crate) all: &'a mut Vec<ComponentId>,
-    pub(crate) any: &'a mut Vec<ComponentId>,
-    pub(crate) not: &'a mut Vec<ComponentId>,
+    pub(crate) reads: Vec<ComponentKey>,
+    pub(crate) writes: &'a mut Vec<ComponentKey>,
+    pub(crate) all: &'a mut Vec<ComponentKey>,
+    pub(crate) any: &'a mut Vec<ComponentKey>,
+    pub(crate) not: &'a mut Vec<ComponentKey>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
     pub(crate) containers: &'a mut ContainerTable,
@@ -46,7 +46,7 @@ pub struct SystemResolver<'a> {
 }
 
 impl<'a> SystemResolver<'a> {
-    fn find(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+    fn find(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
         let handle = ComponentTypeHandle(
             self.resources
                 .find_typed(component, self.component_type)
@@ -55,7 +55,7 @@ impl<'a> SystemResolver<'a> {
         Ok(self.containers.preallocate(handle, self.resources))
     }
 
-    pub(crate) fn read(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+    pub(crate) fn read(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
         let id = self.find(component)?;
         if !self.reads.contains(&id) && !self.writes.contains(&id) {
             self.reads.push(id);
@@ -63,7 +63,7 @@ impl<'a> SystemResolver<'a> {
         Ok(id)
     }
 
-    pub(crate) fn write(&mut self, component: impl ToUID) -> Result<ComponentId, ResolverError> {
+    pub(crate) fn write(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
         let id = self.find(component)?;
         if self.reads.contains(&id) {
             self.reads.retain(|&x| x != id);
@@ -137,7 +137,7 @@ pub(crate) struct SystemInstanceEntry {
     pub(crate) stage: SystemStageHandle,
     pub(crate) system: SystemHandle,
     pub(crate) instance: SystemInstance,
-    pub(crate) writes: Vec<ComponentId>,
+    pub(crate) writes: Vec<ComponentKey>,
 }
 
 impl SystemInstanceEntry {

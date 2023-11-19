@@ -7,11 +7,11 @@ use crate::{
     reflection::{Property, Reflect},
     resource::handle::ReferenceResolver,
     serialize::Serialize,
-    utils::slotmap::SlotId,
+    slot_map_key,
+    utils::slotmap::Key,
 };
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ComponentId(pub(crate) SlotId);
+slot_map_key!(ComponentKey);
 
 pub struct ComponentContext {}
 

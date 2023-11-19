@@ -9,10 +9,11 @@ use crate::{
     resource::{
         container::{NativeResourceContainer, ResourceContainer},
         handle::{ReferenceResolver, ResourceHandle},
+        key::ResourceTypeKey,
         ResourceManager,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::slotmap::SlotId,
+    utils::slotmap::Key,
 };
 
 pub struct ResourceHookContext<'a> {
@@ -75,7 +76,7 @@ pub(crate) enum ResourceKind {
 #[derive(Default, Serialize, Reflect)]
 pub struct ResourceType {
     pub(crate) kind: ResourceKind,
-    pub(crate) container: SlotId,
+    pub(crate) type_key: ResourceTypeKey,
 }
 
 impl ResourceType {
@@ -87,14 +88,14 @@ impl ResourceType {
         };
         Self {
             kind: ResourceKind::Native(Box::new(reflection)),
-            container: SlotId::null(),
+            type_key: ResourceTypeKey::null(),
         }
     }
 
     pub fn structure(structure: StructDefinitionHandle) -> Self {
         Self {
             kind: ResourceKind::Struct(structure),
-            container: SlotId::null(),
+            type_key: ResourceTypeKey::null(),
         }
     }
 

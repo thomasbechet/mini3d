@@ -3,7 +3,8 @@ use std::collections::VecDeque;
 use crate::{
     feature::ecs::system::{SystemStage, SystemStageHandle},
     resource::ResourceManager,
-    utils::slotmap::{SlotId, SlotMap},
+    slot_map_key,
+    utils::slotmap::{Key, SlotMap},
 };
 
 use super::system::SystemTable;
@@ -14,11 +15,13 @@ pub enum Invocation {
     NextFrame,
 }
 
+slot_map_key!(NodeKey);
+
 #[derive(Clone, Copy)]
 pub(crate) struct SystemPipelineNode {
     pub(crate) first: usize,
     pub(crate) count: usize,
-    next: SlotId,
+    next: NodeKey,
 }
 
 struct PeriodicStage {
@@ -29,15 +32,17 @@ struct PeriodicStage {
 
 struct StageEntry {
     handle: SystemStageHandle,
-    first_node: SlotId,
+    first_node: SystemPipelineNodeKey,
 }
+
+slot_map_key!(SystemPipelineNodeKey);
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
     // Mapping between stage and first node
     stages: Vec<StageEntry>,
     // Baked nodes
-    nodes: SlotMap<SystemPipelineNode>,
+    nodes: SlotMap<SystemPipelineNodeKey, SystemPipelineNode>,
     // Instances
     pub(crate) instance_indices: Vec<usize>,
     // Periodic invocations
@@ -47,7 +52,7 @@ pub(crate) struct Scheduler {
     // Runtime stages
     frame_stages: VecDeque<SystemStageHandle>,
     // Runtime active node
-    next_node: SlotId,
+    next_node: NodeKey,
 }
 
 impl Scheduler {
@@ -56,7 +61,7 @@ impl Scheduler {
         self.stages.clear();
         self.nodes.clear();
         self.instance_indices.clear();
-        self.next_node = SlotId::null();
+        self.next_node = Key::null();
 
         // Collect stages
         let mut stages = Vec::new();
@@ -95,7 +100,7 @@ impl Scheduler {
             // let stage = resources.get::<SystemStage>(*stage).unwrap();
             self.stages.push(StageEntry {
                 handle: *stage,
-                first_node: SlotId::null(),
+                first_node: Key::null(),
             });
             // Build nodes
             let mut previous_node = None;
@@ -109,7 +114,7 @@ impl Scheduler {
                 let node = self.nodes.add(SystemPipelineNode {
                     first: self.instance_indices.len() - 1,
                     count: 1,
-                    next: SlotId::null(),
+                    next: Key::null(),
                 });
 
                 // Link previous node or create new stage

@@ -1,13 +1,15 @@
-use crate::utils::slotmap::SlotMap;
+use crate::{slot_map_key, utils::slotmap::SlotMap};
 
 use super::{
     data::{DataId, DataTable},
-    mir::{BasicBlockId, Constant, ConstantId, FunctionId, InstructionId, LocalId},
+    mir::{BasicBlockKey, Constant, FunctionKey, InstructionKey, LocalKey},
 };
+
+slot_map_key!(ConstantKey);
 
 struct OperandFormatter<'a> {
     operand: Operand,
-    constants: &'a SlotMap<Constant>,
+    constants: &'a SlotMap<ConstantKey, Constant>,
     data: &'a DataTable,
 }
 
@@ -34,11 +36,11 @@ struct OperandFormatter<'a> {
 // }
 
 pub(crate) enum Operand {
-    Local(LocalId),
+    Local(LocalKey),
     Data(DataId),
-    Function(FunctionId),
-    Constant(ConstantId),
-    BasicBlock(BasicBlockId),
+    Function(FunctionKey),
+    Constant(ConstantKey),
+    BasicBlock(BasicBlockKey),
 }
 
 pub(crate) enum InstructionKind {
@@ -59,6 +61,6 @@ pub(crate) struct Instruction {
     pub(crate) op0: Operand,
     pub(crate) op1: Operand,
     pub(crate) op2: Operand,
-    pub(crate) next: InstructionId,
-    pub(crate) prev: InstructionId,
+    pub(crate) next: InstructionKey,
+    pub(crate) prev: InstructionKey,
 }
