@@ -3,8 +3,6 @@ use crate::{
     resource::ResourceManager,
 };
 
-use super::queue::GraphicsQueue;
-
 struct GraphicsPassEntry {
     queue: GraphicsQueue,
 }

@@ -9,11 +9,19 @@ use crate::{
 
 #[derive(Clone, Serialize, Default)]
 pub enum TextureFormat {
-    R,
-    RG,
-    RGB,
+    R8,
+    R8G8,
+    R8G8B8,
     #[default]
-    RGBA,
+    R8G8B8A8,
+    R16,
+    R16G16,
+    R16G16B16,
+    R16G16B16A16,
+    R32,
+    R32G32,
+    R32G32B32,
+    R32G32B32A32,
 }
 
 #[derive(Clone, Copy, Serialize)]

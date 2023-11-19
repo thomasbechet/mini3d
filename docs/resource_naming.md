@@ -10,3 +10,5 @@ SYS -> System
 SST -> SystemSet
 STA -> SystemStage
 RDG -> RenderGraph
+RDP -> RenderPass
+RDB -> RenderCommandBuffer

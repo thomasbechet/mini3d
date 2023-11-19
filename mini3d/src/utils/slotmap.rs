@@ -98,6 +98,22 @@ impl<V> SlotMap<V> {
         }
     }
 
+    pub(crate) fn add_with_version(&mut self, value: V, version: SlotVersion) -> SlotId {
+        if self.free.is_null() {
+            let index = self.entries.len();
+            let slot = SlotId::new(index, version);
+            self.entries.push(SlotEntry { value, slot });
+            slot
+        } else {
+            let index = self.free.index();
+            let entry = &mut self.entries[index];
+            self.free = entry.slot;
+            entry.value = value;
+            entry.slot = SlotId::new(index, version);
+            entry.slot
+        }
+    }
+
     pub fn remove(&mut self, slot: SlotId) {
         let index = slot.index();
         // Check slot validity

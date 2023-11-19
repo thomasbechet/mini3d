@@ -112,9 +112,16 @@ impl Engine {
         self.renderer.handles.material = define_resource!(renderer::material::Material);
         self.renderer.handles.mesh = define_resource!(renderer::mesh::Mesh);
         self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
-        self.renderer.handles.render_graph = define_resource!(renderer::graph::RenderGraph);
+        self.renderer.handles.graph = define_resource!(renderer::graph::RenderGraph);
         self.renderer.handles.model = define_resource!(renderer::model::Model);
-        self.renderer.handles.buffer = define_resource!(renderer::buffer::Buffer);
+        self.renderer.handles.array = define_resource!(renderer::array::RenderArray);
+        self.renderer.handles.constant = define_resource!(renderer::constant::RenderConstant);
+        self.renderer.handles.command_buffer =
+            define_resource!(renderer::command::RenderCommandBuffer);
+        self.renderer.handles.graphics_pipeline =
+            define_resource!(renderer::pipeline::GraphicsPipeline);
+        self.renderer.handles.compute_pipeline =
+            define_resource!(renderer::pipeline::ComputePipeline);
 
         define_resource!(core::activity::Activity);
         define_resource!(core::structure::StructDefinition);

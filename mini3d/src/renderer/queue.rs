@@ -11,11 +11,6 @@ use super::{color::Color, pipeline::GraphicsPipelineHandle};
 
 pub struct PipelineLayout {}
 
-pub struct GraphicsQueueHandle(pub(crate) u32);
-pub struct ComputeQueueHandle(pub(crate) u32);
-pub struct CanvasQueueHandle(pub(crate) u32);
-pub struct CopyQueueHandle(pub(crate) u32);
-
 pub enum ShaderResource {
     Buffer {
         handle: RenderBufferHandle,
@@ -76,24 +71,3 @@ pub(crate) enum GraphicsCommand {
     Draw(DrawCommand),
     DrawInstanced(DrawInstancedCommand),
 }
-
-pub struct GraphicsQueue {
-    pub(crate) draw: DrawCommand,
-    pub(crate) draw_instanced: DrawInstancedCommand,
-    pub(crate) commands: Vec<GraphicsCommand>,
-    pub(crate) push_constants: Vec<PushConstant>,
-}
-
-pub struct CanvasQueue {}
-
-impl CanvasQueue {}
-
-pub struct ComputeQueue {}
-
-impl ComputeQueue {
-    pub fn dispatch(&mut self, x: u32, y: u32, z: u32) {}
-}
-
-pub struct CopyQueue {}
-
-impl CopyQueue {}

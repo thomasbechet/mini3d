@@ -1,6 +1,7 @@
 use crate::feature::core::resource::ResourceTypeHandle;
 use crate::feature::renderer::font::{Font, FontHandle};
 use crate::feature::renderer::mesh::{Mesh, MeshHandle};
+use crate::feature::renderer::pipeline::{ComputePipelineHandle, GraphicsPipelineHandle};
 use crate::feature::renderer::texture::{Texture, TextureHandle};
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
@@ -10,16 +11,15 @@ use crate::{
 use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
+use self::encoder::{CanvasCommandEncoder, ComputeCommandEncoder, GraphicsCommandEncoder};
 use self::event::RendererEvent;
-use self::graph::RenderGraphInstance;
 use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
-pub mod command;
+pub mod encoder;
 pub mod event;
 pub mod graph;
 pub mod graphics;
-pub mod pass;
 pub mod pipeline;
 pub mod provider;
 pub mod queue;
@@ -68,9 +68,13 @@ pub(crate) struct RendererHandles {
     pub(crate) material: ResourceTypeHandle,
     pub(crate) mesh: ResourceTypeHandle,
     pub(crate) font: ResourceTypeHandle,
-    pub(crate) render_graph: ResourceTypeHandle,
+    pub(crate) graph: ResourceTypeHandle,
     pub(crate) model: ResourceTypeHandle,
-    pub(crate) buffer: ResourceTypeHandle,
+    pub(crate) array: ResourceTypeHandle,
+    pub(crate) constant: ResourceTypeHandle,
+    pub(crate) command_buffer: ResourceTypeHandle,
+    pub(crate) graphics_pipeline: GraphicsPipelineHandle,
+    pub(crate) compute_pipeline: ComputePipelineHandle,
 }
 
 #[derive(Default)]
@@ -79,7 +83,9 @@ pub struct RendererManager {
     statistics: RendererStatistics,
     clear_color: Color,
     pub(crate) handles: RendererHandles,
-    pub(crate) graph: RenderGraphInstance,
+    pub(crate) graphics_encoder: GraphicsCommandEncoder,
+    pub(crate) compute_encoder: ComputeCommandEncoder,
+    pub(crate) canvas_encoder: CanvasCommandEncoder,
 }
 
 impl RendererManager {

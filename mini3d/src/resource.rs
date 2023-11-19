@@ -30,6 +30,7 @@ pub struct ResourceInfo<'a> {
 pub(crate) struct ResourceEntry {
     key: ResourceKey,
     ty: ResourceTypeHandle,
+    container: SlotId,
     owner: ActivityInstanceHandle,
     ref_count: usize,
     slot: SlotId,         // Null if not loaded
@@ -73,6 +74,7 @@ impl ResourceManager {
         self.meta_type = ResourceHandle(self.entries.add(ResourceEntry {
             key: ResourceKey::new(ResourceType::NAME),
             ty: ResourceTypeHandle::null(),
+            container: self.type_container,
             owner: root,
             ref_count: 1, // Keep it alive (reference itslef)
             slot: SlotId::null(),
@@ -171,6 +173,7 @@ impl ResourceManager {
         let mut entry = ResourceEntry {
             key,
             ty,
+            container,
             slot: SlotId::null(),
             owner,
             ref_count: 0,
@@ -220,15 +223,10 @@ impl ResourceManager {
         if slot.is_null() {
             return Err(ResourceError::ResourceNotLoaded);
         }
-        // Find container
-        let container = self
-            .get_type(entry.ty)
-            .ok_or(ResourceError::ResourceTypeNotFound)?
-            .container;
         // Read resource
         Ok(self
             .containers
-            .get(container)
+            .get(entry.container)
             .unwrap()
             .container
             .as_any()
@@ -253,15 +251,10 @@ impl ResourceManager {
         if slot.is_null() {
             return Err(ResourceError::ResourceNotLoaded);
         }
-        // Find container
-        let container = self
-            .get_type(entry.ty)
-            .ok_or(ResourceError::ResourceTypeNotFound)?
-            .container;
         // Read resource
         Ok(self
             .containers
-            .get_mut(container)
+            .get_mut(entry.container)
             .unwrap()
             .container
             .as_any_mut()
@@ -273,11 +266,10 @@ impl ResourceManager {
     }
 
     pub(crate) fn get_unchecked<R: Resource>(&self, handle: impl ToResourceHandle) -> &R {
-        let (ty, slot) = {
+        let (container, slot) = {
             let entry = &self.entries[handle.to_handle().0];
-            (entry.ty, entry.slot)
+            (entry.container, entry.slot)
         };
-        let container = self.get_type(ty).unwrap().container;
         &self.containers[container]
             .container
             .as_any()
@@ -290,11 +282,10 @@ impl ResourceManager {
         &mut self,
         handle: impl ToResourceHandle,
     ) -> &mut R {
-        let (ty, slot) = {
+        let (container, slot) = {
             let entry = &self.entries[handle.to_handle().0];
-            (entry.ty, entry.slot)
+            (entry.container, entry.slot)
         };
-        let container = self.get_type(ty).unwrap().container;
         &mut self.containers[container]
             .container
             .as_any_mut()

@@ -2,23 +2,18 @@ use glam::{IVec2, Mat4, Vec2, Vec3, Vec4};
 
 use crate::{
     feature::renderer::{
+        array::{RenderArray, RenderArrayHandle, RenderArrayUsage, RenderFormat},
+        command::{RenderCommandBuffer, RenderCommandBufferHandle, RenderCommandBufferType},
+        constant::{RenderConstant, RenderConstantHandle},
         font::{Font, FontHandle},
-        graph::{RenderGraph, RenderGraphError, RenderGraphHandle},
+        graph::{RenderGraph, RenderGraphError, RenderGraphHandle, RenderTarget},
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
-        pass::{CanvasPass, ComputePass, CopyPass, GraphicsPass},
+        pipeline::GraphicsPipelineHandle,
         texture::{Texture, TextureHandle, TextureWrapMode},
     },
     math::rect::IRect,
-    renderer::{
-        color::Color,
-        pipeline::{BlendMode, GraphicsPipelineHandle},
-        queue::{CanvasQueueHandle, ComputeQueueHandle, CopyQueueHandle, GraphicsQueueHandle},
-        resource::{
-            GPUArray, GPUArrayHandle, GPUArrayUsage, GPUConstant, GPUConstantHandle, GPUFormat,
-        },
-        RendererStatistics,
-    },
+    renderer::{color::Color, RendererStatistics},
     utils::uid::ToUID,
 };
 
@@ -68,8 +63,16 @@ impl RenderGraph {
     pub fn destroy(ctx: &mut Context, graph: RenderGraphHandle) {}
 
     pub fn find(ctx: &Context, key: impl ToUID) -> Option<RenderGraphHandle> {
-        ctx.resource
-            .find_typed(key, ctx.renderer.handles.render_graph)
+        ctx.resource.find_typed(key, ctx.renderer.handles.graph)
+    }
+
+    pub fn run(
+        ctx: &mut Context,
+        graph: RenderGraphHandle,
+        target: RenderTarget,
+        buffers: &[RenderCommandBufferHandle],
+    ) -> Result<(), RenderGraphError> {
+        todo!()
     }
 }
 
@@ -85,74 +88,72 @@ impl Model {
     }
 }
 
-impl GPUArray {
-    pub fn create(
-        ctx: &mut Context,
-        format: GPUFormat,
-        size: u32,
-        usage: GPUArrayUsage,
-    ) -> GPUArrayHandle {
+impl RenderCommandBuffer {
+    pub fn create(ctx: &mut Context, ty: RenderCommandBufferType) -> RenderCommandBufferHandle {
         todo!()
     }
 
-    pub fn set_float(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: f32) {}
-
-    pub fn set_int(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: i32) {}
-
-    pub fn set_vec2(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Vec2) {}
-
-    pub fn set_vec3(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Vec3) {}
-
-    pub fn set_vec4(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Vec4) {}
-
-    pub fn set_mat4(ctx: &mut Context, array: GPUArrayHandle, index: u32, value: Mat4) {}
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<RenderCommandBufferHandle> {
+        ctx.resource
+            .find_typed(key, ctx.renderer.handles.command_buffer)
+    }
 }
 
-impl GPUConstant {
-    pub fn create(ctx: &mut Context, format: GPUFormat) -> GPUConstantHandle {
+impl RenderArray {
+    pub fn create(
+        ctx: &mut Context,
+        format: RenderFormat,
+        size: u32,
+        usage: RenderArrayUsage,
+    ) -> RenderArrayHandle {
         todo!()
     }
 
-    pub fn set_float(ctx: &mut Context, constant: GPUConstantHandle, value: f32) {}
+    pub fn set_float(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: f32) {}
 
-    pub fn set_int(ctx: &mut Context, constant: GPUConstantHandle, value: i32) {}
+    pub fn set_int(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: i32) {}
 
-    pub fn set_vec2(ctx: &mut Context, constant: GPUConstantHandle, value: Vec2) {}
+    pub fn set_vec2(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Vec2) {}
 
-    pub fn set_vec3(ctx: &mut Context, constant: GPUConstantHandle, value: Vec3) {}
+    pub fn set_vec3(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Vec3) {}
 
-    pub fn set_vec4(ctx: &mut Context, constant: GPUConstantHandle, value: Vec4) {}
+    pub fn set_vec4(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Vec4) {}
 
-    pub fn set_mat4(ctx: &mut Context, constant: GPUConstantHandle, value: Mat4) {}
+    pub fn set_mat4(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Mat4) {}
+}
+
+impl RenderConstant {
+    pub fn create(ctx: &mut Context, format: RenderFormat) -> RenderConstantHandle {
+        todo!()
+    }
+
+    pub fn set_float(ctx: &mut Context, constant: RenderConstantHandle, value: f32) {}
+
+    pub fn set_int(ctx: &mut Context, constant: RenderConstantHandle, value: i32) {}
+
+    pub fn set_vec2(ctx: &mut Context, constant: RenderConstantHandle, value: Vec2) {}
+
+    pub fn set_vec3(ctx: &mut Context, constant: RenderConstantHandle, value: Vec3) {}
+
+    pub fn set_vec4(ctx: &mut Context, constant: RenderConstantHandle, value: Vec4) {}
+
+    pub fn set_mat4(ctx: &mut Context, constant: RenderConstantHandle, value: Mat4) {}
 }
 
 pub struct Renderer;
 
 impl Renderer {
-    /// Statistics
-
     pub fn statistics(ctx: &Context) -> RendererStatistics {
         ctx.renderer.statistics()
     }
+}
 
-    /// Render graphs
+struct GraphicsCommand;
 
-    pub fn set_render_graph(
-        ctx: &mut Context,
-        graph: RenderGraphHandle,
-    ) -> Result<(), RenderGraphError> {
-        Ok(())
+impl GraphicsCommand {
+    pub fn set_pipeline(ctx: &mut Context, pipeline: GraphicsPipelineHandle) {
+        ctx.renderer.graphics_encoder.set_pipeline(pipeline);
     }
-}
-
-impl GraphicsPass {
-    pub fn queue(ctx: &Context, pass: impl ToUID) -> GraphicsQueueHandle {}
-}
-
-struct GraphicsCmd;
-
-impl GraphicsCmd {
-    pub fn set_pipeline(ctx: &mut Context, pipeline: GraphicsPipelineHandle) {}
 
     pub fn set_viewport(ctx: &mut Context, viewport: Vec4) {}
 
@@ -162,13 +163,13 @@ impl GraphicsCmd {
 
     pub fn set_cull_mode(ctx: &mut Context, mode: BlendMode) {}
 
-    pub fn set_vertex_array(ctx: &mut Context, array: GPUArrayHandle, location: u8) {}
+    pub fn set_vertex_array(ctx: &mut Context, array: RenderArrayHandle, location: u8) {}
 
     pub fn set_texture(ctx: &mut Context, texture: TextureHandle, slot: u8) {}
 
-    pub fn set_array(ctx: &mut Context, array: GPUArrayHandle, slot: u8) {}
+    pub fn set_array(ctx: &mut Context, array: RenderArrayHandle, slot: u8) {}
 
-    pub fn set_constant(ctx: &mut Context, constant: GPUConstantHandle, slot: u8) {}
+    pub fn set_constant(ctx: &mut Context, constant: RenderConstantHandle, slot: u8) {}
 
     pub fn push_int(ctx: &mut Context, slot: u8, value: i32) {}
 
@@ -180,13 +181,19 @@ impl GraphicsCmd {
 
     pub fn push_mat4(ctx: &mut Context, slot: u8, value: Mat4) {}
 
-    pub fn draw(ctx: &mut Context, queue: GraphicsQueueHandle, first: u32, count: u32, key: u32) {
+    pub fn draw(
+        ctx: &mut Context,
+        cmd: RenderCommandBufferHandle,
+        first: u32,
+        count: u32,
+        key: u32,
+    ) {
         todo!()
     }
 
     pub fn draw_instanced(
         ctx: &mut Context,
-        queue: GraphicsQueueHandle,
+        cmd: RenderCommandBufferHandle,
         first: u32,
         count: u32,
         instances: u32,
@@ -196,22 +203,22 @@ impl GraphicsCmd {
     }
 }
 
-impl CanvasPass {
-    pub fn queue(ctx: &Context, pass: impl ToUID) -> CanvasQueueHandle {
-        todo!()
-    }
-}
+struct CanvasCommand;
 
-struct CanvasCmd;
-
-impl CanvasCmd {
+impl CanvasCommand {
     pub fn set_scissor(ctx: &mut Context, extent: Option<IRect>) {}
 
-    pub fn draw_rect(ctx: &mut Context, queue: CanvasQueueHandle, extent: IRect, color: Color) {}
+    pub fn draw_rect(
+        ctx: &mut Context,
+        cmd: RenderCommandBufferHandle,
+        extent: IRect,
+        color: Color,
+    ) {
+    }
 
     pub fn draw_line(
         ctx: &mut Context,
-        queue: CanvasQueueHandle,
+        cmd: RenderCommandBufferHandle,
         x0: IVec2,
         x1: IVec2,
         color: Color,
@@ -220,7 +227,7 @@ impl CanvasCmd {
 
     pub fn draw_vline(
         ctx: &mut Context,
-        queue: CanvasQueueHandle,
+        cmd: RenderCommandBufferHandle,
         x: i32,
         y0: i32,
         y1: i32,
@@ -230,7 +237,7 @@ impl CanvasCmd {
 
     pub fn draw_hline(
         ctx: &mut Context,
-        queue: CanvasQueueHandle,
+        cmd: RenderCommandBufferHandle,
         y: i32,
         x0: i32,
         x1: i32,
@@ -238,11 +245,17 @@ impl CanvasCmd {
     ) {
     }
 
-    pub fn fill_rect(ctx: &mut Context, queue: CanvasQueueHandle, extent: IRect, color: Color) {}
+    pub fn fill_rect(
+        ctx: &mut Context,
+        cmd: RenderCommandBufferHandle,
+        extent: IRect,
+        color: Color,
+    ) {
+    }
 
     pub fn blit_texture(
         ctx: &mut Context,
-        queue: CanvasQueueHandle,
+        cmd: RenderCommandBufferHandle,
         texture: TextureHandle,
         extent: IRect,
         texture_extent: IRect,
@@ -252,25 +265,16 @@ impl CanvasCmd {
     ) {
     }
 
-    pub fn print(&mut self, position: IVec2, text: &str, font: FontHandle) {}
-}
-
-impl ComputePass {
-    pub fn queue(ctx: &Context, pass: impl ToUID) -> ComputeQueueHandle {
-        todo!()
+    pub fn print(
+        &mut self,
+        cmd: RenderCommandBufferHandle,
+        position: IVec2,
+        text: &str,
+        font: FontHandle,
+    ) {
     }
 }
 
-struct ComputeCmd;
+struct ComputeCommand;
 
-impl ComputeCmd {}
-
-impl CopyPass {
-    pub fn queue(ctx: &Context, pass: impl ToUID) -> CopyQueueHandle {
-        todo!()
-    }
-}
-
-struct CopyCmd;
-
-impl CopyCmd {}
+impl ComputeCommand {}

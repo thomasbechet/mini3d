@@ -1,10 +1,14 @@
+pub mod array;
 pub mod camera;
 pub mod canvas;
+pub mod command;
+pub mod constant;
 pub mod font;
 pub mod graph;
 pub mod material;
 pub mod mesh;
 pub mod model;
+pub mod pipeline;
 pub mod static_mesh;
 pub mod system;
 pub mod texture;

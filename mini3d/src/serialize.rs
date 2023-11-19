@@ -345,6 +345,21 @@ impl Serialize for i32 {
     }
 }
 
+impl Serialize for u64 {
+    type Header = ();
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u64(*self)
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        Ok(decoder.read_u64()?)
+    }
+}
+
 impl Serialize for usize {
     type Header = ();
 
