@@ -2,7 +2,11 @@ use std::any::Any;
 
 use crate::{feature::core::resource::Resource, utils::slotmap::SlotMap};
 
-use super::{key::ResourceSlotKey, ResourceEntryKey};
+use super::{
+    iterator::{TypedResourceIterator, Wrapper},
+    key::ResourceSlotKey,
+    ResourceEntryKey,
+};
 
 pub struct PrivateResourceContainerRef<'a>(pub(crate) &'a dyn ResourceContainer);
 pub struct PrivateResourceContainerMut<'a>(pub(crate) &'a mut dyn ResourceContainer);
@@ -20,10 +24,10 @@ impl<R: Resource> NativeResourceContainer<R> {
         Self(SlotMap::with_capacity(capacity))
     }
 
-    pub(crate) fn add(&mut self, resource: R, entry_key: ResourceEntryKey) -> ResourceSlotKey {
+    pub(crate) fn add(&mut self, resource: R, key: ResourceEntryKey) -> ResourceSlotKey {
         self.0.insert(ResourceEntry {
             data: resource,
-            entry_key,
+            entry_key: key,
         })
     }
 
@@ -44,7 +48,7 @@ impl<R: Resource> NativeResourceContainer<R> {
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = (ResourceEntryKey, &R)> {
-        self.0.values().map(|entry| (entry.entry_key, entry.data))
+        self.0.values().map(|entry| (entry.key, entry.data))
     }
 
     pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (ResourceSlotKey, &mut R)> + '_ {
@@ -59,6 +63,8 @@ pub(crate) trait ResourceContainer: Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn remove(&mut self, key: ResourceSlotKey);
     fn clear(&mut self);
+    fn get_entry_key(&self, key: ResourceSlotKey) -> Option<ResourceEntryKey>;
+    fn iter_entry_keys(&self) -> TypedResourceIterator;
 }
 
 impl<R: Resource> ResourceContainer for NativeResourceContainer<R> {
@@ -76,5 +82,15 @@ impl<R: Resource> ResourceContainer for NativeResourceContainer<R> {
 
     fn clear(&mut self) {
         self.0.clear();
+    }
+
+    fn get_entry_key(&self, key: ResourceSlotKey) -> Option<ResourceEntryKey> {
+        self.0.get(key).map(|e| e.entry_key)
+    }
+
+    fn iter_entry_keys(&self) -> TypedResourceIterator {
+        TypedResourceIterator {
+            iter: self.0.values().map(|e| Wrapper { key: e.entry_key }),
+        }
     }
 }

@@ -4,31 +4,25 @@ use super::{
     container::NativeResourceContainer, handle::ResourceHandle, ResourceEntry, ResourceEntryKey,
 };
 
-pub struct TypedResourceIterator<'a> {
-    entries: &'a SlotMap<ResourceEntryKey, ResourceEntry>,
-    current: ResourceHandle,
+pub(crate) struct Wrapper {
+    pub(crate) key: ResourceEntryKey,
+}
+
+pub(crate) struct TypedResourceIterator<'a> {
+    pub(crate) iter: std::slice::Iter<'a, Wrapper>,
 }
 
 impl<'a> TypedResourceIterator<'a> {
-    pub(crate) fn new(
-        entries: &'a SlotMap<ResourceEntryKey, ResourceEntry>,
-        current: ResourceHandle,
-    ) -> Self {
-        Self { entries, current }
+    pub(crate) fn empty() -> Self {
+        Self { iter: &[].iter() }
     }
 }
 
 impl<'a> Iterator for TypedResourceIterator<'a> {
-    type Item = ResourceHandle;
+    type Item = ResourceEntryKey;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current.is_null() {
-            None
-        } else {
-            let entry = &self.entries[self.current];
-            self.current = entry.next;
-            Some(self.current)
-        }
+        self.iter.next().map(|wrapper| &wrapper.key).copied()
     }
 }
 

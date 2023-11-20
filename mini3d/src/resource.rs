@@ -44,7 +44,7 @@ struct ContainerEntry {
 pub struct ResourceManager {
     containers: SlotMap<ResourceTypeKey, ContainerEntry>,
     entries: SlotMap<ResourceEntryKey, ResourceEntry>,
-    type_container: ResourceTypeKey,
+    type_container_key: ResourceTypeKey,
     meta_type: ResourceTypeHandle, // Meta resource type definition
     prng: PCG32,
 }
@@ -54,7 +54,7 @@ impl Default for ResourceManager {
         Self {
             containers: Default::default(),
             entries: Default::default(),
-            type_container: Key::null(),
+            type_container_key: Key::null(),
             meta_type: ResourceTypeHandle::null(),
             prng: PCG32::new(1234),
         }
@@ -64,7 +64,7 @@ impl Default for ResourceManager {
 impl ResourceManager {
     pub(crate) fn define_meta_type(&mut self, root: ActivityInstanceHandle) {
         // Create container
-        self.type_container = self.containers.add(ContainerEntry {
+        self.type_container_key = self.containers.add(ContainerEntry {
             container: Box::new(NativeResourceContainer::<ResourceType>::with_capacity(128)),
         });
         // Create meta type entry
@@ -77,7 +77,7 @@ impl ResourceManager {
         // Create meta type data
         let meta_type_data_slot = self
             .containers
-            .get_mut(self.type_container)
+            .get_mut(self.type_container_key)
             .unwrap()
             .container
             .as_any_mut()
@@ -86,13 +86,13 @@ impl ResourceManager {
             .add(
                 ResourceType {
                     kind: Default::default(),
-                    type_key: self.type_container,
+                    type_key: self.type_container_key,
                 },
                 entry_key,
             );
         // Update entry with type and data slot (itself)
         self.entries[entry_key].handle =
-            ResourceHandle::new(self.type_container, meta_type_data_slot);
+            ResourceHandle::new(self.type_container_key, meta_type_data_slot);
     }
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -104,7 +104,7 @@ impl ResourceManager {
     }
 
     fn get_type(&self, ty: ResourceTypeHandle) -> Option<&ResourceType> {
-        self.containers[self.type_container]
+        self.containers[self.type_container_key]
             .container
             .as_any()
             .downcast_ref::<NativeResourceContainer<ResourceType>>()
@@ -116,7 +116,7 @@ impl ResourceManager {
         let container = self.get_type(ty).unwrap().create_container();
         let type_key = self.containers.add(ContainerEntry { container });
         // Save container id
-        self.containers[self.type_container]
+        self.containers[self.type_container_key]
             .container
             .as_any_mut()
             .downcast_mut::<NativeResourceContainer<ResourceType>>()
@@ -252,9 +252,9 @@ impl ResourceManager {
     pub(crate) fn iter_typed(&self, ty: ResourceTypeHandle) -> TypedResourceIterator<'_> {
         if let Some(ty) = self.get_type(ty) {
             let container = ty.type_key;
-            TypedResourceIterator::new(&self.entries, self.containers[container].first)
+            self.containers[container].container.iter_entry_keys()
         } else {
-            TypedResourceIterator::new(&self.entries, ResourceHandle::null())
+            TypedResourceIterator::empty()
         }
     }
 
