@@ -3,7 +3,7 @@ use std::any::Any;
 use crate::{feature::core::resource::Resource, utils::slotmap::SlotMap};
 
 use super::{
-    iterator::{TypedResourceIterator, Wrapper},
+    iterator::{ResourceKeysIterator, Wrapper},
     key::ResourceSlotKey,
     ResourceEntryKey,
 };
@@ -47,8 +47,10 @@ impl<R: Resource> NativeResourceContainer<R> {
         &mut self.0[key].data
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (ResourceEntryKey, &R)> {
-        self.0.values().map(|entry| (entry.key, entry.data))
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (ResourceSlotKey, &R)> {
+        self.0
+            .iter()
+            .map(|(slot_key, entry)| (slot_key, entry.data))
     }
 
     pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (ResourceSlotKey, &mut R)> + '_ {
@@ -64,7 +66,7 @@ pub(crate) trait ResourceContainer: Any {
     fn remove(&mut self, key: ResourceSlotKey);
     fn clear(&mut self);
     fn get_entry_key(&self, key: ResourceSlotKey) -> Option<ResourceEntryKey>;
-    fn iter_entry_keys(&self) -> TypedResourceIterator;
+    fn iter_keys(&self) -> ResourceKeysIterator;
 }
 
 impl<R: Resource> ResourceContainer for NativeResourceContainer<R> {
@@ -88,9 +90,12 @@ impl<R: Resource> ResourceContainer for NativeResourceContainer<R> {
         self.0.get(key).map(|e| e.entry_key)
     }
 
-    fn iter_entry_keys(&self) -> TypedResourceIterator {
-        TypedResourceIterator {
-            iter: self.0.values().map(|e| Wrapper { key: e.entry_key }),
+    fn iter_keys(&self) -> ResourceKeysIterator {
+        ResourceKeysIterator {
+            iter: self.0.iter().map(|(slot_key, entry)| Wrapper {
+                entry_key: entry.entry_key,
+                slot_key,
+            }),
         }
     }
 }

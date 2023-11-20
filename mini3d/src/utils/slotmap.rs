@@ -1,24 +1,14 @@
 use std::ops::{Index, IndexMut};
 
-pub(crate) trait KeyVersion {
-    fn default() -> Self;
+pub(crate) trait KeyVersion: Copy + Clone + PartialEq + Eq + Default {
     fn next(&self) -> Self;
 }
 
-pub struct DefaultKeyVersion(u8);
+pub(crate) trait KeyIndex: Copy + Clone + From<usize> {}
 
-impl KeyVersion for DefaultKeyVersion {
-    fn default() -> Self {
-        Self(0)
-    }
-    fn next(&self) -> Self {
-        self.0 = self.0.wrapping_add(1)
-    }
-}
-
-pub trait Key {
+pub trait Key: Copy + Clone + PartialEq + Eq {
     type Version: KeyVersion;
-    type Index: Into<usize>;
+    type Index: KeyIndex;
     fn new(index: Self::Index, version: Self::Version) -> Self;
     fn index(&self) -> Self::Index;
     fn version(&self) -> Self::Version;
@@ -26,31 +16,63 @@ pub trait Key {
     fn is_null(&self) -> bool;
 }
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DefaultKeyVersion(u8);
+
+impl KeyVersion for DefaultKeyVersion {
+    fn next(&self) -> Self {
+        Self(self.0.wrapping_add(1))
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DefaultKeyIndex(u32);
+
+impl From<usize> for DefaultKeyIndex {
+    fn from(index: usize) -> Self {
+        Self(index as u32)
+    }
+}
+
+impl Into<usize> for DefaultKeyIndex {
+    fn into(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl KeyIndex for DefaultKeyIndex {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DefaultKey(u32);
 
+impl Default for DefaultKey {
+    fn default() -> Self {
+        Self(0xFFFFFFFF)
+    }
+}
+
 impl Key for DefaultKey {
     type Version = DefaultKeyVersion;
-    type Index = usize;
+    type Index = DefaultKeyIndex;
 
-    fn new(index: usize, version: Self::Version) -> Self {
-        Self(index as u32 | ((version as u32) << 24))
+    fn new(index: Self::Index, version: Self::Version) -> Self {
+        Self(index.0 as u32 | ((version.0 as u32) << 24))
     }
 
-    fn index(&self) -> usize {
-        (self & 0xFFFFFF) as usize
+    fn index(&self) -> Self::Index {
+        DefaultKeyIndex(self.0 & 0xFFFFFF)
     }
 
     fn version(&self) -> Self::Version {
-        ((self >> 24) & 0xFF) as u8
+        DefaultKeyVersion(((self.0 >> 24) & 0xFF) as u8)
     }
 
     fn null() -> Self {
-        Self(0xFFFFFFFF)
+        Self::default()
     }
 
     fn is_null(&self) -> bool {
-        self & 0xFFFFFF == 0xFFFFFF
+        self.0 & 0xFFFFFF == 0xFFFFFF
     }
 }
 
@@ -64,7 +86,7 @@ pub struct SlotMap<K: Key, V> {
     free: K,
 }
 
-impl<V> Default for SlotMap<DefaultKey, V> {
+impl<K: Key, V> Default for SlotMap<K, V> {
     fn default() -> Self {
         Self {
             entries: Vec::new(),
@@ -73,8 +95,17 @@ impl<V> Default for SlotMap<DefaultKey, V> {
     }
 }
 
-impl<K: Key, V> SlotMap<K, V> {
+impl<V> SlotMap<DefaultKey, V> {
     pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            free: Key::null(),
+        }
+    }
+}
+
+impl<K: Key, V> SlotMap<K, V> {
+    pub fn with_key() -> Self {
         Self {
             entries: Vec::new(),
             free: Key::null(),
@@ -96,12 +127,12 @@ impl<K: Key, V> SlotMap<K, V> {
     pub fn add(&mut self, value: V) -> K {
         if self.free.is_null() {
             let index = self.entries.len();
-            let key = K::new(index, K::Version::default());
+            let key = K::new(index.into(), K::Version::default());
             self.entries.push(SlotEntry { value, key });
             key
         } else {
             let index = self.free.index();
-            let entry = &mut self.entries[index];
+            let entry = &mut self.entries[<K::Index as Into<usize>>::into(index)];
             self.free = entry.key;
             entry.value = value;
             entry.key = K::new(index, entry.key.version());
@@ -172,7 +203,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index() {
+                if index == entry.key.index().into() {
                     Some((entry.key, &entry.value))
                 } else {
                     None
@@ -463,10 +494,18 @@ impl<K: Key, V> IndexMut<K> for DenseSlotMap<K, V> {
 //     }
 // }
 
-#[derive(Default)]
 struct SecondarySlotEntry<K: Key, V: Default> {
     value: V,
     key: K,
+}
+
+impl<K: Key, V: Default> Default for SecondarySlotEntry<K, V> {
+    fn default() -> Self {
+        Self {
+            value: V::default(),
+            key: K::null(),
+        }
+    }
 }
 
 pub struct SecondaryMap<K: Key, V: Default> {
@@ -554,7 +593,7 @@ struct SparseSecondaryMapEntry<K: Key, V> {
 
 pub struct SparseSecondaryMap<K: Key, V> {
     data: Vec<SparseSecondaryMapEntry<K, V>>,
-    indices: Vec<K::Index>,
+    indices: Vec<u32>,
 }
 
 impl<K: Key, V> Default for SparseSecondaryMap<K, V> {
@@ -589,7 +628,7 @@ impl<K: Key, V> SparseSecondaryMap<K, V> {
 
     pub fn insert(&mut self, key: K, value: V) {
         if key.index() >= self.indices.len() {
-            self.indices.resize(key.index() + 1, K::null());
+            self.indices.resize(key.index() + 1, Default::default());
         }
         let index = key.index();
         if !self.indices[index].is_null() {
@@ -600,7 +639,7 @@ impl<K: Key, V> SparseSecondaryMap<K, V> {
             self.indices[index] = K::new(self.data.len(), key.version());
             self.data.push(SparseSecondaryMapEntry {
                 value,
-                index: key.index() as u32,
+                index: key.index(),
             });
         }
     }

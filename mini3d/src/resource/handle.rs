@@ -13,7 +13,10 @@ use crate::{
 };
 
 use super::{
-    key::{ResourceSlotKey, ResourceTypeKey},
+    key::{
+        ResourceSlotIndex, ResourceSlotKey, ResourceSlotVersion, ResourceTypeIndex,
+        ResourceTypeKey, ResourceTypeVersion,
+    },
     ResourceManager,
 };
 
@@ -35,36 +38,26 @@ impl ReferenceResolver {
 pub struct ResourceHandle(u32);
 
 impl ResourceHandle {
-    fn type_id(&self) -> u16 {
-        (self.0 & 0xA) as u16
+    fn type_key(&self) -> ResourceTypeKey {
+        ResourceTypeKey::new(
+            ResourceTypeIndex((self.0 & 0xA) as u16),
+            ResourceTypeVersion(((self.0 >> 0xA) & 0x2) as u8),
+        )
     }
 
-    fn type_version(&self) -> u8 {
-        ((self.0 >> 0xA) & 0x2) as u8
-    }
-
-    fn slot_id(&self) -> u16 {
-        ((self.0 >> 0xC) & 0xE) as u16
-    }
-
-    fn slot_version(&self) -> u8 {
-        ((self.0 >> 0x1A) & 0x6) as u8
-    }
-
-    pub(crate) fn type_key(&self) -> ResourceTypeKey {
-        ResourceTypeKey::new(self.type_id(), self.type_version())
-    }
-
-    pub(crate) fn slot_key(&self) -> ResourceSlotKey {
-        ResourceSlotKey::new(self.slot_id(), self.slot_version())
+    fn slot_key(&self) -> ResourceSlotKey {
+        ResourceSlotKey::new(
+            ResourceSlotIndex(((self.0 >> 0xC) & 0xE) as u16),
+            ResourceSlotVersion(((self.0 >> 0x1A) & 0x6) as u8),
+        )
     }
 
     pub(crate) fn new(type_key: ResourceTypeKey, slot_key: ResourceSlotKey) -> Self {
         Self(
-            ((type_key.index() as u32) & 0xA)
-                | (((type_key.version() as u32) & 0x2) << 0xA)
-                | (((slot_key.index() as u32) & 0xE) << 0xC)
-                | (((slot_key.version() as u32) & 0x6) << 0x1A),
+            ((type_key.index().0 as u32) & 0xA)
+                | (((type_key.version().0 as u32) & 0x2) << 0xA)
+                | (((slot_key.index().0 as u32) & 0xE) << 0xC)
+                | (((slot_key.version().0 as u32) & 0x6) << 0x1A),
         )
     }
 
@@ -77,16 +70,16 @@ impl ResourceHandle {
     }
 
     pub fn resolve(&mut self, resolver: &mut ReferenceResolver) {
-        if !self.0.is_null() {
-            *self = resolver.resolve_resource(*self);
-        }
+        // if !self.0.is_null() {
+        //     *self = resolver.resolve_resource(*self);
+        // }
     }
 
     pub(crate) fn release(&mut self, resources: &mut ResourceManager) {
-        if !self.0.is_null() {
-            resources.decrement_ref(*self);
-            self.0 = Key::null();
-        }
+        // if !self.0.is_null() {
+        //     resources.decrement_ref(*self);
+        //     self.0 = Key::null();
+        // }
     }
 
     pub(crate) fn from_raw(raw: u32) -> Self {

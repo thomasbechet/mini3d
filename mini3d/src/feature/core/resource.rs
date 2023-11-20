@@ -76,6 +76,7 @@ pub(crate) enum ResourceKind {
 #[derive(Default, Serialize, Reflect)]
 pub struct ResourceType {
     pub(crate) kind: ResourceKind,
+    #[serialize(skip)]
     pub(crate) type_key: ResourceTypeKey,
 }
 

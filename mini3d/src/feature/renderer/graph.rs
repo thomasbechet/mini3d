@@ -1,10 +1,8 @@
 use mini3d_derive::{Error, Reflect, Serialize};
 
 use crate::{
-    define_resource_handle,
-    feature::core::resource::Resource,
-    renderer::{color::Color},
-    utils::string::AsciiArray,
+    define_resource_handle, feature::core::resource::Resource, renderer::color::Color,
+    slot_map_key, utils::string::AsciiArray,
 };
 
 use super::{
@@ -23,7 +21,7 @@ pub enum RenderTarget {
     Array(RenderArrayHandle),
 }
 
-pub struct RenderGraphSlot(u16);
+slot_map_key!(RenderGraphSlot);
 
 pub enum RenderPassResource {
     Texture { format: TextureFormat },
@@ -55,6 +53,7 @@ pub(crate) enum RenderPassKind {
     Canvas,
 }
 
+#[derive(Default, Serialize, Reflect)]
 struct RenderPassEntry {
     name: AsciiArray<32>,
     kind: RenderPassKind,
@@ -63,13 +62,10 @@ struct RenderPassEntry {
 #[derive(Default, Serialize, Reflect)]
 pub(crate) struct RenderGraph {
     passes: Vec<RenderPassEntry>,
-    target: RenderGraphSlot,
 }
 
 impl RenderGraph {
     pub const NAME: &'static str = "RTY_RenderGraph";
-
-    pub(crate) fn find_render_pass(&self, name: &str) -> Option<
 }
 
 impl Resource for RenderGraph {}

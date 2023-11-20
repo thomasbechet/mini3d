@@ -9,7 +9,6 @@ use crate::utils::uid::ToUID;
 use self::container::{NativeResourceContainer, ResourceContainer};
 use self::error::ResourceError;
 use self::handle::{ResourceHandle, ResourceKey, ToResourceHandle};
-use self::iterator::{TypedNativeResourceIteratorMut, TypedResourceIterator};
 use self::key::ResourceTypeKey;
 
 pub mod container;
@@ -249,37 +248,36 @@ impl ResourceManager {
         self.entries.values().map(|entry| entry.handle)
     }
 
-    pub(crate) fn iter_typed(&self, ty: ResourceTypeHandle) -> TypedResourceIterator<'_> {
+    pub(crate) fn iter_typed(
+        &self,
+        ty: ResourceTypeHandle,
+    ) -> impl Iterator<Item = ResourceHandle> + '_ {
         if let Some(ty) = self.get_type(ty) {
             let container = ty.type_key;
-            self.containers[container].container.iter_entry_keys()
+            self.containers[container]
+                .container
+                .iter_keys()
+                .map(move |(_, slot)| ResourceHandle::new(container, slot))
         } else {
-            TypedResourceIterator::empty()
+            [].iter()
         }
     }
 
     pub(crate) fn iter_native_mut<R: Resource>(
         &mut self,
         ty: ResourceTypeHandle,
-    ) -> TypedNativeResourceIteratorMut<'_, R> {
+    ) -> impl Iterator<Item = (ResourceHandle, &'_ mut R)> {
         if let Some(ty) = self.get_type(ty) {
-            let container = ty.container;
-            if !container.is_null() {
-                let first = self.containers[container].first;
-                return TypedNativeResourceIteratorMut::new(
-                    &self.entries,
-                    Some(
-                        self.containers[container]
-                            .container
-                            .as_any_mut()
-                            .downcast_mut()
-                            .unwrap(),
-                    ),
-                    first,
-                );
-            }
+            let container = self.containers[ty.type_key]
+                .container
+                .as_any_mut()
+                .downcast_mut::<NativeResourceContainer<R>>()
+                .unwrap()
+                .iter()
+                .map(|(key, value)| (ResourceHandle::new(ty.type_key, key), value));
+        } else {
+            [].iter()
         }
-        TypedNativeResourceIteratorMut::new(&self.entries, None, ResourceHandle::null())
     }
 
     pub(crate) fn iter_native_values_mut<R: Resource>(
