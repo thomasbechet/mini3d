@@ -1,125 +1,59 @@
-use crate::utils::slotmap::{Key, KeyIndex, KeyVersion};
-
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ResourceSlotVersion(pub(crate) u8);
-
-impl KeyVersion for ResourceSlotVersion {
-    fn next(&self) -> Self {
-        // Ensure we don't generate a key version
-        // that can't be stored in the resource handle.
-        Self((self.0 + 1) % 64)
-    }
-}
-
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ResourceSlotIndex(pub(crate) u16);
-
-impl From<usize> for ResourceSlotIndex {
-    fn from(index: usize) -> Self {
-        Self(index as u16)
-    }
-}
-
-impl Into<usize> for ResourceSlotIndex {
-    fn into(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl KeyIndex for ResourceSlotIndex {}
+use crate::utils::slotmap::Key;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ResourceSlotKey {
-    version: ResourceSlotVersion,
-    index: ResourceSlotIndex,
+    pub(crate) version: u8,
+    pub(crate) index: u16,
 }
 
 impl Key for ResourceSlotKey {
-    type Version = ResourceSlotVersion;
-    type Index = ResourceSlotIndex;
-
-    fn new(index: Self::Index, version: Self::Version) -> Self {
-        Self { version, index }
-    }
-
-    fn index(&self) -> Self::Index {
-        self.index
-    }
-
-    fn version(&self) -> Self::Version {
-        self.version
-    }
-
-    fn null() -> Self {
+    fn new(index: Option<usize>) -> Self {
         Self {
-            version: ResourceSlotVersion::default(),
-            index: ResourceSlotIndex::default(),
+            version: 0,
+            index: index.map_or(0xFFFF, |index| index as u16 & 0xFFFF),
         }
     }
 
-    fn is_null(&self) -> bool {
-        self.index.0 == 0
+    fn update(&mut self, index: Option<usize>) {
+        self.version = (self.version + 1) % 64;
+        self.index = index.map_or(0xFFFF, |index| index as u32 & 0xFFFF);
+    }
+
+    fn index(&self) -> Option<usize> {
+        if self.index == 0xFFFF {
+            None
+        } else {
+            Some(self.index as usize)
+        }
     }
 }
-
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
-pub struct ResourceTypeVersion(pub(crate) u8);
-
-impl KeyVersion for ResourceTypeVersion {
-    fn next(&self) -> Self {
-        // Ensure we don't generate a key version
-        // that can't be stored in the resource handle.
-        Self((self.0 + 1) % 4)
-    }
-}
-
-#[derive(Default, Clone, Copy, PartialEq, Eq)]
-pub struct ResourceTypeIndex(pub(crate) u16);
-
-impl From<usize> for ResourceTypeIndex {
-    fn from(index: usize) -> Self {
-        Self(index as u16)
-    }
-}
-
-impl Into<usize> for ResourceTypeIndex {
-    fn into(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl KeyIndex for ResourceTypeIndex {}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ResourceTypeKey {
-    version: ResourceTypeVersion,
-    index: ResourceTypeIndex,
+    pub(crate) version: u8,
+    pub(crate) index: u16,
 }
 
 impl Key for ResourceTypeKey {
-    type Version = ResourceTypeVersion;
-    type Index = ResourceTypeIndex;
-
-    fn new(index: Self::Index, version: Self::Version) -> Self {
-        Self { version, index }
-    }
-
-    fn index(&self) -> Self::Index {
-        self.index
-    }
-
-    fn version(&self) -> Self::Version {
-        self.version
-    }
-
-    fn null() -> Self {
+    fn new(index: Option<usize>) -> Self {
         Self {
-            version: ResourceTypeVersion::default(),
-            index: ResourceTypeIndex::default(),
+            version: 0,
+            index: index.map_or(0xFFFF, |index| index as u16 & 0xFFFF),
         }
     }
 
-    fn is_null(&self) -> bool {
-        self.index.0 == 0
+    fn update(&mut self, index: Option<usize>) {
+        // Ensure we don't generate a key version
+        // that can't be stored in the resource handle.
+        self.version = (self.version + 1) % 4;
+        self.index = index.map_or(0xFFFF, |index| index as u32 & 0xFFFF);
+    }
+
+    fn index(&self) -> Option<usize> {
+        if self.index == 0xFFFF {
+            None
+        } else {
+            Some(self.index as usize)
+        }
     }
 }

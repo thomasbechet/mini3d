@@ -1,45 +1,9 @@
 use std::ops::{Index, IndexMut};
 
-pub(crate) trait KeyVersion: Copy + Clone + PartialEq + Eq + Default {
-    fn next(&self) -> Self;
-}
-
-pub(crate) trait KeyIndex: Copy + Clone + From<usize> {
-    fn into_index(self) -> usize;
-}
-
 pub trait Key: Copy + Clone + PartialEq + Eq {
-    type Version: KeyVersion;
-    type Index: KeyIndex;
-    fn new(index: Self::Index, version: Self::Version) -> Self;
-    fn index(&self) -> Self::Index;
-    fn version(&self) -> Self::Version;
-    fn null() -> Self;
-    fn is_null(&self) -> bool;
-}
-
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DefaultKeyVersion(u8);
-
-impl KeyVersion for DefaultKeyVersion {
-    fn next(&self) -> Self {
-        Self(self.0.wrapping_add(1))
-    }
-}
-
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DefaultKeyIndex(u32);
-
-impl From<usize> for DefaultKeyIndex {
-    fn from(index: usize) -> Self {
-        Self(index as u32)
-    }
-}
-
-impl KeyIndex for DefaultKeyIndex {
-    fn into_index(self) -> usize {
-        self.0 as usize
-    }
+    fn new(index: usize) -> Self;
+    fn update(&mut self, index: Option<usize>);
+    fn index(&self) -> Option<usize>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -47,32 +11,34 @@ pub struct DefaultKey(u32);
 
 impl Default for DefaultKey {
     fn default() -> Self {
+        Self::null()
+    }
+}
+
+impl DefaultKey {
+    pub fn null() -> Self {
         Self(0xFFFFFFFF)
     }
 }
 
 impl Key for DefaultKey {
-    type Version = DefaultKeyVersion;
-    type Index = DefaultKeyIndex;
-
-    fn new(index: Self::Index, version: Self::Version) -> Self {
-        Self(index.0 as u32 | ((version.0 as u32) << 24))
+    fn new(index: usize) -> Self {
+        Self(index as u32 & 0xFFFFFF)
     }
 
-    fn index(&self) -> Self::Index {
-        DefaultKeyIndex(self.0 & 0xFFFFFF)
+    fn update(&mut self, index: Option<usize>) {
+        let mut version = ((self.0 >> 24) & 0xFF) as u8;
+        version = version.wrapping_add(1);
+        self.0 = (index.unwrap_or(0xFFFFFF) & 0xFFFFFF) as u32 | ((version as u32) << 24);
     }
 
-    fn version(&self) -> Self::Version {
-        DefaultKeyVersion(((self.0 >> 24) & 0xFF) as u8)
-    }
-
-    fn null() -> Self {
-        Self::default()
-    }
-
-    fn is_null(&self) -> bool {
-        self.0 & 0xFFFFFF == 0xFFFFFF
+    fn index(&self) -> Option<usize> {
+        let index = self.0 & 0xFFFFFF;
+        if index == 0xFFFFFF {
+            None
+        } else {
+            Some(index as usize)
+        }
     }
 }
 
@@ -83,14 +49,14 @@ struct SlotEntry<K: Key, V> {
 
 pub struct SlotMap<K: Key, V> {
     entries: Vec<SlotEntry<K, V>>,
-    free: K,
+    free: Option<usize>,
 }
 
 impl<K: Key, V> Default for SlotMap<K, V> {
     fn default() -> Self {
         Self {
             entries: Vec::new(),
-            free: Key::null(),
+            free: None,
         }
     }
 }
@@ -99,7 +65,7 @@ impl<V> SlotMap<DefaultKey, V> {
     pub fn new() -> Self {
         Self {
             entries: Vec::new(),
-            free: Key::null(),
+            free: None,
         }
     }
 }
@@ -108,64 +74,48 @@ impl<K: Key, V> SlotMap<K, V> {
     pub fn with_key() -> Self {
         Self {
             entries: Vec::new(),
-            free: Key::null(),
+            free: None,
         }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             entries: Vec::with_capacity(capacity),
-            free: Key::null(),
+            free: None,
         }
     }
 
     pub fn clear(&mut self) {
         self.entries.clear();
-        self.free = Key::null();
+        self.free = None;
     }
 
     pub fn add(&mut self, value: V) -> K {
-        if self.free.is_null() {
+        if let Some(free) = self.free {
+            let entry = &mut self.entries[free];
+            self.free = entry.key.index();
+            entry.value = value;
+            entry.key.update(Some(free));
+            entry.key
+        } else {
             let index = self.entries.len();
-            let key = K::new(index.into(), K::Version::default());
+            let key = K::new(index);
             self.entries.push(SlotEntry { value, key });
             key
-        } else {
-            let index = self.free.index();
-            let entry = &mut self.entries[index.into_index()];
-            self.free = entry.key;
-            entry.value = value;
-            entry.key = K::new(index, entry.key.version());
-            entry.key
-        }
-    }
-
-    pub(crate) fn add_with_version(&mut self, value: V, version: K::Version) -> K {
-        if self.free.is_null() {
-            let index = self.entries.len();
-            let key = K::new(index.into(), version);
-            self.entries.push(SlotEntry { value, key });
-            key
-        } else {
-            let index = self.free.index();
-            let entry = &mut self.entries[index.into_index()];
-            self.free = entry.key;
-            entry.value = value;
-            entry.key = K::new(index, version);
-            entry.key
         }
     }
 
     pub fn remove(&mut self, key: K) {
-        let index = key.index().into_index();
-        // Check slot validity
-        if index >= self.entries.len() || self.entries[index].key != key {
-            return;
+        if let Some(index) = key.index() {
+            // Check slot validity
+            if index >= self.entries.len() || self.entries[index].key != key {
+                return;
+            }
+            // Mark slot as free and update version
+            self.entries[index].key.update(self.free);
+            // Keep reference to the slot
+            self.free = Some(index);
         }
-        // Mark slot as free and update version
-        self.entries[index].key = K::new(self.free.index(), key.version().next());
-        // Keep reference to the slot
-        self.free = key;
     }
 
     pub fn contains(&self, key: K) -> bool {
@@ -181,21 +131,23 @@ impl<K: Key, V> SlotMap<K, V> {
     }
 
     pub fn get(&self, key: K) -> Option<&V> {
-        let index = key.index().into_index();
-        if index >= self.entries.len() || self.entries[index].key != key {
-            None
-        } else {
-            self.get_unchecked(index)
-        }
+        key.index().and_then(|index| {
+            if index >= self.entries.len() || self.entries[index].key != key {
+                None
+            } else {
+                self.get_unchecked(index)
+            }
+        })
     }
 
     pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
-        let index = key.index().into_index();
-        if index >= self.entries.len() || self.entries[index].key != key {
-            None
-        } else {
-            self.get_mut_unchecked(index)
-        }
+        key.index().and_then(|index| {
+            if index >= self.entries.len() || self.entries[index].key != key {
+                None
+            } else {
+                self.get_mut_unchecked(index)
+            }
+        })
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (K, &V)> {
@@ -203,7 +155,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index().into_index() {
+                if entry.key.index().is_some() && index == entry.key.index().unwrap() {
                     Some((entry.key, &entry.value))
                 } else {
                     None
@@ -216,7 +168,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter_mut()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index().into_index() {
+                if entry.key.index().is_some() && index == entry.key.index().unwrap() {
                     Some((entry.key, &mut entry.value))
                 } else {
                     None
@@ -229,7 +181,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index().into_index() {
+                if entry.key.index().is_some() && index == entry.key.index().unwrap() {
                     Some(entry.key)
                 } else {
                     None
@@ -238,9 +190,11 @@ impl<K: Key, V> SlotMap<K, V> {
     }
 
     pub fn next(&self, key: K) -> Option<K> {
-        let mut index = key.index().into_index() + 1;
+        let mut index = key.index().unwrap() + 1;
         while index < self.entries.len() {
-            if self.entries[index].key.index().into_index() == index {
+            if self.entries[index].key.index().is_some()
+                && self.entries[index].key.index().unwrap() == index
+            {
                 return Some(self.entries[index].key);
             }
             index += 1;
@@ -253,7 +207,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index().into_index() {
+                if entry.key.is_some() && index == entry.key.index().unwrap() {
                     Some(&entry.value)
                 } else {
                     None
@@ -266,7 +220,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter_mut()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index().into_index() {
+                if entry.key.is_some() && index == entry.key.index().uwnrap() {
                     Some(&mut entry.value)
                 } else {
                     None
@@ -291,9 +245,9 @@ impl<K: Key, V> IndexMut<K> for SlotMap<K, V> {
 
 #[derive(Debug)]
 struct DenseSlotMapMeta<K: Key> {
-    slot_to_index: K::Index,
-    index_to_slot: K::Index, // or free slot if unused
-    version: K::Version,
+    slot_to_index: u32,
+    index_to_slot: u32, // or free slot if unused
+    key: K,
 }
 
 pub struct DenseSlotMap<K: Key, V> {
@@ -318,33 +272,36 @@ impl<K: Key, V> DenseSlotMap<K, V> {
             let free_id = self.meta[size].index_to_slot;
             self.meta[size].slot_to_index = size.into();
             self.meta[size].index_to_slot = free_id;
+            self.meta[size].key.update(Some(size));
             self.free_count -= 1;
-            K::new(size.into(), self.meta[size].version)
+            self.meta[size].key
         } else {
             let size = self.data.len();
             self.data.push(value);
             let version = K::Version::default();
+            let key = K::new(size);
             self.meta.push(DenseSlotMapMeta {
-                slot_to_index: size.into(),
-                index_to_slot: size.into(),
-                version,
+                slot_to_index: size,
+                index_to_slot: size,
+                key,
             });
-            K::new(size.into(), version)
+            key
         }
     }
 
     pub fn remove(&mut self, key: K) {
         let last_index = self.data.len() - 1;
-        let slot_index = key.index();
-        if slot_index < self.meta.len() && self.meta[slot_index].version == key.version() {
-            let index = self.meta[slot_index].slot_to_index as usize;
-            self.data.swap_remove(index);
-            let last_id = self.meta[last_index].index_to_slot;
-            self.meta[last_id as usize].slot_to_index = index as u32;
-            self.meta[slot_index].version = self.meta[slot_index].version.next();
-            self.meta[index].index_to_slot = last_id;
-            self.meta[last_index].index_to_slot = slot_index as u32; // free slot
-            self.free_count += 1;
+        if let Some(slot_index) = key.index() {
+            if slot_index < self.meta.len() && self.meta[slot_index].key == key {
+                let index = self.meta[slot_index].slot_to_index as usize;
+                self.data.swap_remove(index);
+                let last_id = self.meta[last_index].index_to_slot;
+                self.meta[last_id as usize].slot_to_index = index as u32;
+                self.meta[slot_index].update(Some(slot_index));
+                self.meta[index].index_to_slot = last_id;
+                self.meta[last_index].index_to_slot = slot_index as u32; // free slot
+                self.free_count += 1;
+            }
         }
     }
 
@@ -360,7 +317,7 @@ impl<K: Key, V> DenseSlotMap<K, V> {
         self.data
             .iter()
             .zip(self.meta.iter())
-            .map(|(value, meta)| (K::new(meta.slot_to_index as usize, meta.version), value))
+            .map(|(value, meta)| (meta.key, value))
     }
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
@@ -372,19 +329,21 @@ impl<K: Key, V> DenseSlotMap<K, V> {
     }
 
     pub fn get(&self, key: K) -> Option<&V> {
-        let index = key.index();
-        if index >= self.meta.len() || self.meta[index].version != key.version() {
-            return None;
-        }
-        self.data.get(self.meta[index].slot_to_index as usize)
+        key.index().and_then(|index| {
+            if index >= self.meta.len() || self.meta[index].key != key {
+                return None;
+            }
+            self.data.get(self.meta[index].slot_to_index as usize)
+        })
     }
 
     pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
-        let index = key.index();
-        if index >= self.meta.len() || self.meta[index].version != key.version() {
-            return None;
+        if let Some(index) = key.index() {
+            if index >= self.meta.len() || self.meta[index].key != key {
+                return None;
+            }
+            self.data.get_mut(self.meta[index].slot_to_index as usize)
         }
-        self.data.get_mut(self.meta[index].slot_to_index as usize)
     }
 
     pub fn contains(&self, key: K) -> bool {
@@ -442,40 +401,45 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        let index = key.index();
-        assert!(!key.is_null());
-        if index >= self.entries.len() {
-            self.entries.resize_with(index + 1, Default::default);
+        if let Some(index) = key.index() {
+            if index >= self.entries.len() {
+                self.entries.resize_with(index + 1, Default::default);
+            }
+            self.entries[index].value = value;
+            self.entries[index].key = key;
         }
-        self.entries[index].value = value;
-        self.entries[index].key = key;
     }
 
     pub fn remove(&mut self, key: K) {
-        let index = key.index();
-        if index >= self.entries.len() || self.entries[index].key != key {
-            return;
+        if let Some(index) = key.index() {
+            if index >= self.entries.len() || self.entries[index].key != key {
+                return;
+            }
+            self.entries[index].key.update(None);
         }
-        self.entries[index].key = K::null();
     }
 
     pub fn get(&self, key: K) -> Option<&V> {
-        self.entries.get(key.index()).and_then(|entry| {
-            if entry.key.version() != key.version() {
-                None
-            } else {
-                Some(&entry.value)
-            }
+        key.index().and_then(|index| {
+            self.entries.get(index).and_then(|entry| {
+                if entry.key != key {
+                    None
+                } else {
+                    Some(&entry.value)
+                }
+            })
         })
     }
 
     pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
-        self.entries.get_mut(key.index()).and_then(|entry| {
-            if entry.key.version() != key.version() {
-                None
-            } else {
-                Some(&mut entry.value)
-            }
+        key.index().and_then(|index| {
+            self.entries.get_mut(index).and_then(|entry| {
+                if entry.key != key {
+                    None
+                } else {
+                    Some(&mut entry.value)
+                }
+            })
         })
     }
 
@@ -504,14 +468,14 @@ impl<K: Key, V: Default> IndexMut<K> for SecondaryMap<K, V> {
     }
 }
 
-struct SparseSecondaryMapEntry<K: Key, V> {
+struct SparseSecondaryMapEntry<V> {
     value: V,
-    index: K::Index,
+    index: usize,
 }
 
 pub struct SparseSecondaryMap<K: Key, V> {
-    data: Vec<SparseSecondaryMapEntry<K, V>>,
-    indices: Vec<u32>,
+    data: Vec<SparseSecondaryMapEntry<V>>,
+    indices: Vec<K>,
 }
 
 impl<K: Key, V> Default for SparseSecondaryMap<K, V> {
@@ -545,20 +509,17 @@ impl<K: Key, V> SparseSecondaryMap<K, V> {
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        if key.index() >= self.indices.len() {
-            self.indices.resize(key.index() + 1, Default::default());
-        }
-        let index = key.index();
-        if !self.indices[index].is_null() {
-            let i = self.indices[index].index();
-            self.data[i].value = value;
-            self.indices[index] = K::new(i, key.version());
-        } else {
-            self.indices[index] = K::new(self.data.len(), key.version());
-            self.data.push(SparseSecondaryMapEntry {
-                value,
-                index: key.index(),
-            });
+        if let Some(index) = key.index() {
+            if index >= self.indices.len() {
+                self.indices.resize(index + 1, Default::default());
+            }
+            if let Some(i) = self.indices[index].index() {
+                self.data[i].value = value;
+                self.indices[index].update(Some(i));
+            } else {
+                self.indices[index].update(Some(self.data.len()));
+                self.data.push(SparseSecondaryMapEntry { value, index });
+            }
         }
     }
 
@@ -591,21 +552,13 @@ impl<K: Key, V> SparseSecondaryMap<K, V> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (K, &V)> {
-        self.data.iter().map(|e| {
-            (
-                K::new(e.index, self.indices[e.index as usize].version()),
-                &e.value,
-            )
-        })
+        self.data.iter().map(|e| (self.indices[e.index], &e.value))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (K, &mut V)> {
-        self.data.iter_mut().map(|e| {
-            (
-                K::new(e.index, self.indices[e.index as usize].version()),
-                &mut e.value,
-            )
-        })
+        self.data
+            .iter_mut()
+            .map(|e| (self.indices[e.index], &mut e.value))
     }
 
     pub fn values(&self) -> impl Iterator<Item = &V> {

@@ -13,10 +13,7 @@ use crate::{
 };
 
 use super::{
-    key::{
-        ResourceSlotIndex, ResourceSlotKey, ResourceSlotVersion, ResourceTypeIndex,
-        ResourceTypeKey, ResourceTypeVersion,
-    },
+    key::{ResourceSlotKey, ResourceTypeKey},
     ResourceManager,
 };
 
@@ -39,25 +36,25 @@ pub struct ResourceHandle(u32);
 
 impl ResourceHandle {
     fn type_key(&self) -> ResourceTypeKey {
-        ResourceTypeKey::new(
-            ResourceTypeIndex((self.0 & 0xA) as u16),
-            ResourceTypeVersion(((self.0 >> 0xA) & 0x2) as u8),
-        )
+        ResourceTypeKey {
+            version: ((self.0 >> 10) & 0x3) as u8,
+            index: (self.0 & 0x3FF) as u16,
+        }
     }
 
     fn slot_key(&self) -> ResourceSlotKey {
-        ResourceSlotKey::new(
-            ResourceSlotIndex(((self.0 >> 0xC) & 0xE) as u16),
-            ResourceSlotVersion(((self.0 >> 0x1A) & 0x6) as u8),
-        )
+        ResourceSlotKey {
+            version: ((self.0 >> 26) & 0x3F) as u8,
+            index: ((self.0 >> 12) & 0x3FFF) as u16,
+        }
     }
 
     pub(crate) fn new(type_key: ResourceTypeKey, slot_key: ResourceSlotKey) -> Self {
         Self(
-            ((type_key.index().0 as u32) & 0xA)
-                | (((type_key.version().0 as u32) & 0x2) << 0xA)
-                | (((slot_key.index().0 as u32) & 0xE) << 0xC)
-                | (((slot_key.version().0 as u32) & 0x6) << 0x1A),
+            ((type_key.version as u32) << 26)
+                | ((type_key.index as u32) << 12)
+                | ((slot_key.version as u32) << 10)
+                | (slot_key.index as u32),
         )
     }
 

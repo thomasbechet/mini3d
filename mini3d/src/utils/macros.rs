@@ -89,26 +89,25 @@ macro_rules! slot_map_key {
         pub struct $name($crate::utils::slotmap::DefaultKey);
 
         impl $crate::utils::slotmap::Key for $name {
-            type Version = $crate::utils::slotmap::DefaultKeyVersion;
-            type Index = $crate::utils::slotmap::DefaultKeyIndex;
-
-            fn new(index: Self::Index, version: Self::Version) -> Self {
-                Self($crate::utils::slotmap::DefaultKey::new(index, version))
+            fn new(index: Option<usize>) -> Self {
+                Self($crate::utils::slotmap::DefaultKey::new(index))
             }
 
-            fn index(&self) -> Self::Index {
+            fn update(&mut self, index: Option<usize>) {
+                self.0.update(index);
+            }
+
+            fn index(&self) -> Option<usize> {
                 self.0.index()
             }
+        }
 
-            fn version(&self) -> Self::Version {
-                self.0.version()
-            }
-
-            fn null() -> Self {
+        impl $name {
+            pub fn null() -> Self {
                 Self($crate::utils::slotmap::DefaultKey::null())
             }
 
-            fn is_null(&self) -> bool {
+            pub fn is_null(&self) -> bool {
                 self.0.is_null()
             }
         }
