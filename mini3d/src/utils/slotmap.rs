@@ -4,7 +4,9 @@ pub(crate) trait KeyVersion: Copy + Clone + PartialEq + Eq + Default {
     fn next(&self) -> Self;
 }
 
-pub(crate) trait KeyIndex: Copy + Clone + From<usize> {}
+pub(crate) trait KeyIndex: Copy + Clone + From<usize> {
+    fn into_index(self) -> usize;
+}
 
 pub trait Key: Copy + Clone + PartialEq + Eq {
     type Version: KeyVersion;
@@ -34,13 +36,11 @@ impl From<usize> for DefaultKeyIndex {
     }
 }
 
-impl Into<usize> for DefaultKeyIndex {
-    fn into(self) -> usize {
+impl KeyIndex for DefaultKeyIndex {
+    fn into_index(self) -> usize {
         self.0 as usize
     }
 }
-
-impl KeyIndex for DefaultKeyIndex {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DefaultKey(u32);
@@ -132,7 +132,7 @@ impl<K: Key, V> SlotMap<K, V> {
             key
         } else {
             let index = self.free.index();
-            let entry = &mut self.entries[<K::Index as Into<usize>>::into(index)];
+            let entry = &mut self.entries[index.into_index()];
             self.free = entry.key;
             entry.value = value;
             entry.key = K::new(index, entry.key.version());
@@ -143,12 +143,12 @@ impl<K: Key, V> SlotMap<K, V> {
     pub(crate) fn add_with_version(&mut self, value: V, version: K::Version) -> K {
         if self.free.is_null() {
             let index = self.entries.len();
-            let key = K::new(index, version);
+            let key = K::new(index.into(), version);
             self.entries.push(SlotEntry { value, key });
             key
         } else {
             let index = self.free.index();
-            let entry = &mut self.entries[index];
+            let entry = &mut self.entries[index.into_index()];
             self.free = entry.key;
             entry.value = value;
             entry.key = K::new(index, version);
@@ -157,7 +157,7 @@ impl<K: Key, V> SlotMap<K, V> {
     }
 
     pub fn remove(&mut self, key: K) {
-        let index = key.index();
+        let index = key.index().into_index();
         // Check slot validity
         if index >= self.entries.len() || self.entries[index].key != key {
             return;
@@ -181,7 +181,7 @@ impl<K: Key, V> SlotMap<K, V> {
     }
 
     pub fn get(&self, key: K) -> Option<&V> {
-        let index = key.index();
+        let index = key.index().into_index();
         if index >= self.entries.len() || self.entries[index].key != key {
             None
         } else {
@@ -190,7 +190,7 @@ impl<K: Key, V> SlotMap<K, V> {
     }
 
     pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
-        let index = key.index();
+        let index = key.index().into_index();
         if index >= self.entries.len() || self.entries[index].key != key {
             None
         } else {
@@ -203,7 +203,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index().into() {
+                if index == entry.key.index().into_index() {
                     Some((entry.key, &entry.value))
                 } else {
                     None
@@ -216,7 +216,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter_mut()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index() {
+                if index == entry.key.index().into_index() {
                     Some((entry.key, &mut entry.value))
                 } else {
                     None
@@ -229,7 +229,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index() {
+                if index == entry.key.index().into_index() {
                     Some(entry.key)
                 } else {
                     None
@@ -238,9 +238,9 @@ impl<K: Key, V> SlotMap<K, V> {
     }
 
     pub fn next(&self, key: K) -> Option<K> {
-        let mut index = key.index() + 1;
+        let mut index = key.index().into_index() + 1;
         while index < self.entries.len() {
-            if self.entries[index].key.index() == index {
+            if self.entries[index].key.index().into_index() == index {
                 return Some(self.entries[index].key);
             }
             index += 1;
@@ -253,7 +253,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index() {
+                if index == entry.key.index().into_index() {
                     Some(&entry.value)
                 } else {
                     None
@@ -266,7 +266,7 @@ impl<K: Key, V> SlotMap<K, V> {
             .iter_mut()
             .enumerate()
             .filter_map(|(index, entry)| {
-                if index == entry.key.index() {
+                if index == entry.key.index().into_index() {
                     Some(&mut entry.value)
                 } else {
                     None
@@ -289,58 +289,16 @@ impl<K: Key, V> IndexMut<K> for SlotMap<K, V> {
     }
 }
 
-// impl<V: Serialize> Serialize for SlotMap<V> {
-//     type Header = V::Header;
-
-//     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-//         encoder.write_u32(self.entries.len() as u32)?;
-//         for entry in &self.entries {
-//             match entry {
-//                 SlotEntry::Value(value) => {
-//                     encoder.write_byte(1)?; // Has value
-//                     value.serialize(encoder)?;
-//                 }
-//                 SlotEntry::Free(free) => {
-//                     encoder.write_byte(0)?; // Has no value
-//                     free.serialize(encoder)?;
-//                 }
-//             }
-//         }
-//         self.free.serialize(encoder)?;
-//         Ok(())
-//     }
-
-//     fn deserialize(
-//         decoder: &mut impl Decoder,
-//         header: &Self::Header,
-//     ) -> Result<Self, DecoderError> {
-//         let len = decoder.read_u32()? as usize;
-//         let mut map = SlotMap::with_capacity(len);
-//         for _ in 0..len {
-//             let has_value = decoder.read_byte()? != 0;
-//             if has_value {
-//                 let value = V::deserialize(decoder, header)?;
-//                 map.entries.push(SlotEntry::Value(value));
-//             } else {
-//                 let free = SlotId::deserialize(decoder, &Default::default())?;
-//                 map.entries.push(SlotEntry::Free(free));
-//             }
-//         }
-//         map.free = SlotId::deserialize(decoder, &Default::default())?;
-//         Ok(map)
-//     }
-// }
-
 #[derive(Debug)]
-struct DenseSlotMapMeta<V: KeyVersion> {
-    slot_to_index: u32,
-    index_to_slot: u32, // or free slot if unused
-    version: V,
+struct DenseSlotMapMeta<K: Key> {
+    slot_to_index: K::Index,
+    index_to_slot: K::Index, // or free slot if unused
+    version: K::Version,
 }
 
 pub struct DenseSlotMap<K: Key, V> {
     data: Vec<V>,
-    meta: Vec<DenseSlotMapMeta<K::Version>>,
+    meta: Vec<DenseSlotMapMeta<K>>,
     free_count: u32,
 }
 
@@ -358,20 +316,20 @@ impl<K: Key, V> DenseSlotMap<K, V> {
             let size = self.data.len();
             self.data.push(value);
             let free_id = self.meta[size].index_to_slot;
-            self.meta[size].slot_to_index = size as u32;
+            self.meta[size].slot_to_index = size.into();
             self.meta[size].index_to_slot = free_id;
             self.free_count -= 1;
-            K::new(size, self.meta[size].version)
+            K::new(size.into(), self.meta[size].version)
         } else {
             let size = self.data.len();
             self.data.push(value);
             let version = K::Version::default();
             self.meta.push(DenseSlotMapMeta {
-                slot_to_index: size as u32,
-                index_to_slot: size as u32,
+                slot_to_index: size.into(),
+                index_to_slot: size.into(),
                 version,
             });
-            K::new(size, version)
+            K::new(size.into(), version)
         }
     }
 
@@ -453,46 +411,6 @@ impl<K: Key, V> IndexMut<K> for DenseSlotMap<K, V> {
         self.get_mut(key).unwrap()
     }
 }
-
-// impl<V: Serialize> Serialize for DenseSlotMap<V> {
-//     type Header = V::Header;
-
-//     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-//         encoder.write_u32(self.data.len() as u32)?;
-//         encoder.write_u32(self.free_count)?;
-//         for (value, meta) in self.data.iter().zip(self.meta.iter()) {
-//             value.serialize(encoder)?;
-//             encoder.write_u32(meta.id_to_index)?;
-//             encoder.write_u32(meta.index_to_id)?;
-//         }
-//         Ok(())
-//     }
-
-//     fn deserialize(
-//         decoder: &mut impl Decoder,
-//         header: &Self::Header,
-//     ) -> Result<Self, DecoderError> {
-//         let len = decoder.read_u32()? as usize;
-//         let free_count = decoder.read_u32()?;
-//         let mut data = Vec::with_capacity(len);
-//         let mut meta = Vec::with_capacity(len);
-//         for _ in 0..len {
-//             let value = V::deserialize(decoder, header)?;
-//             let id_to_index = decoder.read_u32()?;
-//             let index_to_id = decoder.read_u32()?;
-//             data.push(value);
-//             meta.push(DenseSlotMapMeta {
-//                 id_to_index,
-//                 index_to_id,
-//             });
-//         }
-//         Ok(Self {
-//             data,
-//             meta,
-//             free_count,
-//         })
-//     }
-// }
 
 struct SecondarySlotEntry<K: Key, V: Default> {
     value: V,
@@ -732,33 +650,6 @@ impl<K: Key, V> IndexMut<K> for SparseSecondaryMap<K, V> {
         self.get_mut(key).unwrap()
     }
 }
-
-// impl<T, V: Serialize> Serialize for SparseSecondaryMap<SlotId<T>, V> {
-//     type Header = V::Header;
-
-//     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-//         encoder.write_u32(self.data.len() as u32)?;
-//         for entry in self.data.iter() {
-//             entry.value.serialize(encoder)?;
-//             encoder.write_u32(entry.index)?;
-//         }
-//         Ok(())
-//     }
-
-//     fn deserialize(
-//         decoder: &mut impl Decoder,
-//         header: &Self::Header,
-//     ) -> Result<Self, DecoderError> {
-//         let len = decoder.read_u32()? as usize;
-//         let mut map = Self::with_capacity(len);
-//         for _ in 0..len {
-//             let value = V::deserialize(decoder, header)?;
-//             let index = decoder.read_u32()?;
-//             map.insert(SlotId::new(index), value);
-//         }
-//         Ok(map)
-//     }
-// }
 
 #[cfg(test)]
 mod test {
