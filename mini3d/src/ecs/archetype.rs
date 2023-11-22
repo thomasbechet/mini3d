@@ -1,10 +1,6 @@
 use std::ops::{Index, IndexMut, Range};
 
-use crate::{
-    feature::ecs::component::ComponentKey,
-    slot_map_key,
-    utils::slotmap::{Key, SlotMap},
-};
+use crate::{feature::ecs::component::ComponentKey, slot_map_key, utils::slotmap::SlotMap};
 
 use super::{
     entity::Entity,
@@ -64,7 +60,7 @@ impl ArchetypeTable {
             components: Vec::with_capacity(256),
             entries: SlotMap::default(),
             edges: Vec::with_capacity(256),
-            empty: Key::null(),
+            empty: ArchetypeKey::null(),
         };
         table.empty = table.entries.add(ArchetypeEntry::empty());
         table

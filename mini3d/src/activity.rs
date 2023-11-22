@@ -50,7 +50,7 @@ impl ActivityManager {
         let activity = ActivityInstanceHandle(self.activities.add(ActivityEntry {
             name: name.into(),
             parent,
-            ecs: Key::null(),
+            ecs: ECSInstanceHandle::null(),
         }));
         self.commands
             .push(ActivityCommand::Start(activity, descriptor));

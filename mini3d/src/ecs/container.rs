@@ -7,7 +7,6 @@ use crate::{
     reflection::PropertyId,
     resource::ResourceManager,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
-    slot_map_key,
     utils::{slotmap::SlotMap, uid::UID},
 };
 
@@ -75,8 +74,6 @@ pub(crate) trait SingleContainer {
 
 pub(crate) trait ArrayContainer {}
 
-slot_map_key!(ContainerKey);
-
 pub(crate) struct ContainerEntry {
     pub(crate) container: UnsafeCell<Box<dyn Container>>,
     component_type: ComponentTypeHandle,
@@ -84,7 +81,7 @@ pub(crate) struct ContainerEntry {
 
 #[derive(Default)]
 pub(crate) struct ContainerTable {
-    pub(crate) entries: SlotMap<ContainerKey, ContainerEntry>,
+    pub(crate) entries: SlotMap<ComponentKey, ContainerEntry>,
 }
 
 impl ContainerTable {

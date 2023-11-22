@@ -46,7 +46,7 @@ impl Key for ResourceTypeKey {
         // Ensure we don't generate a key version
         // that can't be stored in the resource handle.
         self.version = (self.version + 1) % 4;
-        self.index = index.map_or(0xFFFF, |index| index as u32 & 0xFFFF);
+        self.index = index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16);
     }
 
     fn index(&self) -> Option<usize> {

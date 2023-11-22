@@ -64,7 +64,7 @@ impl ECSInstance {
             }
             // Component changes
             for write in writes {
-                let entry = self.containers.entries.get_mut(write.0).unwrap();
+                let entry = self.containers.entries.get_mut(write).unwrap();
                 // Component added
                 entry.container.get_mut().flush_added_removed(
                     &mut self.entities,
@@ -78,7 +78,7 @@ impl ECSInstance {
             }
             // Update view sizes
             for write in writes {
-                let entry = self.containers.entries.get_mut(write.0).unwrap();
+                let entry = self.containers.entries.get_mut(write).unwrap();
                 entry.container.get_mut().update_view_size();
             }
         }

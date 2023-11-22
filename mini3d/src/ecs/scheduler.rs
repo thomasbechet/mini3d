@@ -61,7 +61,7 @@ impl Scheduler {
         self.stages.clear();
         self.nodes.clear();
         self.instance_indices.clear();
-        self.next_node = Key::null();
+        self.next_node = NodeKey::null();
 
         // Collect stages
         let mut stages = Vec::new();
