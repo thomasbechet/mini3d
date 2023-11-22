@@ -3,7 +3,6 @@ use std::cell::UnsafeCell;
 use crate::{
     feature::ecs::component::ComponentKey,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-    utils::slotmap::Key,
 };
 
 use super::{

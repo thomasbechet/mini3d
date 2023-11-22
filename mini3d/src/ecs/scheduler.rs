@@ -4,7 +4,7 @@ use crate::{
     feature::ecs::system::{SystemStage, SystemStageHandle},
     resource::ResourceManager,
     slot_map_key,
-    utils::slotmap::{Key, SlotMap},
+    utils::slotmap::SlotMap,
 };
 
 use super::system::SystemTable;
@@ -32,17 +32,15 @@ struct PeriodicStage {
 
 struct StageEntry {
     handle: SystemStageHandle,
-    first_node: SystemPipelineNodeKey,
+    first_node: NodeKey,
 }
-
-slot_map_key!(SystemPipelineNodeKey);
 
 #[derive(Default)]
 pub(crate) struct Scheduler {
     // Mapping between stage and first node
     stages: Vec<StageEntry>,
     // Baked nodes
-    nodes: SlotMap<SystemPipelineNodeKey, SystemPipelineNode>,
+    nodes: SlotMap<NodeKey, SystemPipelineNode>,
     // Instances
     pub(crate) instance_indices: Vec<usize>,
     // Periodic invocations
@@ -100,7 +98,7 @@ impl Scheduler {
             // let stage = resources.get::<SystemStage>(*stage).unwrap();
             self.stages.push(StageEntry {
                 handle: *stage,
-                first_node: Key::null(),
+                first_node: Default::default(),
             });
             // Build nodes
             let mut previous_node = None;
@@ -114,7 +112,7 @@ impl Scheduler {
                 let node = self.nodes.add(SystemPipelineNode {
                     first: self.instance_indices.len() - 1,
                     count: 1,
-                    next: Key::null(),
+                    next: Default::default(),
                 });
 
                 // Link previous node or create new stage

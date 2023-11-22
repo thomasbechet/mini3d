@@ -6,7 +6,6 @@ use crate::{
     ecs::entity::Entity,
     utils::{
         prng::PCG32,
-        slotmap::Key,
         string::AsciiArray,
         uid::{ToUID, UID},
     },
@@ -35,14 +34,14 @@ impl ReferenceResolver {
 pub struct ResourceHandle(u32);
 
 impl ResourceHandle {
-    fn type_key(&self) -> ResourceTypeKey {
+    pub(crate) fn type_key(&self) -> ResourceTypeKey {
         ResourceTypeKey {
             version: ((self.0 >> 10) & 0x3) as u8,
             index: (self.0 & 0x3FF) as u16,
         }
     }
 
-    fn slot_key(&self) -> ResourceSlotKey {
+    pub(crate) fn slot_key(&self) -> ResourceSlotKey {
         ResourceSlotKey {
             version: ((self.0 >> 26) & 0x3F) as u8,
             index: ((self.0 >> 12) & 0x3FFF) as u16,
@@ -77,6 +76,10 @@ impl ResourceHandle {
         //     resources.decrement_ref(*self);
         //     self.0 = Key::null();
         // }
+    }
+
+    pub(crate) fn raw(&self) -> u32 {
+        self.0
     }
 
     pub(crate) fn from_raw(raw: u32) -> Self {

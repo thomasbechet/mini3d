@@ -10,13 +10,13 @@ impl Key for ResourceSlotKey {
     fn new(index: Option<usize>) -> Self {
         Self {
             version: 0,
-            index: index.map_or(0xFFFF, |index| index as u16 & 0xFFFF),
+            index: index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16),
         }
     }
 
     fn update(&mut self, index: Option<usize>) {
         self.version = (self.version + 1) % 64;
-        self.index = index.map_or(0xFFFF, |index| index as u32 & 0xFFFF);
+        self.index = index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16);
     }
 
     fn index(&self) -> Option<usize> {
@@ -34,11 +34,26 @@ pub(crate) struct ResourceTypeKey {
     pub(crate) index: u16,
 }
 
+impl ResourceTypeKey {
+    pub(crate) fn null() -> Self {
+        Self {
+            version: 0,
+            index: 0xFFFF,
+        }
+    }
+}
+
+impl Default for ResourceTypeKey {
+    fn default() -> Self {
+        Self::null()
+    }
+}
+
 impl Key for ResourceTypeKey {
     fn new(index: Option<usize>) -> Self {
         Self {
             version: 0,
-            index: index.map_or(0xFFFF, |index| index as u16 & 0xFFFF),
+            index: index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16),
         }
     }
 

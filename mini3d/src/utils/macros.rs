@@ -44,6 +44,12 @@ macro_rules! define_resource_handle {
             pub fn resolve(&mut self, resolver: &mut $crate::resource::handle::ReferenceResolver) {
                 self.0.resolve(resolver);
             }
+            pub fn raw(&self) -> u32 {
+                self.0.raw()
+            }
+            pub fn from_raw(raw: u32) -> Self {
+                Self($crate::resource::handle::ResourceHandle::from_raw(raw))
+            }
         }
 
         impl $crate::resource::handle::ToResourceHandle for $name {

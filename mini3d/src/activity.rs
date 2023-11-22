@@ -5,10 +5,7 @@ use crate::{
     feature::{core::activity::ActivityHandle, ecs::system::SystemSetHandle},
     resource::ResourceManager,
     slot_map_key,
-    utils::{
-        slotmap::{Key, SlotMap},
-        string::AsciiArray,
-    },
+    utils::{slotmap::SlotMap, string::AsciiArray},
 };
 
 slot_map_key!(ActivityInstanceHandle);
@@ -47,11 +44,11 @@ impl ActivityManager {
         parent: ActivityInstanceHandle,
         descriptor: ActivityHandle,
     ) -> ActivityInstanceHandle {
-        let activity = ActivityInstanceHandle(self.activities.add(ActivityEntry {
+        let activity = self.activities.add(ActivityEntry {
             name: name.into(),
             parent,
             ecs: ECSInstanceHandle::null(),
-        }));
+        });
         self.commands
             .push(ActivityCommand::Start(activity, descriptor));
         activity
@@ -83,13 +80,13 @@ impl ActivityManager {
         for command in self.commands.drain(..).collect::<Vec<_>>() {
             match command {
                 ActivityCommand::Start(activity, desc) => {
-                    self.activities[activity.0].ecs = ecs.add(activity)
+                    self.activities[activity].ecs = ecs.add(activity)
                 }
                 ActivityCommand::Stop(activity) => {
                     self.remove_entry(activity);
                 }
                 ActivityCommand::AddSystemSet(activity, set) => {
-                    let (ecs, systems) = &mut ecs.instances[self.activities[activity.0].ecs];
+                    let (ecs, systems) = &mut ecs.instances[self.activities[activity].ecs];
                     systems
                         .insert_system_set(
                             set,
@@ -111,13 +108,7 @@ impl ActivityManager {
         let childs = self
             .activities
             .iter()
-            .filter_map(|(id, e)| {
-                if e.parent == activity {
-                    Some(ActivityInstanceHandle(id))
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(id, e)| if e.parent == activity { Some(id) } else { None })
             .collect::<Vec<_>>();
         // Remove childs recursively
         for child in childs {
@@ -127,7 +118,7 @@ impl ActivityManager {
         let slot = self
             .activities
             .iter()
-            .find_map(|(id, e)| if id == activity.0 { Some(id) } else { None })
+            .find_map(|(id, e)| if id == activity { Some(id) } else { None })
             .unwrap();
         self.activities.remove(slot);
     }

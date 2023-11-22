@@ -8,7 +8,7 @@ use crate::{
     resource::ResourceManager,
     slot_map_key,
     utils::{
-        slotmap::{Key, SlotMap},
+        slotmap::SlotMap,
         uid::{ToUID, UID},
     },
 };

@@ -8,7 +8,6 @@ use crate::{
     resource::handle::ReferenceResolver,
     serialize::Serialize,
     slot_map_key,
-    utils::slotmap::Key,
 };
 
 slot_map_key!(ComponentKey);

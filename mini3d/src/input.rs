@@ -101,7 +101,7 @@ impl InputManager {
         let action = resources.get_mut_unchecked::<InputAction>(handle);
         action.state.handle = self
             .provider
-            .add_action(action, handle.0 .0.raw())
+            .add_action(action, handle.raw())
             .expect("Input provider failed to add action");
     }
 
@@ -113,7 +113,7 @@ impl InputManager {
         let axis = resources.get_mut_unchecked::<InputAxis>(handle);
         axis.state.handle = self
             .provider
-            .add_axis(axis, handle.0 .0.raw())
+            .add_axis(axis, handle.raw())
             .expect("Input provider failed to add axis");
     }
 

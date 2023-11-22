@@ -478,7 +478,7 @@ impl<T: Serialize> Serialize for Option<T> {
     }
 }
 
-impl<T: Serialize, const N: usize> Serialize for [T; N] {
+impl<T: Serialize + Default + Copy, const N: usize> Serialize for [T; N] {
     type Header = T::Header;
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {

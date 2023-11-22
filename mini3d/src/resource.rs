@@ -3,10 +3,10 @@ use crate::feature::core::resource::{Resource, ResourceType, ResourceTypeHandle}
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::slot_map_key;
 use crate::utils::prng::PCG32;
-use crate::utils::slotmap::{Key, SlotMap};
+use crate::utils::slotmap::SlotMap;
 use crate::utils::uid::ToUID;
 
-use self::container::{NativeResourceContainer, ResourceContainer};
+use self::container::{NativeContainer, NativeResourceContainer};
 use self::error::ResourceError;
 use self::handle::{ResourceHandle, ResourceKey, ToResourceHandle};
 use self::key::ResourceTypeKey;
@@ -14,7 +14,6 @@ use self::key::ResourceTypeKey;
 pub mod container;
 pub mod error;
 pub mod handle;
-pub mod iterator;
 pub mod key;
 
 slot_map_key!(ResourceEntryKey);
@@ -36,12 +35,12 @@ pub(crate) struct ResourceEntry {
     ref_count: u32,
 }
 
-struct ContainerEntry {
-    container: Box<dyn ResourceContainer>,
+pub(crate) enum ResourceContainer {
+    Native(Box<dyn NativeContainer>),
 }
 
 pub struct ResourceManager {
-    containers: SlotMap<ResourceTypeKey, ContainerEntry>,
+    containers: SlotMap<ResourceTypeKey, ResourceContainer>,
     entries: SlotMap<ResourceEntryKey, ResourceEntry>,
     type_container_key: ResourceTypeKey,
     meta_type: ResourceTypeHandle, // Meta resource type definition
@@ -53,7 +52,7 @@ impl Default for ResourceManager {
         Self {
             containers: Default::default(),
             entries: Default::default(),
-            type_container_key: Key::null(),
+            type_container_key: ResourceTypeKey::null(),
             meta_type: ResourceTypeHandle::null(),
             prng: PCG32::new(1234),
         }
@@ -63,9 +62,9 @@ impl Default for ResourceManager {
 impl ResourceManager {
     pub(crate) fn define_meta_type(&mut self, root: ActivityInstanceHandle) {
         // Create container
-        self.type_container_key = self.containers.add(ContainerEntry {
-            container: Box::new(NativeResourceContainer::<ResourceType>::with_capacity(128)),
-        });
+        self.type_container_key = self.containers.add(ResourceContainer::Native(Box::new(
+            NativeResourceContainer::<ResourceType>::with_capacity(128),
+        )));
         // Create meta type entry
         let entry_key = self.entries.add(ResourceEntry {
             key: ResourceKey::new(ResourceType::NAME),
@@ -103,17 +102,21 @@ impl ResourceManager {
     }
 
     fn get_type(&self, ty: ResourceTypeHandle) -> Option<&ResourceType> {
-        self.containers[self.type_container_key]
-            .container
-            .as_any()
-            .downcast_ref::<NativeResourceContainer<ResourceType>>()
-            .unwrap()
-            .get(ty.to_handle().slot_key())
+        let handle = ty.to_handle();
+        assert!(handle.type_key() == self.type_container_key);
+        match self.containers[self.type_container_key] {
+            ResourceContainer::Native(ref container) => container
+                .as_any()
+                .downcast_ref::<NativeResourceContainer<ResourceType>>()
+                .unwrap()
+                .get(handle.slot_key()),
+            _ => unreachable!(),
+        }
     }
 
     fn create_container(&mut self, ty: ResourceTypeHandle) -> ResourceTypeKey {
         let container = self.get_type(ty).unwrap().create_container();
-        let type_key = self.containers.add(ContainerEntry { container });
+        let type_key = self.containers.add(container);
         // Save container id
         self.containers[self.type_container_key]
             .container
