@@ -4,7 +4,7 @@ use crate::{
     feature::ecs::system::{SystemStage, SystemStageHandle},
     resource::ResourceManager,
     slot_map_key,
-    utils::slotmap::SlotMap,
+    utils::slotmap::{Key, SlotMap},
 };
 
 use super::system::SystemTable;

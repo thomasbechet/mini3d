@@ -7,12 +7,13 @@ use crate::{
     reflection::{Property, Reflect},
     renderer::RendererManager,
     resource::{
-        container::{NativeContainer, NativeResourceContainer},
+        container::{AnyNativeContainer, NativeContainer},
         handle::{ReferenceResolver, ResourceHandle},
         key::ResourceTypeKey,
         ResourceContainer, ResourceManager,
     },
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
+    utils::slotmap::Key,
 };
 
 pub struct ResourceHookContext<'a> {
@@ -28,7 +29,7 @@ pub trait Resource: 'static + Default + Reflect + Serialize {
 }
 
 pub(crate) trait ResourceReflection {
-    fn create_resource_container(&self) -> Box<dyn NativeContainer>;
+    fn create_resource_container(&self) -> Box<dyn AnyNativeContainer>;
     fn find_property(&self, name: &str) -> Option<&Property>;
     fn properties(&self) -> &[Property];
 }
@@ -51,8 +52,8 @@ pub(crate) struct NativeResourceReflection<R: Resource> {
 }
 
 impl<R: Resource> ResourceReflection for NativeResourceReflection<R> {
-    fn create_resource_container(&self) -> Box<dyn NativeContainer> {
-        Box::new(NativeResourceContainer::<R>::with_capacity(128))
+    fn create_resource_container(&self) -> Box<dyn AnyNativeContainer> {
+        Box::new(NativeContainer::<R>::with_capacity(128))
     }
 
     fn find_property(&self, name: &str) -> Option<&Property> {

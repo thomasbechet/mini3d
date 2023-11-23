@@ -10,9 +10,9 @@ struct ResourceEntry<R: Resource> {
 }
 
 #[derive(Default)]
-pub(crate) struct NativeResourceContainer<R: Resource>(SlotMap<ResourceSlotKey, ResourceEntry<R>>);
+pub(crate) struct NativeContainer<R: Resource>(SlotMap<ResourceSlotKey, ResourceEntry<R>>);
 
-impl<R: Resource> NativeResourceContainer<R> {
+impl<R: Resource> NativeContainer<R> {
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self(SlotMap::with_capacity(capacity))
     }
@@ -53,16 +53,17 @@ impl<R: Resource> NativeResourceContainer<R> {
     }
 }
 
-pub(crate) trait NativeContainer: Any {
+pub(crate) trait AnyNativeContainer: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn remove(&mut self, key: ResourceSlotKey);
     fn clear(&mut self);
     fn get_entry_key(&self, key: ResourceSlotKey) -> Option<ResourceEntryKey>;
     fn iter_keys(&self) -> Box<dyn Iterator<Item = (ResourceEntryKey, ResourceSlotKey)> + '_>;
+    fn iter_slot_keys(&self) -> Box<dyn Iterator<Item = ResourceSlotKey>>;
 }
 
-impl<R: Resource> NativeContainer for NativeResourceContainer<R> {
+impl<R: Resource> AnyNativeContainer for NativeContainer<R> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -89,5 +90,9 @@ impl<R: Resource> NativeContainer for NativeResourceContainer<R> {
                 .iter()
                 .map(|(slot_key, entry)| (entry.entry_key, slot_key)),
         )
+    }
+
+    fn iter_slot_keys(&self) -> Box<dyn Iterator<Item = ResourceSlotKey>> {
+        Box::new(self.0.keys())
     }
 }

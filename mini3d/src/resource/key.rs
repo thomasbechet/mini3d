@@ -7,16 +7,23 @@ pub(crate) struct ResourceSlotKey {
 }
 
 impl Key for ResourceSlotKey {
-    fn new(index: Option<usize>) -> Self {
+    fn new(index: usize) -> Self {
         Self {
             version: 0,
-            index: index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16),
+            index: (index & 0xFFFF) as u16,
         }
     }
 
-    fn update(&mut self, index: Option<usize>) {
+    fn null() -> Self {
+        Self {
+            version: 0,
+            index: 0xFFFF,
+        }
+    }
+
+    fn update(&mut self, index: usize) {
         self.version = (self.version + 1) % 64;
-        self.index = index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16);
+        self.index = (index & 0xFFFF) as u16;
     }
 
     fn index(&self) -> Option<usize> {
@@ -34,15 +41,6 @@ pub(crate) struct ResourceTypeKey {
     pub(crate) index: u16,
 }
 
-impl ResourceTypeKey {
-    pub(crate) fn null() -> Self {
-        Self {
-            version: 0,
-            index: 0xFFFF,
-        }
-    }
-}
-
 impl Default for ResourceTypeKey {
     fn default() -> Self {
         Self::null()
@@ -50,18 +48,25 @@ impl Default for ResourceTypeKey {
 }
 
 impl Key for ResourceTypeKey {
-    fn new(index: Option<usize>) -> Self {
+    fn new(index: usize) -> Self {
         Self {
             version: 0,
-            index: index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16),
+            index: (index & 0xFFFF) as u16,
         }
     }
 
-    fn update(&mut self, index: Option<usize>) {
+    fn null() -> Self {
+        Self {
+            version: 0,
+            index: 0xFFFF,
+        }
+    }
+
+    fn update(&mut self, index: usize) {
         // Ensure we don't generate a key version
         // that can't be stored in the resource handle.
         self.version = (self.version + 1) % 4;
-        self.index = index.map_or(0xFFFF, |index| (index & 0xFFFF) as u16);
+        self.index = (index & 0xFFFF) as u16;
     }
 
     fn index(&self) -> Option<usize> {

@@ -1,6 +1,10 @@
 use std::ops::{Index, IndexMut, Range};
 
-use crate::{feature::ecs::component::ComponentKey, slot_map_key, utils::slotmap::SlotMap};
+use crate::{
+    feature::ecs::component::ComponentKey,
+    slot_map_key,
+    utils::slotmap::{Key, SlotMap},
+};
 
 use super::{
     entity::Entity,

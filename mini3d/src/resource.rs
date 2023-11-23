@@ -6,10 +6,10 @@ use crate::utils::prng::PCG32;
 use crate::utils::slotmap::{Key, SlotMap};
 use crate::utils::uid::ToUID;
 
-use self::container::{NativeContainer, NativeResourceContainer};
+use self::container::{AnyNativeContainer, NativeContainer};
 use self::error::ResourceError;
 use self::handle::{ResourceHandle, ResourceKey, ToResourceHandle};
-use self::key::ResourceTypeKey;
+use self::key::{ResourceSlotKey, ResourceTypeKey};
 
 pub mod container;
 pub mod error;
@@ -36,7 +36,16 @@ pub(crate) struct ResourceEntry {
 }
 
 pub(crate) enum ResourceContainer {
-    Native(Box<dyn NativeContainer>),
+    Native(Box<dyn AnyNativeContainer>),
+}
+
+impl ResourceContainer {
+    pub(crate) fn iter_slot_keys(&self) -> impl Iterator<Item = ResourceSlotKey> + '_ {
+        match self {
+            ResourceContainer::Native(container) => container.iter_slot_keys(),
+            _ => todo!(),
+        }
+    }
 }
 
 pub struct ResourceManager {
@@ -62,9 +71,13 @@ impl Default for ResourceManager {
 impl ResourceManager {
     pub(crate) fn define_meta_type(&mut self, root: ActivityInstanceHandle) {
         // Create container
-        self.type_container_key = self.containers.add(ResourceContainer::Native(Box::new(
-            NativeResourceContainer::<ResourceType>::with_capacity(128),
-        )));
+        self.type_container_key =
+            self.containers
+                .add(ResourceContainer::Native(Box::new(NativeContainer::<
+                    ResourceType,
+                >::with_capacity(
+                    128
+                ))));
         // Create meta type entry
         let entry_key = self.entries.add(ResourceEntry {
             key: ResourceKey::new(ResourceType::NAME),
@@ -76,7 +89,7 @@ impl ResourceManager {
         let meta_type_data_slot = match self.containers.get_mut(self.type_container_key).unwrap() {
             ResourceContainer::Native(container) => container
                 .as_any_mut()
-                .downcast_mut::<NativeResourceContainer<ResourceType>>()
+                .downcast_mut::<NativeContainer<ResourceType>>()
                 .unwrap()
                 .add(
                     ResourceType {
@@ -107,7 +120,7 @@ impl ResourceManager {
         match self.containers[self.type_container_key] {
             ResourceContainer::Native(ref container) => container
                 .as_any()
-                .downcast_ref::<NativeResourceContainer<ResourceType>>()
+                .downcast_ref::<NativeContainer<ResourceType>>()
                 .unwrap()
                 .get(handle.slot_key()),
             _ => unreachable!(),
@@ -122,7 +135,7 @@ impl ResourceManager {
             ResourceContainer::Native(container) => {
                 container
                     .as_any_mut()
-                    .downcast_mut::<NativeResourceContainer<ResourceType>>()
+                    .downcast_mut::<NativeContainer<ResourceType>>()
                     .unwrap()
                     .get_mut_unchecked(ty.to_handle().slot_key())
                     .type_key = type_key;
@@ -173,7 +186,7 @@ impl ResourceManager {
         let slot_key = match &mut self.containers[type_key] {
             ResourceContainer::Native(container) => container
                 .as_any_mut()
-                .downcast_mut::<NativeResourceContainer<R>>()
+                .downcast_mut::<NativeContainer<R>>()
                 .expect("Invalid native resource container")
                 .add(data, entry_key),
             _ => todo!(),
@@ -205,7 +218,7 @@ impl ResourceManager {
             .and_then(|container| match container {
                 ResourceContainer::Native(container) => container
                     .as_any()
-                    .downcast_ref::<NativeResourceContainer<R>>()
+                    .downcast_ref::<NativeContainer<R>>()
                     .expect("Invalid native resource container")
                     .get(handle.slot_key()),
                 _ => unreachable!(),
@@ -223,7 +236,7 @@ impl ResourceManager {
             .and_then(|container| match container {
                 ResourceContainer::Native(container) => container
                     .as_any_mut()
-                    .downcast_mut::<NativeResourceContainer<R>>()
+                    .downcast_mut::<NativeContainer<R>>()
                     .expect("Invalid native resource container")
                     .get_mut(handle.slot_key()),
                 _ => unreachable!(),
@@ -236,7 +249,7 @@ impl ResourceManager {
         match &self.containers[handle.type_key()] {
             ResourceContainer::Native(container) => container
                 .as_any()
-                .downcast_ref::<NativeResourceContainer<R>>()
+                .downcast_ref::<NativeContainer<R>>()
                 .unwrap()
                 .get_unchecked(handle.slot_key()),
             _ => unreachable!(),
@@ -251,7 +264,7 @@ impl ResourceManager {
         match &mut self.containers[handle.type_key()] {
             ResourceContainer::Native(container) => container
                 .as_any_mut()
-                .downcast_mut::<NativeResourceContainer<R>>()
+                .downcast_mut::<NativeContainer<R>>()
                 .unwrap()
                 .get_mut_unchecked(handle.slot_key()),
             _ => unreachable!(),
@@ -266,13 +279,11 @@ impl ResourceManager {
         &self,
         ty: ResourceTypeHandle,
     ) -> impl Iterator<Item = ResourceHandle> + '_ {
-        if let Some(container) = self.containers.get(ty.0.type_key()) {
-            match container {
-                ResourceContainer::Native(container) => container
-                    .iter_keys()
-                    .map(|(_, slot_key)| ResourceHandle::new(ty.0.type_key(), slot_key)),
-                _ => todo!(),
-            }
+        let type_key = ty.to_handle().type_key();
+        if let Some(container) = self.containers.get(type_key) {
+            container
+                .iter_slot_keys()
+                .map(|slot_key| ResourceHandle::new(type_key, slot_key))
         } else {
             [].iter()
         }
@@ -286,7 +297,7 @@ impl ResourceManager {
             let container = self.containers[ty.type_key]
                 .container
                 .as_any_mut()
-                .downcast_mut::<NativeResourceContainer<R>>()
+                .downcast_mut::<NativeContainer<R>>()
                 .unwrap()
                 .iter()
                 .map(|(key, value)| (ResourceHandle::new(ty.type_key, key), value));

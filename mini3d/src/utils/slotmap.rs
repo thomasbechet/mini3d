@@ -1,9 +1,20 @@
 use std::ops::{Index, IndexMut};
 
+// A slot map key has two state:
+// - Null key:
+// If the key is null, None must be returned when index() is called.
+// Comparing with null with null return true.
+// - Valid key:
+// If the key is valid, Some(index) must be returned when index() is called.
+// A valid key is given a version that must be changed when updated is called.
 pub trait Key: Copy + Clone + PartialEq + Eq {
-    fn new(index: Option<usize>) -> Self;
-    fn update(&mut self, index: Option<usize>);
+    fn new(index: usize) -> Self;
+    fn null() -> Self;
+    fn update(&mut self, index: usize);
     fn index(&self) -> Option<usize>;
+    fn is_null(&self) -> bool {
+        self.index().is_none()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,33 +26,26 @@ impl Default for DefaultKey {
     }
 }
 
-impl DefaultKey {
-    pub fn null() -> Self {
+impl Key for DefaultKey {
+    fn new(index: usize) -> Self {
+        Self((index & 0xFFFFFF) as u32)
+    }
+
+    fn null() -> Self {
         Self(0xFFFFFFFF)
     }
 
-    pub fn is_null(&self) -> bool {
-        self.0 == 0xFFFFFFFF
-    }
-}
-
-impl Key for DefaultKey {
-    fn new(index: Option<usize>) -> Self {
-        Self(index.unwrap_or(0xFFFFFF) as u32 & 0xFFFFFF)
-    }
-
-    fn update(&mut self, index: Option<usize>) {
+    fn update(&mut self, index: usize) {
         let mut version = ((self.0 >> 24) & 0xFF) as u8;
         version = version.wrapping_add(1);
-        self.0 = (index.unwrap_or(0xFFFFFF) & 0xFFFFFF) as u32 | ((version as u32) << 24);
+        self.0 = (index & 0xFFFFFF) as u32 | ((version as u32) << 24);
     }
 
     fn index(&self) -> Option<usize> {
-        let index = self.0 & 0xFFFFFF;
-        if index == 0xFFFFFF {
+        if self.is_null() {
             None
         } else {
-            Some(index as usize)
+            Some((self.0 & 0xFFFFFF) as usize)
         }
     }
 }
@@ -99,11 +103,11 @@ impl<K: Key, V> SlotMap<K, V> {
             let entry = &mut self.entries[free];
             self.free = entry.key.index();
             entry.value = value;
-            entry.key.update(Some(free));
+            entry.key.update(free);
             entry.key
         } else {
             let index = self.entries.len();
-            let key = K::new(Some(index));
+            let key = K::new(index);
             self.entries.push(SlotEntry { value, key });
             key
         }
@@ -116,7 +120,11 @@ impl<K: Key, V> SlotMap<K, V> {
                 return;
             }
             // Mark slot as free and update version
-            self.entries[index].key.update(self.free);
+            if let Some(free) = self.free {
+                self.entries[index].key.update(free);
+            } else {
+                self.entries[index].key.update(usize::MAX);
+            }
             // Keep reference to the slot
             self.free = Some(index);
         }
@@ -276,13 +284,13 @@ impl<K: Key, V> DenseSlotMap<K, V> {
             let free_id = self.meta[size].index_to_slot;
             self.meta[size].slot_to_index = size as u32;
             self.meta[size].index_to_slot = free_id;
-            self.meta[size].key.update(Some(size));
+            self.meta[size].key.update(size);
             self.free_count -= 1;
             self.meta[size].key
         } else {
             let size = self.data.len();
             self.data.push(value);
-            let key = K::new(Some(size));
+            let key = K::new(size);
             self.meta.push(DenseSlotMapMeta {
                 slot_to_index: size as u32,
                 index_to_slot: size as u32,
@@ -300,7 +308,7 @@ impl<K: Key, V> DenseSlotMap<K, V> {
                 self.data.swap_remove(index);
                 let last_id = self.meta[last_index].index_to_slot;
                 self.meta[last_id as usize].slot_to_index = index as u32;
-                self.meta[slot_index].key.update(Some(slot_index));
+                self.meta[slot_index].key.update(slot_index);
                 self.meta[index].index_to_slot = last_id;
                 self.meta[last_index].index_to_slot = slot_index as u32; // free slot
                 self.free_count += 1;
@@ -384,7 +392,7 @@ impl<K: Key, V: Default> Default for SecondarySlotEntry<K, V> {
     fn default() -> Self {
         Self {
             value: V::default(),
-            key: K::new(None),
+            key: K::null(),
         }
     }
 }
@@ -419,7 +427,7 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
             if index >= self.entries.len() || self.entries[index].key != key {
                 return;
             }
-            self.entries[index].key.update(None);
+            self.entries[index].key.update(usize::MAX);
         }
     }
 
@@ -622,7 +630,7 @@ mod test {
 
     #[test]
     fn test_slotmap() {
-        let mut sm = SlotMap::<u32, u32>::default();
+        let mut sm = SlotMap::<DefaultKey, u32>::default();
         let s0 = sm.add(1);
         sm.add(0);
         sm.add(0);
@@ -639,7 +647,7 @@ mod test {
 
     #[test]
     fn test_dense_slotmap() {
-        let mut sm = DenseSlotMap::<u32, u32>::default();
+        let mut sm = DenseSlotMap::<DefaultKey, u32>::default();
         let s0 = sm.add(1);
         sm.add(0);
         sm.add(0);
@@ -654,8 +662,8 @@ mod test {
 
     #[test]
     fn test_secondary_map() {
-        let mut sm = SlotMap::<u32, u32>::default();
-        let mut ssm = SecondaryMap::<u32, u32>::default();
+        let mut sm = SlotMap::<DefaultKey, u32>::default();
+        let mut ssm = SecondaryMap::<DefaultKey, u32>::default();
         let s0 = sm.add(1);
         ssm.insert(s0, 1);
         assert_eq!(ssm.get(s0), Some(&1));
@@ -667,8 +675,8 @@ mod test {
 
     #[test]
     fn test_sparse_secondary_map() {
-        let mut sm = SlotMap::<u32, u32>::default();
-        let mut ssm = SparseSecondaryMap::<u32, u32>::default();
+        let mut sm = SlotMap::<DefaultKey, u32>::default();
+        let mut ssm = SparseSecondaryMap::<DefaultKey, u32>::default();
         let s0 = sm.add(1);
         ssm.insert(s0, 1);
         assert_eq!(ssm.get(s0), Some(&1));

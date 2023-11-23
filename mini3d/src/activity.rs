@@ -5,7 +5,10 @@ use crate::{
     feature::{core::activity::ActivityHandle, ecs::system::SystemSetHandle},
     resource::ResourceManager,
     slot_map_key,
-    utils::{slotmap::SlotMap, string::AsciiArray},
+    utils::{
+        slotmap::{Key, SlotMap},
+        string::AsciiArray,
+    },
 };
 
 slot_map_key!(ActivityInstanceHandle);
