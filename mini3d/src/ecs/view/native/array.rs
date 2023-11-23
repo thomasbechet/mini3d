@@ -23,12 +23,12 @@ impl<C: Component> NativeArrayViewRef<C> {
         resolver: &mut SystemResolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
-        let id = resolver.read(component)?;
+        let key = resolver.read(component)?;
         unsafe {
             self.container = (*resolver
                 .containers
                 .entries
-                .get(id.0)
+                .get(key)
                 .unwrap()
                 .container
                 .get())
@@ -62,12 +62,12 @@ impl<C: Component> NativeArrayViewMut<C> {
         resolver: &mut SystemResolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
-        let id = resolver.write(component)?;
+        let key = resolver.write(component)?;
         unsafe {
             self.container = (*resolver
                 .containers
                 .entries
-                .get_mut(id.0)
+                .get_mut(key)
                 .unwrap()
                 .container
                 .get())

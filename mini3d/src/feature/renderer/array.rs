@@ -2,7 +2,7 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{define_resource_handle, feature::core::resource::Resource};
 
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 pub enum RenderFormat {
     I8x2,
     I8x4,
@@ -11,6 +11,7 @@ pub enum RenderFormat {
     I32x2,
     I32x4,
     F32x2,
+    #[default]
     F32x4,
     M4x4,
 }

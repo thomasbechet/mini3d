@@ -70,12 +70,12 @@ impl InputManager {
             match event {
                 InputEvent::Action(event) => {
                     let action = resource
-                        .get_mut_unchecked::<InputAction>(ResourceHandle::from_raw(event.id));
+                        .native_mut_unchecked::<InputAction>(ResourceHandle::from_raw(event.id));
                     action.state.pressed = event.pressed;
                 }
                 InputEvent::Axis(event) => {
-                    let axis =
-                        resource.get_mut_unchecked::<InputAxis>(ResourceHandle::from_raw(event.id));
+                    let axis = resource
+                        .native_mut_unchecked::<InputAxis>(ResourceHandle::from_raw(event.id));
                     axis.set_value(event.value);
                 }
                 InputEvent::Text(event) => {
@@ -98,7 +98,7 @@ impl InputManager {
         handle: InputActionHandle,
         resources: &mut ResourceManager,
     ) {
-        let action = resources.get_mut_unchecked::<InputAction>(handle);
+        let action = resources.native_mut_unchecked::<InputAction>(handle);
         action.state.handle = self
             .provider
             .add_action(action, handle.raw())
@@ -110,7 +110,7 @@ impl InputManager {
         handle: InputAxisHandle,
         resources: &mut ResourceManager,
     ) {
-        let axis = resources.get_mut_unchecked::<InputAxis>(handle);
+        let axis = resources.native_mut_unchecked::<InputAxis>(handle);
         axis.state.handle = self
             .provider
             .add_axis(axis, handle.raw())
@@ -122,14 +122,14 @@ impl InputManager {
         handle: InputActionHandle,
         resources: &ResourceManager,
     ) {
-        let action = resources.get_unchecked::<InputAction>(handle);
+        let action = resources.native_unchecked::<InputAction>(handle);
         self.provider
             .remove_action(action.state.handle)
             .expect("Input provider failed to remove action");
     }
 
     pub(crate) fn on_axis_removed(&mut self, handle: InputAxisHandle, resources: &ResourceManager) {
-        let axis = resources.get_unchecked::<InputAxis>(handle);
+        let axis = resources.native_unchecked::<InputAxis>(handle);
         self.provider
             .remove_axis(axis.state.handle)
             .expect("Input provider failed to remove axis");

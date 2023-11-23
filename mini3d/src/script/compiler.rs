@@ -78,7 +78,7 @@ impl Compiler {
             let module = self.compilation_unit.get(i);
             match self.modules.get(module).unwrap() {
                 Module::Source(script) => {
-                    let script = ctx.resource.get::<Script>(*script).unwrap();
+                    let script = ctx.resource.native::<Script>(*script).unwrap();
                     self.source_compiler.resolve_cu_and_exports(
                         script,
                         &mut self.modules,
@@ -101,7 +101,7 @@ impl Compiler {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
                 Module::Source(script) => {
-                    let script = ctx.resource.get::<Script>(*script).unwrap();
+                    let script = ctx.resource.native::<Script>(*script).unwrap();
                     self.source_compiler
                         .generate_mir(script, &self.modules, *module, mir)?;
                 }

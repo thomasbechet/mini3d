@@ -35,12 +35,12 @@ impl Mesh {
 
 impl Resource for Mesh {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let mesh = ctx.resource.get_mut::<Mesh>(handle).unwrap();
+        let mesh = ctx.resource.native_mut::<Mesh>(handle).unwrap();
         ctx.renderer.on_mesh_added_hook(mesh, handle.into());
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let mesh = ctx.resource.get_mut::<Mesh>(handle).unwrap();
+        let mesh = ctx.resource.native_mut::<Mesh>(handle).unwrap();
         ctx.renderer.on_mesh_removed_hook(mesh, handle.into());
     }
 }

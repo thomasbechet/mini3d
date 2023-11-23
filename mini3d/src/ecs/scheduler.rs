@@ -66,7 +66,7 @@ impl Scheduler {
         for instance in table.instances.iter() {
             if !stages.iter().any(|stage| *stage == instance.stage) {
                 stages.push(instance.stage);
-                let stage = resource.get::<SystemStage>(instance.stage).unwrap();
+                let stage = resource.native::<SystemStage>(instance.stage).unwrap();
                 if let Some(periodic) = stage.periodic {
                     self.periodic_stages.push(PeriodicStage {
                         stage: instance.stage,

@@ -103,7 +103,7 @@ impl ContainerTable {
         }
         // Create new container
         let ty = resource
-            .get::<ComponentType>(component)
+            .native::<ComponentType>(component)
             .expect("Component type not found while preallocating");
         let entry = ContainerEntry {
             container: UnsafeCell::new(ty.create_container()),

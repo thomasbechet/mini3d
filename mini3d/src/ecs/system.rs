@@ -193,10 +193,10 @@ impl SystemTable {
         }
         // Acquire resource
         resource.increment_ref(set).unwrap();
-        let system_set = resource.get::<SystemSet>(set).unwrap();
+        let system_set = resource.native::<SystemSet>(set).unwrap();
         // Add instances
         for entry in system_set.0.iter() {
-            let system = resource.get::<System>(entry.system).unwrap();
+            let system = resource.native::<System>(entry.system).unwrap();
             match &system.kind {
                 SystemKind::Native(reflection) => {
                     let instance = reflection.create_instance();

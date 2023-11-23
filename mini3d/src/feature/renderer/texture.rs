@@ -59,12 +59,12 @@ impl Texture {
 
 impl Resource for Texture {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let texture = ctx.resource.get_mut::<Texture>(handle).unwrap();
+        let texture = ctx.resource.native_mut::<Texture>(handle).unwrap();
         ctx.renderer.on_texture_added_hook(texture, handle.into());
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let texture = ctx.resource.get_mut::<Texture>(handle).unwrap();
+        let texture = ctx.resource.native_mut::<Texture>(handle).unwrap();
         ctx.renderer.on_texture_removed_hook(texture, handle.into());
     }
 }

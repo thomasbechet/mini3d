@@ -44,12 +44,12 @@ impl Font {
 
 impl Resource for Font {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let font = ctx.resource.get_mut::<Font>(handle).unwrap();
+        let font = ctx.resource.native_mut::<Font>(handle).unwrap();
         ctx.renderer.on_font_added_hook(font, handle.into());
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let font = ctx.resource.get_mut::<Font>(handle).unwrap();
+        let font = ctx.resource.native_mut::<Font>(handle).unwrap();
         ctx.renderer.on_font_removed_hook(font, handle.into());
     }
 }
