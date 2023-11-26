@@ -95,10 +95,10 @@ fn main() {
         Activity::add_system_set(ctx, Activity::active(ctx), set);
         for (i, handle) in Resource::iter(ctx).enumerate() {
             let info = Resource::info(ctx, handle).unwrap();
-            println!("[{}] {}   {}", i + 1, info.id, info.ty_name);
+            println!("[{}] {}   {}", i + 1, info.name, info.ty_name);
         }
     }));
     engine.set_logger(StdoutLogger);
-    engine.progress(1.0 / 120.0).expect("Instance error");
+    engine.tick(1.0 / 120.0).expect("Instance error");
     println!("DONE");
 }

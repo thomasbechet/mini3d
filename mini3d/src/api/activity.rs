@@ -1,9 +1,6 @@
 use crate::{
     activity::ActivityInstanceHandle,
-    feature::{
-        core::activity::ActivityHandle, ecs::system::SystemSetHandle,
-        renderer::graph::RenderGraphHandle,
-    },
+    feature::{core::activity::ActivityHandle, ecs::system::SystemSetHandle},
 };
 
 use super::Context;
@@ -51,10 +48,7 @@ impl Activity {
     ) {
     }
 
-    pub fn set_frame_graph(
-        ctx: &mut Context,
-        activity: ActivityInstanceHandle,
-        frame_graph: RenderGraphHandle,
-    ) {
+    pub fn set_target_fps(ctx: &mut Context, activity: ActivityInstanceHandle, fps: u16) {
+        ctx.activity.set_target_fps(activity, fps);
     }
 }

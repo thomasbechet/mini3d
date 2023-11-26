@@ -17,6 +17,8 @@ pub(crate) struct ActivityEntry {
     pub(crate) name: AsciiArray<32>,
     pub(crate) parent: ActivityInstanceHandle,
     pub(crate) ecs: ECSInstanceHandle,
+    pub(crate) frame_index: u64,
+    pub(crate) target_fps: u16,
 }
 
 #[derive(Debug, Error)]
@@ -30,6 +32,7 @@ pub enum ActivityCommand {
     Stop(ActivityInstanceHandle),
     AddSystemSet(ActivityInstanceHandle, SystemSetHandle),
     RemoveSystemSet(ActivityInstanceHandle, SystemSetHandle),
+    SetTargetFPS(ActivityInstanceHandle, u16),
 }
 
 #[derive(Default)]
@@ -51,6 +54,8 @@ impl ActivityManager {
             name: name.into(),
             parent,
             ecs: ECSInstanceHandle::null(),
+            frame_index: 0,
+            target_fps: 60,
         });
         self.commands
             .push(ActivityCommand::Start(activity, descriptor));
@@ -79,6 +84,11 @@ impl ActivityManager {
             .push(ActivityCommand::RemoveSystemSet(activity, set));
     }
 
+    pub(crate) fn set_target_fps(&mut self, activity: ActivityInstanceHandle, fps: u16) {
+        self.commands
+            .push(ActivityCommand::SetTargetFPS(activity, fps));
+    }
+
     pub(crate) fn flush_commands(&mut self, ecs: &mut ECSManager, resource: &mut ResourceManager) {
         for command in self.commands.drain(..).collect::<Vec<_>>() {
             match command {
@@ -102,6 +112,9 @@ impl ActivityManager {
                     ecs.scheduler.rebuild(&systems, resource);
                 }
                 ActivityCommand::RemoveSystemSet(activity, set) => todo!(),
+                ActivityCommand::SetTargetFPS(activity, fps) => {
+                    self.activities[activity].target_fps = fps;
+                }
             }
         }
     }

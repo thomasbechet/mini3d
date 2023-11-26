@@ -22,7 +22,7 @@ use mini3d::{
         },
         renderer::{
             camera::Camera, font::Font, material::Material, mesh::Mesh, model::Model,
-            static_mesh::StaticMesh, texture::Texture, viewport::Viewport,
+            staticmesh::StaticMesh, texture::Texture, viewport::Viewport,
         },
     },
     glam::{Quat, Vec3},

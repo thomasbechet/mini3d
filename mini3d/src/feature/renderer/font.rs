@@ -67,7 +67,7 @@ impl FontAtlas {
         let height = font.glyph_size.y;
         let mut texture = Texture {
             data: vec![0x0; (width * height * 4) as usize],
-            format: TextureFormat::RGBA,
+            format: TextureFormat::R8G8B8A8,
             width,
             height,
             handle: Default::default(),

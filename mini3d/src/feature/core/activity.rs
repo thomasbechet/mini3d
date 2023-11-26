@@ -10,6 +10,7 @@ use super::resource::Resource;
 pub struct Activity {
     pub(crate) system_sets: Vec<SystemSetHandle>,
     pub(crate) prefabs: Vec<ResourceHandle>,
+    pub(crate) target_fps: u16,
 }
 
 impl Activity {

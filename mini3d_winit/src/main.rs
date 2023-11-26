@@ -475,7 +475,7 @@ fn main_run() {
                 }
 
                 // Progress instance
-                instance.progress(dt).expect("Failed to progress instance");
+                instance.tick(dt).expect("Failed to progress instance");
 
                 // Save/Load state
                 if save_state {

@@ -23,14 +23,12 @@ use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 
 #[derive(Error, Debug)]
-pub enum ProgressError {
+pub enum TickError {
     #[error("Core error")]
     Core,
     #[error("ECS system error")]
     System,
 }
-
-const MAXIMUM_TIMESTEP: f64 = 1.0 / 20.0;
 
 #[derive(Clone)]
 pub struct EngineConfig {
@@ -77,6 +75,8 @@ impl Engine {
             name: "root".into(),
             parent: Default::default(),
             ecs: Default::default(),
+            frame_index: 0,
+            target_fps: 60,
         });
         self.activity.activities[self.activity.root].ecs = self.ecs.add(self.activity.root);
         self.activity.active = self.activity.root;
@@ -112,16 +112,9 @@ impl Engine {
         self.renderer.handles.material = define_resource!(renderer::material::Material);
         self.renderer.handles.mesh = define_resource!(renderer::mesh::Mesh);
         self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
-        self.renderer.handles.graph = define_resource!(renderer::graph::RenderGraph);
         self.renderer.handles.model = define_resource!(renderer::model::Model);
         self.renderer.handles.array = define_resource!(renderer::array::RenderArray);
-        self.renderer.handles.constant = define_resource!(renderer::constant::RenderConstant);
-        self.renderer.handles.command_buffer =
-            define_resource!(renderer::command::RenderCommandBuffer);
-        self.renderer.handles.graphics_pipeline =
-            define_resource!(renderer::pipeline::GraphicsPipeline);
-        self.renderer.handles.compute_pipeline =
-            define_resource!(renderer::pipeline::ComputePipeline);
+        self.renderer.handles.variable = define_resource!(renderer::variable::RenderVariable);
 
         define_resource!(core::activity::Activity);
         define_resource!(core::structure::StructDefinition);
@@ -189,7 +182,7 @@ impl Engine {
 
         if config.renderer {
             define_component!(renderer::camera::Camera, ComponentStorage::Single);
-            define_component!(renderer::static_mesh::StaticMesh, ComponentStorage::Single);
+            define_component!(renderer::staticmesh::StaticMesh, ComponentStorage::Single);
             define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
             define_component!(renderer::tileset::Tileset, ComponentStorage::Single);
             define_component!(renderer::viewport::Viewport, ComponentStorage::Single);
@@ -236,7 +229,8 @@ impl Engine {
 
     fn run_bootstrap(&mut self, config: &EngineConfig) {
         if let Some(bootstrap) = config.bootstrap {
-            let (root, _) = &mut self.ecs.instances[self.activity.root];
+            let root_ecs = self.activity.activities[self.activity.root].ecs;
+            let (root, _) = &mut self.ecs.instances[root_ecs];
             bootstrap(&mut Context {
                 activity: &mut self.activity,
                 resource: &mut self.resource,
@@ -247,6 +241,7 @@ impl Engine {
                 time: TimeAPI {
                     delta: 0.0,
                     global: 0.0,
+                    frame: 0,
                 },
                 ecs: root,
                 ecs_types: &self.ecs.handles,
@@ -306,15 +301,12 @@ impl Engine {
         Ok(())
     }
 
-    pub fn progress(&mut self, mut delta_time: f64) -> Result<(), ProgressError> {
-        // ================= PREPARE STAGE ================== //
+    pub fn target_fps(&self) -> u16 {
+        self.activity.activities[self.activity.active].target_fps
+    }
 
-        // Compute delta time
-        if delta_time > MAXIMUM_TIMESTEP {
-            delta_time = MAXIMUM_TIMESTEP; // Slowing down
-        }
-        // Integrate time
-        self.global_time += delta_time;
+    pub fn tick(&mut self) -> Result<(), TickError> {
+        // ================= PREPARE STAGE ================== //
 
         // ================= DISPATCH EVENTS STAGE ================= //
 
@@ -344,10 +336,9 @@ impl Engine {
                 renderer: &mut self.renderer,
                 platform: &mut self.platform,
                 logger: &mut self.logger,
-                delta_time,
-                global_time: self.global_time,
+                global_time: &mut self.global_time,
             })
-            .map_err(|err| ProgressError::System)?;
+            .map_err(|err| TickError::System)?;
 
         // Flush activity commands
         self.activity

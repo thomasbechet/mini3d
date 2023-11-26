@@ -110,8 +110,7 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) renderer: &'a mut RendererManager,
     pub(crate) platform: &'a mut PlatformManager,
     pub(crate) logger: &'a mut LoggerManager,
-    pub(crate) delta_time: f64,
-    pub(crate) global_time: f64,
+    pub(crate) global_time: &'a mut f64,
 }
 
 impl ECSManager {
@@ -142,11 +141,17 @@ impl ECSManager {
     pub(crate) fn update(&mut self, context: ECSUpdateContext) -> Result<(), ActivityError> {
         // Find active ECS
         let active_ecs = context.activity.activities[context.activity.active].ecs;
+        let frame_index = context.activity.activities[context.activity.active].frame_index;
+        let delta_time =
+            1.0 / context.activity.activities[context.activity.active].target_fps as f64;
         let (ecs, systems) = self.instances.get_mut(active_ecs).unwrap();
+
+        // Integrate global time
+        *context.global_time += delta_time;
 
         // Begin frame
         ecs.scheduler
-            .invoke_frame_stages(context.delta_time, self.handles.update_stage);
+            .invoke_frame_stages(delta_time, self.handles.update_stage);
 
         // Run stages
         // TODO: protect against infinite loops
@@ -175,8 +180,9 @@ impl ECSManager {
                             platform: context.platform,
                             logger: context.logger,
                             time: TimeAPI {
-                                delta: context.delta_time,
-                                global: context.global_time,
+                                delta: delta_time,
+                                global: *context.global_time,
+                                frame: frame_index,
                             },
                             ecs,
                             ecs_types: &self.handles,
@@ -193,8 +199,9 @@ impl ECSManager {
                             platform: context.platform,
                             logger: context.logger,
                             time: TimeAPI {
-                                delta: context.delta_time,
-                                global: context.global_time,
+                                delta: delta_time,
+                                global: *context.global_time,
+                                frame: frame_index,
                             },
                             ecs,
                             ecs_types: &self.handles,

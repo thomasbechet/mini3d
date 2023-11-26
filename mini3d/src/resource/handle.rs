@@ -104,11 +104,11 @@ impl ToResourceHandle for ResourceHandle {
 pub(crate) const MAX_RESOURCE_KEY_LEN: usize = 64;
 
 #[derive(Default, Serialize)]
-pub struct ResourceKey(AsciiArray<MAX_RESOURCE_KEY_LEN>);
+pub struct ResourceName(AsciiArray<MAX_RESOURCE_KEY_LEN>);
 
-impl ResourceKey {
-    pub(crate) fn new(id: &str) -> Self {
-        Self(AsciiArray::from(id))
+impl ResourceName {
+    pub(crate) fn new(name: &str) -> Self {
+        Self(AsciiArray::from(name))
     }
 
     pub(crate) fn random(prng: &mut PCG32) -> Self {
@@ -126,19 +126,19 @@ impl ResourceKey {
     }
 }
 
-impl ToUID for ResourceKey {
+impl ToUID for ResourceName {
     fn to_uid(&self) -> UID {
         self.0.as_str().to_uid()
     }
 }
 
-impl AsRef<str> for ResourceKey {
+impl AsRef<str> for ResourceName {
     fn as_ref(&self) -> &str {
         self.0.as_str()
     }
 }
 
-impl From<&str> for ResourceKey {
+impl From<&str> for ResourceName {
     fn from(key: &str) -> Self {
         Self::new(key)
     }

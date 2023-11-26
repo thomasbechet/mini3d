@@ -60,7 +60,6 @@ pub(crate) trait AnyNativeContainer: Any {
     fn clear(&mut self);
     fn get_entry_key(&self, key: ResourceSlotKey) -> Option<ResourceEntryKey>;
     fn iter_keys(&self) -> Box<dyn Iterator<Item = (ResourceEntryKey, ResourceSlotKey)> + '_>;
-    fn iter_slot_keys(&self) -> Box<dyn Iterator<Item = ResourceSlotKey>>;
 }
 
 impl<R: Resource> AnyNativeContainer for NativeContainer<R> {
@@ -90,9 +89,5 @@ impl<R: Resource> AnyNativeContainer for NativeContainer<R> {
                 .iter()
                 .map(|(slot_key, entry)| (entry.entry_key, slot_key)),
         )
-    }
-
-    fn iter_slot_keys(&self) -> Box<dyn Iterator<Item = ResourceSlotKey>> {
-        Box::new(self.0.keys())
     }
 }
