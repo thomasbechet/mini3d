@@ -115,8 +115,9 @@ impl ResourceManager {
             };
 
         // Update entry with type and data slot (itself)
-        self.entries[entry_key].handle =
-            ResourceHandle::new(self.type_container_key, meta_type_data_slot);
+        let handle = ResourceHandle::new(self.type_container_key, meta_type_data_slot);
+        self.entries[entry_key].handle = handle;
+        self.meta_type = handle.into();
     }
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -129,7 +130,6 @@ impl ResourceManager {
 
     fn get_type(&self, ty: ResourceTypeHandle) -> Option<&ResourceType> {
         let handle = ty.to_handle();
-        assert!(handle.type_key() == self.type_container_key);
         match self.containers[self.type_container_key] {
             ResourceContainer::Native(ref container) => container
                 .as_any()
@@ -166,7 +166,7 @@ impl ResourceManager {
 
     pub(crate) fn create<R: Resource>(
         &mut self,
-        key: Option<&str>,
+        name: Option<&str>,
         ty: ResourceTypeHandle,
         owner: ActivityInstanceHandle,
         data: R,
@@ -180,7 +180,7 @@ impl ResourceManager {
             return Err(ResourceError::ResourceTypeNotFound);
         }
         // Check duplicated entry or generate new key
-        let key = if let Some(key) = key {
+        let name = if let Some(key) = name {
             // Find existing
             if self.find(key).is_some() {
                 return Err(ResourceError::DuplicatedAssetEntry);
@@ -193,7 +193,7 @@ impl ResourceManager {
         let type_key = self.get_type(ty).unwrap().type_key;
         // Create new entry
         let entry_key: ResourceEntryKey = self.entries.add(ResourceEntry {
-            name: key,
+            name,
             ty,
             handle: ResourceHandle::null(),
             owner,
@@ -316,14 +316,15 @@ impl ResourceManager {
         ty: ResourceTypeHandle,
     ) -> Box<dyn Iterator<Item = (ResourceHandle, &'_ mut R)> + '_> {
         if let Some(ty) = self.get_type(ty) {
-            match &mut self.containers[ty.type_key] {
+            let type_key = ty.type_key;
+            match &mut self.containers[type_key] {
                 ResourceContainer::Native(ref mut container) => Box::new(
                     container
                         .as_any_mut()
                         .downcast_mut::<NativeContainer<R>>()
                         .unwrap()
                         .iter_mut()
-                        .map(|(key, value)| (ResourceHandle::new(ty.type_key, key), value)),
+                        .map(move |(key, value)| (ResourceHandle::new(type_key, key), value)),
                 ),
             }
         } else {

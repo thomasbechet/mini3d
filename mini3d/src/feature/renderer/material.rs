@@ -5,7 +5,7 @@ use crate::{
     feature::core::resource::{Resource, ResourceTypeHandle},
 };
 
-#[derive(Default, Reflect, Serialize)]
+#[derive(Default, Reflect, Serialize, Clone)]
 pub(crate) enum MaterialType {
     #[default]
     Opaque,

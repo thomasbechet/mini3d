@@ -135,7 +135,7 @@ impl ForwardPass {
             .unwrap_or_default();
         let renderpass = ctx.resource.native_unchecked::<RenderPass>(handle);
         if matches!(renderpass.ty, RenderPassType::Forward) {
-            Some(handle)
+            Some(handle.into())
         } else {
             None
         }
@@ -157,17 +157,6 @@ impl ForwardPass {
         mesh: MeshHandle,
         material: MaterialHandle,
         transform: RenderVariableHandle,
-        sort: u32,
-    ) {
-    }
-
-    pub fn draw_mesh_skinned(
-        ctx: &mut Context,
-        pass: ForwardPassHandle,
-        mesh: MeshHandle,
-        material: MaterialHandle,
-        transform: RenderVariableHandle,
-        skeleton: SkeletonHandle,
         sort: u32,
     ) {
     }

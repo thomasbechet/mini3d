@@ -42,7 +42,7 @@ impl Key for DefaultKey {
     }
 
     fn index(&self) -> Option<usize> {
-        if self.is_null() {
+        if *self == Self::null() {
             None
         } else {
             Some((self.0 & 0xFFFFFF) as usize)

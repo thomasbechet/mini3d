@@ -55,7 +55,7 @@ impl ImageImporter {
         let data = image.to_rgba8();
         // Build the texture
         let texture = Texture::new(
-            TextureFormat::RGBA,
+            TextureFormat::R8G8B8A8,
             data.to_vec(),
             image.width(),
             image.height(),
