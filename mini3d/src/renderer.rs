@@ -67,6 +67,7 @@ pub(crate) struct RendererHandles {
     pub(crate) model: ResourceTypeHandle,
     pub(crate) array: ResourceTypeHandle,
     pub(crate) variable: ResourceTypeHandle,
+    pub(crate) renderpass: ResourceTypeHandle,
 }
 
 #[derive(Default)]

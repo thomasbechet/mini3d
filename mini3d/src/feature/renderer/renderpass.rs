@@ -1,4 +1,6 @@
-use crate::define_resource_handle;
+use mini3d_derive::Reflect;
+
+use crate::{define_resource_handle, feature::core::resource::Resource};
 
 pub(crate) struct ForwardPass {}
 
@@ -6,7 +8,9 @@ pub(crate) struct CanvasPass {}
 
 pub(crate) struct ShadowPass {}
 
+#[derive(Default, Reflect)]
 pub(crate) enum RenderPassType {
+    #[default]
     Forward,
     Shadow,
     Canvas,
@@ -14,13 +18,16 @@ pub(crate) enum RenderPassType {
     Deferred,
 }
 
+#[derive(Default, Reflect)]
 pub struct RenderPass {
-    ty: RenderPassType,
+    pub(crate) ty: RenderPassType,
 }
 
 impl RenderPass {
     pub const NAME: &'static str = "RTY_RenderPass";
 }
+
+impl Resource for RenderPass {}
 
 define_resource_handle!(ForwardPassHandle);
 define_resource_handle!(ShadowPassHandle);

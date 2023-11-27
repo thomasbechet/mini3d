@@ -5,8 +5,16 @@ use crate::{
     feature::core::resource::{Resource, ResourceTypeHandle},
 };
 
+#[derive(Default, Reflect, Serialize)]
+pub(crate) enum MaterialType {
+    #[default]
+    Opaque,
+    Transparent,
+}
+
 #[derive(Default, Clone, Serialize, Reflect)]
 pub struct Material {
+    pub(crate) ty: MaterialType,
     pub diffuse: ResourceTypeHandle,
 }
 

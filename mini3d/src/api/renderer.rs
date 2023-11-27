@@ -4,14 +4,19 @@ use crate::{
     feature::renderer::{
         array::{RenderArray, RenderArrayHandle, RenderArrayUsage},
         font::{Font, FontHandle},
+        material::MaterialHandle,
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
-        renderpass::{CanvasPass, CanvasPassHandle, ForwardPass, ForwardPassHandle},
+        renderpass::{
+            CanvasPass, CanvasPassHandle, ForwardPass, ForwardPassHandle, RenderPass,
+            RenderPassType,
+        },
         texture::{Texture, TextureHandle, TextureWrapMode},
         variable::{RenderFormat, RenderVariable, RenderVariableHandle},
     },
     math::rect::IRect,
     renderer::{color::Color, RendererStatistics},
+    resource::handle::ResourceHandle,
     utils::uid::ToUID,
 };
 
@@ -89,7 +94,11 @@ impl RenderArray {
 }
 
 impl RenderVariable {
-    pub fn create(ctx: &mut Context, format: RenderFormat) -> RenderVariableHandle {
+    pub fn create(
+        ctx: &mut Context,
+        format: RenderFormat,
+        interpolate: bool,
+    ) -> RenderVariableHandle {
         todo!()
     }
 
@@ -117,6 +126,50 @@ impl Renderer {
 impl ForwardPass {
     pub fn create(ctx: &mut Context, name: &str) -> ForwardPassHandle {
         todo!()
+    }
+
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ForwardPassHandle> {
+        let handle: ResourceHandle = ctx
+            .resource
+            .find_typed(key, ctx.renderer.handles.renderpass)
+            .unwrap_or_default();
+        let renderpass = ctx.resource.native_unchecked::<RenderPass>(handle);
+        if matches!(renderpass.ty, RenderPassType::Forward) {
+            Some(handle)
+        } else {
+            None
+        }
+    }
+
+    pub fn draw_model(
+        ctx: &mut Context,
+        pass: ForwardPassHandle,
+        model: ModelHandle,
+        material: MaterialHandle,
+        transform: RenderVariableHandle,
+        sort: u32,
+    ) {
+    }
+
+    pub fn draw_mesh(
+        ctx: &mut Context,
+        pass: ForwardPassHandle,
+        mesh: MeshHandle,
+        material: MaterialHandle,
+        transform: RenderVariableHandle,
+        sort: u32,
+    ) {
+    }
+
+    pub fn draw_mesh_skinned(
+        ctx: &mut Context,
+        pass: ForwardPassHandle,
+        mesh: MeshHandle,
+        material: MaterialHandle,
+        transform: RenderVariableHandle,
+        skeleton: SkeletonHandle,
+        sort: u32,
+    ) {
     }
 }
 
