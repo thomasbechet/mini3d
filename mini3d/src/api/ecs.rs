@@ -57,20 +57,20 @@ impl System {
             .map(SystemHandle)
     }
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<SystemHandle> {
-        ctx.resource.find_typed(key, ctx.ecs_types.system)
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<SystemHandle> {
+        ctx.resource.find_typed(name, ctx.ecs_types.system)
     }
 }
 
 impl SystemSet {
     pub fn create(
         ctx: &mut Context,
-        key: &str,
+        name: &str,
         set: SystemSet,
     ) -> Result<SystemSetHandle, ResourceError> {
         ctx.resource
             .create(
-                Some(key),
+                Some(name),
                 ctx.ecs_types.system_set,
                 ctx.activity.active,
                 set,
@@ -84,23 +84,23 @@ impl SystemStage {
         ctx.ecs.scheduler.invoke(stage, invocation)
     }
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<SystemStageHandle> {
-        ctx.resource.find_typed(key, ctx.ecs_types.system_stage)
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<SystemStageHandle> {
+        ctx.resource.find_typed(name, ctx.ecs_types.system_stage)
     }
 }
 
 impl ComponentType {
     pub fn create(
         ctx: &mut Context,
-        key: &str,
+        name: &str,
         ty: ComponentType,
     ) -> Result<ComponentTypeHandle, ResourceError> {
         ctx.resource
-            .create(Some(key), ctx.ecs_types.component, ctx.activity.active, ty)
+            .create(Some(name), ctx.ecs_types.component, ctx.activity.active, ty)
             .map(ComponentTypeHandle)
     }
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ComponentTypeHandle> {
-        ctx.resource.find_typed(key, ctx.ecs_types.component)
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<ComponentTypeHandle> {
+        ctx.resource.find_typed(name, ctx.ecs_types.component)
     }
 }

@@ -118,6 +118,7 @@ impl ResourceManager {
         let handle = ResourceHandle::new(self.type_container_key, meta_type_data_slot);
         self.entries[entry_key].handle = handle;
         self.meta_type = handle.into();
+        self.entries[entry_key].ty = self.meta_type;
     }
 
     pub(crate) fn save_state(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
@@ -173,25 +174,24 @@ impl ResourceManager {
     ) -> Result<ResourceHandle, ResourceError> {
         // Check existing type and container
         if let Some(resource) = self.get_type(ty) {
-            if resource.type_key.index().is_none() {
+            if resource.type_key.is_null() {
                 self.create_container(ty);
             }
         } else {
             return Err(ResourceError::ResourceTypeNotFound);
         }
         // Check duplicated entry or generate new key
-        let name = if let Some(key) = name {
+        let name = if let Some(name) = name {
             // Find existing
-            if self.find(key).is_some() {
+            if self.find(name).is_some() {
                 return Err(ResourceError::DuplicatedAssetEntry);
             }
-            ResourceName::new(key)
+            ResourceName::new(name)
         } else {
             // Generate random key
             ResourceName::random(&mut self.prng)
         };
         let type_key = self.get_type(ty).unwrap().type_key;
-        println!("Create resource: {} {:?}", name.as_str(), type_key);
         // Create new entry
         let entry_key: ResourceEntryKey = self.entries.add(ResourceEntry {
             name,
@@ -221,11 +221,11 @@ impl ResourceManager {
 
     pub(crate) fn create_resource_type(
         &mut self,
-        key: Option<&str>,
+        name: Option<&str>,
         owner: ActivityInstanceHandle,
         data: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
-        self.create(key, self.meta_type, owner, data)
+        self.create(name, self.meta_type, owner, data)
             .map(|handle| handle.into())
     }
 
@@ -316,21 +316,25 @@ impl ResourceManager {
         &mut self,
         ty: ResourceTypeHandle,
     ) -> Box<dyn Iterator<Item = (ResourceHandle, &'_ mut R)> + '_> {
-        if let Some(ty) = self.get_type(ty) {
-            let type_key = ty.type_key;
-            match &mut self.containers[type_key] {
-                ResourceContainer::Native(ref mut container) => Box::new(
-                    container
-                        .as_any_mut()
-                        .downcast_mut::<NativeContainer<R>>()
-                        .unwrap()
-                        .iter_mut()
-                        .map(move |(key, value)| (ResourceHandle::new(type_key, key), value)),
-                ),
+        if let Some(type_key) = self.get_type(ty).map(|ty| ty.type_key) {
+            if !type_key.is_null() {
+                match &mut self.containers[type_key] {
+                    ResourceContainer::Native(ref mut container) => {
+                        return Box::new(
+                            container
+                                .as_any_mut()
+                                .downcast_mut::<NativeContainer<R>>()
+                                .unwrap()
+                                .iter_mut()
+                                .map(move |(key, value)| {
+                                    (ResourceHandle::new(type_key, key), value)
+                                }),
+                        )
+                    }
+                }
             }
-        } else {
-            Box::new(std::iter::empty())
         }
+        Box::new(std::iter::empty())
     }
 
     pub(crate) fn iter_native_values_mut<R: Resource>(
@@ -340,9 +344,9 @@ impl ResourceManager {
         self.iter_native_mut(ty).map(|(_, value)| value)
     }
 
-    pub(crate) fn find(&self, key: impl ToUID) -> Option<ResourceHandle> {
+    pub(crate) fn find(&self, name: impl ToUID) -> Option<ResourceHandle> {
         for (id, entry) in self.entries.iter() {
-            if entry.name.to_uid() == key.to_uid() {
+            if entry.name.to_uid() == name.to_uid() {
                 return Some(entry.handle);
             }
         }
@@ -351,24 +355,26 @@ impl ResourceManager {
 
     pub(crate) fn find_typed<H: ToResourceHandle>(
         &self,
-        key: impl ToUID,
+        name: impl ToUID,
         ty: ResourceTypeHandle,
     ) -> Option<H> {
-        self.containers
-            .get(ty.to_handle().type_key())
-            .and_then(|container| {
-                container.iter_entry_keys().find_map(|entry_key| {
-                    if self.entries[entry_key].name.to_uid() == key.to_uid() {
-                        Some(H::from_handle(self.entries[entry_key].handle))
-                    } else {
-                        None
-                    }
+        self.get_type(ty)
+            .map(|ty| ty.type_key)
+            .and_then(|type_key| {
+                self.containers.get(type_key).and_then(|container| {
+                    container.iter_entry_keys().find_map(|entry_key| {
+                        if self.entries[entry_key].name.to_uid() == name.to_uid() {
+                            Some(H::from_handle(self.entries[entry_key].handle))
+                        } else {
+                            None
+                        }
+                    })
                 })
             })
     }
 
-    pub(crate) fn find_type(&self, key: impl ToUID) -> Option<ResourceTypeHandle> {
-        self.find_typed::<ResourceTypeHandle>(key, self.meta_type)
+    pub(crate) fn find_type(&self, name: impl ToUID) -> Option<ResourceTypeHandle> {
+        self.find_typed::<ResourceTypeHandle>(name, self.meta_type)
     }
 
     pub(crate) fn info(

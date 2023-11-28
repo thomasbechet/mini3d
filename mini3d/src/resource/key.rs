@@ -1,6 +1,6 @@
 use crate::utils::slotmap::Key;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ResourceSlotKey {
     pub(crate) version: u8,
     pub(crate) index: u16,

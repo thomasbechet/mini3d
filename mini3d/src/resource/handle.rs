@@ -49,12 +49,11 @@ impl ResourceHandle {
     }
 
     pub(crate) fn new(type_key: ResourceTypeKey, slot_key: ResourceSlotKey) -> Self {
-        Self(
-            ((type_key.version as u32) << 26)
-                | ((type_key.index as u32) << 12)
-                | ((slot_key.version as u32) << 10)
-                | (slot_key.index as u32),
-        )
+        let type_id = (type_key.index & 0x3FF) as u32;
+        let type_version = (type_key.version & 0x3) as u32;
+        let slot_id = (slot_key.index & 0x3FFF) as u32;
+        let slot_version = (slot_key.version & 0x3F) as u32;
+        Self(type_id | (type_version << 10) | (slot_id << 12) | (slot_version << 26))
     }
 
     pub fn null() -> Self {
@@ -141,5 +140,30 @@ impl AsRef<str> for ResourceName {
 impl From<&str> for ResourceName {
     fn from(key: &str) -> Self {
         Self::new(key)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_resource_handle() {
+        let handle = ResourceHandle::new(
+            ResourceTypeKey {
+                version: 3,
+                index: 5,
+            },
+            ResourceSlotKey {
+                version: 2,
+                index: 7,
+            },
+        );
+        let type_key = handle.type_key();
+        assert_eq!(type_key.version, 3);
+        assert_eq!(type_key.index, 5);
+        let slot_key = handle.slot_key();
+        assert_eq!(slot_key.version, 2);
+        assert_eq!(slot_key.index, 7);
     }
 }
