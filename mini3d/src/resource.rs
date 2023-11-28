@@ -191,6 +191,7 @@ impl ResourceManager {
             ResourceName::random(&mut self.prng)
         };
         let type_key = self.get_type(ty).unwrap().type_key;
+        println!("Create resource: {} {:?}", name.as_str(), type_key);
         // Create new entry
         let entry_key: ResourceEntryKey = self.entries.add(ResourceEntry {
             name,

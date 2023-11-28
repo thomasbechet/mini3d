@@ -35,7 +35,7 @@ impl Key for ResourceSlotKey {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ResourceTypeKey {
     pub(crate) version: u8,
     pub(crate) index: u16,
