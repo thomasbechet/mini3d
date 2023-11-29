@@ -11,7 +11,7 @@ use crate::{
             CanvasPass, CanvasPassHandle, ForwardPass, ForwardPassHandle, RenderPass,
             RenderPassType,
         },
-        texture::{Texture, TextureHandle, TextureWrapMode},
+        texture::{GPUTexture, GPUTextureHandle, TextureWrapMode},
         variable::{RenderFormat, RenderVariable, RenderVariableHandle},
     },
     math::rect::IRect,
@@ -22,14 +22,14 @@ use crate::{
 
 use super::Context;
 
-impl Texture {
-    pub fn create(ctx: &mut Context) -> TextureHandle {
+impl GPUTexture {
+    pub fn create(ctx: &mut Context) -> GPUTextureHandle {
         todo!()
     }
 
-    pub fn destroy(ctx: &mut Context, texture: TextureHandle) {}
+    pub fn destroy(ctx: &mut Context, texture: GPUTextureHandle) {}
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<TextureHandle> {
+    pub fn find(ctx: &Context, key: impl ToUID) -> Option<GPUTextureHandle> {
         ctx.resource.find_typed(key, ctx.renderer.handles.texture)
     }
 }
@@ -207,7 +207,7 @@ impl CanvasPass {
     pub fn blit_texture(
         ctx: &mut Context,
         pass: CanvasPassHandle,
-        texture: TextureHandle,
+        texture: GPUTextureHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,

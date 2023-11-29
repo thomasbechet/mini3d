@@ -1,7 +1,7 @@
 use crate::feature::core::resource::ResourceTypeHandle;
 use crate::feature::renderer::font::{Font, FontHandle};
 use crate::feature::renderer::mesh::{Mesh, MeshHandle};
-use crate::feature::renderer::texture::{Texture, TextureHandle};
+use crate::feature::renderer::texture::{GPUTexture, GPUTextureHandle};
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
     math::rect::IRect,
@@ -110,8 +110,17 @@ impl RendererManager {
         self.statistics
     }
 
-    pub(crate) fn on_texture_added_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {}
-    pub(crate) fn on_texture_removed_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {
+    pub(crate) fn on_texture_added_hook(
+        &mut self,
+        texture: &mut GPUTexture,
+        handle: GPUTextureHandle,
+    ) {
+    }
+    pub(crate) fn on_texture_removed_hook(
+        &mut self,
+        texture: &mut GPUTexture,
+        handle: GPUTextureHandle,
+    ) {
     }
     pub(crate) fn on_mesh_added_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}
     pub(crate) fn on_mesh_removed_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}

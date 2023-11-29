@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use mini3d::{
-    feature::renderer::texture::{Texture, TextureFormat},
+    feature::renderer::texture::{GPUTexture, TextureFormat},
     platform::event::{AssetImportEntry, ImportAssetEvent},
 };
 
 pub struct ImageImport {
-    texture: AssetImportEntry<Texture>,
+    texture: AssetImportEntry<GPUTexture>,
 }
 
 impl ImageImport {
@@ -54,7 +54,7 @@ impl ImageImporter {
         // Convert to rgba8
         let data = image.to_rgba8();
         // Build the texture
-        let texture = Texture::new(
+        let texture = GPUTexture::new(
             TextureFormat::R8G8B8A8,
             data.to_vec(),
             image.width(),
@@ -62,7 +62,7 @@ impl ImageImporter {
         );
         // Return the texture import
         Ok(ImageImport {
-            texture: AssetImportEntry::<Texture> {
+            texture: AssetImportEntry::<GPUTexture> {
                 data: texture,
                 name: filename,
             },
