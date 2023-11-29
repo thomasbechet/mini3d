@@ -122,11 +122,11 @@ impl System {
 
 impl Resource for System {
     fn resolve_references(&mut self, resolver: &mut ReferenceResolver) {
-        match self {
-            Self {
-                kind: SystemKind::Script(script),
-            } => script.resolve(resolver),
-            _ => {}
+        if let Self {
+            kind: SystemKind::Script(script),
+        } = self
+        {
+            script.resolve(resolver)
         }
     }
 }
@@ -141,8 +141,7 @@ define_resource_handle!(SystemStageHandle);
 impl SystemStage {
     pub const NAME: &'static str = "RTY_SystemStage";
     pub const START: &'static str = "STA_Start";
-    pub const UPDATE: &'static str = "STA_Update";
-    pub const UPDATE_60HZ: &'static str = "STA_Update60Hz";
+    pub const TICK: &'static str = "STA_Tick";
 
     pub fn periodic(frequency: f64) -> Self {
         Self {
@@ -187,7 +186,6 @@ impl SystemSet {
             entry.system = system;
             entry.stage = stage;
             entry.order = order;
-            return self;
         } else {
             self.0.push(SystemSetEntry {
                 name: AsciiArray::from(name),
@@ -195,8 +193,8 @@ impl SystemSet {
                 stage,
                 order,
             });
-            return self;
         }
+        self
     }
 }
 

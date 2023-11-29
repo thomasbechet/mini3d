@@ -6,5 +6,6 @@ edition = "2021"
 [dependencies]
 mini3d = { path = "../mini3d" }
 mini3d_derive = { path = "../mini3d_derive" }
+mini3d_stdlog = { path = "../mini3d_stdlog" }
 # mini3d_os = { path = "../mini3d_os" }
-mini3d_utils = { path = "../mini3d_utils" }
+# mini3d_utils = { path = "../mini3d_utils" }

@@ -17,7 +17,7 @@ use mini3d::{
     },
     info,
 };
-use mini3d_utils::stdout::StdoutLogger;
+use mini3d_stdlog::logger::stdout::StdoutLogger;
 
 #[derive(Default, Clone)]
 struct SpawnSystem {
@@ -66,7 +66,13 @@ impl ExclusiveSystem for TestSystem {
             let transform = &self.transform[e];
             info!(ctx, "{} {:?}", i, transform);
         }
-        info!(ctx, "{:.3} {:.3}", Time::global(ctx), Time::delta(ctx));
+        info!(
+            ctx,
+            "{:.3} {:.3} {}",
+            Time::global(ctx),
+            Time::delta(ctx),
+            Time::frame(ctx)
+        );
     }
 }
 
@@ -76,12 +82,13 @@ fn main() {
         let test = System::create_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
         let propagate_transform = System::find(ctx, PropagateTransforms::NAME).unwrap();
         let free_fly = System::find(ctx, FreeFlySystem::NAME).unwrap();
-        let stage = SystemStage::find(ctx, SystemStage::UPDATE).unwrap();
+        let start = SystemStage::find(ctx, SystemStage::START).unwrap();
+        let stage = SystemStage::find(ctx, SystemStage::TICK).unwrap();
         let set = SystemSet::create(
             ctx,
             "SST_Root",
             SystemSet::new()
-                .with("spawn", spawn, stage, SystemOrder::default())
+                .with("spawn", spawn, start, SystemOrder::default())
                 .with("test", test, stage, SystemOrder::default())
                 .with(
                     "propagate_transforms",
@@ -100,6 +107,8 @@ fn main() {
         }
     }));
     engine.set_logger(StdoutLogger);
-    engine.tick().expect("Instance error");
+    for _ in 0..100 {
+        engine.tick().expect("Instance error");
+    }
     println!("DONE");
 }

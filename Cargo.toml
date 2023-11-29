@@ -4,6 +4,7 @@ members = [
     "mini3d_cli",
     "mini3d_derive",
     "mini3d_os",
+    "mini3d_stdlog",
     "mini3d_utils",
     "mini3d_wgpu",
     "mini3d_ffi",
@@ -11,3 +12,10 @@ members = [
 ]
 default-members = ["mini3d_cli"]
 resolver = "2"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

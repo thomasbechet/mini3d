@@ -200,7 +200,7 @@ impl Engine {
         self.ecs.handles.update_stage = self
             .resource
             .create(
-                Some(SystemStage::UPDATE),
+                Some(SystemStage::TICK),
                 self.ecs.handles.system_stage,
                 self.activity.root,
                 SystemStage::default(),
@@ -217,14 +217,6 @@ impl Engine {
             )
             .unwrap()
             .into();
-        self.resource
-            .create(
-                Some(SystemStage::UPDATE_60HZ),
-                self.ecs.handles.system_stage,
-                self.activity.root,
-                SystemStage::periodic(1.0 / 60.0),
-            )
-            .unwrap();
     }
 
     fn run_bootstrap(&mut self, config: &EngineConfig) {

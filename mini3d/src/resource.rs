@@ -345,7 +345,7 @@ impl ResourceManager {
     }
 
     pub(crate) fn find(&self, name: impl ToUID) -> Option<ResourceHandle> {
-        for (id, entry) in self.entries.iter() {
+        for entry in self.entries.values() {
             if entry.name.to_uid() == name.to_uid() {
                 return Some(entry.handle);
             }

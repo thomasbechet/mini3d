@@ -146,9 +146,6 @@ impl ECSManager {
             1.0 / context.activity.activities[context.activity.active].target_fps as f64;
         let (ecs, systems) = self.instances.get_mut(active_ecs).unwrap();
 
-        // Integrate global time
-        *context.global_time += delta_time;
-
         // Begin frame
         ecs.scheduler
             .invoke_frame_stages(delta_time, self.handles.update_stage);
@@ -217,6 +214,10 @@ impl ECSManager {
                 // TODO: use thread pool
             }
         }
+
+        // Integrate global time
+        *context.global_time += delta_time;
+        context.activity.activities[context.activity.active].frame_index += 1;
 
         Ok(())
     }
