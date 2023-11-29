@@ -1,18 +1,17 @@
-use glam::{IVec2, Mat4, Vec2, Vec3, Vec4};
+use glam::{IVec2, Mat4};
 
 use crate::{
     feature::renderer::{
-        array::{RenderArray, RenderArrayHandle, RenderArrayUsage},
         font::{Font, FontHandle},
-        material::MaterialHandle,
+        material::{Material, MaterialHandle},
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
         renderpass::{
             CanvasPass, CanvasPassHandle, ForwardPass, ForwardPassHandle, RenderPass,
             RenderPassType,
         },
-        texture::{GPUTexture, GPUTextureHandle, TextureWrapMode},
-        variable::{RenderFormat, RenderVariable, RenderVariableHandle},
+        texture::{Texture, TextureHandle, TextureWrapMode},
+        transform::{RenderTransform, RenderTransformHandle},
     },
     math::rect::IRect,
     renderer::{color::Color, RendererStatistics},
@@ -22,15 +21,15 @@ use crate::{
 
 use super::Context;
 
-impl GPUTexture {
-    pub fn create(ctx: &mut Context) -> GPUTextureHandle {
+impl Texture {
+    pub fn create(ctx: &mut Context) -> TextureHandle {
         todo!()
     }
 
-    pub fn destroy(ctx: &mut Context, texture: GPUTextureHandle) {}
+    pub fn destroy(ctx: &mut Context, texture: TextureHandle) {}
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<GPUTextureHandle> {
-        ctx.resource.find_typed(key, ctx.renderer.handles.texture)
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<TextureHandle> {
+        ctx.resource.find_typed(name, ctx.renderer.handles.texture)
     }
 }
 
@@ -53,8 +52,20 @@ impl Mesh {
 
     pub fn destroy(ctx: &mut Context, mesh: MeshHandle) {}
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<MeshHandle> {
-        ctx.resource.find_typed(key, ctx.renderer.handles.mesh)
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<MeshHandle> {
+        ctx.resource.find_typed(name, ctx.renderer.handles.mesh)
+    }
+}
+
+impl Material {
+    pub fn create(ctx: &mut Context) -> MaterialHandle {
+        todo!()
+    }
+
+    pub fn destroy(ctx: &mut Context, material: MaterialHandle) {}
+
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<MaterialHandle> {
+        ctx.resource.find_typed(name, ctx.renderer.handles.material)
     }
 }
 
@@ -65,54 +76,19 @@ impl Model {
 
     pub fn destroy(ctx: &mut Context, model: ModelHandle) {}
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ModelHandle> {
-        ctx.resource.find_typed(key, ctx.renderer.handles.model)
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<ModelHandle> {
+        ctx.resource.find_typed(name, ctx.renderer.handles.model)
     }
 }
 
-impl RenderArray {
-    pub fn create(
-        ctx: &mut Context,
-        format: RenderFormat,
-        size: u32,
-        usage: RenderArrayUsage,
-    ) -> RenderArrayHandle {
+impl RenderTransform {
+    pub fn create(ctx: &mut Context, interpolate: bool) -> RenderTransformHandle {
         todo!()
     }
 
-    pub fn set_float(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: f32) {}
-
-    pub fn set_int(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: i32) {}
-
-    pub fn set_vec2(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Vec2) {}
-
-    pub fn set_vec3(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Vec3) {}
-
-    pub fn set_vec4(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Vec4) {}
-
-    pub fn set_mat4(ctx: &mut Context, array: RenderArrayHandle, index: u32, value: Mat4) {}
-}
-
-impl RenderVariable {
-    pub fn create(
-        ctx: &mut Context,
-        format: RenderFormat,
-        interpolate: bool,
-    ) -> RenderVariableHandle {
+    pub fn update(ctx: &mut Context, value: Mat4, teleport: bool) {
         todo!()
     }
-
-    pub fn set_float(ctx: &mut Context, constant: RenderVariableHandle, value: f32) {}
-
-    pub fn set_int(ctx: &mut Context, constant: RenderVariableHandle, value: i32) {}
-
-    pub fn set_vec2(ctx: &mut Context, constant: RenderVariableHandle, value: Vec2) {}
-
-    pub fn set_vec3(ctx: &mut Context, constant: RenderVariableHandle, value: Vec3) {}
-
-    pub fn set_vec4(ctx: &mut Context, constant: RenderVariableHandle, value: Vec4) {}
-
-    pub fn set_mat4(ctx: &mut Context, constant: RenderVariableHandle, value: Mat4) {}
 }
 
 pub struct Renderer;
@@ -128,10 +104,10 @@ impl ForwardPass {
         todo!()
     }
 
-    pub fn find(ctx: &Context, key: impl ToUID) -> Option<ForwardPassHandle> {
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<ForwardPassHandle> {
         let handle: ResourceHandle = ctx
             .resource
-            .find_typed(key, ctx.renderer.handles.renderpass)
+            .find_typed(name, ctx.renderer.handles.renderpass)
             .unwrap_or_default();
         let renderpass = ctx.resource.native_unchecked::<RenderPass>(handle);
         if matches!(renderpass.ty, RenderPassType::Forward) {
@@ -141,22 +117,12 @@ impl ForwardPass {
         }
     }
 
-    pub fn draw_model(
-        ctx: &mut Context,
-        pass: ForwardPassHandle,
-        model: ModelHandle,
-        material: MaterialHandle,
-        transform: RenderVariableHandle,
-        sort: u32,
-    ) {
-    }
-
     pub fn draw_mesh(
         ctx: &mut Context,
         pass: ForwardPassHandle,
         mesh: MeshHandle,
         material: MaterialHandle,
-        transform: RenderVariableHandle,
+        transform: RenderTransformHandle,
         sort: u32,
     ) {
     }
@@ -207,7 +173,7 @@ impl CanvasPass {
     pub fn blit_texture(
         ctx: &mut Context,
         pass: CanvasPassHandle,
-        texture: GPUTextureHandle,
+        texture: TextureHandle,
         extent: IRect,
         texture_extent: IRect,
         filtering: Color,

@@ -452,7 +452,7 @@ impl RendererProvider for WGPURenderer {
 
     fn texture_add(
         &mut self,
-        texture: &texture::GPUTexture,
+        texture: &texture::Texture,
     ) -> Result<TextureProviderHandle, RendererProviderError> {
         let handle: TextureProviderHandle = self.generator.next().into();
         self.textures.insert(

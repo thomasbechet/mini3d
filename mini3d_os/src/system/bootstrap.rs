@@ -22,7 +22,7 @@ use mini3d::{
         },
         renderer::{
             camera::Camera, font::Font, material::Material, mesh::Mesh, model::Model,
-            staticmesh::StaticMesh, texture::GPUTexture, viewport::Viewport,
+            staticmesh::StaticMesh, texture::Texture, viewport::Viewport,
         },
     },
     glam::{Quat, Vec3},
@@ -406,8 +406,8 @@ impl OSInitialize {
             )
         );
 
-        let texture: StaticResourceType<GPUTexture> =
-            expect!(ctx, ResourceRegistry::find(ctx, GPUTexture::NAME));
+        let texture: StaticResourceType<Texture> =
+            expect!(ctx, ResourceRegistry::find(ctx, Texture::NAME));
         let mesh: StaticResourceType<Mesh> = expect!(ctx, ResourceRegistry::find(ctx, Mesh::NAME));
         let model: StaticResourceType<Model> =
             expect!(ctx, ResourceRegistry::find(ctx, Model::NAME));

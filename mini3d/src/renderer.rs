@@ -1,7 +1,7 @@
 use crate::feature::core::resource::ResourceTypeHandle;
 use crate::feature::renderer::font::{Font, FontHandle};
 use crate::feature::renderer::mesh::{Mesh, MeshHandle};
-use crate::feature::renderer::texture::{GPUTexture, GPUTextureHandle};
+use crate::feature::renderer::texture::{Texture, TextureHandle};
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
     math::rect::IRect,
@@ -65,8 +65,7 @@ pub(crate) struct RendererHandles {
     pub(crate) font: ResourceTypeHandle,
     pub(crate) graph: ResourceTypeHandle,
     pub(crate) model: ResourceTypeHandle,
-    pub(crate) array: ResourceTypeHandle,
-    pub(crate) variable: ResourceTypeHandle,
+    pub(crate) transform: ResourceTypeHandle,
     pub(crate) renderpass: ResourceTypeHandle,
 }
 
@@ -110,17 +109,8 @@ impl RendererManager {
         self.statistics
     }
 
-    pub(crate) fn on_texture_added_hook(
-        &mut self,
-        texture: &mut GPUTexture,
-        handle: GPUTextureHandle,
-    ) {
-    }
-    pub(crate) fn on_texture_removed_hook(
-        &mut self,
-        texture: &mut GPUTexture,
-        handle: GPUTextureHandle,
-    ) {
+    pub(crate) fn on_texture_added_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {}
+    pub(crate) fn on_texture_removed_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {
     }
     pub(crate) fn on_mesh_added_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}
     pub(crate) fn on_mesh_removed_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}

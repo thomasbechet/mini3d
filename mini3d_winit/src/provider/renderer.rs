@@ -42,7 +42,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn texture_add(
         &mut self,
-        texture: &mini3d::feature::renderer::texture::GPUTexture,
+        texture: &mini3d::feature::renderer::texture::Texture,
     ) -> Result<
         mini3d::renderer::provider::TextureProviderHandle,
         mini3d::renderer::provider::RendererProviderError,

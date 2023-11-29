@@ -9,7 +9,7 @@ use glam::{IVec2, UVec2};
 use mini3d_derive::{Reflect, Serialize};
 use std::collections::HashMap;
 
-use super::texture::{GPUTexture, TextureFormat};
+use super::texture::{Texture, TextureFormat};
 
 define_resource_handle!(FontHandle);
 
@@ -56,7 +56,7 @@ impl Resource for Font {
 
 #[derive(Default)]
 pub struct FontAtlas {
-    pub texture: GPUTexture,
+    pub texture: Texture,
     pub extents: HashMap<char, IRect>,
 }
 
@@ -65,7 +65,7 @@ impl FontAtlas {
         let glyph_count = font.glyph_locations.len();
         let width = font.glyph_size.x * glyph_count as u32;
         let height = font.glyph_size.y;
-        let mut texture = GPUTexture {
+        let mut texture = Texture {
             data: vec![0x0; (width * height * 4) as usize],
             format: TextureFormat::R8G8B8A8,
             width,

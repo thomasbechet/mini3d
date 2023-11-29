@@ -2,6 +2,8 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{define_resource_handle, feature::core::resource::Resource};
 
+pub(crate) enum ForwardPassCommand {}
+
 pub(crate) struct ForwardPass {}
 
 pub(crate) struct CanvasPass {}

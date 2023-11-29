@@ -1,4 +1,3 @@
-pub mod array;
 pub mod camera;
 pub mod canvas;
 pub mod font;
@@ -12,5 +11,4 @@ pub mod texture;
 pub mod tilemap;
 pub mod tileset;
 pub mod transform;
-pub mod variable;
 pub mod viewport;

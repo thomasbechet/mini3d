@@ -111,10 +111,9 @@ impl Engine {
         self.renderer.handles.font = define_resource!(renderer::font::Font);
         self.renderer.handles.material = define_resource!(renderer::material::Material);
         self.renderer.handles.mesh = define_resource!(renderer::mesh::Mesh);
-        self.renderer.handles.texture = define_resource!(renderer::texture::GPUTexture);
+        self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
         self.renderer.handles.model = define_resource!(renderer::model::Model);
-        self.renderer.handles.array = define_resource!(renderer::array::RenderArray);
-        self.renderer.handles.variable = define_resource!(renderer::variable::RenderVariable);
+        self.renderer.handles.transform = define_resource!(renderer::transform::RenderTransform);
 
         define_resource!(core::activity::Activity);
         define_resource!(core::structure::StructDefinition);

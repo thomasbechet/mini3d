@@ -107,8 +107,9 @@ fn main() {
         }
     }));
     engine.set_logger(StdoutLogger);
-    for _ in 0..100 {
+    for _ in 0..10 {
         engine.tick().expect("Instance error");
     }
+    println!("target_fps: {}", engine.target_fps());
     println!("DONE");
 }

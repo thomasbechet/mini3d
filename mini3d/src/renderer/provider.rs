@@ -5,7 +5,7 @@ use crate::{
     define_provider_handle,
     feature::renderer::{
         mesh::Mesh,
-        texture::{GPUTexture, TextureWrapMode},
+        texture::{Texture, TextureWrapMode},
     },
     math::rect::IRect,
 };
@@ -45,7 +45,7 @@ pub trait RendererProvider {
 
     fn texture_add(
         &mut self,
-        texture: &GPUTexture,
+        texture: &Texture,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
     fn texture_remove(
         &mut self,
@@ -220,7 +220,7 @@ impl RendererProvider for PassiveRendererProvider {
 
     fn texture_add(
         &mut self,
-        texture: &GPUTexture,
+        texture: &Texture,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }

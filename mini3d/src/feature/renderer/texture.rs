@@ -31,10 +31,10 @@ pub enum TextureWrapMode {
     Mirror,
 }
 
-define_resource_handle!(GPUTextureHandle);
+define_resource_handle!(TextureHandle);
 
 #[derive(Clone, Serialize, Default, Reflect)]
-pub struct GPUTexture {
+pub struct Texture {
     pub format: TextureFormat,
     pub data: Vec<u8>,
     pub width: u32,
@@ -43,8 +43,8 @@ pub struct GPUTexture {
     pub(crate) handle: RendererProviderHandle,
 }
 
-impl GPUTexture {
-    pub const NAME: &'static str = "RTY_GPUTexture";
+impl Texture {
+    pub const NAME: &'static str = "RTY_Texture";
 
     pub fn new(format: TextureFormat, data: Vec<u8>, width: u32, height: u32) -> Self {
         Self {
@@ -57,14 +57,14 @@ impl GPUTexture {
     }
 }
 
-impl Resource for GPUTexture {
+impl Resource for Texture {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let texture = ctx.resource.native_mut::<GPUTexture>(handle).unwrap();
+        let texture = ctx.resource.native_mut::<Texture>(handle).unwrap();
         ctx.renderer.on_texture_added_hook(texture, handle.into());
     }
 
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {
-        let texture = ctx.resource.native_mut::<GPUTexture>(handle).unwrap();
+        let texture = ctx.resource.native_mut::<Texture>(handle).unwrap();
         ctx.renderer.on_texture_removed_hook(texture, handle.into());
     }
 }
