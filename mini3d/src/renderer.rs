@@ -16,10 +16,9 @@ use self::{color::Color, provider::RendererProvider};
 pub mod color;
 pub mod event;
 pub mod graphics;
-pub mod pipeline;
+pub mod pass;
 pub mod provider;
 pub mod rasterizer;
-pub mod resource;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -57,6 +56,13 @@ pub struct RendererStatistics {
     pub draw_count: usize,
 }
 
+#[derive(Default, Clone, Copy, Serialize)]
+pub struct RendererFeatures {
+    forward: bool,
+    deferred: bool,
+    shadow: bool,
+}
+
 #[derive(Default)]
 pub(crate) struct RendererHandles {
     pub(crate) texture: ResourceTypeHandle,
@@ -73,6 +79,7 @@ pub(crate) struct RendererHandles {
 pub struct RendererManager {
     pub(crate) provider: Box<dyn RendererProvider>,
     statistics: RendererStatistics,
+    features: RendererFeatures,
     clear_color: Color,
     pub(crate) handles: RendererHandles,
 }
@@ -107,6 +114,10 @@ impl RendererManager {
 
     pub(crate) fn statistics(&self) -> RendererStatistics {
         self.statistics
+    }
+
+    pub(crate) fn features(&self) -> RendererFeatures {
+        self.features
     }
 
     pub(crate) fn on_texture_added_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {}

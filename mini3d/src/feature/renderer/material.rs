@@ -1,9 +1,9 @@
+use glam::Vec2;
 use mini3d_derive::{Reflect, Serialize};
 
-use crate::{
-    define_resource_handle,
-    feature::core::resource::{Resource, ResourceTypeHandle},
-};
+use crate::{define_resource_handle, feature::core::resource::Resource};
+
+use super::texture::TextureHandle;
 
 #[derive(Default, Reflect, Serialize, Clone)]
 pub(crate) enum MaterialType {
@@ -15,7 +15,12 @@ pub(crate) enum MaterialType {
 #[derive(Default, Clone, Serialize, Reflect)]
 pub struct Material {
     pub(crate) ty: MaterialType,
-    pub diffuse: ResourceTypeHandle,
+    pub tex0: TextureHandle,
+    pub tex1: TextureHandle,
+    pub uv0_offset: Vec2,
+    pub uv0_scale: Vec2,
+    pub uv1_offset: Vec2,
+    pub uv1_scale: Vec2,
 }
 
 impl Material {

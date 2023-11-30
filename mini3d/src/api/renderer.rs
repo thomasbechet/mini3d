@@ -14,7 +14,7 @@ use crate::{
         transform::{RenderTransform, RenderTransformHandle},
     },
     math::rect::IRect,
-    renderer::{color::Color, RendererStatistics},
+    renderer::{color::Color, RendererFeatures, RendererStatistics},
     resource::handle::ResourceHandle,
     utils::uid::ToUID,
 };
@@ -97,6 +97,10 @@ impl Renderer {
     pub fn statistics(ctx: &Context) -> RendererStatistics {
         ctx.renderer.statistics()
     }
+
+    pub fn features(ctx: &Context) -> RendererFeatures {
+        ctx.renderer.features()
+    }
 }
 
 impl ForwardPass {
@@ -117,6 +121,10 @@ impl ForwardPass {
         }
     }
 
+    pub fn render(ctx: &mut Context, pass: ForwardPassHandle) {
+        todo!()
+    }
+
     pub fn draw_mesh(
         ctx: &mut Context,
         pass: ForwardPassHandle,
@@ -133,7 +141,20 @@ impl CanvasPass {
         todo!()
     }
 
-    pub fn run(ctx: &mut Context, pass: CanvasPassHandle) {}
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<CanvasPassHandle> {
+        let handle: ResourceHandle = ctx
+            .resource
+            .find_typed(name, ctx.renderer.handles.renderpass)
+            .unwrap_or_default();
+        let renderpass = ctx.resource.native_unchecked::<RenderPass>(handle);
+        if matches!(renderpass.ty, RenderPassType::Canvas) {
+            Some(handle.into())
+        } else {
+            None
+        }
+    }
+
+    pub fn render(ctx: &mut Context, pass: CanvasPassHandle) {}
 
     pub fn set_scissor(ctx: &mut Context, extent: Option<IRect>) {}
 

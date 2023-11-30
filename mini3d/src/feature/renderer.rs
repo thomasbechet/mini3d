@@ -4,6 +4,7 @@ pub mod font;
 pub mod material;
 pub mod mesh;
 pub mod model;
+pub mod pass;
 pub mod renderpass;
 pub mod staticmesh;
 pub mod system;

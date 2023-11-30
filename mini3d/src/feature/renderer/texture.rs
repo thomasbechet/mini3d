@@ -9,19 +9,12 @@ use crate::{
 
 #[derive(Clone, Serialize, Default)]
 pub enum TextureFormat {
-    R8,
-    R8G8,
-    R8G8B8,
     #[default]
-    R8G8B8A8,
-    R16,
-    R16G16,
-    R16G16B16,
-    R16G16B16A16,
-    R32,
-    R32G32,
-    R32G32B32,
-    R32G32B32A32,
+    Color,
+    ColorAlpha,
+    Depth,
+    DepthStencil,
+    CubeMap,
 }
 
 #[derive(Clone, Copy, Serialize)]
@@ -31,14 +24,21 @@ pub enum TextureWrapMode {
     Mirror,
 }
 
+#[derive(Clone, Copy, Serialize)]
+pub enum TextureUsage {
+    RenderTarget,
+    Present,
+}
+
 define_resource_handle!(TextureHandle);
 
 #[derive(Clone, Serialize, Default, Reflect)]
 pub struct Texture {
     pub format: TextureFormat,
+    pub usage: TextureUsage,
     pub data: Vec<u8>,
-    pub width: u32,
-    pub height: u32,
+    pub width: u16,
+    pub height: u16,
     #[serialize(skip)]
     pub(crate) handle: RendererProviderHandle,
 }
@@ -46,7 +46,7 @@ pub struct Texture {
 impl Texture {
     pub const NAME: &'static str = "RTY_Texture";
 
-    pub fn new(format: TextureFormat, data: Vec<u8>, width: u32, height: u32) -> Self {
+    pub fn new(format: TextureFormat, data: Vec<u8>, width: u16, height: u16) -> Self {
         Self {
             data,
             format,
