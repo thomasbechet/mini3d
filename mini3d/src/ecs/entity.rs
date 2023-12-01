@@ -1,4 +1,6 @@
-use std::cell::UnsafeCell;
+use core::cell::UnsafeCell;
+
+use alloc::vec::Vec;
 
 use crate::{
     feature::ecs::component::ComponentKey,

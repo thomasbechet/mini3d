@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use mini3d_derive::{Reflect, Resource, Serialize};
 
 use crate::script::interpreter::vm::Word;

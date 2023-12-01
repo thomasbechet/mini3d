@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use crate::activity::ActivityInstanceHandle;
 use crate::feature::core::resource::{Resource, ResourceType, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
@@ -308,7 +310,7 @@ impl ResourceManager {
                     .map(move |slot_key| ResourceHandle::new(type_key, slot_key)),
             )
         } else {
-            Box::new(std::iter::empty())
+            Box::new(core::iter::empty())
         }
     }
 
@@ -334,7 +336,7 @@ impl ResourceManager {
                 }
             }
         }
-        Box::new(std::iter::empty())
+        Box::new(core::iter::empty())
     }
 
     pub(crate) fn iter_native_values_mut<R: Resource>(

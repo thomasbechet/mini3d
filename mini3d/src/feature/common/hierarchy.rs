@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 use crate::ecs::{

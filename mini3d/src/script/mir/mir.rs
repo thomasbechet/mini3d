@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     slot_map_key,
     utils::slotmap::{Key, SlotMap},

@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use self::mir::MIR;
 
 use super::module::ModuleId;

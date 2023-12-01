@@ -1,3 +1,4 @@
+use alloc::string::String;
 use mini3d_derive::{Reflect, Resource, Serialize};
 
 use crate::{

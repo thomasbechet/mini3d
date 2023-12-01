@@ -5,9 +5,9 @@ use crate::{
     renderer::provider::RendererProviderHandle,
     resource::handle::ResourceHandle,
 };
+use alloc::vec::Vec;
 use glam::{IVec2, UVec2};
 use mini3d_derive::{Reflect, Serialize};
-use std::collections::HashMap;
 
 use super::texture::{Texture, TextureFormat};
 
@@ -17,7 +17,7 @@ define_resource_handle!(FontHandle);
 pub struct Font {
     pub glyph_size: UVec2,
     pub data: Vec<u8>,
-    pub glyph_locations: HashMap<char, usize>,
+    char_to_location: Vec<usize>,
     #[serialize(skip)]
     pub(crate) handle: RendererProviderHandle,
 }
@@ -27,12 +27,14 @@ impl Default for Font {
         let glyph_width = 8;
         let glyph_height = 8;
         let data = include_bytes!("../../../../assets/font.bin").to_vec();
-        let glyph_locations: HashMap<_, _> = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê"
-            .chars().enumerate().map(|(i, x)| (x, i)).collect();
+        let mut char_to_location = vec![0; Self::MAX_CHARS]; // Fill with default location
+        for (i, c) in Self::CHARS.chars().enumerate() {
+            char_to_location[c as usize] = i;
+        }
         Font {
             glyph_size: UVec2::new(glyph_width as u32, glyph_height as u32),
             data,
-            glyph_locations,
+            char_to_location,
             handle: RendererProviderHandle::null(),
         }
     }
@@ -40,6 +42,15 @@ impl Default for Font {
 
 impl Font {
     pub const NAME: &'static str = "RTY_Font";
+    pub const CHARS: &'static str = " !\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~éèê";
+    pub const MAX_CHARS: usize = 256;
+
+    pub(crate) fn char_location(&self, c: char) -> Option<usize> {
+        if c as usize >= Self::MAX_CHARS {
+            return None;
+        }
+        Some(self.char_to_location[c as usize])
+    }
 }
 
 impl Resource for Font {
@@ -57,30 +68,33 @@ impl Resource for Font {
 #[derive(Default)]
 pub struct FontAtlas {
     pub texture: Texture,
-    pub extents: HashMap<char, IRect>,
+    pub extents: Vec<IRect>,
 }
 
 impl FontAtlas {
     pub fn new(font: &Font) -> FontAtlas {
-        let glyph_count = font.glyph_locations.len();
-        let width = font.glyph_size.x * glyph_count as u32;
-        let height = font.glyph_size.y;
+        let width = font.glyph_size.x as usize * Font::MAX_CHARS;
+        let height = font.glyph_size.y as usize;
         let mut texture = Texture {
-            data: vec![0x0; (width * height * 4) as usize],
-            format: TextureFormat::R8G8B8A8,
-            width,
-            height,
+            data: vec![0x0; width * height * 4],
+            format: TextureFormat::Color,
+            width: width as u16,
+            height: height as u16,
+            usage: Default::default(),
             handle: Default::default(),
         };
 
-        let mut extents: HashMap<char, IRect> = Default::default();
-        let mut extent = IRect::new(0, 0, font.glyph_size.x, height);
-        for (c, location) in &font.glyph_locations {
+        let mut extents = vec![IRect::default(); Font::MAX_CHARS];
+        let mut extent = IRect::new(0, 0, font.glyph_size.x, height as u32);
+        for (c, location) in Font::CHARS
+            .chars()
+            .map(|c| (c, font.char_to_location[c as usize]))
+        {
             // Write pixels to texture
             // TODO: optimize me
             for p in 0..(font.glyph_size.x as usize * font.glyph_size.y as usize) {
                 let bit_offset =
-                    (*location * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + p;
+                    (location * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + p;
                 let byte = font.data[bit_offset / 8];
                 let bit_set = byte & (1 << (7 - (p % 8))) != 0;
 
@@ -95,10 +109,9 @@ impl FontAtlas {
             }
 
             // Save extent and move to next glyph
-            extents.insert(*c, extent);
+            extents[c as usize] = extent;
             extent = extent.translate(IVec2::new(font.glyph_size.x as i32, 0));
         }
-
         Self { texture, extents }
     }
 }

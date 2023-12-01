@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use self::{
     event::{ImportAssetEvent, PlatformEvent},
     provider::PlatformProvider,

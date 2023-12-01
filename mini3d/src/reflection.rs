@@ -1,6 +1,10 @@
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
-use crate::{ecs::entity::Entity, script::mir::primitive::PrimitiveType, utils::uid::UID};
+use crate::{
+    ecs::entity::Entity,
+    script::mir::primitive::PrimitiveType,
+    utils::{string::AsciiArray, uid::UID},
+};
 
 pub enum PropertyAccess {
     Read,
@@ -11,7 +15,7 @@ pub enum PropertyAccess {
 pub struct PropertyId(u8);
 
 pub struct Property {
-    pub(crate) name: String,
+    pub(crate) name: AsciiArray<32>,
     pub(crate) access: PropertyAccess,
     pub(crate) ty: PrimitiveType,
     pub(crate) id: PropertyId,

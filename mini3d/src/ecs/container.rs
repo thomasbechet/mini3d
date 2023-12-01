@@ -1,5 +1,6 @@
-use std::{any::Any, cell::UnsafeCell};
+use core::{any::Any, cell::UnsafeCell};
 
+use alloc::boxed::Box;
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{

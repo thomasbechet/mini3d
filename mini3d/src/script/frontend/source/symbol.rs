@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     script::{
         frontend::{
@@ -301,22 +303,22 @@ impl SymbolTable {
         self.check_in(entry, &[BlockKind::Function])
     }
 
-    pub(crate) fn print(&self, strings: &StringTable) {
-        println!("SYMBOLS:");
-        for (i, entry) in self.symbols.iter().enumerate() {
-            let ident = if entry.token.kind == TokenKind::Multiply {
-                "*"
-            } else {
-                strings.get(entry.token.value.into())
-            };
-            println!(
-                "- [{}] '{}' {:?} UID: {} BLOCK: {:?}",
-                i, ident, entry.symbol, entry.uid, entry.block
-            );
-        }
-        println!("BLOCKS:");
-        for (i, block) in self.blocks.iter().enumerate() {
-            println!("- [{}] {:?}", i, block);
-        }
-    }
+    // pub(crate) fn print(&self, strings: &StringTable) {
+    //     println!("SYMBOLS:");
+    //     for (i, entry) in self.symbols.iter().enumerate() {
+    //         let ident = if entry.token.kind == TokenKind::Multiply {
+    //             "*"
+    //         } else {
+    //             strings.get(entry.token.value.into())
+    //         };
+    //         println!(
+    //             "- [{}] '{}' {:?} UID: {} BLOCK: {:?}",
+    //             i, ident, entry.symbol, entry.uid, entry.block
+    //         );
+    //     }
+    //     println!("BLOCKS:");
+    //     for (i, block) in self.blocks.iter().enumerate() {
+    //         println!("- [{}] {:?}", i, block);
+    //     }
+    // }
 }

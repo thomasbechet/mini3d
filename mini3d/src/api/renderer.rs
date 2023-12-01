@@ -7,8 +7,9 @@ use crate::{
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
         renderpass::{
-            CanvasPass, CanvasPassHandle, ForwardPass, ForwardPassHandle, RenderPass,
-            RenderPassType,
+            canvas::{CanvasPass, CanvasPassHandle},
+            diffuse::{DiffusePass, DiffusePassHandle},
+            RenderPass, RenderPassType,
         },
         texture::{Texture, TextureHandle, TextureWrapMode},
         transform::{RenderTransform, RenderTransformHandle},
@@ -103,31 +104,31 @@ impl Renderer {
     }
 }
 
-impl ForwardPass {
-    pub fn create(ctx: &mut Context, name: &str) -> ForwardPassHandle {
+impl DiffusePass {
+    pub fn create(ctx: &mut Context, name: &str) -> DiffusePassHandle {
         todo!()
     }
 
-    pub fn find(ctx: &Context, name: impl ToUID) -> Option<ForwardPassHandle> {
+    pub fn find(ctx: &Context, name: impl ToUID) -> Option<DiffusePassHandle> {
         let handle: ResourceHandle = ctx
             .resource
             .find_typed(name, ctx.renderer.handles.renderpass)
             .unwrap_or_default();
         let renderpass = ctx.resource.native_unchecked::<RenderPass>(handle);
-        if matches!(renderpass.ty, RenderPassType::Forward) {
+        if matches!(renderpass.ty, RenderPassType::Diffuse) {
             Some(handle.into())
         } else {
             None
         }
     }
 
-    pub fn render(ctx: &mut Context, pass: ForwardPassHandle) {
+    pub fn render(ctx: &mut Context, pass: DiffusePassHandle) {
         todo!()
     }
 
     pub fn draw_mesh(
         ctx: &mut Context,
-        pass: ForwardPassHandle,
+        pass: DiffusePassHandle,
         mesh: MeshHandle,
         material: MaterialHandle,
         transform: RenderTransformHandle,

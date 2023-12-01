@@ -1,4 +1,4 @@
-use std::str::Chars;
+use core::str::Chars;
 
 use super::token::Location;
 

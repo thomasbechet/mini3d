@@ -7,6 +7,7 @@ use crate::{
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
 };
+use alloc::boxed::Box;
 use glam::{uvec2, UVec2};
 use mini3d_derive::Serialize;
 
@@ -16,7 +17,6 @@ use self::{color::Color, provider::RendererProvider};
 pub mod color;
 pub mod event;
 pub mod graphics;
-pub mod pass;
 pub mod provider;
 pub mod rasterizer;
 

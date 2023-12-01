@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use super::event::{ImportAssetEvent, PlatformEvent};
 
 pub trait PlatformProvider {

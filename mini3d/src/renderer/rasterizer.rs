@@ -55,11 +55,11 @@ pub fn draw_hline(p: &mut impl Plotable, y: i32, x0: i32, x1: i32) {
 
 pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
     for (ic, c) in text.chars().enumerate() {
-        if let Some(glyph) = font.glyph_locations.get(&c) {
+        if let Some(glyph) = font.char_location(c) {
             // TODO: optimize me
             for b in 0..(font.glyph_size.x as usize * font.glyph_size.y as usize) {
                 let bit_offset =
-                    (*glyph * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + b;
+                    (glyph * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + b;
                 let byte = font.data[bit_offset / 8];
                 let bit_set = byte & (1 << (7 - (b % 8))) != 0;
 

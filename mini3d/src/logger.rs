@@ -1,4 +1,6 @@
-use std::{cell::RefCell, fmt::Arguments};
+use core::{cell::RefCell, fmt::Arguments};
+
+use alloc::boxed::Box;
 
 use self::{level::LogLevel, provider::LoggerProvider};
 

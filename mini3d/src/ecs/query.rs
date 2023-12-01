@@ -1,4 +1,6 @@
-use std::{cell::UnsafeCell, ops::Range};
+use core::{cell::UnsafeCell, ops::Range};
+
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     feature::{
@@ -30,8 +32,8 @@ pub struct Query {
 impl Default for Query {
     fn default() -> Self {
         Self {
-            query: std::ptr::null(),
-            archetypes: std::ptr::null(),
+            query: core::ptr::null(),
+            archetypes: core::ptr::null(),
         }
     }
 }

@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::script::mir::primitive::PrimitiveType;
 
 use super::{
@@ -226,16 +228,16 @@ impl AST {
         self.visit_node_df(self.root(), visitor);
     }
 
-    fn print_node(&self, node: ASTNodeId, indent: usize) {
-        let entry = &self.entries[node];
-        println!("{}- {:?}", " ".repeat(indent), entry.node);
-        for (child, _) in self.iter_childs(node) {
-            self.print_node(child, indent + 4);
-        }
-    }
+    // fn print_node(&self, node: ASTNodeId, indent: usize) {
+    //     let entry = &self.entries[node];
+    //     println!("{}- {:?}", " ".repeat(indent), entry.node);
+    //     for (child, _) in self.iter_childs(node) {
+    //         self.print_node(child, indent + 4);
+    //     }
+    // }
 
-    pub fn print(&self) {
-        println!("AST:");
-        self.print_node(self.root(), 0);
-    }
+    // pub fn print(&self) {
+    //     println!("AST:");
+    //     self.print_node(self.root(), 0);
+    // }
 }

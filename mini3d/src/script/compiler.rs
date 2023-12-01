@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{api::Context, feature::common::script::Script, utils::uid::ToUID};
 
 use super::{
@@ -70,7 +72,6 @@ impl Compiler {
         entry: ModuleId,
         ctx: &Context,
     ) -> Result<(), CompileError> {
-        println!("=> Resolve CU and exports");
         // Insert entry module
         self.compilation_unit.add(entry);
         let mut i = 0;
@@ -96,7 +97,6 @@ impl Compiler {
     }
 
     fn generate_mirs(&mut self, ctx: &Context) -> Result<(), CompileError> {
-        println!("=> Generate MIRs");
         for module in self.compilation_unit.modules.iter() {
             let mir = self.mirs.get_mut(*module).unwrap();
             match self.modules.get(*module).unwrap() {
@@ -114,7 +114,6 @@ impl Compiler {
     }
 
     fn generate_program(&mut self, entry: ModuleId) -> Result<(), CompileError> {
-        println!("=> Generate program");
         Ok(())
     }
 
@@ -123,7 +122,6 @@ impl Compiler {
         self.fetch_modules(ctx)?;
         // Resolve compilation unit and exports (sequential, fast if cached)
         self.resolve_cu_and_exports(entry, ctx)?;
-        self.modules.print();
         // Generate MIRs for all modules in the compilation unit (parallel, fast if cached)
         self.generate_mirs(ctx)?;
         // Generate program (sequential, slow)

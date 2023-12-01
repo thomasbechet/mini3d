@@ -1,4 +1,6 @@
-use std::any::Any;
+use core::any::Any;
+
+use alloc::vec::Vec;
 
 use crate::{
     ecs::{

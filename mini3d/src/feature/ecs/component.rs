@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
@@ -28,7 +29,7 @@ pub(crate) trait ComponentReflection {
 }
 
 pub(crate) struct NativeComponentReflection<C: Component> {
-    pub(crate) _phantom: std::marker::PhantomData<C>,
+    pub(crate) _phantom: core::marker::PhantomData<C>,
 }
 
 impl<C: Component> ComponentReflection for NativeComponentReflection<C> {
@@ -80,7 +81,7 @@ impl ComponentType {
 
     pub fn native<C: Component>(storage: ComponentStorage) -> Self {
         let reflection = NativeComponentReflection::<C> {
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         };
         Self {
             kind: ComponentKind::Native(Box::new(reflection)),

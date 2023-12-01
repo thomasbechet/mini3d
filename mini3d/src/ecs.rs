@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     activity::{ActivityError, ActivityInstanceHandle, ActivityManager},
     api::{time::TimeAPI, Context},

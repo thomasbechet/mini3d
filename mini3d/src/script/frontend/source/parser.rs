@@ -910,7 +910,7 @@ mod test {
             module,
         )
         .unwrap();
-        ast.print();
+        // ast.print();
     }
 
     #[test]
@@ -948,7 +948,7 @@ mod test {
             module,
         )
         .unwrap();
-        ast.print();
-        symbols.print(&strings);
+        // ast.print();
+        // symbols.print(&strings);
     }
 }

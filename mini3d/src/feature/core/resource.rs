@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
@@ -48,7 +49,7 @@ impl Serialize for Box<dyn ResourceReflection> {
 }
 
 pub(crate) struct NativeResourceReflection<R: Resource> {
-    pub(crate) _phantom: std::marker::PhantomData<R>,
+    pub(crate) _phantom: core::marker::PhantomData<R>,
 }
 
 impl<R: Resource> ResourceReflection for NativeResourceReflection<R> {
@@ -85,7 +86,7 @@ impl ResourceType {
 
     pub fn native<R: Resource>() -> Self {
         let reflection = NativeResourceReflection::<R> {
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         };
         Self {
             kind: ResourceKind::Native(Box::new(reflection)),

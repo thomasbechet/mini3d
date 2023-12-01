@@ -84,8 +84,6 @@ impl SourceCompiler {
             modules,
             module,
         )?;
-        self.symbols.print(&self.strings);
-        self.ast.print();
         // Generate MIR
         Ok(())
     }

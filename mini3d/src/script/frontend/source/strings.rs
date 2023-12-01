@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct StringId(u32, u32);
 

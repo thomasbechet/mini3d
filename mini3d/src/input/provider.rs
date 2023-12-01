@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use mini3d_derive::Error;
 
 use crate::{

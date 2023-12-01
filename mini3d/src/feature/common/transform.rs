@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use glam::{Mat4, Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 

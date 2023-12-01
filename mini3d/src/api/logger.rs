@@ -1,4 +1,4 @@
-use std::fmt::Arguments;
+use core::fmt::Arguments;
 
 use crate::logger::level::LogLevel;
 
@@ -55,11 +55,11 @@ macro_rules! expect {
     }};
     ($ctx:ident, $result:expr) => {{
         match $crate::api::logger::IntoResult::into_result($result) {
-            std::result::Result::Err(e) => {
+            core::result::Result::Err(e) => {
                 $crate::api::logger::Logger::log($ctx, format_args!("{}", e), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
                 panic!()
             },
-            std::result::Result::Ok(v) => {
+            core::result::Result::Ok(v) => {
                 v
             }
         }

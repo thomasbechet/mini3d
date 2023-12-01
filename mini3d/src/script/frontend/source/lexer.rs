@@ -1,3 +1,5 @@
+use alloc::{string::String, vec::Vec};
+
 use crate::script::{
     frontend::error::{CompileError, LexicalError},
     mir::primitive::PrimitiveType,

@@ -1,4 +1,6 @@
-use std::any::Any;
+use core::any::Any;
+
+use alloc::boxed::Box;
 
 use crate::{feature::core::resource::Resource, utils::slotmap::SlotMap};
 

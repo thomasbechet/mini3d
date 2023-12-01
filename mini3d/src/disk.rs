@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use self::provider::DiskProvider;
 
 pub mod provider;

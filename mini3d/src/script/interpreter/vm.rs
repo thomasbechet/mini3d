@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{feature::common::program::Program, script::interpreter::opcode::Opcode};
 
 pub(crate) type Word = u32;
@@ -17,11 +19,6 @@ impl VirtualMachine {
             sp: -1, // Will be incremented to 0 when the first value is pushed
             ip: -1, // Will be incremented to 0 when the first instruction is executed
         }
-    }
-
-    fn print_stack(&self, program: &Program) {
-        println!("bytecodes: {:?}", program.bytecodes);
-        println!("{:#08X}", self.stack[self.sp as usize]);
     }
 
     #[inline]
@@ -62,7 +59,6 @@ impl VirtualMachine {
     pub fn run(&mut self, program: &Program) {
         loop {
             let opcode = self.next_byte(program);
-            println!("opcode: {}", opcode);
             match opcode {
                 Opcode::LOAD => {
                     let addr = self.pop();
@@ -137,6 +133,5 @@ impl VirtualMachine {
                 _ => {}
             }
         }
-        self.print_stack(program);
     }
 }

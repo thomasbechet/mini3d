@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use glam::{IVec2, Mat4, UVec2, Vec3};
 use mini3d_derive::Error;
 

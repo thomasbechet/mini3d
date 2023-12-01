@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     feature::common::script::ScriptHandle,
     utils::uid::{ToUID, UID},
@@ -135,24 +137,24 @@ impl ModuleTable {
         self.symbols.clear();
     }
 
-    pub(crate) fn print(&self) {
-        println!("MODULES:");
-        for (id, entry) in self
-            .modules
-            .iter()
-            .enumerate()
-            .map(|(id, entry)| (ModuleId(id as u32), entry))
-        {
-            println!("- [{}]: {:?}", id.0, entry.module);
-            for (id, symbol) in self
-                .symbols
-                .iter()
-                .enumerate()
-                .filter(|(_, symbol)| symbol.module == id)
-                .map(|(id, symbol)| (ModuleSymbolId(id as u32), symbol))
-            {
-                println!("  - [{}]: {:?}", id.0, symbol.symbol);
-            }
-        }
-    }
+    // pub(crate) fn print(&self) {
+    //     println!("MODULES:");
+    //     for (id, entry) in self
+    //         .modules
+    //         .iter()
+    //         .enumerate()
+    //         .map(|(id, entry)| (ModuleId(id as u32), entry))
+    //     {
+    //         println!("- [{}]: {:?}", id.0, entry.module);
+    //         for (id, symbol) in self
+    //             .symbols
+    //             .iter()
+    //             .enumerate()
+    //             .filter(|(_, symbol)| symbol.module == id)
+    //             .map(|(id, symbol)| (ModuleSymbolId(id as u32), symbol))
+    //         {
+    //             println!("  - [{}]: {:?}", id.0, symbol.symbol);
+    //         }
+    //     }
+    // }
 }

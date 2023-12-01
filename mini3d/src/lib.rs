@@ -1,3 +1,5 @@
+#![no_std]
+
 pub mod activity;
 pub mod api;
 pub mod disk;
@@ -20,4 +22,7 @@ pub mod serialize;
 pub mod utils;
 
 pub use glam;
+
+#[macro_use]
+extern crate alloc;
 extern crate self as mini3d;

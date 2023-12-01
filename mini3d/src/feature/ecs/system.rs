@@ -1,3 +1,4 @@
+use alloc::{boxed::Box, vec::Vec};
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
@@ -21,7 +22,7 @@ pub(crate) trait SystemReflection {
 }
 
 struct NativeExclusiveSystemReflection<S: ExclusiveSystem> {
-    _phantom: std::marker::PhantomData<S>,
+    _phantom: core::marker::PhantomData<S>,
 }
 
 impl<S: ExclusiveSystem> SystemReflection for NativeExclusiveSystemReflection<S> {
@@ -45,7 +46,7 @@ impl<S: ExclusiveSystem> SystemReflection for NativeExclusiveSystemReflection<S>
 }
 
 struct NativeParallelSystemReflection<S: ParallelSystem> {
-    _phantom: std::marker::PhantomData<S>,
+    _phantom: core::marker::PhantomData<S>,
 }
 
 impl<S: ParallelSystem> SystemReflection for NativeParallelSystemReflection<S> {
@@ -97,7 +98,7 @@ impl System {
 
     pub fn native_exclusive<S: ExclusiveSystem>() -> Self {
         let reflection = NativeExclusiveSystemReflection::<S> {
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         };
         Self {
             kind: SystemKind::Native(Box::new(reflection)),
@@ -106,7 +107,7 @@ impl System {
 
     pub fn native_parallel<S: ParallelSystem>() -> Self {
         let reflection = NativeParallelSystemReflection::<S> {
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         };
         Self {
             kind: SystemKind::Native(Box::new(reflection)),

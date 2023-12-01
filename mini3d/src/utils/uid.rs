@@ -1,4 +1,6 @@
-use std::{fmt::Display, iter::Sum};
+use core::{fmt::Display, iter::Sum};
+
+use alloc::string::String;
 
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
@@ -109,7 +111,7 @@ impl From<UID> for u64 {
 }
 
 impl Display for UID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:016X}", self.0)
     }
 }

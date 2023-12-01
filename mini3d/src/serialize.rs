@@ -1,5 +1,4 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
-
+use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
 use glam::{IVec2, IVec3, IVec4, Mat4, Quat, UVec2, Vec2, Vec3, Vec4};
 use mini3d_derive::Error;
 
@@ -568,62 +567,6 @@ impl<T: Serialize> Serialize for Box<T> {
         header: &Self::Header,
     ) -> Result<Self, DecoderError> {
         Ok(Box::new(T::deserialize(decoder, header)?))
-    }
-}
-
-impl<K: Serialize + std::hash::Hash + std::cmp::Eq, V: Serialize> Serialize for HashMap<K, V> {
-    type Header = (K::Header, V::Header);
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.len() as u32)?;
-        for (key, value) in self {
-            key.serialize(encoder)?;
-            value.serialize(encoder)?;
-        }
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let len = decoder.read_u32()? as usize;
-        let mut map = HashMap::with_capacity(len);
-        for _ in 0..len {
-            let key = K::deserialize(decoder, &header.0)?;
-            let value = V::deserialize(decoder, &header.1)?;
-            map.insert(key, value);
-        }
-        Ok(map)
-    }
-}
-
-impl<K: Serialize + core::hash::Hash + core::cmp::Eq + core::cmp::Ord, V: Serialize> Serialize
-    for BTreeMap<K, V>
-{
-    type Header = (K::Header, V::Header);
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.len() as u32)?;
-        for (key, value) in self {
-            key.serialize(encoder)?;
-            value.serialize(encoder)?;
-        }
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let len = decoder.read_u32()? as usize;
-        let mut map = BTreeMap::new();
-        for _ in 0..len {
-            let key = K::deserialize(decoder, &header.0)?;
-            let value = V::deserialize(decoder, &header.1)?;
-            map.insert(key, value);
-        }
-        Ok(map)
     }
 }
 

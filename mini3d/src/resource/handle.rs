@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use mini3d_derive::Serialize;
 
@@ -100,10 +100,10 @@ impl ToResourceHandle for ResourceHandle {
     }
 }
 
-pub(crate) const MAX_RESOURCE_KEY_LEN: usize = 64;
+pub(crate) const MAX_RESOURCE_NAME_LEN: usize = 64;
 
 #[derive(Default, Serialize)]
-pub struct ResourceName(AsciiArray<MAX_RESOURCE_KEY_LEN>);
+pub struct ResourceName(AsciiArray<MAX_RESOURCE_NAME_LEN>);
 
 impl ResourceName {
     pub(crate) fn new(name: &str) -> Self {
@@ -112,7 +112,7 @@ impl ResourceName {
 
     pub(crate) fn random(prng: &mut PCG32) -> Self {
         let mut id = AsciiArray::default();
-        for i in 0..MAX_RESOURCE_KEY_LEN {
+        for i in 0..MAX_RESOURCE_NAME_LEN {
             let c = prng.next_u32() % 26;
             let c = char::from_u32(c + 65).unwrap();
             id.push(c);

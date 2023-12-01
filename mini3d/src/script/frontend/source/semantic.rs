@@ -53,7 +53,6 @@ impl SemanticAnalysis {
             }
 
             fn visit(&mut self, node: ASTNodeId, ast: &mut AST) -> bool {
-                println!("{:?}", ast.get_mut(node));
                 true
             }
         }

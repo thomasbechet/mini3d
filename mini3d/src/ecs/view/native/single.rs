@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use core::ops::{Index, IndexMut};
 
 use crate::{
     ecs::{
@@ -24,7 +24,7 @@ pub struct NativeSingleViewRef<C: Component> {
 impl<C: Component> Default for NativeSingleViewRef<C> {
     fn default() -> Self {
         Self {
-            container: std::ptr::null(),
+            container: core::ptr::null(),
         }
     }
 }
@@ -87,7 +87,7 @@ pub struct NativeSingleViewMut<C: Component> {
 impl<C: Component> Default for NativeSingleViewMut<C> {
     fn default() -> Self {
         Self {
-            container: std::ptr::null_mut(),
+            container: core::ptr::null_mut(),
         }
     }
 }

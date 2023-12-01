@@ -1,3 +1,5 @@
+use alloc::{boxed::Box, vec::Vec};
+
 use super::entity::EntityKey;
 
 pub(crate) const PAGE_SIZE: usize = 512;

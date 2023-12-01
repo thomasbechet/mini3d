@@ -1,4 +1,4 @@
-use std::num::{ParseFloatError, ParseIntError};
+use core::num::{ParseFloatError, ParseIntError};
 
 use crate::script::module::ModuleId;
 

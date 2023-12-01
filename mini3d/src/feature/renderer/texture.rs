@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
@@ -24,8 +25,10 @@ pub enum TextureWrapMode {
     Mirror,
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Default, Clone, Copy, Serialize, Reflect)]
 pub enum TextureUsage {
+    #[default]
+    Sample,
     RenderTarget,
     Present,
 }
@@ -52,6 +55,7 @@ impl Texture {
             format,
             width,
             height,
+            usage: TextureUsage::Sample,
             handle: RendererProviderHandle::null(),
         }
     }

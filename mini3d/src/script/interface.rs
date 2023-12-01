@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::utils::uid::UID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use mini3d_derive::Serialize;
 
@@ -6,7 +6,7 @@ use mini3d_derive::Serialize;
 pub struct Color(u32);
 
 impl Debug for Color {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let r = self.r();
         let g = self.g();
         let b = self.b();

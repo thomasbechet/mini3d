@@ -1,8 +1,9 @@
-use std::{
+use core::{
     fmt::{Display, Formatter},
     ops::Deref,
 };
 
+use alloc::string::ToString;
 use mini3d_derive::Error;
 
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
@@ -49,7 +50,7 @@ impl<const SIZE: usize> AsciiArray<SIZE> {
     }
 
     pub fn as_str(&self) -> &str {
-        std::str::from_utf8(&self.data[..self.len]).unwrap()
+        core::str::from_utf8(&self.data[..self.len]).unwrap()
     }
 
     pub fn push(&mut self, c: char) {
@@ -61,7 +62,7 @@ impl<const SIZE: usize> AsciiArray<SIZE> {
 }
 
 impl<const SIZE: usize> Display for AsciiArray<SIZE> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
@@ -107,6 +108,18 @@ impl<const SIZE: usize> Deref for AsciiArray<SIZE> {
     type Target = str;
     fn deref(&self) -> &Self::Target {
         self.as_str()
+    }
+}
+
+impl<const SIZE: usize> PartialEq for AsciiArray<SIZE> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl<const SIZE: usize> PartialEq<&str> for AsciiArray<SIZE> {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
     }
 }
 

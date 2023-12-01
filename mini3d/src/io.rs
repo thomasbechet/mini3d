@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use crate::{
     disk::provider::DiskProvider, network::provider::NetworkProvider, slot_map_key,
     utils::slotmap::DenseSlotMap,

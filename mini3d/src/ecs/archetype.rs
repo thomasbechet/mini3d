@@ -1,4 +1,6 @@
-use std::ops::{Index, IndexMut, Range};
+use core::ops::{Index, IndexMut, Range};
+
+use alloc::vec::Vec;
 
 use crate::{
     feature::ecs::component::ComponentKey,

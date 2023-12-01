@@ -1,5 +1,7 @@
 use mini3d_derive::Serialize;
 
+use crate::utils::string::AsciiArray;
+
 #[derive(Serialize)]
 pub struct InputActionEvent {
     pub id: u32,
@@ -15,7 +17,7 @@ pub struct InputAxisEvent {
 #[derive(Serialize)]
 pub struct InputTextEvent {
     pub id: u32,
-    pub value: String,
+    pub value: AsciiArray<64>,
 }
 
 pub enum InputEvent {

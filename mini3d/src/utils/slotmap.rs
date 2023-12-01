@@ -1,4 +1,6 @@
-use std::ops::{Index, IndexMut};
+use core::ops::{Index, IndexMut};
+
+use alloc::vec::Vec;
 
 // A slot map key has two state:
 // - Null key:

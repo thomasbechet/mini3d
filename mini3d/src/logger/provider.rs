@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use super::level::LogLevel;
 use core::fmt::Arguments;
 
