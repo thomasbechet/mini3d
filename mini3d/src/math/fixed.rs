@@ -1,3 +1,5 @@
+use core::ops::{Shl, Shr};
+
 const fn parse_lit_dec(float: &str) -> Option<(bool, u64, u64, u8)> {
     let mut signed = false;
     let mut int = 0u64;
@@ -140,14 +142,54 @@ macro_rules! impl_float_conversion {
 
 pub trait Fixed {
     const RADIX: u32;
-    type BITS;
-    fn convert<F: Fixed>(self) -> F;
+    const SIZE: u32;
+    type BITS: Shl<u32, Output = Self::BITS> + Shr<u32, Output = Self::BITS>;
+    fn new(bits: Self::BITS) -> Self;
+    fn convert<F: Fixed>(self) -> F
+    where
+        F::BITS: From<Self::BITS>;
 }
 
 macro_rules! define_fixed {
     ($name:ident, $bits:ty, $radix:expr, $wide:ty, $signed:tt) => {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
         pub struct $name($bits);
+
+        impl Fixed for $name {
+            const RADIX: u32 = $radix;
+            const SIZE: u32 = <$bits>::BITS;
+            type BITS = $bits;
+
+            fn new(bits: Self::BITS) -> Self {
+                Self(bits)
+            }
+
+            fn convert<F: Fixed>(self) -> F
+            where
+                F::BITS: From<Self::BITS>,
+            {
+                let shift = F::RADIX as isize - Self::RADIX as isize;
+                if Self::SIZE > F::SIZE {
+                    let bits = if shift > 0 {
+                        self.0 << (shift as u32)
+                    } else if shift < 0 {
+                        self.0 >> (-shift as u32)
+                    } else {
+                        self.0
+                    };
+                    F::new(bits.into())
+                } else {
+                    let bits = <F as Fixed>::BITS::from(self.0);
+                    if shift > 0 {
+                        F::new(bits << (shift as u32))
+                    } else if shift < 0 {
+                        F::new(bits >> (-shift as u32))
+                    } else {
+                        F::new(bits)
+                    }
+                }
+            }
+        }
 
         impl $name {
             pub const BITS: u32 = <$bits>::BITS;
@@ -337,6 +379,7 @@ define_signed!(I16F4, i16, 4, i32);
 impl_float_conversion!(I16F4, i16, 4);
 
 define_unsigned!(U16F16, u16, 16, u32);
+define_signed!(I16F16, i16, 16, i32);
 
 #[cfg(test)]
 mod test {
@@ -346,12 +389,19 @@ mod test {
 
     #[test]
     fn test_fixed() {
+        // println!("{}", x);
+        // println!("{}", I32F24::EPSILON);
+        // println!("{}", I16F16::MIN);
+        // println!("{}", I16F16::MAX);
+        // println!("{}", I16F16::EPSILON);
         let x = I32F24::from_f32(1.123123);
         println!("{}", x);
-        println!("{}", I32F24::EPSILON);
-        // let x2 = x.convert::<u32, 32>();
-        // let x2 = x.convert::<u32, 8>();
-        // let x3 = x2.convert::<u32, 16>();
+        let x = x.convert::<I32F16>();
+        println!("{}", x);
+        let x = x.convert::<I32F8>();
+        println!("{}", x);
+        let x = x.convert::<I32F16>();
+        println!("{}", x);
         // println!("{}", x);
     }
 }
