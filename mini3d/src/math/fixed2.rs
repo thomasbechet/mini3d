@@ -247,12 +247,55 @@ mod test {
 
     use super::*;
 
+    const fn convert_base(value: u32, base: u32) -> u32 {
+        let mut value = value;
+        let mut result = 0;
+        let mut i = 0;
+        while value > 0 {
+            let r = value % base;
+            value /= base;
+            result += r * 10_u32.pow(i);
+            i += 1;
+        }
+        result
+    }
+
     #[test]
     fn test_fixed() {
-        let mut a = U32F16::from_integer(1);
-        println!("{}", a.0);
-        a.0 += 1;
-        println!("{}", a.0);
-        println!("{}", a.trunc().0);
+        // let mut a = U32F16::from_integer(1);
+        // println!("{}", a.0);
+        // a.0 += 1;
+        // println!("{}", a.0);
+        // println!("{}", a.trunc().0);
+
+        let b0: u32 = 10; // Base 10
+        let e0: u32 = 2; // Exp 2 -> 10^-2 = 0.01
+        let b1: u32 = 3; // Base 2
+        let e1: u32 = 3; // Exp 2 -> 2^-2 = 0.25
+
+        let a = 123; // Base 10
+
+        // Convert a to base 2
+        let mut a1 = a;
+        let mut a2 = 0;
+        let mut i = 0;
+        while a1 > 0 {
+            let r = a1 % b1;
+            a1 /= b1;
+            a2 += r * b0.pow(i);
+            i += 1;
+        }
+        println!("a2: {}", a2);
+
+        // Convert a2 to base 10
+        let mut a3 = 0;
+        let mut i = 0;
+        while a2 > 0 {
+            let r = a2 % b0;
+            a2 /= b0;
+            a3 += r * b1.pow(i);
+            i += 1;
+        }
+        println!("a3: {}", a3);
     }
 }
