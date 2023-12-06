@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(const_panic)]
 
 pub mod activity;
 pub mod api;

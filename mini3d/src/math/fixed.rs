@@ -54,12 +54,12 @@ macro_rules! impl_float_conversion {
         impl $name {
             // Reserved for external API call
             pub fn from_f32(value: f32) -> Self {
-                Self((value * (1 << $frac) as f32) as $inner)
+                Self((value * Self::SCALE as f32) as $inner)
             }
 
             // Reserved for external API call
             pub fn from_f64(value: f64) -> Self {
-                Self((value * (1 << $frac) as f64) as $inner)
+                Self((value * Self::SCALE as f64) as $inner)
             }
 
             // Reserved for external API call
@@ -142,7 +142,7 @@ macro_rules! impl_float_conversion {
 
 pub trait Fixed {
     const RADIX: u32;
-    const SIZE: u32;
+    const BITS: u32;
     type BITS: Shl<u32, Output = Self::BITS> + Shr<u32, Output = Self::BITS>;
     fn new(bits: Self::BITS) -> Self;
     fn convert<F: Fixed>(self) -> F
@@ -151,54 +151,58 @@ pub trait Fixed {
 }
 
 macro_rules! define_fixed {
-    ($name:ident, $bits:ty, $radix:expr, $wide:ty, $signed:tt) => {
+    ($name:ident, $inner:ty, $inter:ty, $frac:expr, $signed:tt) => {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-        pub struct $name($bits);
+        pub struct $name($inner);
 
-        impl Fixed for $name {
-            const RADIX: u32 = $radix;
-            const SIZE: u32 = <$bits>::BITS;
-            type BITS = $bits;
+        // impl Fixed for $name {
+        //     const RADIX: u32 = $radix;
+        //     const SIZE: u32 = <$bits>::BITS;
+        //     type BITS = $bits;
 
-            fn new(bits: Self::BITS) -> Self {
-                Self(bits)
-            }
+        //     fn new(bits: Self::BITS) -> Self {
+        //         Self(bits)
+        //     }
 
-            fn convert<F: Fixed>(self) -> F
-            where
-                F::BITS: From<Self::BITS>,
-            {
-                let shift = F::RADIX as isize - Self::RADIX as isize;
-                if Self::SIZE > F::SIZE {
-                    let bits = if shift > 0 {
-                        self.0 << (shift as u32)
-                    } else if shift < 0 {
-                        self.0 >> (-shift as u32)
-                    } else {
-                        self.0
-                    };
-                    F::new(bits.into())
-                } else {
-                    let bits = <F as Fixed>::BITS::from(self.0);
-                    if shift > 0 {
-                        F::new(bits << (shift as u32))
-                    } else if shift < 0 {
-                        F::new(bits >> (-shift as u32))
-                    } else {
-                        F::new(bits)
-                    }
-                }
-            }
-        }
+        //     fn convert<F: Fixed>(self) -> F
+        //     where
+        //         F::BITS: From<Self::BITS>,
+        //     {
+        //         let shift = F::RADIX as isize - Self::RADIX as isize;
+        //         if Self::SIZE > F::SIZE {
+        //             let bits = if shift > 0 {
+        //                 self.0 << (shift as u32)
+        //             } else if shift < 0 {
+        //                 self.0 >> (-shift as u32)
+        //             } else {
+        //                 self.0
+        //             };
+        //             F::new(bits.into())
+        //         } else {
+        //             let bits = <F as Fixed>::BITS::from(self.0);
+        //             if shift > 0 {
+        //                 F::new(bits << (shift as u32))
+        //             } else if shift < 0 {
+        //                 F::new(bits >> (-shift as u32))
+        //             } else {
+        //                 F::new(bits)
+        //             }
+        //         }
+        //     }
+        // }
 
         impl $name {
-            pub const BITS: u32 = <$bits>::BITS;
-            pub const MAX: Self = Self::from_bits(<$bits>::MAX);
-            pub const MIN: Self = Self::from_bits(<$bits>::MIN);
-            pub const EPSILON: Self = Self::from_bits(1);
-            pub const ZERO: Self = Self::from_bits(0);
-            pub const ONE: Self = Self::from_integer(1);
             pub const SIGNED: bool = $signed;
+            pub const BITS: u32 = <$inner>::BITS;
+            pub const INT_BITS: u32 = <$inner>::BITS - $frac;
+            pub const FRAC_BITS: u32 = $frac;
+            pub const SCALE: u32 = 1 << $frac;
+            pub const FRAC_MASK: $inner = (1 << $frac) - 1;
+
+            pub const MAX: Self = Self::from_inner(<$inner>::MAX);
+            pub const MIN: Self = Self::from_inner(<$inner>::MIN);
+            pub const EPSILON: Self = Self::from_inner(1);
+            pub const ZERO: Self = Self::from_inner(0);
             pub const PI: Self = Self::lit("3.1415926535897932384626433832795028");
             pub const E: Self = Self::lit("2.7182818284590452353602874713526625");
 
@@ -207,13 +211,13 @@ macro_rules! define_fixed {
                     Some(v) => v,
                     None => panic!("Invalid literal"),
                 };
-                let mut fixed = int << $radix;
+                let mut fixed = int << $frac;
                 let base = 10_u64.pow(dp as u32);
                 let mut i = 0;
-                while i < $radix {
+                while i < $frac {
                     frac <<= 1; // multiply by 2
                     if frac >= base {
-                        fixed |= 1 << ($radix - 1 - i);
+                        fixed |= 1 << ($frac - 1 - i);
                         frac -= base;
                     }
                     i += 1;
@@ -221,51 +225,106 @@ macro_rules! define_fixed {
                 if signed {
                     fixed = !fixed + 1;
                 }
-                Self::from_bits(fixed as $bits)
+                Self::from_inner(fixed as $inner)
             }
 
-            pub const fn from_bits(bits: $bits) -> Self {
-                Self(bits)
+            pub const fn from_inner(inner: $inner) -> Self {
+                Self(inner)
             }
 
-            pub const fn from_integer(value: $bits) -> Self {
-                Self(((value as $wide) << $radix) as $bits)
+            pub const fn from_int(value: $inner) -> Self {
+                Self(value * Self::SCALE)
             }
 
-            pub const fn integer(self) -> Self {
-                Self(((self.0 as $wide) >> $radix) as $bits)
+            pub const fn try_from_int(value: $inner) -> Option<Self> {
+                match value.checked_mul(Self::SCALE) {
+                    Some(v) => Some(Self(v)),
+                    None => None,
+                }
             }
 
-            pub const fn fraction(self) -> Self {
-                Self(((self.0 as $wide) & ((1 << $radix) - 1)) as $bits)
+            pub const fn checked_add(self, rhs: Self) -> Option<Self> {
+                match self.0.checked_add(rhs.0) {
+                    Some(v) => Some(Self(v)),
+                    None => None,
+                }
             }
 
-            pub const fn radix(self) -> u32 {
-                $radix
+            pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
+                match self.0.checked_sub(rhs.0) {
+                    Some(v) => Some(Self(v)),
+                    None => None,
+                }
+            }
+
+            pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+                let v = (self.0 as $inter * rhs.0 as $inter) >> $frac;
+                if v > <$inner>::MAX as $inter {
+                    None
+                } else {
+                    Some(Self(v as $inner))
+                }
+            }
+
+            pub const fn checked_div(self, rhs: Self) -> Option<Self> {
+                let v = ((self.0 as $inter) << $frac) / rhs.0 as $inter;
+                if v > <$inner>::MAX as $inter {
+                    None
+                } else {
+                    Some(Self(v as $inner))
+                }
             }
 
             pub const fn add(self, rhs: Self) -> Self {
-                Self(self.0 + rhs.0)
+                if let Some(v) = self.checked_add(rhs) {
+                    v
+                } else {
+                    panic!("fixed-point add overflow");
+                }
             }
 
             pub const fn sub(self, rhs: Self) -> Self {
-                Self(self.0 - rhs.0)
+                if let Some(v) = self.checked_sub(rhs) {
+                    v
+                } else {
+                    panic!("fixed-point sub overflow");
+                }
             }
 
             pub const fn mul(self, rhs: Self) -> Self {
-                Self(((self.0 as $wide * rhs.0 as $wide) >> $radix) as $bits)
+                if let Some(v) = self.checked_mul(rhs) {
+                    v
+                } else {
+                    panic!("fixed-point mul overflow");
+                }
             }
 
             pub const fn div(self, rhs: Self) -> Self {
-                Self((((self.0 as $wide) << $radix) / rhs.0 as $wide) as $bits)
+                if let Some(v) = self.checked_div(rhs) {
+                    v
+                } else {
+                    panic!("fixed-point div overflow");
+                }
+            }
+
+            pub const fn int(self) -> $inner {
+                self.0 >> $frac
+            }
+
+            pub const fn trunc(self) -> Self {
+                Self((self.0 >> $frac) << $frac)
+            }
+
+            pub const fn frac(self) -> Self {
+                Self(self.0 & Self::FRAC_MASK)
             }
 
             pub const fn floor(self) -> Self {
-                Self(((self.0 as $wide) & !((1 << $radix) - 1)) as $bits)
+                Self(self.0 & !Self::FRAC_MASK)
             }
 
             pub const fn ceil(self) -> Self {
-                Self(((self.0 as $wide) + ((1 << $radix) - 1) & !((1 << $radix) - 1)) as $bits)
+                Self(self.0 + Self::FRAC_MASK & !Self::FRAC_MASK)
             }
         }
 
@@ -303,15 +362,18 @@ macro_rules! define_fixed {
 
         impl core::fmt::Display for $name {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                let v = self.0 as $wide;
+                let int = self.int();
                 // Print integer part
-                write!(f, "{}.", v >> $radix)?;
+                write!(f, "{}.", int)?;
                 // Print fractional part
-                let mut frac = (v & ((1 << $radix) - 1)) as $wide;
+                let mut frac = self.0 & Self::FRAC_MASK;
+                if frac == 0 {
+                    write!(f, "0")?;
+                }
                 while frac > 0 {
                     frac = frac.wrapping_mul(10);
-                    write!(f, "{}", frac >> $radix)?;
-                    frac &= (1 << $radix) - 1;
+                    write!(f, "{}", frac >> $frac)?;
+                    frac &= Self::FRAC_MASK;
                 }
                 Ok(())
             }
@@ -320,14 +382,14 @@ macro_rules! define_fixed {
 }
 
 macro_rules! define_unsigned {
-    ($name:ident, $bits:ty, $radix:expr, $wide:ty) => {
-        define_fixed!($name, $bits, $radix, $wide, false);
+    ($name:ident, $inner:ty, $inter:ty, $frac:expr) => {
+        define_fixed!($name, $inner, $inter, $frac, false);
     };
 }
 
 macro_rules! define_signed {
-    ($name:ident, $bits:ty, $radix:expr, $wide:ty) => {
-        define_fixed!($name, $bits, $radix, $wide, true);
+    ($name:ident, $inner:ty, $inter:ty, $frac:expr) => {
+        define_fixed!($name, $inner, $inter, $frac, true);
 
         impl $name {
             pub const fn abs(self) -> Self {
@@ -349,37 +411,37 @@ macro_rules! define_signed {
     };
 }
 
-define_unsigned!(U64F48, u64, 48, u128);
-define_unsigned!(U64F32, u64, 32, u128);
+// define_unsigned!(U64F48, u64, u128, 48);
+// define_unsigned!(U64F32, u64, u128, 32);
 
-define_signed!(I64F48, i64, 48, i128);
-define_signed!(I64F32, i64, 32, i128);
+// define_signed!(I64F48, i64, i128, 48);
+// define_signed!(I64F32, i64, i128, 32);
 
-define_unsigned!(U32F24, u32, 24, u64);
+define_unsigned!(U32F24, u32, u64, 24);
 impl_float_conversion!(U32F24, u32, 24);
-define_unsigned!(U32F16, u32, 16, u64);
+define_unsigned!(U32F16, u32, u64, 16);
 impl_float_conversion!(U32F16, u32, 16);
-define_unsigned!(U32F8, u32, 8, u64);
+define_unsigned!(U32F8, u32, u64, 8);
 impl_float_conversion!(U32F8, u32, 8);
 
-define_signed!(I32F24, i32, 24, i64);
-impl_float_conversion!(I32F24, i32, 24);
-define_signed!(I32F16, i32, 16, i64);
-impl_float_conversion!(I32F16, i32, 16);
-define_signed!(I32F8, i32, 8, i64);
-impl_float_conversion!(I32F8, i32, 8);
+// define_signed!(I32F24, i32, 24, i64);
+// impl_float_conversion!(I32F24, i32, 24);
+// define_signed!(I32F16, i32, 16, i64);
+// impl_float_conversion!(I32F16, i32, 16);
+// define_signed!(I32F8, i32, 8, i64);
+// impl_float_conversion!(I32F8, i32, 8);
 
-define_unsigned!(U16F8, u16, 8, u32);
-impl_float_conversion!(U16F8, u16, 8);
-define_signed!(I16F8, i16, 8, i32);
-impl_float_conversion!(I16F8, i16, 8);
-define_unsigned!(U16F4, u16, 4, u32);
-impl_float_conversion!(U16F4, u16, 4);
-define_signed!(I16F4, i16, 4, i32);
-impl_float_conversion!(I16F4, i16, 4);
+// define_unsigned!(U16F8, u16, 8, u32);
+// impl_float_conversion!(U16F8, u16, 8);
+// define_signed!(I16F8, i16, 8, i32);
+// impl_float_conversion!(I16F8, i16, 8);
+// define_unsigned!(U16F4, u16, 4, u32);
+// impl_float_conversion!(U16F4, u16, 4);
+// define_signed!(I16F4, i16, 4, i32);
+// impl_float_conversion!(I16F4, i16, 4);
 
-define_unsigned!(U16F16, u16, 16, u32);
-define_signed!(I16F16, i16, 16, i32);
+// define_unsigned!(U16F16, u16, 16, u32);
+// define_signed!(I16F16, i16, 16, i32);
 
 #[cfg(test)]
 mod test {
@@ -388,20 +450,27 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_unsigned() {
+        assert_eq!(U32F16::lit("1.234").int(), 1);
+        assert_eq!(U32F16::lit("1.234").floor(), U32F16::lit("1"));
+        assert_eq!(U32F16::lit("1.234").ceil(), U32F16::lit("2"));
+    }
+
+    #[test]
     fn test_fixed() {
         // println!("{}", x);
-        // println!("{}", I32F24::EPSILON);
+        println!("{}", U32F16::EPSILON);
         // println!("{}", I16F16::MIN);
         // println!("{}", I16F16::MAX);
         // println!("{}", I16F16::EPSILON);
-        let x = I32F24::from_f32(1.123123);
+        let x = U32F16::from_f32(123123.0);
         println!("{}", x);
-        let x = x.convert::<I32F16>();
-        println!("{}", x);
-        let x = x.convert::<I32F8>();
-        println!("{}", x);
-        let x = x.convert::<I32F16>();
-        println!("{}", x);
+        // let x = x.convert::<U32F16>();
+        // println!("{}", x);
+        // let x = x.convert::<U32F8>();
+        // println!("{}", x);
+        // let x = x.convert::<U32F16>();
+        // println!("{}", x);
         // println!("{}", x);
     }
 }
