@@ -1,8 +1,11 @@
+use fixed::FixedPointLiteralReplacer;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use quote::ToTokens;
+use syn::{parse_macro_input, visit_mut::VisitMut, DeriveInput, Expr};
 
 mod component;
 mod error;
+mod fixed;
 mod reflect;
 mod resource;
 mod serialize;
@@ -45,4 +48,11 @@ pub fn derive_error(input: TokenStream) -> TokenStream {
     error::derive(&input)
         .unwrap_or_else(|e| e.to_compile_error())
         .into()
+}
+
+#[proc_macro]
+pub fn fixed(input: TokenStream) -> TokenStream {
+    let mut input = parse_macro_input!(input as Expr);
+    FixedPointLiteralReplacer.visit_expr_mut(&mut input);
+    input.into_token_stream().into()
 }
