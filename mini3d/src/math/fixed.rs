@@ -1,6 +1,6 @@
 use core::{
     fmt::Debug,
-    ops::{Add, Div, Mul, Neg, Shl, Shr, Sub},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Shl, Shr, Sub, SubAssign},
 };
 
 use mini3d_derive::Error;
@@ -92,9 +92,17 @@ pub trait FixedPoint:
     Copy
     + Clone
     + Add<Output = Self>
+    + AddAssign
+    + Add<u32, Output = Self>
     + Sub<Output = Self>
+    + SubAssign
+    + Sub<u32, Output = Self>
     + Mul<Output = Self>
+    + MulAssign
+    + Mul<u32, Output = Self>
     + Div<Output = Self>
+    + DivAssign
+    + Div<u32, Output = Self>
     + Eq
     + PartialEq
 {
@@ -110,6 +118,7 @@ pub trait FixedPoint:
     fn sqrt(self) -> Self;
     fn powi(self, n: u32) -> Self;
     fn pow(self, v: Self) -> Self;
+    fn recip(self) -> Self;
 }
 
 pub trait TrigFixedPoint: Sized + Copy + Clone {
@@ -117,9 +126,12 @@ pub trait TrigFixedPoint: Sized + Copy + Clone {
     fn cos(self) -> Self;
     fn tan(self) -> Self;
     fn sin_cos(self) -> (Self, Self);
+    fn to_radians(self) -> Self;
+    fn to_degrees(self) -> Self;
 }
 
 pub trait SignedFixedPoint: Neg<Output = Self> {
+    const NEG_ONE: Self;
     fn abs(self) -> Self;
 }
 
@@ -184,6 +196,10 @@ macro_rules! define_fixed {
 
             fn pow(self, v: Self) -> Self {
                 self.pow(v)
+            }
+
+            fn recip(self) -> Self {
+                Self::ONE.div(self)
             }
         }
 
@@ -341,11 +357,6 @@ macro_rules! define_fixed {
                 } else {
                     panic!("fixed-point div overflow");
                 }
-            }
-
-            pub const fn trunc(self) -> Self {
-                Self(self.0 & !Self::FRAC_MASK)
-                //Self((self.0 >> $frac) << $frac)
             }
 
             pub const fn int(self) -> $inner {
@@ -563,11 +574,31 @@ macro_rules! define_fixed {
             fn sin_cos(self) -> (Self, Self) {
                 self.sin_cos()
             }
+
+            fn to_radians(self) -> Self {
+                self.mul(Self::PI).div(Self::from_int(180))
+            }
+
+            fn to_degrees(self) -> Self {
+                self.mul(Self::from_int(180)).div(Self::PI)
+            }
         }
 
         impl From<&str> for $name {
             fn from(lit: &str) -> Self {
                 Self::lit(lit)
+            }
+        }
+
+        impl From<u32> for $name {
+            fn from(value: u32) -> Self {
+                Self::from_int(value as $inner)
+            }
+        }
+
+        impl From<u64> for $name {
+            fn from(value: u64) -> Self {
+                Self::from_int(value as $inner)
             }
         }
 
@@ -579,11 +610,25 @@ macro_rules! define_fixed {
             }
         }
 
+        impl AddAssign for $name {
+            fn add_assign(&mut self, rhs: Self) {
+                *self = self.add(rhs);
+            }
+        }
+
         impl Add<u32> for $name {
             type Output = Self;
 
             fn add(self, rhs: u32) -> Self::Output {
                 self.add(Self::from_int(rhs as $inner))
+            }
+        }
+
+        impl Add<$name> for u32 {
+            type Output = $name;
+
+            fn add(self, rhs: $name) -> Self::Output {
+                $name::from_int(self as $inner).add(rhs)
             }
         }
 
@@ -595,11 +640,25 @@ macro_rules! define_fixed {
             }
         }
 
+        impl SubAssign for $name {
+            fn sub_assign(&mut self, rhs: Self) {
+                *self = self.sub(rhs);
+            }
+        }
+
         impl Sub<u32> for $name {
             type Output = Self;
 
             fn sub(self, rhs: u32) -> Self::Output {
                 self.sub(Self::from_int(rhs as $inner))
+            }
+        }
+
+        impl Sub<$name> for u32 {
+            type Output = $name;
+
+            fn sub(self, rhs: $name) -> Self::Output {
+                $name::from_int(self as $inner).sub(rhs)
             }
         }
 
@@ -611,11 +670,25 @@ macro_rules! define_fixed {
             }
         }
 
+        impl MulAssign for $name {
+            fn mul_assign(&mut self, rhs: Self) {
+                *self = self.mul(rhs);
+            }
+        }
+
         impl Mul<u32> for $name {
             type Output = Self;
 
             fn mul(self, rhs: u32) -> Self::Output {
                 self.mul(Self::from_int(rhs as $inner))
+            }
+        }
+
+        impl Mul<$name> for u32 {
+            type Output = $name;
+
+            fn mul(self, rhs: $name) -> Self::Output {
+                $name::from_int(self as $inner).mul(rhs)
             }
         }
 
@@ -627,6 +700,12 @@ macro_rules! define_fixed {
             }
         }
 
+        impl DivAssign for $name {
+            fn div_assign(&mut self, rhs: Self) {
+                *self = self.div(rhs);
+            }
+        }
+
         impl Div<u32> for $name {
             type Output = Self;
 
@@ -635,13 +714,22 @@ macro_rules! define_fixed {
             }
         }
 
+        impl Div<$name> for u32 {
+            type Output = $name;
+
+            fn div(self, rhs: $name) -> Self::Output {
+                $name::from_int(self as $inner).div(rhs)
+            }
+        }
+
         impl core::fmt::Display for $name {
+            #[allow(unused_comparisons)]
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 // Print integer part
-                // write!(f, "{}.", self.int())?;
-                let int_part = self.trunc().0;
-                // writeln!(f, "{}.", Self::SCALE)?;
-                // write!(f, "{}.", (int_part / (Self::SCALE - 1) as $inner))?;
+                if self.0 < 0 {
+                    write!(f, "-")?;
+                }
+                write!(f, "{}.", self.abs().floor().0 as u64 >> $frac)?;
                 // Print fractional part
                 let mut frac = self.abs().0 & Self::FRAC_MASK;
                 if frac == 0 {
@@ -675,7 +763,7 @@ macro_rules! define_signed {
         define_fixed!($name, $inner, $inter, $frac, true);
 
         impl $name {
-            pub const MINUS_ONE: Self = Self::from_int(-1);
+            pub const NEG_ONE: Self = Self::from_int(-1);
 
             pub const fn abs(self) -> Self {
                 Self(self.0.abs())
@@ -695,8 +783,22 @@ macro_rules! define_signed {
         }
 
         impl SignedFixedPoint for $name {
+            const NEG_ONE: Self = Self::NEG_ONE;
+
             fn abs(self) -> Self {
                 self.abs()
+            }
+        }
+
+        impl From<i32> for $name {
+            fn from(value: i32) -> Self {
+                Self::from_int(value as $inner)
+            }
+        }
+
+        impl From<i64> for $name {
+            fn from(value: i64) -> Self {
+                Self::from_int(value as $inner)
             }
         }
     };
@@ -741,7 +843,6 @@ mod test {
 
     #[test]
     fn test_unsigned() {
-        assert_eq!(U32F16::lit("1.234").trunc(), U32F16::ONE);
         assert_eq!(U32F16::lit("1.234").floor(), U32F16::ONE);
         assert_eq!(U32F16::lit("1.234").ceil(), fixed!(2));
         assert_eq!(U32F16::lit("1.2").round(), U32F16::ONE);
@@ -750,11 +851,10 @@ mod test {
 
     #[test]
     fn test_signed() {
-        assert_eq!(I32F16::lit("-1").trunc(), I32F16::MINUS_ONE);
         assert_eq!(I32F16::lit("1.2").floor(), I32F16::ONE);
         assert_eq!(I32F16::lit("-1.2").floor(), fixed!(-2i32f16));
-        assert_eq!(I32F16::lit("-1.2").ceil(), I32F16::MINUS_ONE);
-        assert_eq!(I32F16::lit("-1.2").round(), I32F16::MINUS_ONE);
+        assert_eq!(I32F16::lit("-1.2").ceil(), I32F16::NEG_ONE);
+        assert_eq!(I32F16::lit("-1.2").round(), I32F16::NEG_ONE);
         assert_eq!(I32F16::lit("-0.4").round(), I32F16::ZERO);
         assert_eq!(I32F16::lit("-1.4").abs(), I32F16::lit("1.4"));
         assert_eq!(I32F16::lit("-1.4").neg(), I32F16::lit("1.4"));
@@ -762,7 +862,7 @@ mod test {
 
     #[test]
     fn test_f() {
-        let x = I32F16::PI_2;
+        // let x = I32F16::PI_2;
         let x = I32F16::lit("0.999984741210937");
         println!("x {}", x);
         println!("-x {}", -x);

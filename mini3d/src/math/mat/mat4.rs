@@ -2,15 +2,16 @@ use core::{fmt::Display, ops::Mul};
 
 use crate::math::{
     fixed::{FixedPoint, SignedFixedPoint, TrigFixedPoint},
+    quat::Q,
     vec::{V3, V4},
 };
 
 // Column-major matrix (follow math convention)
 pub struct M4<T: FixedPoint> {
-    pub colx: V4<T>,
-    pub coly: V4<T>,
-    pub colz: V4<T>,
-    pub colw: V4<T>,
+    pub xaxis: V4<T>,
+    pub yaxis: V4<T>,
+    pub zaxis: V4<T>,
+    pub waxis: V4<T>,
 }
 
 impl<T: FixedPoint> M4<T> {
@@ -23,19 +24,19 @@ impl<T: FixedPoint> M4<T> {
 
     pub const fn from_cols(colx: V4<T>, coly: V4<T>, colz: V4<T>, colw: V4<T>) -> Self {
         Self {
-            colx,
-            coly,
-            colz,
-            colw,
+            xaxis: colx,
+            yaxis: coly,
+            zaxis: colz,
+            waxis: colw,
         }
     }
 
     pub const fn from_rows(rowx: V4<T>, rowy: V4<T>, rowz: V4<T>, roww: V4<T>) -> Self {
         Self {
-            colx: V4::new(rowx.x, rowy.x, rowz.x, roww.x),
-            coly: V4::new(rowx.y, rowy.y, rowz.y, roww.y),
-            colz: V4::new(rowx.z, rowy.z, rowz.z, roww.z),
-            colw: V4::new(rowx.w, rowy.w, rowz.w, roww.w),
+            xaxis: V4::new(rowx.x, rowy.x, rowz.x, roww.x),
+            yaxis: V4::new(rowx.y, rowy.y, rowz.y, roww.y),
+            zaxis: V4::new(rowx.z, rowy.z, rowz.z, roww.z),
+            waxis: V4::new(rowx.w, rowy.w, rowz.w, roww.w),
         }
     }
 
@@ -46,20 +47,20 @@ impl<T: FixedPoint> M4<T> {
         roww: (T, T, T, T),
     ) -> Self {
         Self {
-            colx: V4::new(rowx.0, rowy.0, rowz.0, roww.0),
-            coly: V4::new(rowx.1, rowy.1, rowz.1, roww.1),
-            colz: V4::new(rowx.2, rowy.2, rowz.2, roww.2),
-            colw: V4::new(rowx.3, rowy.3, rowz.3, roww.3),
+            xaxis: V4::new(rowx.0, rowy.0, rowz.0, roww.0),
+            yaxis: V4::new(rowx.1, rowy.1, rowz.1, roww.1),
+            zaxis: V4::new(rowx.2, rowy.2, rowz.2, roww.2),
+            waxis: V4::new(rowx.3, rowy.3, rowz.3, roww.3),
         }
     }
 
     pub const fn translate(x: T, y: T, z: T) -> Self {
-        Self {
-            colx: V4::new(T::ONE, T::ZERO, T::ZERO, T::ZERO),
-            coly: V4::new(T::ZERO, T::ONE, T::ZERO, T::ZERO),
-            colz: V4::new(T::ZERO, T::ZERO, T::ONE, T::ZERO),
-            colw: V4::new(x, y, z, T::ONE),
-        }
+        Self::from_rows_element(
+            (T::ONE, T::ZERO, T::ZERO, x),
+            (T::ZERO, T::ONE, T::ZERO, y),
+            (T::ZERO, T::ZERO, T::ONE, z),
+            (T::ZERO, T::ZERO, T::ZERO, T::ONE),
+        )
     }
 
     pub const fn scale(x: T, y: T, z: T) -> Self {
@@ -73,103 +74,129 @@ impl<T: FixedPoint> M4<T> {
 
     pub fn mul_mat4(&self, rhs: &Self) -> Self {
         let colx = V4::new(
-            self.colx.x * rhs.colx.x
-                + self.coly.x * rhs.colx.y
-                + self.colz.x * rhs.colx.z
-                + self.colw.x * rhs.colx.w,
-            self.colx.x * rhs.coly.x
-                + self.coly.x * rhs.coly.y
-                + self.colz.x * rhs.coly.z
-                + self.colw.x * rhs.coly.w,
-            self.colx.x * rhs.colz.x
-                + self.coly.x * rhs.colz.y
-                + self.colz.x * rhs.colz.z
-                + self.colw.x * rhs.colz.w,
-            self.colx.x * rhs.colw.x
-                + self.coly.x * rhs.colw.y
-                + self.colz.x * rhs.colw.z
-                + self.colw.x * rhs.colw.w,
+            self.xaxis.x * rhs.xaxis.x
+                + self.yaxis.x * rhs.xaxis.y
+                + self.zaxis.x * rhs.xaxis.z
+                + self.waxis.x * rhs.xaxis.w,
+            self.xaxis.x * rhs.yaxis.x
+                + self.yaxis.x * rhs.yaxis.y
+                + self.zaxis.x * rhs.yaxis.z
+                + self.waxis.x * rhs.yaxis.w,
+            self.xaxis.x * rhs.zaxis.x
+                + self.yaxis.x * rhs.zaxis.y
+                + self.zaxis.x * rhs.zaxis.z
+                + self.waxis.x * rhs.zaxis.w,
+            self.xaxis.x * rhs.waxis.x
+                + self.yaxis.x * rhs.waxis.y
+                + self.zaxis.x * rhs.waxis.z
+                + self.waxis.x * rhs.waxis.w,
         );
 
         let coly = V4::new(
-            self.colx.y * rhs.colx.x
-                + self.coly.y * rhs.colx.y
-                + self.colz.y * rhs.colx.z
-                + self.colw.y * rhs.colx.w,
-            self.colx.y * rhs.coly.x
-                + self.coly.y * rhs.coly.y
-                + self.colz.y * rhs.coly.z
-                + self.colw.y * rhs.coly.w,
-            self.colx.y * rhs.colz.x
-                + self.coly.y * rhs.colz.y
-                + self.colz.y * rhs.colz.z
-                + self.colw.y * rhs.colz.w,
-            self.colx.y * rhs.colw.x
-                + self.coly.y * rhs.colw.y
-                + self.colz.y * rhs.colw.z
-                + self.colw.y * rhs.colw.w,
+            self.xaxis.y * rhs.xaxis.x
+                + self.yaxis.y * rhs.xaxis.y
+                + self.zaxis.y * rhs.xaxis.z
+                + self.waxis.y * rhs.xaxis.w,
+            self.xaxis.y * rhs.yaxis.x
+                + self.yaxis.y * rhs.yaxis.y
+                + self.zaxis.y * rhs.yaxis.z
+                + self.waxis.y * rhs.yaxis.w,
+            self.xaxis.y * rhs.zaxis.x
+                + self.yaxis.y * rhs.zaxis.y
+                + self.zaxis.y * rhs.zaxis.z
+                + self.waxis.y * rhs.zaxis.w,
+            self.xaxis.y * rhs.waxis.x
+                + self.yaxis.y * rhs.waxis.y
+                + self.zaxis.y * rhs.waxis.z
+                + self.waxis.y * rhs.waxis.w,
         );
 
         let colz = V4::new(
-            self.colx.z * rhs.colx.x
-                + self.coly.z * rhs.colx.y
-                + self.colz.z * rhs.colx.z
-                + self.colw.z * rhs.colx.w,
-            self.colx.z * rhs.coly.x
-                + self.coly.z * rhs.coly.y
-                + self.colz.z * rhs.coly.z
-                + self.colw.z * rhs.coly.w,
-            self.colx.z * rhs.colz.x
-                + self.coly.z * rhs.colz.y
-                + self.colz.z * rhs.colz.z
-                + self.colw.z * rhs.colz.w,
-            self.colx.z * rhs.colw.x
-                + self.coly.z * rhs.colw.y
-                + self.colz.z * rhs.colw.z
-                + self.colw.z * rhs.colw.w,
+            self.xaxis.z * rhs.xaxis.x
+                + self.yaxis.z * rhs.xaxis.y
+                + self.zaxis.z * rhs.xaxis.z
+                + self.waxis.z * rhs.xaxis.w,
+            self.xaxis.z * rhs.yaxis.x
+                + self.yaxis.z * rhs.yaxis.y
+                + self.zaxis.z * rhs.yaxis.z
+                + self.waxis.z * rhs.yaxis.w,
+            self.xaxis.z * rhs.zaxis.x
+                + self.yaxis.z * rhs.zaxis.y
+                + self.zaxis.z * rhs.zaxis.z
+                + self.waxis.z * rhs.zaxis.w,
+            self.xaxis.z * rhs.waxis.x
+                + self.yaxis.z * rhs.waxis.y
+                + self.zaxis.z * rhs.waxis.z
+                + self.waxis.z * rhs.waxis.w,
         );
 
         let colw = V4::new(
-            self.colx.w * rhs.colx.x
-                + self.coly.w * rhs.colx.y
-                + self.colz.w * rhs.colx.z
-                + self.colw.w * rhs.colx.w,
-            self.colx.w * rhs.coly.x
-                + self.coly.w * rhs.coly.y
-                + self.colz.w * rhs.coly.z
-                + self.colw.w * rhs.coly.w,
-            self.colx.w * rhs.colz.x
-                + self.coly.w * rhs.colz.y
-                + self.colz.w * rhs.colz.z
-                + self.colw.w * rhs.colz.w,
-            self.colx.w * rhs.colw.x
-                + self.coly.w * rhs.colw.y
-                + self.colz.w * rhs.colw.z
-                + self.colw.w * rhs.colw.w,
+            self.xaxis.w * rhs.xaxis.x
+                + self.yaxis.w * rhs.xaxis.y
+                + self.zaxis.w * rhs.xaxis.z
+                + self.waxis.w * rhs.xaxis.w,
+            self.xaxis.w * rhs.yaxis.x
+                + self.yaxis.w * rhs.yaxis.y
+                + self.zaxis.w * rhs.yaxis.z
+                + self.waxis.w * rhs.yaxis.w,
+            self.xaxis.w * rhs.zaxis.x
+                + self.yaxis.w * rhs.zaxis.y
+                + self.zaxis.w * rhs.zaxis.z
+                + self.waxis.w * rhs.zaxis.w,
+            self.xaxis.w * rhs.waxis.x
+                + self.yaxis.w * rhs.waxis.y
+                + self.zaxis.w * rhs.waxis.z
+                + self.waxis.w * rhs.waxis.w,
         );
         Self::from_cols(colx, coly, colz, colw)
     }
 
     pub fn mul_vec4(&self, rhs: &V4<T>) -> V4<T> {
         V4::new(
-            self.colx.x * rhs.x + self.coly.x * rhs.y + self.colz.x * rhs.z + self.colw.x * rhs.w,
-            self.colx.y * rhs.x + self.coly.y * rhs.y + self.colz.y * rhs.z + self.colw.y * rhs.w,
-            self.colx.z * rhs.x + self.coly.z * rhs.y + self.colz.z * rhs.z + self.colw.z * rhs.w,
-            self.colx.w * rhs.x + self.coly.w * rhs.y + self.colz.w * rhs.z + self.colw.w * rhs.w,
+            self.xaxis.x * rhs.x
+                + self.yaxis.x * rhs.y
+                + self.zaxis.x * rhs.z
+                + self.waxis.x * rhs.w,
+            self.xaxis.y * rhs.x
+                + self.yaxis.y * rhs.y
+                + self.zaxis.y * rhs.z
+                + self.waxis.y * rhs.w,
+            self.xaxis.z * rhs.x
+                + self.yaxis.z * rhs.y
+                + self.zaxis.z * rhs.z
+                + self.waxis.z * rhs.w,
+            self.xaxis.w * rhs.x
+                + self.yaxis.w * rhs.y
+                + self.zaxis.w * rhs.z
+                + self.waxis.w * rhs.w,
         )
     }
 
     pub fn div(&self, rhs: T) -> Self {
         Self::from_cols(
-            self.colx / rhs,
-            self.coly / rhs,
-            self.colz / rhs,
-            self.colw / rhs,
+            self.xaxis / rhs,
+            self.yaxis / rhs,
+            self.zaxis / rhs,
+            self.waxis / rhs,
         )
     }
 }
 
 impl<T: FixedPoint + TrigFixedPoint + SignedFixedPoint> M4<T> {
+    pub fn from_scale_rotation_translation(
+        scale: V3<T>,
+        rotation: Q<T>,
+        translation: V3<T>,
+    ) -> Self {
+        let (x_axis, y_axis, z_axis) = rotation.to_axes();
+        Self::from_cols(
+            x_axis.mul(scale.x),
+            y_axis.mul(scale.y),
+            z_axis.mul(scale.z),
+            V4::from_vec3(translation, T::ONE),
+        )
+    }
+
     pub fn rotate_x(angle: T) -> Self {
         let (sin, cos) = angle.sin_cos();
         Self::from_rows_element(
@@ -215,8 +242,8 @@ impl<T: FixedPoint + TrigFixedPoint + SignedFixedPoint> M4<T> {
     }
 
     pub fn view(eye: V3<T>, forward: V3<T>, up: V3<T>) -> Self {
-        let zaxis = forward.normalized();
-        let xaxis = up.cross(zaxis).normalized();
+        let zaxis = forward.normalize();
+        let xaxis = up.cross(zaxis).normalize();
         let yaxis = zaxis.cross(xaxis);
 
         Self::from_rows_element(
@@ -228,126 +255,79 @@ impl<T: FixedPoint + TrigFixedPoint + SignedFixedPoint> M4<T> {
     }
 
     pub fn inverse(&self) -> Self {
-        let inv_colx = V4::new(
-            self.coly.y * self.colz.z * self.colw.w
-                - self.coly.y * self.colz.w * self.colw.z
-                - self.coly.z * self.colz.y * self.colw.w
-                + self.coly.z * self.colz.w * self.colw.y
-                + self.coly.w * self.colz.y * self.colw.z
-                - self.coly.w * self.colz.z * self.colw.y,
-            -self.colx.y * self.colz.z * self.colw.w
-                + self.colx.y * self.colz.w * self.colw.z
-                + self.colx.z * self.colz.y * self.colw.w
-                - self.colx.z * self.colz.w * self.colw.y
-                - self.colx.w * self.colz.y * self.colw.z
-                + self.colx.w * self.colz.z * self.colw.y,
-            self.colx.y * self.coly.z * self.colw.w
-                - self.colx.y * self.coly.w * self.colw.z
-                - self.colx.z * self.coly.y * self.colw.w
-                + self.colx.z * self.coly.w * self.colw.y
-                + self.colx.w * self.coly.y * self.colw.z
-                - self.colx.w * self.coly.z * self.colw.y,
-            -self.colx.y * self.coly.z * self.colz.w
-                + self.colx.y * self.coly.w * self.colz.z
-                + self.colx.z * self.coly.y * self.colz.w
-                - self.colx.z * self.coly.w * self.colz.y
-                - self.colx.w * self.coly.y * self.colz.z
-                + self.colx.w * self.coly.z * self.colz.y,
-        );
+        let a2323 = self.zaxis.z * self.waxis.w - self.zaxis.w * self.waxis.z;
+        let a1323 = self.zaxis.y * self.waxis.w - self.zaxis.w * self.waxis.y;
+        let a1223 = self.zaxis.y * self.waxis.z - self.zaxis.z * self.waxis.y;
+        let a0323 = self.zaxis.x * self.waxis.w - self.zaxis.w * self.waxis.x;
+        let a0223 = self.zaxis.x * self.waxis.z - self.zaxis.z * self.waxis.x;
+        let a0123 = self.zaxis.x * self.waxis.y - self.zaxis.y * self.waxis.x;
+        let a2313 = self.yaxis.z * self.waxis.w - self.yaxis.w * self.waxis.z;
+        let a1313 = self.yaxis.y * self.waxis.w - self.yaxis.w * self.waxis.y;
+        let a1213 = self.yaxis.y * self.waxis.z - self.yaxis.z * self.waxis.y;
+        let a2312 = self.yaxis.z * self.zaxis.w - self.yaxis.w * self.zaxis.z;
+        let a1312 = self.yaxis.y * self.zaxis.w - self.yaxis.w * self.zaxis.y;
+        let a1212 = self.yaxis.y * self.zaxis.z - self.yaxis.z * self.zaxis.y;
+        let a0313 = self.yaxis.x * self.waxis.w - self.yaxis.w * self.waxis.x;
+        let a0213 = self.yaxis.x * self.waxis.z - self.yaxis.z * self.waxis.x;
+        let a0312 = self.yaxis.x * self.zaxis.w - self.yaxis.w * self.zaxis.x;
+        let a0212 = self.yaxis.x * self.zaxis.z - self.yaxis.z * self.zaxis.x;
+        let a0113 = self.yaxis.x * self.waxis.y - self.yaxis.y * self.waxis.x;
+        let a0112 = self.yaxis.x * self.zaxis.y - self.yaxis.y * self.zaxis.x;
 
-        let inv_coly = V4::new(
-            -self.coly.x * self.colz.z * self.colw.w
-                + self.coly.x * self.colz.w * self.colw.z
-                + self.coly.z * self.colz.x * self.colw.w
-                - self.coly.z * self.colz.w * self.colw.x
-                - self.coly.w * self.colz.x * self.colw.z
-                + self.coly.w * self.colz.z * self.colw.x,
-            self.colx.x * self.colz.z * self.colw.w
-                - self.colx.x * self.colz.w * self.colw.z
-                - self.colx.z * self.colz.x * self.colw.w
-                + self.colx.z * self.colz.w * self.colw.x
-                + self.colx.w * self.colz.x * self.colw.z
-                - self.colx.w * self.colz.z * self.colw.x,
-            -self.colx.x * self.coly.z * self.colw.w
-                + self.colx.x * self.coly.w * self.colw.z
-                + self.colx.z * self.coly.x * self.colw.w
-                - self.colx.z * self.coly.w * self.colw.x
-                - self.colx.w * self.coly.x * self.colw.z
-                + self.colx.w * self.coly.z * self.colw.x,
-            self.colx.x * self.coly.z * self.colz.w
-                - self.colx.x * self.coly.w * self.colz.z
-                - self.colx.z * self.coly.x * self.colz.w
-                + self.colx.z * self.coly.w * self.colz.x
-                + self.colx.w * self.coly.x * self.colz.z
-                - self.colx.w * self.coly.z * self.colz.x,
-        );
-
-        let inv_colz = V4::new(
-            self.coly.x * self.colz.y * self.colw.w
-                - self.coly.x * self.colz.w * self.colw.y
-                - self.coly.y * self.colz.x * self.colw.w
-                + self.coly.y * self.colz.w * self.colw.x
-                + self.coly.w * self.colz.x * self.colw.y
-                - self.coly.w * self.colz.y * self.colw.x,
-            -self.colx.x * self.colz.y * self.colw.w
-                + self.colx.x * self.colz.w * self.colw.y
-                + self.colx.y * self.colz.x * self.colw.w
-                - self.colx.y * self.colz.w * self.colw.x
-                - self.colx.w * self.colz.x * self.colw.y
-                + self.colx.w * self.colz.y * self.colw.x,
-            self.colx.x * self.coly.y * self.colw.w
-                - self.colx.x * self.coly.w * self.colw.y
-                - self.colx.y * self.coly.x * self.colw.w
-                + self.colx.y * self.coly.w * self.colw.x
-                + self.colx.w * self.coly.x * self.colw.y
-                - self.colx.w * self.coly.y * self.colw.x,
-            -self.colx.x * self.coly.y * self.colz.w
-                + self.colx.x * self.coly.w * self.colz.y
-                + self.colx.y * self.coly.x * self.colz.w
-                - self.colx.y * self.coly.w * self.colz.x
-                - self.colx.w * self.coly.x * self.colz.y
-                + self.colx.w * self.coly.y * self.colz.x,
-        );
-
-        let inv_colw = V4::new(
-            -self.coly.x * self.colz.y * self.colw.z
-                + self.coly.x * self.colz.z * self.colw.y
-                + self.coly.y * self.colz.x * self.colw.z
-                - self.coly.y * self.colz.z * self.colw.x
-                - self.coly.z * self.colz.x * self.colw.y
-                + self.coly.z * self.colz.y * self.colw.x,
-            self.colx.x * self.colz.y * self.colw.z
-                - self.colx.x * self.colz.z * self.colw.y
-                - self.colx.y * self.colz.x * self.colw.z
-                + self.colx.y * self.colz.z * self.colw.x
-                + self.colx.z * self.colz.x * self.colw.y
-                - self.colx.z * self.colz.y * self.colw.x,
-            -self.colx.x * self.coly.y * self.colw.z
-                + self.colx.x * self.coly.z * self.colw.y
-                + self.colx.y * self.coly.x * self.colw.z
-                - self.colx.y * self.coly.z * self.colw.x
-                - self.colx.z * self.coly.x * self.colw.y
-                + self.colx.z * self.coly.y * self.colw.x,
-            self.colx.x * self.coly.y * self.colz.z
-                - self.colx.x * self.coly.z * self.colz.y
-                - self.colx.y * self.coly.x * self.colz.z
-                + self.colx.y * self.coly.z * self.colz.x
-                + self.colx.z * self.coly.x * self.colz.y
-                - self.colx.z * self.coly.y * self.colz.x,
-        );
-
-        let inv = Self::from_cols(inv_colx, inv_coly, inv_colz, inv_colw);
-
-        let det = inv.colx.x * self.colx.x
-            + inv.coly.x * self.coly.x
-            + inv.colz.x * self.colz.x
-            + inv.colw.x * self.colw.x;
+        let det = self.xaxis.x
+            * (self.yaxis.y * a2323 - self.yaxis.z * a1323 + self.yaxis.w * a1223)
+            - self.xaxis.y * (self.yaxis.x * a2323 - self.yaxis.z * a0323 + self.yaxis.w * a0223)
+            + self.xaxis.z * (self.yaxis.x * a1323 - self.yaxis.y * a0323 + self.yaxis.w * a0123)
+            - self.xaxis.w * (self.yaxis.x * a1223 - self.yaxis.y * a0223 + self.yaxis.z * a0123);
 
         if det == T::ZERO {
             panic!("try to invert non-invertible matrix");
         }
 
-        inv.div(det)
+        let inv_det = T::ONE / det;
+
+        let colx = V4::new(
+            (self.yaxis.y * a2323 - self.yaxis.z * a1323 + self.yaxis.w * a1223) * inv_det,
+            -(self.xaxis.y * a2323 - self.xaxis.z * a1323 + self.xaxis.w * a1223) * inv_det,
+            (self.xaxis.y * a2313 - self.xaxis.z * a1313 + self.xaxis.w * a1213) * inv_det,
+            -(self.xaxis.y * a2312 - self.xaxis.z * a1312 + self.xaxis.w * a1212) * inv_det,
+        );
+
+        let coly = V4::new(
+            -(self.yaxis.x * a2323 - self.yaxis.z * a0323 + self.yaxis.w * a0223) * inv_det,
+            (self.xaxis.x * a2323 - self.xaxis.z * a0323 + self.xaxis.w * a0223) * inv_det,
+            -(self.xaxis.x * a2313 - self.xaxis.z * a0313 + self.xaxis.w * a0213) * inv_det,
+            (self.xaxis.x * a2312 - self.xaxis.z * a0312 + self.xaxis.w * a0212) * inv_det,
+        );
+
+        let colz = V4::new(
+            (self.yaxis.x * a1323 - self.yaxis.y * a0323 + self.yaxis.w * a0123) * inv_det,
+            -(self.xaxis.x * a1323 - self.xaxis.y * a0323 + self.xaxis.w * a0123) * inv_det,
+            (self.xaxis.x * a1313 - self.xaxis.y * a0313 + self.xaxis.w * a0113) * inv_det,
+            -(self.xaxis.x * a1312 - self.xaxis.y * a0312 + self.xaxis.w * a0112) * inv_det,
+        );
+
+        let colw = V4::new(
+            -(self.yaxis.x * a1223 - self.yaxis.y * a0223 + self.yaxis.z * a0123) * inv_det,
+            (self.xaxis.x * a1223 - self.xaxis.y * a0223 + self.xaxis.z * a0123) * inv_det,
+            -(self.xaxis.x * a1213 - self.xaxis.y * a0213 + self.xaxis.z * a0113) * inv_det,
+            (self.xaxis.x * a1212 - self.xaxis.y * a0212 + self.xaxis.z * a0112) * inv_det,
+        );
+
+        Self::from_cols(colx, coly, colz, colw)
+    }
+
+    pub const fn transposed(&self) -> Self {
+        Self::from_rows_element(
+            (self.xaxis.x, self.xaxis.y, self.xaxis.z, self.xaxis.w),
+            (self.yaxis.x, self.yaxis.y, self.yaxis.z, self.yaxis.w),
+            (self.zaxis.x, self.zaxis.y, self.zaxis.z, self.zaxis.w),
+            (self.waxis.x, self.waxis.y, self.waxis.z, self.waxis.w),
+        )
+    }
+
+    pub fn transpose(&mut self) {
+        *self = self.transposed();
     }
 }
 
@@ -372,29 +352,29 @@ impl<T: FixedPoint + Display> Display for M4<T> {
         writeln!(
             f,
             "[{}, {}, {}, {}]",
-            self.colx.x, self.coly.x, self.colz.x, self.colw.x
+            self.xaxis.x, self.yaxis.x, self.zaxis.x, self.waxis.x
         )?;
         writeln!(
             f,
             "[{}, {}, {}, {}]",
-            self.colx.y, self.coly.y, self.colz.y, self.colw.y
+            self.xaxis.y, self.yaxis.y, self.zaxis.y, self.waxis.y
         )?;
         writeln!(
             f,
             "[{}, {}, {}, {}]",
-            self.colx.z, self.coly.z, self.colz.z, self.colw.z
+            self.xaxis.z, self.yaxis.z, self.zaxis.z, self.waxis.z
         )?;
         writeln!(
             f,
             "[{}, {}, {}, {}]",
-            self.colx.w, self.coly.w, self.colz.w, self.colw.w
+            self.xaxis.w, self.yaxis.w, self.zaxis.w, self.waxis.w
         )
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::{print, println};
+    use std::println;
 
     use mini3d_derive::fixed;
 
@@ -404,18 +384,8 @@ mod test {
 
     #[test]
     fn test_mat4() {
-        let mut v = V4::<I32F16>::new(fixed!(1), fixed!(1), fixed!(0), fixed!(1));
-        let t = M4::<I32F16>::rotate_y(I32F16::PI_2);
-        let inv_t = t.inverse();
-        let (sin, cos) = I32F16::PI_2.sin_cos();
-        println!("{}", sin);
-        println!("{}", -sin);
-        println!("{}", sin.neg());
+        let t = M4::<I32F16>::translate(fixed!(1), fixed!(2), fixed!(3));
         println!("{}", t);
-        println!("{}", v);
-        v = t * v;
-        println!("{}", v);
-        v = inv_t * v;
-        println!("{}", v);
+        println!("{}", t.transposed());
     }
 }

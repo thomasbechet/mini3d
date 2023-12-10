@@ -28,6 +28,14 @@ impl<T: FixedPoint> V4<T> {
         Self::new(v.x, v.y, v.z, w)
     }
 
+    pub const fn xy(self) -> V2<T> {
+        V2::new(self.x, self.y)
+    }
+
+    pub const fn xyz(self) -> V3<T> {
+        V3::new(self.x, self.y, self.z)
+    }
+
     pub fn dot(self, rhs: Self) -> T {
         (self.x * rhs.x) + (self.y * rhs.y) + (self.z * rhs.z) + (self.w * rhs.w)
     }
