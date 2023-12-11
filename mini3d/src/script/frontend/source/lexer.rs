@@ -207,17 +207,16 @@ impl Lexer {
             } else {
                 // Check if identifier is a primitive type
                 let primitive = match self.buffer.as_str() {
-                    "bool" => Some(PrimitiveType::Boolean),
-                    "int" => Some(PrimitiveType::Integer),
-                    "float" => Some(PrimitiveType::Float),
-                    "vec2" => Some(PrimitiveType::Vec2),
-                    "ivec2" => Some(PrimitiveType::IVec2),
-                    "vec3" => Some(PrimitiveType::Vec3),
-                    "ivec3" => Some(PrimitiveType::IVec3),
-                    "vec4" => Some(PrimitiveType::Vec4),
-                    "ivec4" => Some(PrimitiveType::IVec4),
-                    "mat4" => Some(PrimitiveType::Mat4),
-                    "quat" => Some(PrimitiveType::Quat),
+                    "bool" => Some(PrimitiveType::Bool),
+                    "i32" => Some(PrimitiveType::I32),
+                    "v2i32f16" => Some(PrimitiveType::V2I32F16),
+                    "v2i32" => Some(PrimitiveType::V2I32),
+                    "v3i32f16" => Some(PrimitiveType::V3I32F16),
+                    "v3i32" => Some(PrimitiveType::V3I32),
+                    "v4i32f16" => Some(PrimitiveType::V4I32F16),
+                    "v4i32" => Some(PrimitiveType::V4I32),
+                    "m4i32f16" => Some(PrimitiveType::M4I32F16),
+                    "qi32f16" => Some(PrimitiveType::QI32F16),
                     "string" => Some(PrimitiveType::String),
                     "entity" => Some(PrimitiveType::Entity),
                     "object" => Some(PrimitiveType::Object),
@@ -295,7 +294,7 @@ impl Lexer {
             Ok(Token {
                 kind: TokenKind::Literal,
                 span,
-                value: TokenValue::Literal(Literal::Float(value)),
+                value: TokenValue::Literal(Literal::Real(value)),
             })
         } else {
             let value = self

@@ -6,4 +6,3 @@ edition = "2021"
 
 [dependencies]
 mini3d_derive = { path = "../mini3d_derive" }
-glam = { version = "0.21.3" }

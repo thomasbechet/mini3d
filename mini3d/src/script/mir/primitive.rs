@@ -15,17 +15,17 @@ pub(crate) enum ReferenceType {
 #[derive(Debug, PartialEq, Clone, Copy, Serialize)]
 pub(crate) enum PrimitiveType {
     Nil,
-    Boolean,
-    Integer,
-    Float,
-    Vec2,
-    IVec2,
-    Vec3,
-    IVec3,
-    Vec4,
-    IVec4,
-    Mat4,
-    Quat,
+    Bool,
+    I32,
+    I32F16,
+    V2I32F16,
+    V2I32,
+    V3I32F16,
+    V3I32,
+    V4I32F16,
+    V4I32,
+    M4I32F16,
+    QI32F16,
     String,
     Entity,
     Object,
@@ -52,18 +52,18 @@ impl PrimitiveType {
             | BinaryOperator::Equal => todo!(),
             BinaryOperator::And | BinaryOperator::Or => {}
         }
-        Ok(PrimitiveType::Boolean)
+        Ok(PrimitiveType::Bool)
     }
 
     fn unary(primitive: PrimitiveType, op: UnaryOperator) -> Result<PrimitiveType, ()> {
         match op {
             UnaryOperator::Minus => match primitive {
-                PrimitiveType::Integer => Ok(PrimitiveType::Integer),
-                PrimitiveType::Float => Ok(PrimitiveType::Float),
+                PrimitiveType::I32 => Ok(PrimitiveType::I32),
+                PrimitiveType::I32F16 => Ok(PrimitiveType::I32F16),
                 _ => Err(()),
             },
             UnaryOperator::Not => match primitive {
-                PrimitiveType::Boolean => Ok(PrimitiveType::Boolean),
+                PrimitiveType::Bool => Ok(PrimitiveType::Bool),
                 _ => Err(()),
             },
         }

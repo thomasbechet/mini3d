@@ -1,7 +1,13 @@
 use alloc::vec::Vec;
-use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
-use crate::serialize::{Serialize, SliceDecoder};
+use crate::{
+    math::{
+        mat::{M4, M4I32F16},
+        quat::Q,
+        vec::{V2, V2I32, V2I32F16, V3, V3I32, V3I32F16, V4, V4I32, V4I32F16},
+    },
+    serialize::{Serialize, SliceDecoder},
+};
 
 use super::primitive::PrimitiveType;
 
@@ -34,17 +40,15 @@ impl<'a> core::fmt::Display for ConstantFormatter<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let entry = &self.table.entries[self.id.0 as usize];
         match entry.ty {
-            PrimitiveType::Boolean => write!(f, "{}", self.table.read_bool(self.id)),
-            PrimitiveType::Integer => write!(f, "{}", self.table.read_u32(self.id)),
-            PrimitiveType::Float => write!(f, "{}", self.table.read_f32(self.id)),
-            PrimitiveType::Vec2 => write!(f, "{}", self.table.read_vec2(self.id)),
-            PrimitiveType::IVec2 => write!(f, "{}", self.table.read_ivec2(self.id)),
-            PrimitiveType::Vec3 => write!(f, "{}", self.table.read_vec3(self.id)),
-            PrimitiveType::IVec3 => write!(f, "{}", self.table.read_ivec3(self.id)),
-            PrimitiveType::Vec4 => write!(f, "{}", self.table.read_vec4(self.id)),
-            PrimitiveType::IVec4 => write!(f, "{}", self.table.read_ivec4(self.id)),
-            PrimitiveType::Mat4 => write!(f, "{}", self.table.read_mat4(self.id)),
-            PrimitiveType::Quat => write!(f, "{}", self.table.read_quat(self.id)),
+            PrimitiveType::Bool => write!(f, "{}", self.table.read_bool(self.id)),
+            PrimitiveType::V2I32F16 => write!(f, "{}", self.table.read_v2i32f16(self.id)),
+            PrimitiveType::V2I32 => write!(f, "{}", self.table.read_v2i32(self.id)),
+            PrimitiveType::V3I32F16 => write!(f, "{}", self.table.read_v3i32f16(self.id)),
+            PrimitiveType::V3I32 => write!(f, "{}", self.table.read_v3i32(self.id)),
+            PrimitiveType::V4I32F16 => write!(f, "{}", self.table.read_v4i32f16(self.id)),
+            PrimitiveType::V4I32 => write!(f, "{}", self.table.read_v4i32(self.id)),
+            PrimitiveType::M4I32F16 => write!(f, "{}", self.table.read_m4i32f16(self.id)),
+            PrimitiveType::QI32F16 => write!(f, "{}", self.table.read_qi32f16(self.id)),
             PrimitiveType::String => write!(f, "{}", self.table.read_str(self.id)),
             _ => unreachable!(),
         }
@@ -75,18 +79,17 @@ impl DataTable {
     pub(crate) fn import(&mut self, id: DataId, table: &DataTable) -> DataId {
         let ty = table.entries[id.0 as usize].ty;
         match ty {
-            PrimitiveType::Boolean => self.add_bool(table.read_bool(id)),
-            PrimitiveType::Integer => self.add_u32(table.read_u32(id)),
-            PrimitiveType::Float => self.add_f32(table.read_f32(id)),
-            PrimitiveType::Vec2 => self.add_vec2(table.read_vec2(id)),
-            PrimitiveType::IVec2 => self.add_ivec2(table.read_ivec2(id)),
-            PrimitiveType::Vec3 => self.add_vec3(table.read_vec3(id)),
-            PrimitiveType::IVec3 => self.add_ivec3(table.read_ivec3(id)),
-            PrimitiveType::Vec4 => self.add_vec4(table.read_vec4(id)),
-            PrimitiveType::IVec4 => self.add_ivec4(table.read_ivec4(id)),
-            PrimitiveType::Mat4 => self.add_mat4(table.read_mat4(id)),
-            PrimitiveType::Quat => self.add_quat(table.read_quat(id)),
-            PrimitiveType::String => self.add_str(table.read_str(id)),
+            PrimitiveType::Bool => self.add_bool(table.read_bool(id)),
+            PrimitiveType::I32 => self.add_i32(table.read_i32(id)),
+            // PrimitiveType::V2I32F16 => self.add_vec2(table.read_v2i32f16(id)),
+            // PrimitiveType::V2I32 => self.add_ivec2(table.read_v2i32(id)),
+            // PrimitiveType::V3I32F16 => self.add_vec3(table.read_v3i32f16(id)),
+            // PrimitiveType::V3I32 => self.add_ivec3(table.read_v3i32(id)),
+            // PrimitiveType::V4I32F16 => self.add_vec4(table.read_v4i32f16(id)),
+            // PrimitiveType::V4I32 => self.add_ivec4(table.read_v4i32(id)),
+            // PrimitiveType::M4I32F16 => self.add_mat4(table.read_m4i32f16(id)),
+            // PrimitiveType::QI32F16 => self.add_quat(table.read_qi32f16(id)),
+            // PrimitiveType::String => self.add_str(table.read_str(id)),
             _ => unreachable!(),
         }
     }
@@ -98,26 +101,17 @@ impl DataTable {
     pub(crate) fn add_bool(&mut self, value: bool) -> DataId {
         let id = self.entries.len() as u16;
         self.entries.push(DataEntry {
-            ty: PrimitiveType::Boolean,
+            ty: PrimitiveType::Bool,
             data: value as u32,
         });
         DataId(id)
     }
 
-    pub(crate) fn add_u32(&mut self, value: u32) -> DataId {
+    pub(crate) fn add_i32(&mut self, value: i32) -> DataId {
         let id = self.entries.len() as u16;
         self.entries.push(DataEntry {
-            ty: PrimitiveType::Integer,
+            ty: PrimitiveType::I32,
             data: value,
-        });
-        DataId(id)
-    }
-
-    pub(crate) fn add_f32(&mut self, value: f32) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::Float,
-            data: value.to_bits(),
         });
         DataId(id)
     }
@@ -134,102 +128,96 @@ impl DataTable {
         DataId(id)
     }
 
-    pub(crate) fn add_vec2(&mut self, value: Vec2) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::Vec2,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_vec2(&mut self, value: V2I32F16) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::V2I32F16,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_ivec2(&mut self, value: IVec2) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::IVec2,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_ivec2(&mut self, value: V2I32) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::V2I32,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_vec3(&mut self, value: Vec3) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::Vec3,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_vec3(&mut self, value: V3I32F16) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::V3I32F16,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_ivec3(&mut self, value: IVec3) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::IVec3,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_ivec3(&mut self, value: V3I32) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::V3I32,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_vec4(&mut self, value: Vec4) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::Vec4,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_vec4(&mut self, value: V4I32F16) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::V4I32F16,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_ivec4(&mut self, value: IVec4) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::IVec4,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_ivec4(&mut self, value: V4I32) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::V4I32,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_mat4(&mut self, value: Mat4) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::Mat4,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_mat4(&mut self, value: M4I32F16) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::M4I32F16,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
-    pub(crate) fn add_quat(&mut self, value: Quat) -> DataId {
-        let id = self.entries.len() as u16;
-        self.entries.push(DataEntry {
-            ty: PrimitiveType::Quat,
-            data: self.data.len() as u32,
-        });
-        value.serialize(&mut self.data);
-        DataId(id)
-    }
+    // pub(crate) fn add_quat(&mut self, value: QI32F16) -> DataId {
+    //     let id = self.entries.len() as u16;
+    //     self.entries.push(DataEntry {
+    //         ty: PrimitiveType::QI32F16,
+    //         data: self.data.len() as u32,
+    //     });
+    //     value.serialize(&mut self.data);
+    //     DataId(id)
+    // }
 
     pub(crate) fn read_bool(&self, id: DataId) -> bool {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Boolean);
+        assert!(entry.ty == PrimitiveType::Bool);
         entry.data != 0
     }
 
-    pub(crate) fn read_u32(&self, id: DataId) -> u32 {
+    pub(crate) fn read_i32(&self, id: DataId) -> i32 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Integer);
+        assert!(entry.ty == PrimitiveType::I32);
         entry.data
-    }
-
-    pub(crate) fn read_f32(&self, id: DataId) -> f32 {
-        let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Float);
-        f32::from_bits(entry.data)
     }
 
     pub(crate) fn read_str(&self, id: DataId) -> &str {
@@ -243,80 +231,80 @@ impl DataTable {
         core::str::from_utf8(&self.data[start..start + len]).unwrap()
     }
 
-    pub(crate) fn read_vec2(&self, id: DataId) -> Vec2 {
+    pub(crate) fn read_v2i32f16(&self, id: DataId) -> V2I32F16 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Vec2);
-        Vec2::deserialize(
+        assert!(entry.ty == PrimitiveType::V2I32F16);
+        V2::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_ivec2(&self, id: DataId) -> IVec2 {
+    pub(crate) fn read_v2i32(&self, id: DataId) -> V2I32 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::IVec2);
-        IVec2::deserialize(
+        assert!(entry.ty == PrimitiveType::V2I32);
+        V2::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_vec3(&self, id: DataId) -> Vec3 {
+    pub(crate) fn read_v3i32f16(&self, id: DataId) -> V3I32F16 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Vec3);
-        Vec3::deserialize(
+        assert!(entry.ty == PrimitiveType::V3I32F16);
+        V3::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_ivec3(&self, id: DataId) -> IVec3 {
+    pub(crate) fn read_v3i32(&self, id: DataId) -> V3I32 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::IVec3);
-        IVec3::deserialize(
+        assert!(entry.ty == PrimitiveType::V3I32);
+        V3::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_vec4(&self, id: DataId) -> Vec4 {
+    pub(crate) fn read_v4i32f16(&self, id: DataId) -> V4I32F16 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Vec4);
-        Vec4::deserialize(
+        assert!(entry.ty == PrimitiveType::V4I32F16);
+        V4::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_ivec4(&self, id: DataId) -> IVec4 {
+    pub(crate) fn read_v4i32(&self, id: DataId) -> V4I32 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::IVec4);
-        IVec4::deserialize(
+        assert!(entry.ty == PrimitiveType::V4I32);
+        V4::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_mat4(&self, id: DataId) -> Mat4 {
+    pub(crate) fn read_m4i32f16(&self, id: DataId) -> M4I32F16 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Mat4);
-        Mat4::deserialize(
+        assert!(entry.ty == PrimitiveType::M4I32F16);
+        M4::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )
         .unwrap()
     }
 
-    pub(crate) fn read_quat(&self, id: DataId) -> Quat {
+    pub(crate) fn read_qi32f16(&self, id: DataId) -> QI32F16 {
         let entry = &self.entries[id.0 as usize];
-        assert!(entry.ty == PrimitiveType::Quat);
-        Quat::deserialize(
+        assert!(entry.ty == PrimitiveType::QI32F16);
+        Q::deserialize(
             &mut SliceDecoder::new(&self.data[entry.data as usize..]),
             &Default::default(),
         )

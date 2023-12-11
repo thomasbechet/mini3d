@@ -4,6 +4,7 @@ use crate::{
     define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
     input::provider::InputProviderHandle,
+    math::fixed::I32F16,
     resource::handle::ResourceHandle,
     utils::string::AsciiArray,
 };
@@ -11,16 +12,16 @@ use crate::{
 #[derive(Default, Clone, Copy, Serialize)]
 pub enum InputAxisRange {
     Clamped {
-        min: f32,
-        max: f32,
+        min: I32F16,
+        max: I32F16,
     },
     Normalized {
-        norm: f32,
+        norm: I32F16,
     },
     ClampedNormalized {
-        min: f32,
-        max: f32,
-        norm: f32,
+        min: I32F16,
+        max: I32F16,
+        norm: I32F16,
     },
     #[default]
     Infinite,
@@ -48,7 +49,7 @@ impl Resource for InputAxis {
 }
 
 impl InputAxis {
-    pub fn set_value(&mut self, value: f32) {
+    pub fn set_value(&mut self, value: I32F16) {
         self.state.value = match &self.range {
             InputAxisRange::Clamped { min, max } => value.max(*min).min(*max),
             InputAxisRange::Normalized { norm } => value / norm,
@@ -62,7 +63,7 @@ impl InputAxis {
 
 #[derive(Clone, Reflect, Default, Serialize)]
 pub struct InputAxisState {
-    pub value: f32,
+    pub value: I32F16,
     #[serialize(skip)]
     pub(crate) handle: InputProviderHandle,
 }

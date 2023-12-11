@@ -1,6 +1,10 @@
-use glam::IVec2;
-
-use crate::{feature::renderer::font::Font, math::rect::IRect};
+use crate::{
+    feature::renderer::font::Font,
+    math::{
+        rect::IRect,
+        vec::{V2, V2I32},
+    },
+};
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer
@@ -8,10 +12,10 @@ pub trait Plotable {
     /// # Arguments
     ///
     /// * `p` - Point coordinates
-    fn plot(&mut self, p: IVec2);
+    fn plot(&mut self, p: V2I32);
 }
 
-pub fn draw_line(mut p0: IVec2, p1: IVec2, mut plot: impl FnMut(IVec2)) {
+pub fn draw_line(mut p0: V2I32, p1: V2I32, mut plot: impl FnMut(V2I32)) {
     let dx = p0.x.abs_diff(p1.x) as i32;
     let sx: i32 = if p0.x < p1.x { 1 } else { -1 };
     let dy = -(p0.y.abs_diff(p1.y) as i32);
@@ -43,17 +47,17 @@ pub fn draw_line(mut p0: IVec2, p1: IVec2, mut plot: impl FnMut(IVec2)) {
 
 pub fn draw_vline(p: &mut impl Plotable, x: i32, y0: i32, y1: i32) {
     for y in y0..=y1 {
-        p.plot(IVec2::new(x, y));
+        p.plot(V2::new(x, y));
     }
 }
 
 pub fn draw_hline(p: &mut impl Plotable, y: i32, x0: i32, x1: i32) {
     for x in x0..=x1 {
-        p.plot(IVec2::new(x, y));
+        p.plot(V2::new(x, y));
     }
 }
 
-pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
+pub fn print(plot: &mut impl Plotable, p: V2I32, text: &str, font: &Font) {
     for (ic, c) in text.chars().enumerate() {
         if let Some(glyph) = font.char_location(c) {
             // TODO: optimize me
@@ -68,7 +72,7 @@ pub fn print(plot: &mut impl Plotable, p: IVec2, text: &str, font: &Font) {
                         + font.glyph_size.x as i32 * ic as i32
                         + (b as i32 % font.glyph_size.x as i32);
                     let py = p.y + (b as i32 / font.glyph_size.x as i32);
-                    plot.plot(IVec2::new(px, py));
+                    plot.plot(V2::new(px, py));
                 }
             }
         }
@@ -89,7 +93,7 @@ pub fn fill_rect(p: &mut impl Plotable, rect: IRect) {
     let p1 = rect.br();
     for y in p0.y..=p1.y {
         for x in p0.x..=p1.x {
-            p.plot(IVec2::new(x, y));
+            p.plot(V2::new(x, y));
         }
     }
 }

@@ -183,9 +183,9 @@ fn evaluate_expression(
     match ast.get(expr).unwrap() {
         ASTNode::Literal(lit) => match lit {
             Literal::Nil => Ok(PrimitiveType::Nil),
-            Literal::Boolean(_) => Ok(PrimitiveType::Boolean),
-            Literal::Integer(_) => Ok(PrimitiveType::Integer),
-            Literal::Float(_) => Ok(PrimitiveType::Float),
+            Literal::Boolean(_) => Ok(PrimitiveType::Bool),
+            Literal::Integer(_) => Ok(PrimitiveType::I32),
+            Literal::Real(_) => Ok(PrimitiveType::I32F16),
             Literal::String(_) => Ok(PrimitiveType::String),
         },
         ASTNode::Identifier { symbol, span } => match symbols.get(*symbol).unwrap() {
@@ -204,19 +204,19 @@ fn evaluate_expression(
         },
         ASTNode::MemberLookup { .. } => {
             // TODO
-            Ok(PrimitiveType::Integer)
+            Ok(PrimitiveType::I32)
         }
         ASTNode::Call => {
             // TODO
-            Ok(PrimitiveType::Integer)
+            Ok(PrimitiveType::I32)
         }
         ASTNode::BinaryOperator(_) => {
             // TODO
-            Ok(PrimitiveType::Integer)
+            Ok(PrimitiveType::I32)
         }
         ASTNode::UnaryOperator(_) => {
             // TODO
-            Ok(PrimitiveType::Integer)
+            Ok(PrimitiveType::I32)
         }
         _ => unreachable!(),
     }

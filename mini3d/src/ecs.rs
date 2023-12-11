@@ -9,6 +9,7 @@ use crate::{
     },
     input::InputManager,
     logger::LoggerManager,
+    math::fixed::{FixedPoint, I32F16},
     platform::PlatformManager,
     renderer::RendererManager,
     resource::ResourceManager,
@@ -145,7 +146,7 @@ impl ECSManager {
         let active_ecs = context.activity.activities[context.activity.active].ecs;
         let frame_index = context.activity.activities[context.activity.active].frame_index;
         let delta_time =
-            1.0 / context.activity.activities[context.activity.active].target_fps as f64;
+            I32F16::ONE / context.activity.activities[context.activity.active].target_fps as u32;
         let (ecs, systems) = self.instances.get_mut(active_ecs).unwrap();
 
         // Begin frame
@@ -180,7 +181,6 @@ impl ECSManager {
                             logger: context.logger,
                             time: TimeAPI {
                                 delta: delta_time,
-                                global: *context.global_time,
                                 frame: frame_index,
                             },
                             ecs,
@@ -199,7 +199,6 @@ impl ECSManager {
                             logger: context.logger,
                             time: TimeAPI {
                                 delta: delta_time,
-                                global: *context.global_time,
                                 frame: frame_index,
                             },
                             ecs,

@@ -1,8 +1,9 @@
 use crate::ecs::container::SingleContainer;
+use crate::math::mat::M4I32F16;
+use crate::math::quat::QI32F16;
+use crate::math::vec::{V2I32, V2I32F16, V3I32, V3I32F16, V4I32, V4I32F16};
 use crate::reflection::PropertyId;
 use crate::{ecs::entity::Entity, utils::uid::UID};
-
-use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 macro_rules! trait_property_ref_impl {
     ($type:ty, $read:ident) => {
@@ -51,16 +52,14 @@ impl PropertySingleViewRef {
     trait_property_ref_impl!(u8, read_u8);
     trait_property_ref_impl!(i32, read_i32);
     trait_property_ref_impl!(u32, read_u32);
-    trait_property_ref_impl!(f32, read_f32);
-    trait_property_ref_impl!(f64, read_f64);
-    trait_property_ref_impl!(Vec2, read_vec2);
-    trait_property_ref_impl!(IVec2, read_ivec2);
-    trait_property_ref_impl!(Vec3, read_vec3);
-    trait_property_ref_impl!(IVec3, read_ivec3);
-    trait_property_ref_impl!(Vec4, read_vec4);
-    trait_property_ref_impl!(IVec4, read_ivec4);
-    trait_property_ref_impl!(Mat4, read_mat4);
-    trait_property_ref_impl!(Quat, read_quat);
+    trait_property_ref_impl!(V2I32F16, read_v2i32f16);
+    trait_property_ref_impl!(V2I32, read_v2i32);
+    trait_property_ref_impl!(V3I32F16, read_v3i32f16);
+    trait_property_ref_impl!(V3I32, read_v3i32);
+    trait_property_ref_impl!(V4I32F16, read_v4i32f16);
+    trait_property_ref_impl!(V4I32, read_v4i32);
+    trait_property_ref_impl!(M4I32F16, read_m4i32f16);
+    trait_property_ref_impl!(QI32F16, read_qi32f16);
     trait_property_ref_impl!(Entity, read_entity);
     trait_property_ref_impl!(UID, read_uid);
 }
@@ -93,16 +92,14 @@ impl PropertySingleViewMut {
     trait_property_mut_impl!(u8, read_u8, write_u8);
     trait_property_mut_impl!(i32, read_i32, write_i32);
     trait_property_mut_impl!(u32, read_u32, write_u32);
-    trait_property_mut_impl!(f32, read_f32, write_f32);
-    trait_property_mut_impl!(f64, read_f64, write_f64);
-    trait_property_mut_impl!(Vec2, read_vec2, write_vec2);
-    trait_property_mut_impl!(IVec2, read_ivec2, write_ivec2);
-    trait_property_mut_impl!(Vec3, read_vec3, write_vec3);
-    trait_property_mut_impl!(IVec3, read_ivec3, write_ivec3);
-    trait_property_mut_impl!(Vec4, read_vec4, write_vec4);
-    trait_property_mut_impl!(IVec4, read_ivec4, write_ivec4);
-    trait_property_mut_impl!(Mat4, read_mat4, write_mat4);
-    trait_property_mut_impl!(Quat, read_quat, write_quat);
+    trait_property_mut_impl!(V2I32F16, read_v2i32f16, write_v2i32f16);
+    trait_property_mut_impl!(V2I32, read_v2i32, write_v2i32);
+    trait_property_mut_impl!(V3I32F16, read_v3i32f16, write_v3i32f16);
+    trait_property_mut_impl!(V3I32, read_v3i32, write_ivec3);
+    trait_property_mut_impl!(V4I32F16, read_v4i32f16, write_v4i32f16);
+    trait_property_mut_impl!(V4I32, read_v4i32, write_v4i32);
+    trait_property_mut_impl!(M4I32F16, read_m4i32f16, write_m4i32f16);
+    trait_property_mut_impl!(QI32F16, read_qi32f16, write_qi32f16);
     trait_property_mut_impl!(Entity, read_entity, write_entity);
     trait_property_mut_impl!(UID, read_uid, write_uid);
 }

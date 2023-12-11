@@ -21,8 +21,6 @@ pub mod script;
 pub mod serialize;
 pub mod utils;
 
-pub use glam;
-
 #[macro_use]
 extern crate alloc;
 

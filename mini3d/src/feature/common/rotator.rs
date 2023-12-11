@@ -1,4 +1,3 @@
-use glam::{Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
@@ -9,13 +8,18 @@ use crate::{
         system::{ParallelSystem, SystemResolver},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
+    math::{
+        fixed::{TrigFixedPoint, I32F16},
+        quat::Q,
+        vec::V3,
+    },
 };
 
 use super::transform::Transform;
 
 #[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct Rotator {
-    pub speed: f32,
+    pub speed: I32F16,
 }
 
 #[derive(Default, Clone)]
@@ -41,10 +45,8 @@ impl ParallelSystem for RotatorSystem {
 
     fn run(mut self, ctx: &Context) {
         for e in self.query.iter() {
-            self.transform[e].rotation *= Quat::from_axis_angle(
-                Vec3::Y,
-                Time::delta(ctx) as f32 * f32::to_radians(self.rotator[e].speed),
-            );
+            self.transform[e].rotation *=
+                Q::from_axis_angle(V3::Y, Time::delta(ctx) * self.rotator[e].speed.to_radians());
         }
     }
 }

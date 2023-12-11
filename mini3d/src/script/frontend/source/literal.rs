@@ -5,6 +5,6 @@ pub(crate) enum Literal {
     Nil,
     Boolean(bool),
     Integer(u32),
-    Float(f32),
+    Real(f32),
     String(StringId),
 }

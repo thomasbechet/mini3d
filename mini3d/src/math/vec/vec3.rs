@@ -1,13 +1,13 @@
 use core::{
     fmt::Display,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, AddAssign, Div, Mul, Sub},
 };
 
-use crate::math::fixed::{FixedPoint, SignedFixedPoint, I32, I32F16, I32F24, U32, U32F16, U32F24};
+use crate::math::fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint};
 
 use super::{V2, V4};
 
-#[derive(Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct V3<T: FixedPoint> {
     pub x: T,
     pub y: T,
@@ -45,24 +45,6 @@ impl<T: FixedPoint> V3<T> {
         self.dot(self)
     }
 
-    pub fn length(self) -> T {
-        self.length_squared().sqrt()
-    }
-
-    pub fn normalize(self) -> Self {
-        let length = self.length();
-        self / length
-    }
-
-    pub fn normalize_or_zero(self) -> Self {
-        let length = self.length();
-        if length == T::ZERO {
-            Self::ZERO
-        } else {
-            self / length
-        }
-    }
-
     pub fn cross(self, rhs: Self) -> Self {
         Self::new(
             self.x * rhs.y - self.y * rhs.x,
@@ -76,6 +58,25 @@ impl<T: FixedPoint + SignedFixedPoint> V3<T> {
     pub const NEG_X: Self = Self::new(T::NEG_ONE, T::ZERO, T::ZERO);
     pub const NEG_Y: Self = Self::new(T::ZERO, T::NEG_ONE, T::ZERO);
     pub const NEG_Z: Self = Self::new(T::ZERO, T::ZERO, T::NEG_ONE);
+}
+
+impl<T: FixedPoint + RealFixedPoint> V3<T> {
+    pub fn length(self) -> T {
+        self.length_squared().sqrt()
+    }
+
+    pub fn normalize(self) -> Self {
+        self / self.length()
+    }
+
+    pub fn normalize_or_zero(self) -> Self {
+        let length = self.length();
+        if length == T::ZERO {
+            Self::ZERO
+        } else {
+            self / length
+        }
+    }
 }
 
 impl<T: FixedPoint> From<T> for V3<T> {
@@ -102,7 +103,7 @@ impl<T: FixedPoint> From<V4<T>> for V3<T> {
     }
 }
 
-impl<T: FixedPoint + Add<Output = T>> Add for V3<T> {
+impl<T: FixedPoint> Add for V3<T> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -110,7 +111,7 @@ impl<T: FixedPoint + Add<Output = T>> Add for V3<T> {
     }
 }
 
-impl<T: FixedPoint + Add<Output = T>> Add<T> for V3<T> {
+impl<T: FixedPoint> Add<T> for V3<T> {
     type Output = Self;
 
     fn add(self, rhs: T) -> Self::Output {
@@ -118,15 +119,13 @@ impl<T: FixedPoint + Add<Output = T>> Add<T> for V3<T> {
     }
 }
 
-impl<T: FixedPoint> Add<u32> for V3<T> {
-    type Output = Self;
-
-    fn add(self, rhs: u32) -> Self::Output {
-        Self::new(self.x + rhs, self.y + rhs, self.z + rhs)
+impl<T: FixedPoint> AddAssign for V3<T> {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
     }
 }
 
-impl<T: FixedPoint + Sub<Output = T>> Sub for V3<T> {
+impl<T: FixedPoint> Sub for V3<T> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -134,7 +133,7 @@ impl<T: FixedPoint + Sub<Output = T>> Sub for V3<T> {
     }
 }
 
-impl<T: FixedPoint + Sub<Output = T>> Sub<T> for V3<T> {
+impl<T: FixedPoint> Sub<T> for V3<T> {
     type Output = Self;
 
     fn sub(self, rhs: T) -> Self::Output {
@@ -142,15 +141,7 @@ impl<T: FixedPoint + Sub<Output = T>> Sub<T> for V3<T> {
     }
 }
 
-impl<T: FixedPoint> Sub<u32> for V3<T> {
-    type Output = Self;
-
-    fn sub(self, rhs: u32) -> Self::Output {
-        Self::new(self.x - rhs, self.y - rhs, self.z - rhs)
-    }
-}
-
-impl<T: FixedPoint + Mul<Output = T>> Mul for V3<T> {
+impl<T: FixedPoint> Mul for V3<T> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -158,7 +149,7 @@ impl<T: FixedPoint + Mul<Output = T>> Mul for V3<T> {
     }
 }
 
-impl<T: FixedPoint + Mul<Output = T>> Mul<T> for V3<T> {
+impl<T: FixedPoint> Mul<T> for V3<T> {
     type Output = Self;
 
     fn mul(self, rhs: T) -> Self::Output {
@@ -166,15 +157,7 @@ impl<T: FixedPoint + Mul<Output = T>> Mul<T> for V3<T> {
     }
 }
 
-impl<T: FixedPoint> Mul<u32> for V3<T> {
-    type Output = Self;
-
-    fn mul(self, rhs: u32) -> Self::Output {
-        Self::new(self.x * rhs, self.y * rhs, self.z * rhs)
-    }
-}
-
-impl<T: FixedPoint + Div<Output = T>> Div for V3<T> {
+impl<T: FixedPoint> Div for V3<T> {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
@@ -182,18 +165,10 @@ impl<T: FixedPoint + Div<Output = T>> Div for V3<T> {
     }
 }
 
-impl<T: FixedPoint + Div<Output = T>> Div<T> for V3<T> {
+impl<T: FixedPoint> Div<T> for V3<T> {
     type Output = Self;
 
     fn div(self, rhs: T) -> Self::Output {
-        Self::new(self.x / rhs, self.y / rhs, self.z / rhs)
-    }
-}
-
-impl<T: FixedPoint> Div<u32> for V3<T> {
-    type Output = Self;
-
-    fn div(self, rhs: u32) -> Self::Output {
         Self::new(self.x / rhs, self.y / rhs, self.z / rhs)
     }
 }
@@ -204,20 +179,13 @@ impl<T: FixedPoint + Display> Display for V3<T> {
     }
 }
 
-pub type V3I32 = V3<I32>;
-pub type V3U32 = V3<U32>;
-pub type V3I32F16 = V3<I32F16>;
-pub type V3U32F16 = V3<U32F16>;
-pub type V3I32F24 = V3<I32F24>;
-pub type V3U32F24 = V3<U32F24>;
-
 #[cfg(test)]
 mod test {
     use std::println;
 
     use mini3d_derive::fixed;
 
-    use super::*;
+    use crate::math::{fixed::I32F24, vec::V3I32F24};
 
     #[test]
     fn test_vec3() {

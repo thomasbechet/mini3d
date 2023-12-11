@@ -1,7 +1,9 @@
 use alloc::{collections::VecDeque, vec::Vec};
+use mini3d_derive::fixed;
 
 use crate::{
     feature::ecs::system::{SystemStage, SystemStageHandle},
+    math::fixed::{I32F16, U32F16},
     resource::ResourceManager,
     slot_map_key,
     utils::slotmap::{Key, SlotMap},
@@ -26,8 +28,8 @@ pub(crate) struct SystemPipelineNode {
 
 struct PeriodicStage {
     stage: SystemStageHandle,
-    frequency: f64,
-    accumulator: f64,
+    frequency: U32F16,
+    accumulator: U32F16,
 }
 
 struct StageEntry {
@@ -71,7 +73,7 @@ impl Scheduler {
                     self.periodic_stages.push(PeriodicStage {
                         stage: instance.stage,
                         frequency: 1.0 / periodic,
-                        accumulator: 0.0,
+                        accumulator: fixed!(0),
                     });
                 }
             }
@@ -129,7 +131,11 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn invoke_frame_stages(&mut self, delta_time: f64, update_stage: SystemStageHandle) {
+    pub(crate) fn invoke_frame_stages(
+        &mut self,
+        delta_time: I32F16,
+        update_stage: SystemStageHandle,
+    ) {
         // Collect previous frame stages
         self.frame_stages.clear();
         for stage in self.next_frame_stages.drain(..) {
@@ -138,10 +144,10 @@ impl Scheduler {
 
         // Integrate fixed update stages
         for stage in self.periodic_stages.iter_mut() {
-            stage.accumulator += delta_time;
+            stage.accumulator += delta_time.into();
             let frequency = stage.frequency;
-            let count = (stage.accumulator / frequency) as u32;
-            stage.accumulator -= count as f64 * frequency;
+            let count = (stage.accumulator / frequency).int();
+            stage.accumulator -= count * frequency;
             for _ in 0..count {
                 self.frame_stages.push_back(stage.stage);
             }

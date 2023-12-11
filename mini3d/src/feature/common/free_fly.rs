@@ -1,5 +1,4 @@
-use glam::{Quat, Vec3};
-use mini3d_derive::{Component, Reflect, Serialize};
+use mini3d_derive::{fixed, Component, Reflect, Serialize};
 
 use crate::{
     api::{input::Input, time::Time, Context},
@@ -11,6 +10,11 @@ use crate::{
     },
     expect,
     feature::input::{action::InputActionHandle, axis::InputAxisHandle},
+    math::{
+        fixed::{TrigFixedPoint, I32F16},
+        quat::Q,
+        vec::V3,
+    },
 };
 
 use super::transform::Transform;
@@ -37,17 +41,17 @@ pub struct FreeFly {
 
     // View data
     pub free_mode: bool,
-    pub yaw: f32,
-    pub pitch: f32,
+    pub yaw: I32F16,
+    pub pitch: I32F16,
 }
 
 impl FreeFly {
-    pub const NORMAL_SPEED: f32 = 10.0;
-    pub const FAST_SPEED: f32 = 25.0;
-    pub const SLOW_SPEED: f32 = 3.0;
-    pub const ROLL_SPEED: f32 = 60.0;
-    pub const ROTATION_SENSIBILITY: f32 = 180.0;
-    pub const ZOOM_SPEED: f32 = 10.0;
+    pub const NORMAL_SPEED: I32F16 = fixed!(10);
+    pub const FAST_SPEED: I32F16 = fixed!(25);
+    pub const SLOW_SPEED: I32F16 = fixed!(3);
+    pub const ROLL_SPEED: I32F16 = fixed!(60);
+    pub const ROTATION_SENSIBILITY: I32F16 = fixed!(180);
+    pub const ZOOM_SPEED: I32F16 = fixed!(10);
 }
 
 #[derive(Default, Clone)]
@@ -87,7 +91,7 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Compute camera translation
-            let mut direction = Vec3::ZERO;
+            let mut direction = V3::ZERO;
             direction +=
                 transform.forward() * expect!(ctx, Input::axis(ctx, free_fly.move_forward)).value;
             direction +=
@@ -102,8 +106,8 @@ impl ParallelSystem for FreeFlySystem {
                 direction +=
                     transform.down() * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
             } else {
-                direction += Vec3::Y * expect!(ctx, Input::axis(ctx, free_fly.move_up)).value;
-                direction += Vec3::NEG_Y * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
+                direction += V3::Y * expect!(ctx, Input::axis(ctx, free_fly.move_up)).value;
+                direction += V3::NEG_Y * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
             }
             let direction_length = direction.length();
             direction = direction.normalize_or_zero();
@@ -117,59 +121,53 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Apply transformation
-            transform.translation += direction * direction_length * Time::delta(ctx) as f32 * speed;
+            transform.translation += direction * direction_length * Time::delta(ctx) * speed;
 
             // Apply rotation
             let motion_x = expect!(ctx, Input::axis(ctx, free_fly.view_x)).value;
             let motion_y = expect!(ctx, Input::axis(ctx, free_fly.view_y)).value;
             if free_fly.free_mode {
-                if motion_x != 0.0 {
-                    transform.rotation *= Quat::from_axis_angle(
-                        Vec3::Y,
-                        -f32::to_radians(motion_x)
-                            * FreeFly::ROTATION_SENSIBILITY
-                            * Time::delta(ctx) as f32,
+                if motion_x != fixed!(0) {
+                    transform.rotation *= Q::from_axis_angle(
+                        V3::Y,
+                        -motion_x.to_radians() * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx),
                     );
                 }
-                if motion_y != 0.0 {
-                    transform.rotation *= Quat::from_axis_angle(
-                        Vec3::X,
-                        f32::to_radians(motion_y)
-                            * FreeFly::ROTATION_SENSIBILITY
-                            * Time::delta(ctx) as f32,
+                if motion_y != fixed!(0) {
+                    transform.rotation *= Q::from_axis_angle(
+                        V3::X,
+                        motion_y.to_radians() * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx),
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_left)).is_pressed() {
-                    transform.rotation *= Quat::from_axis_angle(
-                        Vec3::Z,
-                        -f32::to_radians(FreeFly::ROLL_SPEED) * Time::delta(ctx) as f32,
+                    transform.rotation *= Q::from_axis_angle(
+                        V3::Z,
+                        -FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx),
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_right)).is_pressed() {
-                    transform.rotation *= Quat::from_axis_angle(
-                        Vec3::Z,
-                        f32::to_radians(FreeFly::ROLL_SPEED) * Time::delta(ctx) as f32,
+                    transform.rotation *= Q::from_axis_angle(
+                        V3::Z,
+                        FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx),
                     );
                 }
             } else {
-                if motion_x != 0.0 {
-                    free_fly.yaw +=
-                        motion_x * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx) as f32;
+                if motion_x != fixed!(0) {
+                    free_fly.yaw += motion_x * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx);
                 }
-                if motion_y != 0.0 {
-                    free_fly.pitch +=
-                        motion_y * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx) as f32;
+                if motion_y != fixed!(0) {
+                    free_fly.pitch += motion_y * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx);
                 }
 
-                if free_fly.pitch < -90.0 {
-                    free_fly.pitch = -90.0
+                if free_fly.pitch < fixed!(-90.0) {
+                    free_fly.pitch = fixed!(-90.0)
                 };
-                if free_fly.pitch > 90.0 {
-                    free_fly.pitch = 90.0
+                if free_fly.pitch > fixed!(90.0) {
+                    free_fly.pitch = fixed!(90.0)
                 };
 
-                let mut rotation = Quat::from_axis_angle(Vec3::Y, -f32::to_radians(free_fly.yaw));
-                rotation *= Quat::from_axis_angle(Vec3::X, f32::to_radians(free_fly.pitch));
+                let mut rotation = Q::from_axis_angle(V3::Y, -free_fly.yaw.to_radians());
+                rotation *= Q::from_axis_angle(V3::X, free_fly.pitch.to_radians());
                 transform.rotation = rotation;
             }
         }

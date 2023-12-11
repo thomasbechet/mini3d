@@ -1,12 +1,14 @@
 use crate::{
     define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
-    math::rect::IRect,
+    math::{
+        rect::IRect,
+        vec::{V2, V2U32},
+    },
     renderer::provider::RendererProviderHandle,
     resource::handle::ResourceHandle,
 };
 use alloc::vec::Vec;
-use glam::{IVec2, UVec2};
 use mini3d_derive::{Reflect, Serialize};
 
 use super::texture::{Texture, TextureFormat};
@@ -15,7 +17,7 @@ define_resource_handle!(FontHandle);
 
 #[derive(Clone, Reflect, Serialize)]
 pub struct Font {
-    pub glyph_size: UVec2,
+    pub glyph_size: V2U32,
     pub data: Vec<u8>,
     char_to_location: Vec<usize>,
     #[serialize(skip)]
@@ -32,7 +34,7 @@ impl Default for Font {
             char_to_location[c as usize] = i;
         }
         Font {
-            glyph_size: UVec2::new(glyph_width as u32, glyph_height as u32),
+            glyph_size: V2::new(glyph_width as u32, glyph_height as u32),
             data,
             char_to_location,
             handle: RendererProviderHandle::null(),
@@ -110,7 +112,7 @@ impl FontAtlas {
 
             // Save extent and move to next glyph
             extents[c as usize] = extent;
-            extent = extent.translate(IVec2::new(font.glyph_size.x as i32, 0));
+            extent = extent.translate(V2::new(font.glyph_size.x as i32, 0));
         }
         Self { texture, extents }
     }

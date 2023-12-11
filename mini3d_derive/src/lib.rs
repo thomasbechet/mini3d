@@ -1,7 +1,5 @@
-use fixed::FixedPointLiteralReplacer;
 use proc_macro::TokenStream;
-use quote::ToTokens;
-use syn::{parse_macro_input, visit_mut::VisitMut, DeriveInput, Expr};
+use syn::{parse_macro_input, DeriveInput, Expr};
 
 mod component;
 mod error;
@@ -52,7 +50,6 @@ pub fn derive_error(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn fixed(input: TokenStream) -> TokenStream {
-    let mut input = parse_macro_input!(input as Expr);
-    FixedPointLiteralReplacer.visit_expr_mut(&mut input);
-    input.into_token_stream().into()
+    let input = parse_macro_input!(input as Expr);
+    fixed::convert_fixed(&input)
 }

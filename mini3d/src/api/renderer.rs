@@ -1,5 +1,3 @@
-use glam::{IVec2, Mat4};
-
 use crate::{
     feature::renderer::{
         font::{Font, FontHandle},
@@ -14,7 +12,7 @@ use crate::{
         texture::{Texture, TextureHandle, TextureWrapMode},
         transform::{RenderTransform, RenderTransformHandle},
     },
-    math::rect::IRect,
+    math::{mat::M4I32F16, rect::IRect, vec::V2I32},
     renderer::{color::Color, RendererFeatures, RendererStatistics},
     resource::handle::ResourceHandle,
     utils::uid::ToUID,
@@ -87,7 +85,7 @@ impl RenderTransform {
         todo!()
     }
 
-    pub fn update(ctx: &mut Context, value: Mat4, teleport: bool) {
+    pub fn update(ctx: &mut Context, value: M4I32F16, teleport: bool) {
         todo!()
     }
 }
@@ -164,8 +162,8 @@ impl CanvasPass {
     pub fn draw_line(
         ctx: &mut Context,
         pass: CanvasPassHandle,
-        x0: IVec2,
-        x1: IVec2,
+        x0: V2I32,
+        x1: V2I32,
         color: Color,
     ) {
     }
@@ -204,6 +202,6 @@ impl CanvasPass {
     ) {
     }
 
-    pub fn print(&mut self, pass: CanvasPassHandle, position: IVec2, text: &str, font: FontHandle) {
+    pub fn print(&mut self, pass: CanvasPassHandle, position: V2I32, text: &str, font: FontHandle) {
     }
 }

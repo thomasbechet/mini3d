@@ -1,10 +1,14 @@
 use core::{any::Any, cell::UnsafeCell};
 
 use alloc::boxed::Box;
-use glam::{IVec2, IVec3, IVec4, Mat4, Quat, Vec2, Vec3, Vec4};
 
 use crate::{
     feature::ecs::component::{ComponentKey, ComponentType, ComponentTypeHandle},
+    math::{
+        mat::M4I32F16,
+        quat::QI32F16,
+        vec::{V2I32, V2I32F16, V3I32, V3I32F16, V4I32, V4I32F16},
+    },
     reflection::PropertyId,
     resource::ResourceManager,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
@@ -59,16 +63,14 @@ pub(crate) trait SingleContainer {
     trait_property!(u8, read_u8, write_u8);
     trait_property!(i32, read_i32, write_i32);
     trait_property!(u32, read_u32, write_u32);
-    trait_property!(f32, read_f32, write_f32);
-    trait_property!(f64, read_f64, write_f64);
-    trait_property!(Vec2, read_vec2, write_vec2);
-    trait_property!(IVec2, read_ivec2, write_ivec2);
-    trait_property!(Vec3, read_vec3, write_vec3);
-    trait_property!(IVec3, read_ivec3, write_ivec3);
-    trait_property!(Vec4, read_vec4, write_vec4);
-    trait_property!(IVec4, read_ivec4, write_ivec4);
-    trait_property!(Mat4, read_mat4, write_mat4);
-    trait_property!(Quat, read_quat, write_quat);
+    trait_property!(V2I32F16, read_v2i32f16, write_v2i32f16);
+    trait_property!(V2I32, read_v2i32, write_v2i32);
+    trait_property!(V3I32F16, read_v3i32f16, write_v3i32f16);
+    trait_property!(V3I32, read_v3i32, write_ivec3);
+    trait_property!(V4I32F16, read_v4i32f16, write_v4i32f16);
+    trait_property!(V4I32, read_v4i32, write_v4i32);
+    trait_property!(M4I32F16, read_m4i32f16, write_m4i32f16);
+    trait_property!(QI32F16, read_qi32f16, write_qi32f16);
     trait_property!(Entity, read_entity, write_entity);
     trait_property!(UID, read_uid, write_uid);
 }

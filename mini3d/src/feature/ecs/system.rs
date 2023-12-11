@@ -13,6 +13,7 @@ use crate::{
         },
     },
     feature::{common::script::ScriptHandle, core::resource::Resource},
+    math::fixed::U32F16,
     resource::handle::ReferenceResolver,
     utils::string::AsciiArray,
 };
@@ -134,7 +135,7 @@ impl Resource for System {
 
 #[derive(Default, Clone, Reflect, Serialize)]
 pub struct SystemStage {
-    pub(crate) periodic: Option<f64>,
+    pub(crate) periodic: Option<U32F16>,
 }
 
 define_resource_handle!(SystemStageHandle);
@@ -144,9 +145,9 @@ impl SystemStage {
     pub const START: &'static str = "STA_Start";
     pub const TICK: &'static str = "STA_Tick";
 
-    pub fn periodic(frequency: f64) -> Self {
+    pub fn periodic(periodic: U32F16) -> Self {
         Self {
-            periodic: Some(frequency),
+            periodic: Some(periodic),
         }
     }
 }

@@ -1,6 +1,8 @@
 use core::fmt::Debug;
 
-use mini3d_derive::Serialize;
+use mini3d_derive::{fixed, Serialize};
+
+use crate::math::fixed::I32F16;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Color(u32);
@@ -55,53 +57,43 @@ impl Color {
     }
 }
 
-impl From<Color> for [f32; 4] {
+impl From<Color> for [I32F16; 4] {
     fn from(color: Color) -> Self {
-        let r = color.r() as f32 / 255.0;
-        let g = color.g() as f32 / 255.0;
-        let b = color.b() as f32 / 255.0;
-        let a = color.a() as f32 / 255.0;
+        let r = I32F16::from(color.r()) / fixed!(255i32f16);
+        let g = I32F16::from(color.g()) / fixed!(255i32f16);
+        let b = I32F16::from(color.b()) / fixed!(255i32f16);
+        let a = I32F16::from(color.a()) / fixed!(255i32f16);
         [r, g, b, a]
     }
 }
 
-impl From<Color> for [f64; 4] {
+impl From<Color> for [I32F16; 3] {
     fn from(color: Color) -> Self {
-        let r = color.r() as f64 / 255.0;
-        let g = color.g() as f64 / 255.0;
-        let b = color.b() as f64 / 255.0;
-        let a = color.a() as f64 / 255.0;
-        [r, g, b, a]
-    }
-}
-
-impl From<Color> for [f32; 3] {
-    fn from(color: Color) -> Self {
-        let r = color.r() as f32 / 255.0;
-        let g = color.g() as f32 / 255.0;
-        let b = color.b() as f32 / 255.0;
+        let r = I32F16::from(color.r()) / fixed!(255i32f16);
+        let g = I32F16::from(color.g()) / fixed!(255i32f16);
+        let b = I32F16::from(color.b()) / fixed!(255i32f16);
         [r, g, b]
     }
 }
 
-pub fn linear_to_srgb(c: [f32; 3]) -> [f32; 3] {
-    let f = |x: f32| -> f32 {
-        if x > 0.0031308 {
-            let a = 0.055;
-            (1.0 + a) * x.powf(-2.4) - a
+pub fn linear_to_srgb(c: [I32F16; 3]) -> [I32F16; 3] {
+    let f = |x: I32F16| -> I32F16 {
+        if x > fixed!(0.0031308) {
+            let a = fixed!(0.055i32f16);
+            (fixed!(1i32f16) + a) * x.pow(fixed!(-2.4)) - a
         } else {
-            12.92 * x
+            fixed!(12.92i32f16) * x
         }
     };
     [f(c[0]), f(c[1]), f(c[2])]
 }
 
-pub fn srgb_to_linear(c: [f32; 3]) -> [f32; 3] {
-    let f = |x: f32| -> f32 {
-        if x > 0.04045 {
-            ((x + 0.055) / 1.055).powf(2.4)
+pub fn srgb_to_linear(c: [I32F16; 3]) -> [I32F16; 3] {
+    let f = |x: I32F16| -> I32F16 {
+        if x > fixed!(0.04045) {
+            ((x + fixed!(0.055i32f16)) / fixed!(1.055i32f16)).pow(fixed!(2.4))
         } else {
-            x / 12.92
+            x / fixed!(12.92i32f16)
         }
     };
     [f(c[0]), f(c[1]), f(c[2])]

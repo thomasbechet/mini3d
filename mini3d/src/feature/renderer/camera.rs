@@ -1,19 +1,20 @@
-use mini3d_derive::{Component, Reflect, Serialize};
+use mini3d_derive::{fixed, Component, Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
+    math::fixed::U32F16,
     renderer::provider::RendererProviderHandle,
     resource::handle::ResourceHandle,
 };
 
 #[derive(Component, Serialize, Reflect, Clone)]
 pub struct Camera {
-    pub fov: f32,
+    pub fov: U32F16,
 }
 
 impl Camera {
-    pub fn with_fov(mut self, fov: f32) -> Self {
+    pub fn with_fov(mut self, fov: U32F16) -> Self {
         self.fov = fov;
         self
     }
@@ -21,7 +22,7 @@ impl Camera {
 
 impl Default for Camera {
     fn default() -> Self {
-        Self { fov: 110.0 }
+        Self { fov: fixed!(110) }
     }
 }
 

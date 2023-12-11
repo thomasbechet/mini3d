@@ -169,7 +169,7 @@ impl From<TokenValue> for u32 {
 impl From<TokenValue> for f32 {
     fn from(value: TokenValue) -> Self {
         match value {
-            TokenValue::Literal(Literal::Float(value)) => value,
+            TokenValue::Literal(Literal::Real(value)) => value,
             _ => panic!("TokenValue is not a float"),
         }
     }

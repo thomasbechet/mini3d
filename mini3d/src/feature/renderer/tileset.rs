@@ -1,5 +1,7 @@
-use crate::{math::rect::IRect, utils::uid::UID};
-use glam::IVec2;
+use crate::{
+    math::{rect::IRect, vec::V2I32},
+    utils::uid::UID,
+};
 use mini3d_derive::{Component, Error, Reflect, Serialize};
 
 #[derive(Debug, Error)]
@@ -11,7 +13,7 @@ pub enum TilesetError {
 #[derive(Clone, Component, Serialize, Reflect, Default)]
 pub struct Tileset {
     pub texture: UID,
-    pub offset: IVec2,
+    pub offset: V2I32,
     pub tile_width: u32,
     pub tile_height: u32,
     pub grid_width: u32,

@@ -1,21 +1,21 @@
 use alloc::vec::Vec;
-use glam::{Vec2, Vec3, Vec4};
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
     feature::core::resource::{Resource, ResourceHookContext},
+    math::vec::{V2I32F16, V3I32F16, V4I32F16},
     renderer::provider::RendererProviderHandle,
     resource::handle::ResourceHandle,
 };
 
 #[derive(Clone, Serialize)]
 pub struct Vertex {
-    pub position: Vec3,
-    pub uv: Vec2,
-    pub normal: Vec3,
+    pub position: V3I32F16,
+    pub uv: V2I32F16,
+    pub normal: V3I32F16,
     #[serialize(skip)]
-    pub tangent: Vec4, // w: handedness of the tangent space
+    pub tangent: V4I32F16, // w: handedness of the tangent space
 }
 
 #[derive(Clone, Serialize)]

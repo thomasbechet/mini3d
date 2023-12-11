@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use glam::Vec3;
 
 use crate::{
     define_resource_handle,
@@ -7,6 +6,7 @@ use crate::{
         camera::RenderCameraHandle, material::MaterialHandle, mesh::MeshHandle,
         texture::TextureHandle, transform::RenderTransformHandle,
     },
+    math::vec::V3I32F16,
 };
 
 pub enum TextureRenderTarget {
@@ -34,7 +34,7 @@ pub(crate) struct DiffusePassRunInfo {
 }
 
 pub(crate) struct PointLight {
-    position: Vec3,
+    position: V3I32F16,
 }
 
 pub(crate) struct DiffusePass {

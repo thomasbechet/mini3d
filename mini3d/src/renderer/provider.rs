@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use glam::{IVec2, Mat4, UVec2, Vec3};
 use mini3d_derive::Error;
 
 use crate::{
@@ -8,7 +7,11 @@ use crate::{
         mesh::Mesh,
         texture::{Texture, TextureWrapMode},
     },
-    math::rect::IRect,
+    math::{
+        mat::M4I32F16,
+        rect::IRect,
+        vec::{V2I32, V2U32, V3I32F16},
+    },
 };
 
 use super::{color::Color, event::RendererEvent};
@@ -83,7 +86,7 @@ pub trait RendererProvider {
     fn canvas_blit_viewport(
         &mut self,
         viewport: RendererProviderHandle,
-        position: IVec2,
+        position: V2I32,
     ) -> Result<(), RendererProviderError>;
     fn canvas_fill_rect(
         &mut self,
@@ -97,8 +100,8 @@ pub trait RendererProvider {
     ) -> Result<(), RendererProviderError>;
     fn canvas_draw_line(
         &mut self,
-        x0: IVec2,
-        x1: IVec2,
+        x0: V2I32,
+        x1: V2I32,
         color: Color,
     ) -> Result<(), RendererProviderError>;
     fn canvas_draw_vline(
@@ -121,7 +124,7 @@ pub trait RendererProvider {
 
     fn viewport_add(
         &mut self,
-        resolution: UVec2,
+        resolution: V2U32,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
     fn viewport_remove(
         &mut self,
@@ -135,7 +138,7 @@ pub trait RendererProvider {
     fn viewport_set_resolution(
         &mut self,
         handle: RendererProviderHandle,
-        resolution: UVec2,
+        resolution: V2U32,
     ) -> Result<(), RendererProviderError>;
 
     /// Scene API
@@ -152,9 +155,9 @@ pub trait RendererProvider {
     fn scene_camera_update(
         &mut self,
         handle: RendererProviderHandle,
-        eye: Vec3,
-        forward: Vec3,
-        up: Vec3,
+        eye: V3I32F16,
+        forward: V3I32F16,
+        up: V3I32F16,
         fov: f32,
     ) -> Result<(), RendererProviderError>;
 
@@ -175,12 +178,12 @@ pub trait RendererProvider {
     fn scene_model_transfer_matrix(
         &mut self,
         handle: RendererProviderHandle,
-        mat: Mat4,
+        mat: M4I32F16,
     ) -> Result<(), RendererProviderError>;
 
     fn scene_canvas_add(
         &mut self,
-        resolution: UVec2,
+        resolution: V2U32,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
     fn scene_canvas_remove(
         &mut self,
@@ -189,7 +192,7 @@ pub trait RendererProvider {
     fn scene_canvas_transfer_matrix(
         &mut self,
         handle: RendererProviderHandle,
-        mat: Mat4,
+        mat: M4I32F16,
     ) -> Result<(), RendererProviderError>;
 }
 
@@ -274,7 +277,7 @@ impl RendererProvider for PassiveRendererProvider {
     fn canvas_blit_viewport(
         &mut self,
         viewport: RendererProviderHandle,
-        position: IVec2,
+        position: V2I32,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
@@ -294,8 +297,8 @@ impl RendererProvider for PassiveRendererProvider {
     }
     fn canvas_draw_line(
         &mut self,
-        x0: IVec2,
-        x1: IVec2,
+        x0: V2I32,
+        x1: V2I32,
         color: Color,
     ) -> Result<(), RendererProviderError> {
         Ok(())
@@ -326,7 +329,7 @@ impl RendererProvider for PassiveRendererProvider {
 
     fn viewport_add(
         &mut self,
-        resolution: UVec2,
+        resolution: V2U32,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
@@ -346,7 +349,7 @@ impl RendererProvider for PassiveRendererProvider {
     fn viewport_set_resolution(
         &mut self,
         handle: RendererProviderHandle,
-        resolution: UVec2,
+        resolution: V2U32,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
@@ -375,9 +378,9 @@ impl RendererProvider for PassiveRendererProvider {
     fn scene_camera_update(
         &mut self,
         handle: RendererProviderHandle,
-        eye: Vec3,
-        forward: Vec3,
-        up: Vec3,
+        eye: V3I32F16,
+        forward: V3I32F16,
+        up: V3I32F16,
         fov: f32,
     ) -> Result<(), RendererProviderError> {
         Ok(())
@@ -406,14 +409,14 @@ impl RendererProvider for PassiveRendererProvider {
     fn scene_model_transfer_matrix(
         &mut self,
         handle: RendererProviderHandle,
-        mat: Mat4,
+        mat: M4I32F16,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
     fn scene_canvas_add(
         &mut self,
-        resolution: UVec2,
+        resolution: V2U32,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
@@ -426,7 +429,7 @@ impl RendererProvider for PassiveRendererProvider {
     fn scene_canvas_transfer_matrix(
         &mut self,
         handle: RendererProviderHandle,
-        mat: Mat4,
+        mat: M4I32F16,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }

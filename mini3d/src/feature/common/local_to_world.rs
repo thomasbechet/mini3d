@@ -1,9 +1,13 @@
-use glam::{Mat4, Vec3, Vec4};
 use mini3d_derive::{Component, Reflect, Serialize};
+
+use crate::math::{
+    mat::{M4, M4I32F16},
+    vec::{V3I32F16, V4},
+};
 
 #[derive(Clone, Component, Serialize, Reflect)]
 pub struct LocalToWorld {
-    pub matrix: Mat4,
+    pub matrix: M4I32F16,
     #[serialize(skip)]
     pub(crate) dirty: bool,
 }
@@ -11,22 +15,22 @@ pub struct LocalToWorld {
 impl Default for LocalToWorld {
     fn default() -> Self {
         Self {
-            matrix: Mat4::IDENTITY,
+            matrix: M4::IDENTITY,
             dirty: true,
         }
     }
 }
 
 impl LocalToWorld {
-    pub fn translation(&self) -> Vec3 {
-        self.matrix.w_axis.truncate()
+    pub fn translation(&self) -> V3I32F16 {
+        self.matrix.waxis.xyz()
     }
 
-    pub fn forward(&self) -> Vec3 {
-        (self.matrix * Vec4::Z).truncate()
+    pub fn forward(&self) -> V3I32F16 {
+        (self.matrix * V4::Z).xyz()
     }
 
-    pub fn up(&self) -> Vec3 {
-        (self.matrix * Vec4::Y).truncate()
+    pub fn up(&self) -> V3I32F16 {
+        (self.matrix * V4::Y).xyz()
     }
 }

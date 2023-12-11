@@ -1,87 +1,95 @@
-use glam::{IVec2, UVec2};
 use mini3d_derive::Serialize;
+
+use super::vec::{V2, V2I32};
 
 /// Basic rectangle structure with useful functions
 /// Vec4: xy -> top-left, zw -> bottom-right
 #[derive(Default, Debug, Clone, Copy, Serialize)]
 pub struct IRect {
-    tl: IVec2,
-    br: IVec2,
+    tl: V2I32,
+    br: V2I32,
 }
 
 impl IRect {
-
     pub const fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
         IRect {
-            tl: IVec2::new(x, y),
-            br: IVec2::new(x - 1 + width as i32, y - 1 + height as i32)
+            tl: V2::new(x, y),
+            br: V2::new(x - 1 + width as i32, y - 1 + height as i32),
         }
     }
 
     /// Top-Left point
     #[inline]
-    pub fn tl(&self) -> IVec2 {
+    pub fn tl(&self) -> V2I32 {
         self.tl
     }
 
     /// Bottom-Right point
     #[inline]
-    pub fn br(&self) -> IVec2 {
+    pub fn br(&self) -> V2I32 {
         self.br
     }
 
     /// Top-Right point
     #[inline]
-    pub fn tr(&self) -> IVec2 {
-        IVec2::new(self.br.x, self.tl.y)
+    pub fn tr(&self) -> V2I32 {
+        V2::new(self.br.x, self.tl.y)
     }
 
     /// Bottom-Left point
     #[inline]
-    pub fn bl(&self) -> IVec2 {
-        IVec2::new(self.tl.x, self.br.y)
+    pub fn bl(&self) -> V2I32 {
+        V2::new(self.tl.x, self.br.y)
     }
 
     /// Center-Up point
     #[inline]
-    pub fn cu(&self) -> IVec2 {
-        IVec2::new((self.tl.x + self.br.x) / 2, self.tl.y)
+    pub fn cu(&self) -> V2I32 {
+        V2::new((self.tl.x + self.br.x) / 2, self.tl.y)
     }
 
     /// Center-Bottom point
     #[inline]
-    pub fn cb(&self) -> IVec2 {
-        IVec2::new((self.tl.x + self.br.x) / 2, self.br.y)
+    pub fn cb(&self) -> V2I32 {
+        V2::new((self.tl.x + self.br.x) / 2, self.br.y)
     }
 
     /// Center-Right point
     #[inline]
-    pub fn cr(&self) -> IVec2 {
-        IVec2::new(self.br.x, (self.tl.y + self.br.y) / 2)
+    pub fn cr(&self) -> V2I32 {
+        V2::new(self.br.x, (self.tl.y + self.br.y) / 2)
     }
 
     /// Center-Right point
     #[inline]
-    pub fn cl(&self) -> IVec2 {
-        IVec2::new(self.tl.x, (self.tl.y + self.br.y) / 2)
+    pub fn cl(&self) -> V2I32 {
+        V2::new(self.tl.x, (self.tl.y + self.br.y) / 2)
     }
 
     #[inline]
-    pub fn center(&self) -> IVec2 {
-        IVec2::new((self.tl.x + self.br.x) / 2, (self.tl.y + self.br.y) / 2)
+    pub fn center(&self) -> V2I32 {
+        V2::new((self.tl.x + self.br.x) / 2, (self.tl.y + self.br.y) / 2)
     }
 
     #[inline]
-    pub fn top(&self) -> i32 { self.tl.y }
+    pub fn top(&self) -> i32 {
+        self.tl.y
+    }
 
     #[inline]
-    pub fn bottom(&self) -> i32 { self.br.y }
+    pub fn bottom(&self) -> i32 {
+        self.br.y
+    }
 
     #[inline]
-    pub fn left(&self) -> i32 { self.tl.x }
+    pub fn left(&self) -> i32 {
+        self.tl.x
+    }
 
     #[inline]
-    pub fn right(&self) -> i32 { self.br.x }
+    pub fn right(&self) -> i32 {
+        self.br.x
+    }
 
     #[inline]
     pub fn width(&self) -> u32 {
@@ -94,8 +102,8 @@ impl IRect {
     }
 
     #[inline]
-    pub fn size(&self) -> UVec2 {
-        UVec2::new(self.width(), self.height())
+    pub fn size(&self) -> V2U32 {
+        V2::new(self.width(), self.height())
     }
 
     #[inline]
@@ -104,7 +112,7 @@ impl IRect {
     }
 
     #[inline]
-    pub fn contains(&self, p: IVec2) -> bool {
+    pub fn contains(&self, p: V2I32) -> bool {
         p.x >= self.tl.x && p.y >= self.tl.y && p.x <= self.br.x && p.y <= self.br.y
     }
 
@@ -125,7 +133,7 @@ impl IRect {
     }
 
     #[inline]
-    pub fn translate(self, translation: IVec2) -> Self {
+    pub fn translate(self, translation: V2I32) -> Self {
         Self {
             tl: self.tl + translation,
             br: self.br + translation,

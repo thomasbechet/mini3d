@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use glam::{Mat4, Quat, Vec3};
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
@@ -11,52 +10,57 @@ use crate::{
         system::{ParallelSystem, SystemResolver},
         view::native::single::{NativeSingleView, NativeSingleViewMut, NativeSingleViewRef},
     },
+    math::{
+        mat::{M4, M4I32F16},
+        quat::{Q, QI32F16},
+        vec::{V3, V3I32F16},
+    },
 };
 
 use super::{hierarchy::Hierarchy, local_to_world::LocalToWorld};
 
 #[derive(Default, Debug, Component, Serialize, Reflect, Clone)]
 pub struct Transform {
-    pub translation: Vec3,
-    pub rotation: Quat,
-    pub scale: Vec3,
+    pub translation: V3I32F16,
+    pub rotation: QI32F16,
+    pub scale: V3I32F16,
 }
 
 impl Transform {
-    pub fn from_translation(translation: Vec3) -> Self {
+    pub fn from_translation(translation: V3I32F16) -> Self {
         Self {
             translation,
-            rotation: Quat::default(),
-            scale: Vec3::ONE,
+            rotation: Q::default(),
+            scale: V3::ONE,
         }
     }
 
-    pub fn matrix(&self) -> Mat4 {
-        Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.translation)
+    pub fn matrix(&self) -> M4I32F16 {
+        M4::from_scale_rotation_translation(self.scale, self.rotation, self.translation)
     }
 
-    pub fn forward(&self) -> Vec3 {
-        self.rotation * Vec3::Z
+    pub fn forward(&self) -> V3I32F16 {
+        self.rotation * V3::Z
     }
 
-    pub fn backward(&self) -> Vec3 {
-        self.rotation * Vec3::NEG_Z
+    pub fn backward(&self) -> V3I32F16 {
+        self.rotation * V3::NEG_Z
     }
 
-    pub fn up(&self) -> Vec3 {
-        self.rotation * Vec3::Y
+    pub fn up(&self) -> V3I32F16 {
+        self.rotation * V3::Y
     }
 
-    pub fn down(&self) -> Vec3 {
-        self.rotation * Vec3::NEG_Y
+    pub fn down(&self) -> V3I32F16 {
+        self.rotation * V3::NEG_Y
     }
 
-    pub fn left(&self) -> Vec3 {
-        self.rotation * Vec3::X
+    pub fn left(&self) -> V3I32F16 {
+        self.rotation * V3::X
     }
 
-    pub fn right(&self) -> Vec3 {
-        self.rotation * Vec3::NEG_X
+    pub fn right(&self) -> V3I32F16 {
+        self.rotation * V3::NEG_X
     }
 }
 
@@ -65,7 +69,7 @@ fn recursive_propagate(
     transforms: &NativeSingleViewRef<Transform>,
     local_to_worlds: &mut NativeSingleViewMut<LocalToWorld>,
     hierarchies: &NativeSingleViewRef<Hierarchy>,
-) -> Mat4 {
+) -> M4I32F16 {
     if let Some(mut local_to_world) = local_to_worlds.get(entity).cloned() {
         if !local_to_world.dirty {
             return local_to_world.matrix;

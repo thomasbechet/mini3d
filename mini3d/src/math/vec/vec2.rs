@@ -3,11 +3,11 @@ use core::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::math::fixed::{FixedPoint, I32, I32F16, I32F24, U32, U32F16, U32F24};
+use crate::math::fixed::{FixedPoint, RealFixedPoint};
 
 use super::{V3, V4};
 
-#[derive(Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct V2<T: FixedPoint> {
     pub x: T,
     pub y: T,
@@ -15,7 +15,7 @@ pub struct V2<T: FixedPoint> {
 
 impl<T: FixedPoint> V2<T> {
     pub const fn new(x: T, y: T) -> Self {
-        V2 { x, y }
+        Self { x, y }
     }
 
     pub const fn from_vec3(v: V3<T>) -> Self {
@@ -34,17 +34,22 @@ impl<T: FixedPoint> V2<T> {
         self.dot(self)
     }
 
+    pub fn min(self, rhs: Self) -> Self {
+        Self::new(self.x.min(rhs.x), self.y.min(rhs.y))
+    }
+
+    pub fn max(self, rhs: Self) -> Self {
+        Self::new(self.x.max(rhs.x), self.y.max(rhs.y))
+    }
+}
+
+impl<T: FixedPoint + RealFixedPoint> V2<T> {
     pub fn length(self) -> T {
         self.length_squared().sqrt()
     }
 
-    pub fn normalize(&mut self) {
-        *self = self.normalized();
-    }
-
-    pub fn normalized(self) -> Self {
-        let length = self.length();
-        self / length
+    pub fn normalize(self) -> Self {
+        self / self.length()
     }
 }
 
@@ -142,25 +147,18 @@ impl<T: FixedPoint + Display> Display for V2<T> {
     }
 }
 
-pub type V2I32 = V2<I32>;
-pub type V2U32 = V2<U32>;
-pub type V2I32F16 = V2<I32F16>;
-pub type V2U32F16 = V2<U32F16>;
-pub type V2I32F24 = V2<I32F24>;
-pub type V2U32F24 = V2<U32F24>;
-
 #[cfg(test)]
 mod test {
     use std::println;
 
     use mini3d_derive::fixed;
 
-    use super::*;
+    use crate::math::{fixed::I32F24, vec::V2I32F24};
 
     #[test]
     fn test_vec2() {
         println!("{}", I32F24::EPSILON);
         let x = V2I32F24::from(fixed!(1i32f24));
-        println!("{}", x.normalized().length());
+        println!("{}", x.normalize().length());
     }
 }

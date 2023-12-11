@@ -1,12 +1,13 @@
 use core::{fmt::Display, ops::Mul};
 
 use crate::math::{
-    fixed::{FixedPoint, SignedFixedPoint, TrigFixedPoint},
+    fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint, TrigFixedPoint},
     quat::Q,
     vec::{V3, V4},
 };
 
 // Column-major matrix (follow math convention)
+#[derive(Default, Debug, Clone)]
 pub struct M4<T: FixedPoint> {
     pub xaxis: V4<T>,
     pub yaxis: V4<T>,
@@ -31,6 +32,15 @@ impl<T: FixedPoint> M4<T> {
         }
     }
 
+    pub const fn from_cols_array(array: &[T; 16]) -> Self {
+        Self::from_cols(
+            V4::new(array[0], array[1], array[2], array[3]),
+            V4::new(array[4], array[5], array[6], array[7]),
+            V4::new(array[8], array[9], array[10], array[11]),
+            V4::new(array[12], array[13], array[14], array[15]),
+        )
+    }
+
     pub const fn from_rows(rowx: V4<T>, rowy: V4<T>, rowz: V4<T>, roww: V4<T>) -> Self {
         Self {
             xaxis: V4::new(rowx.x, rowy.x, rowz.x, roww.x),
@@ -52,6 +62,27 @@ impl<T: FixedPoint> M4<T> {
             zaxis: V4::new(rowx.2, rowy.2, rowz.2, roww.2),
             waxis: V4::new(rowx.3, rowy.3, rowz.3, roww.3),
         }
+    }
+
+    pub fn to_cols_array(self) -> [T; 16] {
+        [
+            self.xaxis.x,
+            self.yaxis.x,
+            self.zaxis.x,
+            self.waxis.x,
+            self.xaxis.y,
+            self.yaxis.y,
+            self.zaxis.y,
+            self.waxis.y,
+            self.xaxis.z,
+            self.yaxis.z,
+            self.zaxis.z,
+            self.waxis.z,
+            self.xaxis.w,
+            self.yaxis.w,
+            self.zaxis.w,
+            self.waxis.w,
+        ]
     }
 
     pub const fn translate(x: T, y: T, z: T) -> Self {
@@ -182,7 +213,7 @@ impl<T: FixedPoint> M4<T> {
     }
 }
 
-impl<T: FixedPoint + TrigFixedPoint + SignedFixedPoint> M4<T> {
+impl<T: FixedPoint + RealFixedPoint + TrigFixedPoint + SignedFixedPoint> M4<T> {
     pub fn from_scale_rotation_translation(
         scale: V3<T>,
         rotation: Q<T>,

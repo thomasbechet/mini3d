@@ -1,6 +1,12 @@
 use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
-use glam::{IVec2, IVec3, IVec4, Mat4, Quat, UVec2, Vec2, Vec3, Vec4};
 use mini3d_derive::Error;
+
+use crate::math::{
+    fixed::FixedPoint,
+    mat::M4,
+    quat::Q,
+    vec::{V2, V3},
+};
 
 #[derive(Debug, Error)]
 pub enum EncoderError {
@@ -21,8 +27,6 @@ pub enum DecoderError {
 pub trait Encoder {
     fn write_byte(&mut self, value: u8) -> Result<(), EncoderError>;
     fn write_bytes(&mut self, value: &[u8]) -> Result<(), EncoderError>;
-    fn write_f32(&mut self, value: f32) -> Result<(), EncoderError>;
-    fn write_f64(&mut self, value: f64) -> Result<(), EncoderError>;
     fn write_u16(&mut self, value: u16) -> Result<(), EncoderError>;
     fn write_u32(&mut self, value: u32) -> Result<(), EncoderError>;
     fn write_u64(&mut self, value: u64) -> Result<(), EncoderError>;
@@ -31,8 +35,6 @@ pub trait Encoder {
 pub trait Decoder {
     fn read_byte(&mut self) -> Result<u8, DecoderError>;
     fn read_bytes(&mut self, count: usize) -> Result<&[u8], DecoderError>;
-    fn read_f32(&mut self) -> Result<f32, DecoderError>;
-    fn read_f64(&mut self) -> Result<f64, DecoderError>;
     fn read_u16(&mut self) -> Result<u16, DecoderError>;
     fn read_u32(&mut self) -> Result<u32, DecoderError>;
     fn read_u64(&mut self) -> Result<u64, DecoderError>;
@@ -44,12 +46,6 @@ impl Encoder for &mut dyn Encoder {
     }
     fn write_bytes(&mut self, value: &[u8]) -> Result<(), EncoderError> {
         (*self).write_bytes(value)
-    }
-    fn write_f32(&mut self, value: f32) -> Result<(), EncoderError> {
-        (*self).write_f32(value)
-    }
-    fn write_f64(&mut self, value: f64) -> Result<(), EncoderError> {
-        (*self).write_f64(value)
     }
     fn write_u16(&mut self, value: u16) -> Result<(), EncoderError> {
         (*self).write_u16(value)
@@ -69,12 +65,6 @@ impl Decoder for &mut dyn Decoder {
     fn read_bytes(&mut self, count: usize) -> Result<&[u8], DecoderError> {
         (*self).read_bytes(count)
     }
-    fn read_f32(&mut self) -> Result<f32, DecoderError> {
-        (*self).read_f32()
-    }
-    fn read_f64(&mut self) -> Result<f64, DecoderError> {
-        (*self).read_f64()
-    }
     fn read_u16(&mut self) -> Result<u16, DecoderError> {
         (*self).read_u16()
     }
@@ -93,14 +83,6 @@ impl Encoder for Vec<u8> {
     }
     fn write_bytes(&mut self, value: &[u8]) -> Result<(), EncoderError> {
         self.extend_from_slice(value);
-        Ok(())
-    }
-    fn write_f32(&mut self, value: f32) -> Result<(), EncoderError> {
-        self.extend_from_slice(&value.to_le_bytes());
-        Ok(())
-    }
-    fn write_f64(&mut self, value: f64) -> Result<(), EncoderError> {
-        self.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
     fn write_u16(&mut self, value: u16) -> Result<(), EncoderError> {
@@ -143,22 +125,6 @@ impl<'a> Decoder for SliceDecoder<'a> {
         }
         let value = &self.data[self.pos..self.pos + count];
         self.pos += count;
-        Ok(value)
-    }
-    fn read_f32(&mut self) -> Result<f32, DecoderError> {
-        if self.pos + 4 > self.data.len() {
-            return Err(DecoderError::CorruptedData);
-        }
-        let value = f32::from_le_bytes(self.data[self.pos..self.pos + 4].try_into().unwrap());
-        self.pos += 4;
-        Ok(value)
-    }
-    fn read_f64(&mut self) -> Result<f64, DecoderError> {
-        if self.pos + 8 > self.data.len() {
-            return Err(DecoderError::CorruptedData);
-        }
-        let value = f64::from_le_bytes(self.data[self.pos..self.pos + 8].try_into().unwrap());
-        self.pos += 8;
         Ok(value)
     }
     fn read_u16(&mut self) -> Result<u16, DecoderError> {
@@ -254,36 +220,6 @@ impl Serialize for char {
     }
 }
 
-impl Serialize for f32 {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_f32(*self)
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        decoder.read_f32()
-    }
-}
-
-impl Serialize for f64 {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_f64(*self)
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        decoder.read_f64()
-    }
-}
-
 impl Serialize for u8 {
     type Header = ();
 
@@ -314,6 +250,21 @@ impl Serialize for u16 {
     }
 }
 
+impl Serialize for i16 {
+    type Header = ();
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u16(*self as u16)
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        Ok(decoder.read_u16()? as i16)
+    }
+}
+
 impl Serialize for u32 {
     type Header = ();
 
@@ -341,6 +292,21 @@ impl Serialize for i32 {
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
         Ok(decoder.read_u32()? as i32)
+    }
+}
+
+impl Serialize for i64 {
+    type Header = ();
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u64(*self as i64)
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        Ok(decoder.read_u64()? as i64)
     }
 }
 
@@ -570,12 +536,12 @@ impl<T: Serialize> Serialize for Box<T> {
     }
 }
 
-impl Serialize for Vec2 {
+impl<T: FixedPoint + Serialize> Serialize for V2<T> {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_f32(self.x)?;
-        encoder.write_f32(self.y)?;
+        self.x.serialize(encoder)?;
+        self.y.serialize(encoder)?;
         Ok(())
     }
 
@@ -585,177 +551,72 @@ impl Serialize for Vec2 {
     ) -> Result<Self, DecoderError> {
         let x = decoder.read_f32()?;
         let y = decoder.read_f32()?;
-        Ok(Vec2::new(x, y))
+        Ok(V2::new(x, y))
     }
 }
 
-impl Serialize for UVec2 {
+impl<T: FixedPoint + Serialize> Serialize for V3<T> {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.x)?;
-        encoder.write_u32(self.y)?;
+        self.x.serialize(encoder)?;
+        self.y.serialize(encoder)?;
+        self.z.serialize(encoder)?;
         Ok(())
     }
 
     fn deserialize(
         decoder: &mut impl Decoder,
-        _header: &Self::Header,
+        header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let x = decoder.read_u32()?;
-        let y = decoder.read_u32()?;
-        Ok(UVec2::new(x, y))
+        let x = T::deserialize(decoder, header)?;
+        let y = T::deserialize(decoder, header)?;
+        let z = T::deserialize(decoder, header)?;
+        Ok(V3::new(x, y, z))
     }
 }
 
-impl Serialize for IVec2 {
+impl<T: FixedPoint + Serialize> Serialize for Q<T> {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.x as u32)?;
-        encoder.write_u32(self.y as u32)?;
+        self.x.serialize(encoder)?;
+        self.y.serialize(encoder)?;
+        self.z.serialize(encoder)?;
+        self.w.serialize(encoder)?;
         Ok(())
     }
 
     fn deserialize(
         decoder: &mut impl Decoder,
-        _header: &Self::Header,
+        header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let x = decoder.read_u32()? as i32;
-        let y = decoder.read_u32()? as i32;
-        Ok(IVec2::new(x, y))
+        let x = T::deserialize(decoder, header)?;
+        let y = T::deserialize(decoder, header)?;
+        let z = T::deserialize(decoder, header)?;
+        let w = T::deserialize(decoder, header)?;
+        Ok(Q::new(x, y, z, w))
     }
 }
 
-impl Serialize for Vec3 {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_f32(self.x)?;
-        encoder.write_f32(self.y)?;
-        encoder.write_f32(self.z)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = decoder.read_f32()?;
-        let y = decoder.read_f32()?;
-        let z = decoder.read_f32()?;
-        Ok(Vec3::new(x, y, z))
-    }
-}
-
-impl Serialize for IVec3 {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.x as u32)?;
-        encoder.write_u32(self.y as u32)?;
-        encoder.write_u32(self.z as u32)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = decoder.read_u32()? as i32;
-        let y = decoder.read_u32()? as i32;
-        let z = decoder.read_u32()? as i32;
-        Ok(IVec3::new(x, y, z))
-    }
-}
-
-impl Serialize for Vec4 {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_f32(self.x)?;
-        encoder.write_f32(self.y)?;
-        encoder.write_f32(self.z)?;
-        encoder.write_f32(self.w)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = decoder.read_f32()?;
-        let y = decoder.read_f32()?;
-        let z = decoder.read_f32()?;
-        let w = decoder.read_f32()?;
-        Ok(Vec4::new(x, y, z, w))
-    }
-}
-
-impl Serialize for IVec4 {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u32(self.x as u32)?;
-        encoder.write_u32(self.y as u32)?;
-        encoder.write_u32(self.z as u32)?;
-        encoder.write_u32(self.w as u32)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = decoder.read_u32()? as i32;
-        let y = decoder.read_u32()? as i32;
-        let z = decoder.read_u32()? as i32;
-        let w = decoder.read_u32()? as i32;
-        Ok(IVec4::new(x, y, z, w))
-    }
-}
-
-impl Serialize for Quat {
-    type Header = ();
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_f32(self.x)?;
-        encoder.write_f32(self.y)?;
-        encoder.write_f32(self.z)?;
-        encoder.write_f32(self.w)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        _header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = decoder.read_f32()?;
-        let y = decoder.read_f32()?;
-        let z = decoder.read_f32()?;
-        let w = decoder.read_f32()?;
-        Ok(Quat::from_xyzw(x, y, z, w))
-    }
-}
-
-impl Serialize for Mat4 {
+impl<T: FixedPoint + Serialize> Serialize for M4<T> {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         for x in self.to_cols_array() {
-            encoder.write_f32(x)?;
+            x.serialize(encoder)?;
         }
         Ok(())
     }
 
     fn deserialize(
         decoder: &mut impl Decoder,
-        _header: &Self::Header,
+        header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let mut array = [0.0; 16];
+        let mut array = [T::default(); 16];
         for x in &mut array {
-            *x = decoder.read_f32()?;
+            *x = T::deserialize(decoder, header)?;
         }
-        Ok(Mat4::from_cols_array(&array))
+        Ok(M4::from_cols_array(&array))
     }
 }

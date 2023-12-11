@@ -5,6 +5,8 @@ use core::{
 
 use mini3d_derive::Error;
 
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+
 const fn parse_lit_dec(float: &str) -> Option<(bool, u64, u64, u8)> {
     let mut signed = false;
     let mut int = 0u64;
@@ -57,22 +59,22 @@ const fn parse_lit_dec(float: &str) -> Option<(bool, u64, u64, u8)> {
 macro_rules! impl_float_conversion {
     ($name:ident, $inner:ty, $frac:expr) => {
         impl $name {
-            // Reserved for external API call
+            // Reserved only for external API call
             pub fn from_f32(value: f32) -> Self {
                 Self((value * Self::SCALE as f32) as $inner)
             }
 
-            // Reserved for external API call
+            // Reserved only for external API call
             pub fn from_f64(value: f64) -> Self {
                 Self((value * Self::SCALE as f64) as $inner)
             }
 
-            // Reserved for external API call
+            // Reserved only for external API call
             pub fn to_f32(self) -> f32 {
                 self.0 as f32 / (1 << $frac) as f32
             }
 
-            // Reserved for external API call
+            // Reserved only for external API call
             pub fn to_f64(self) -> f64 {
                 self.0 as f64 / (1 << $frac) as f64
             }
@@ -93,30 +95,35 @@ pub trait FixedPoint:
     + Clone
     + Add<Output = Self>
     + AddAssign
-    + Add<u32, Output = Self>
     + Sub<Output = Self>
     + SubAssign
-    + Sub<u32, Output = Self>
     + Mul<Output = Self>
     + MulAssign
-    + Mul<u32, Output = Self>
     + Div<Output = Self>
     + DivAssign
-    + Div<u32, Output = Self>
     + Eq
     + PartialEq
+    + Default
+    + Debug
 {
     const FRAC: u32;
     const BITS: u32;
     const ZERO: Self;
     const ONE: Self;
+    const TWO: Self;
     type INNER: Shl<u32, Output = Self::INNER> + Shr<u32, Output = Self::INNER>;
-    fn new(inner: Self::INNER) -> Self;
+    fn from_inner(inner: Self::INNER) -> Self;
     fn convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
     where
         F::INNER: TryFrom<Self::INNER>;
-    fn sqrt(self) -> Self;
     fn powi(self, n: u32) -> Self;
+    fn min(self, rhs: Self) -> Self;
+    fn max(self, rhs: Self) -> Self;
+}
+
+pub trait RealFixedPoint {
+    const HALF: Self;
+    fn sqrt(self) -> Self;
     fn pow(self, v: Self) -> Self;
     fn recip(self) -> Self;
 }
@@ -135,7 +142,7 @@ pub trait SignedFixedPoint: Neg<Output = Self> {
     fn abs(self) -> Self;
 }
 
-macro_rules! define_fixed {
+macro_rules! define_real {
     ($name:ident, $inner:ty, $inter:ty, $frac:expr, $signed:tt) => {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
         pub struct $name($inner);
@@ -145,9 +152,10 @@ macro_rules! define_fixed {
             const BITS: u32 = <$inner>::BITS;
             const ZERO: Self = Self::from_int(0);
             const ONE: Self = Self::from_int(1);
+            const TWO: Self = Self::from_int(2);
             type INNER = $inner;
 
-            fn new(inner: Self::INNER) -> Self {
+            fn from_inner(inner: Self::INNER) -> Self {
                 Self(inner)
             }
 
@@ -157,28 +165,48 @@ macro_rules! define_fixed {
             {
                 let shift = F::FRAC as isize - Self::FRAC as isize;
                 if Self::BITS < F::BITS {
-                    let inner = if shift > 0 {
+                    let inner = if shift >= 0 {
                         self.0 << (shift as u32)
                     } else if shift < 0 {
                         self.0 >> (-shift as u32)
-                    } else {
-                        self.0
                     };
-                    Ok(F::new(
+                    Ok(F::from_inner(
                         F::INNER::try_from(inner).map_err(|_| FixedPointError::InvalidSign)?,
                     ))
                 } else {
                     let inner =
                         F::INNER::try_from(self.0).map_err(|_| FixedPointError::Overflow)?;
-                    if shift > 0 {
-                        Ok(F::new(inner << (shift as u32)))
+                    if shift >= 0 {
+                        Ok(F::from_inner(inner << (shift as u32)))
                     } else if shift < 0 {
-                        Ok(F::new(inner >> (-shift as u32)))
-                    } else {
-                        Ok(F::new(inner))
+                        Ok(F::from_inner(inner >> (-shift as u32)))
                     }
                 }
             }
+
+            fn powi(self, n: u32) -> Self {
+                self.powi(n)
+            }
+
+            fn min(self, rhs: Self) -> Self {
+                if self.0 < rhs.0 {
+                    self
+                } else {
+                    rhs
+                }
+            }
+
+            fn max(self, rhs: Self) -> Self {
+                if self.0 > rhs.0 {
+                    self
+                } else {
+                    rhs
+                }
+            }
+        }
+
+        impl RealFixedPoint for $name {
+            const HALF: Self = Self::from_int(1).div(Self::from_int(2));
 
             fn sqrt(self) -> Self {
                 let mut v = Self::ONE;
@@ -188,10 +216,6 @@ macro_rules! define_fixed {
                     i += 1;
                 }
                 v
-            }
-
-            fn powi(self, n: u32) -> Self {
-                self.powi(n)
             }
 
             fn pow(self, v: Self) -> Self {
@@ -240,20 +264,6 @@ macro_rules! define_fixed {
                 Self::lit("9.7041"),  // LogN(16384)
                 Self::lit("10.3972"), // LogN(32768)
             ];
-
-            pub fn from<F: FixedPoint>(value: F) -> Self
-            where
-                <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
-            {
-                value.convert::<$name>().unwrap()
-            }
-
-            pub fn into<F: FixedPoint>(self) -> F
-            where
-                <F as FixedPoint>::INNER: TryFrom<<$name as FixedPoint>::INNER>,
-            {
-                self.convert::<F>().unwrap()
-            }
 
             pub const fn lit(lit: &str) -> Self {
                 let (signed, int, mut frac, dp) = match parse_lit_dec(lit) {
@@ -584,29 +594,87 @@ macro_rules! define_fixed {
             }
         }
 
+        impl Default for $name {
+            fn default() -> Self {
+                Self::ZERO
+            }
+        }
+
         impl From<&str> for $name {
             fn from(lit: &str) -> Self {
                 Self::lit(lit)
             }
         }
 
-        impl From<u32> for $name {
-            fn from(value: u32) -> Self {
-                Self::from_int(value as $inner)
+        // pub fn from<F: FixedPoint>(value: F) -> Self
+        // where
+        //     <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+        // {
+        //     value.convert::<$name>().unwrap()
+        // }
+
+        // pub fn into<F: FixedPoint>(self) -> F
+        // where
+        //     <F as FixedPoint>::INNER: TryFrom<<$name as FixedPoint>::INNER>,
+        // {
+        //     self.convert::<F>().unwrap()
+        // }
+
+        impl<S, F: FixedPoint<INNER = S>> From<F> for $name
+        where
+            <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+        {
+            fn from(value: F) -> Self {
+                value.convert::<$name>().unwrap()
             }
         }
 
-        impl From<u64> for $name {
-            fn from(value: u64) -> Self {
-                Self::from_int(value as $inner)
-            }
-        }
+        // impl<F: FixedPoint> Into<F> for $name
+        // where
+        //     <F as FixedPoint>::INNER: TryFrom<<$name as FixedPoint>::INNER>,
+        // {
+        //     fn into(self) -> F {
+        //         self.convert::<F>().unwrap()
+        //     }
+        // }
+
+        // impl From<u8> for $name {
+        //     fn from(value: u8) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
+
+        // impl From<u16> for $name {
+        //     fn from(value: u16) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
+
+        // impl From<u32> for $name {
+        //     fn from(value: u32) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
+
+        // impl From<u64> for $name {
+        //     fn from(value: u64) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
 
         impl Add for $name {
             type Output = Self;
 
             fn add(self, rhs: Self) -> Self::Output {
                 self.add(rhs)
+            }
+        }
+
+        impl Add<&$name> for $name {
+            type Output = $name;
+
+            fn add(self, rhs: &Self) -> Self::Output {
+                self.add(*rhs)
             }
         }
 
@@ -640,6 +708,14 @@ macro_rules! define_fixed {
             }
         }
 
+        impl Sub<&$name> for $name {
+            type Output = $name;
+
+            fn sub(self, rhs: &Self) -> Self::Output {
+                self.sub(*rhs)
+            }
+        }
+
         impl SubAssign for $name {
             fn sub_assign(&mut self, rhs: Self) {
                 *self = self.sub(rhs);
@@ -670,6 +746,14 @@ macro_rules! define_fixed {
             }
         }
 
+        impl Mul<&$name> for $name {
+            type Output = $name;
+
+            fn mul(self, rhs: &Self) -> Self::Output {
+                self.mul(*rhs)
+            }
+        }
+
         impl MulAssign for $name {
             fn mul_assign(&mut self, rhs: Self) {
                 *self = self.mul(rhs);
@@ -697,6 +781,14 @@ macro_rules! define_fixed {
 
             fn div(self, rhs: Self) -> Self::Output {
                 self.div(rhs)
+            }
+        }
+
+        impl Div<&$name> for $name {
+            type Output = $name;
+
+            fn div(self, rhs: &Self) -> Self::Output {
+                self.div(*rhs)
             }
         }
 
@@ -743,12 +835,27 @@ macro_rules! define_fixed {
                 Ok(())
             }
         }
+
+        impl Serialize for $name {
+            type Header = <$inner as Serialize>::Header;
+
+            fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+                self.0.serialize(encoder)
+            }
+
+            fn deserialize(
+                decoder: &mut impl Decoder,
+                header: &Self::Header,
+            ) -> Result<Self, DecoderError> {
+                Ok(Self::from_inner(<$inner>::deserialize(decoder, header)?))
+            }
+        }
     };
 }
 
-macro_rules! define_unsigned {
+macro_rules! define_real_unsigned {
     ($name:ident, $inner:ty, $inter:ty, $frac:expr) => {
-        define_fixed!($name, $inner, $inter, $frac, false);
+        define_real!($name, $inner, $inter, $frac, false);
 
         impl $name {
             pub const fn abs(self) -> Self {
@@ -758,9 +865,9 @@ macro_rules! define_unsigned {
     };
 }
 
-macro_rules! define_signed {
+macro_rules! define_real_signed {
     ($name:ident, $inner:ty, $inter:ty, $frac:expr) => {
-        define_fixed!($name, $inner, $inter, $frac, true);
+        define_real!($name, $inner, $inter, $frac, true);
 
         impl $name {
             pub const NEG_ONE: Self = Self::from_int(-1);
@@ -790,48 +897,133 @@ macro_rules! define_signed {
             }
         }
 
-        impl From<i32> for $name {
-            fn from(value: i32) -> Self {
-                Self::from_int(value as $inner)
-            }
-        }
+        // impl From<i16> for $name {
+        //     fn from(value: i16) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
 
-        impl From<i64> for $name {
-            fn from(value: i64) -> Self {
-                Self::from_int(value as $inner)
+        // impl From<i32> for $name {
+        //     fn from(value: i32) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
+
+        // impl From<i64> for $name {
+        //     fn from(value: i64) -> Self {
+        //         Self::from_int(value as $inner)
+        //     }
+        // }
+    };
+}
+
+macro_rules! define_num_unsigned {
+    ($inner:ty, $inter:ty) => {
+        impl FixedPoint for $inner {
+            const FRAC: u32 = 0;
+            const BITS: u32 = Self::BITS;
+            const ZERO: Self = 0;
+            const ONE: Self = 1;
+            const TWO: Self = 2;
+            type INNER = Self;
+
+            fn from_inner(inner: Self::INNER) -> Self {
+                inner
+            }
+
+            fn convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            where
+                F::INNER: TryFrom<Self::INNER>,
+            {
+                let shift = F::FRAC as isize - Self::FRAC as isize;
+                if Self::BITS < F::BITS {
+                    let inner = if shift > 0 {
+                        self << (shift as u32)
+                    } else if shift < 0 {
+                        self >> (-shift as u32)
+                    } else {
+                        self
+                    };
+                    Ok(F::from_inner(
+                        F::INNER::try_from(inner).map_err(|_| FixedPointError::InvalidSign)?,
+                    ))
+                } else {
+                    let inner = F::INNER::try_from(self).map_err(|_| FixedPointError::Overflow)?;
+                    if shift > 0 {
+                        Ok(F::from_inner(inner << (shift as u32)))
+                    } else if shift < 0 {
+                        Ok(F::from_inner(inner >> (-shift as u32)))
+                    } else {
+                        Ok(F::from_inner(inner))
+                    }
+                }
+            }
+
+            fn powi(self, n: u32) -> Self {
+                self.powi(n)
+            }
+
+            fn min(self, rhs: Self) -> Self {
+                if self < rhs {
+                    self
+                } else {
+                    rhs
+                }
+            }
+
+            fn max(self, rhs: Self) -> Self {
+                if self > rhs {
+                    self
+                } else {
+                    rhs
+                }
             }
         }
     };
 }
 
-define_unsigned!(U64, u64, u128, 0);
-define_signed!(I64, i64, i128, 0);
-define_unsigned!(U64F16, u64, u128, 16);
-define_signed!(I64F16, i64, i128, 16);
-define_unsigned!(U64F32, u64, u128, 32);
-define_signed!(I64F32, i64, i128, 32);
+macro_rules! define_num_signed {
+    ($inner:ty, $inter:ty) => {
+        define_num_unsigned!($inner, $inter);
+        impl SignedFixedPoint for $inner {
+            const NEG_ONE: Self = -1;
 
-define_unsigned!(U32, u32, u64, 0);
-define_signed!(I32, i32, i64, 0);
-define_unsigned!(U32F8, u32, u64, 8);
+            fn abs(self) -> Self {
+                self.abs()
+            }
+        }
+    };
+}
+
+define_real_unsigned!(U64F16, u64, u128, 16);
+define_real_signed!(I64F16, i64, i128, 16);
+define_real_unsigned!(U64F32, u64, u128, 32);
+define_real_signed!(I64F32, i64, i128, 32);
+
+define_real_unsigned!(U32F8, u32, u64, 8);
 impl_float_conversion!(U32F8, u32, 8);
-define_signed!(I32F8, i32, i64, 8);
+define_real_signed!(I32F8, i32, i64, 8);
 impl_float_conversion!(I32F8, i32, 8);
-define_signed!(I32F16, i32, i64, 16);
+define_real_signed!(I32F16, i32, i64, 16);
 impl_float_conversion!(I32F16, i32, 16);
-define_unsigned!(U32F16, u32, u64, 16);
+define_real_unsigned!(U32F16, u32, u64, 16);
 impl_float_conversion!(U32F16, u32, 16);
-define_unsigned!(U32F24, u32, u64, 24);
+define_real_unsigned!(U32F24, u32, u64, 24);
 impl_float_conversion!(U32F24, u32, 24);
-define_signed!(I32F24, i32, i64, 24);
+define_real_signed!(I32F24, i32, i64, 24);
 impl_float_conversion!(I32F24, i32, 24);
 
-define_unsigned!(U16, u16, u32, 0);
-define_signed!(I16, i16, i32, 0);
-define_unsigned!(U16F8, u16, u32, 8);
+define_real_unsigned!(U16F8, u16, u32, 8);
 impl_float_conversion!(U16F8, u16, 8);
-define_signed!(I16F8, i16, i32, 8);
+define_real_signed!(I16F8, i16, i32, 8);
 impl_float_conversion!(I16F8, i16, 8);
+
+define_num_unsigned!(u16, u32);
+define_num_signed!(i16, i32);
+define_num_unsigned!(u32, u64);
+define_num_signed!(i32, i64);
+define_num_unsigned!(u64, u128);
+define_num_signed!(i64, i128);
 
 #[cfg(test)]
 mod test {
