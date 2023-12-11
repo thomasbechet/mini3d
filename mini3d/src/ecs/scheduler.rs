@@ -3,7 +3,7 @@ use mini3d_derive::fixed;
 
 use crate::{
     feature::ecs::system::{SystemStage, SystemStageHandle},
-    math::fixed::{I32F16, U32F16},
+    math::fixed::U32F16,
     resource::ResourceManager,
     slot_map_key,
     utils::slotmap::{Key, SlotMap},
@@ -28,7 +28,7 @@ pub(crate) struct SystemPipelineNode {
 
 struct PeriodicStage {
     stage: SystemStageHandle,
-    frequency: U32F16,
+    period: U32F16,
     accumulator: U32F16,
 }
 
@@ -72,7 +72,7 @@ impl Scheduler {
                 if let Some(periodic) = stage.periodic {
                     self.periodic_stages.push(PeriodicStage {
                         stage: instance.stage,
-                        frequency: 1.0 / periodic,
+                        period: periodic,
                         accumulator: fixed!(0),
                     });
                 }
@@ -133,7 +133,7 @@ impl Scheduler {
 
     pub(crate) fn invoke_frame_stages(
         &mut self,
-        delta_time: I32F16,
+        delta_time: U32F16,
         update_stage: SystemStageHandle,
     ) {
         // Collect previous frame stages
@@ -144,10 +144,10 @@ impl Scheduler {
 
         // Integrate fixed update stages
         for stage in self.periodic_stages.iter_mut() {
-            stage.accumulator += delta_time.into();
-            let frequency = stage.frequency;
-            let count = (stage.accumulator / frequency).int();
-            stage.accumulator -= count * frequency;
+            stage.accumulator += delta_time;
+            let period = stage.period;
+            let count = (stage.accumulator / period).int();
+            stage.accumulator -= count * period;
             for _ in 0..count {
                 self.frame_stages.push_back(stage.stage);
             }

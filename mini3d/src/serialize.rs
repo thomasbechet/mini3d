@@ -2,10 +2,10 @@ use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
 use mini3d_derive::Error;
 
 use crate::math::{
-    fixed::FixedPoint,
+    fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint, TrigFixedPoint},
     mat::M4,
     quat::Q,
-    vec::{V2, V3},
+    vec::{V2, V3, V4},
 };
 
 #[derive(Debug, Error)]
@@ -299,7 +299,7 @@ impl Serialize for i64 {
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        encoder.write_u64(*self as i64)
+        encoder.write_u64(*self as u64)
     }
 
     fn deserialize(
@@ -537,7 +537,7 @@ impl<T: Serialize> Serialize for Box<T> {
 }
 
 impl<T: FixedPoint + Serialize> Serialize for V2<T> {
-    type Header = ();
+    type Header = T::Header;
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         self.x.serialize(encoder)?;
@@ -547,16 +547,16 @@ impl<T: FixedPoint + Serialize> Serialize for V2<T> {
 
     fn deserialize(
         decoder: &mut impl Decoder,
-        _header: &Self::Header,
+        header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let x = decoder.read_f32()?;
-        let y = decoder.read_f32()?;
+        let x = T::deserialize(decoder, header)?;
+        let y = T::deserialize(decoder, header)?;
         Ok(V2::new(x, y))
     }
 }
 
 impl<T: FixedPoint + Serialize> Serialize for V3<T> {
-    type Header = ();
+    type Header = T::Header;
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         self.x.serialize(encoder)?;
@@ -576,8 +576,33 @@ impl<T: FixedPoint + Serialize> Serialize for V3<T> {
     }
 }
 
-impl<T: FixedPoint + Serialize> Serialize for Q<T> {
-    type Header = ();
+impl<T: FixedPoint + Serialize> Serialize for V4<T> {
+    type Header = T::Header;
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.x.serialize(encoder)?;
+        self.y.serialize(encoder)?;
+        self.z.serialize(encoder)?;
+        self.w.serialize(encoder)?;
+        Ok(())
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        let x = T::deserialize(decoder, header)?;
+        let y = T::deserialize(decoder, header)?;
+        let z = T::deserialize(decoder, header)?;
+        let w = T::deserialize(decoder, header)?;
+        Ok(V4::new(x, y, z, w))
+    }
+}
+
+impl<T: FixedPoint + RealFixedPoint + SignedFixedPoint + TrigFixedPoint + Serialize> Serialize
+    for Q<T>
+{
+    type Header = T::Header;
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         self.x.serialize(encoder)?;
@@ -600,7 +625,7 @@ impl<T: FixedPoint + Serialize> Serialize for Q<T> {
 }
 
 impl<T: FixedPoint + Serialize> Serialize for M4<T> {
-    type Header = ();
+    type Header = T::Header;
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         for x in self.to_cols_array() {

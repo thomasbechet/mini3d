@@ -11,7 +11,7 @@ use crate::{
     expect,
     feature::input::{action::InputActionHandle, axis::InputAxisHandle},
     math::{
-        fixed::{TrigFixedPoint, I32F16},
+        fixed::{FixedPoint, TrigFixedPoint, I32F16, U32F16},
         quat::Q,
         vec::V3,
     },
@@ -46,12 +46,12 @@ pub struct FreeFly {
 }
 
 impl FreeFly {
-    pub const NORMAL_SPEED: I32F16 = fixed!(10);
-    pub const FAST_SPEED: I32F16 = fixed!(25);
-    pub const SLOW_SPEED: I32F16 = fixed!(3);
-    pub const ROLL_SPEED: I32F16 = fixed!(60);
-    pub const ROTATION_SENSIBILITY: I32F16 = fixed!(180);
-    pub const ZOOM_SPEED: I32F16 = fixed!(10);
+    pub const NORMAL_SPEED: U32F16 = fixed!(10);
+    pub const FAST_SPEED: U32F16 = fixed!(25);
+    pub const SLOW_SPEED: U32F16 = fixed!(3);
+    pub const ROLL_SPEED: U32F16 = fixed!(60);
+    pub const ROTATION_SENSIBILITY: U32F16 = fixed!(180);
+    pub const ZOOM_SPEED: U32F16 = fixed!(10);
 }
 
 #[derive(Default, Clone)]
@@ -121,7 +121,8 @@ impl ParallelSystem for FreeFlySystem {
             }
 
             // Apply transformation
-            transform.translation += direction * direction_length * Time::delta(ctx) * speed;
+            transform.translation +=
+                direction * direction_length * (Time::delta(ctx) * speed).convert();
 
             // Apply rotation
             let motion_x = expect!(ctx, Input::axis(ctx, free_fly.view_x)).value;
@@ -130,33 +131,37 @@ impl ParallelSystem for FreeFlySystem {
                 if motion_x != fixed!(0) {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Y,
-                        -motion_x.to_radians() * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx),
+                        -motion_x.to_radians()
+                            * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert(),
                     );
                 }
                 if motion_y != fixed!(0) {
                     transform.rotation *= Q::from_axis_angle(
                         V3::X,
-                        motion_y.to_radians() * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx),
+                        motion_y.to_radians()
+                            * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert(),
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_left)).is_pressed() {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Z,
-                        -FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx),
+                        -(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)).convert::<I32F16>(),
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_right)).is_pressed() {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Z,
-                        FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx),
+                        (FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)).convert(),
                     );
                 }
             } else {
                 if motion_x != fixed!(0) {
-                    free_fly.yaw += motion_x * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx);
+                    free_fly.yaw +=
+                        motion_x * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert();
                 }
                 if motion_y != fixed!(0) {
-                    free_fly.pitch += motion_y * FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx);
+                    free_fly.pitch +=
+                        motion_y * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert();
                 }
 
                 if free_fly.pitch < fixed!(-90.0) {

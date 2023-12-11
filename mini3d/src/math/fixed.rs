@@ -113,12 +113,20 @@ pub trait FixedPoint:
     const TWO: Self;
     type INNER: Shl<u32, Output = Self::INNER> + Shr<u32, Output = Self::INNER>;
     fn from_inner(inner: Self::INNER) -> Self;
-    fn convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+    fn convert<F: FixedPoint>(self) -> F
+    where
+        F::INNER: TryFrom<Self::INNER>;
+    fn try_convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
     where
         F::INNER: TryFrom<Self::INNER>;
     fn powi(self, n: u32) -> Self;
     fn min(self, rhs: Self) -> Self;
     fn max(self, rhs: Self) -> Self;
+}
+
+pub trait SignedFixedPoint: FixedPoint + Neg<Output = Self> {
+    const NEG_ONE: Self;
+    fn abs(self) -> Self;
 }
 
 pub trait RealFixedPoint {
@@ -135,11 +143,6 @@ pub trait TrigFixedPoint: Sized + Copy + Clone {
     fn sin_cos(self) -> (Self, Self);
     fn to_radians(self) -> Self;
     fn to_degrees(self) -> Self;
-}
-
-pub trait SignedFixedPoint: Neg<Output = Self> {
-    const NEG_ONE: Self;
-    fn abs(self) -> Self;
 }
 
 macro_rules! define_real {
@@ -159,7 +162,14 @@ macro_rules! define_real {
                 Self(inner)
             }
 
-            fn convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            fn convert<F: FixedPoint>(self) -> F
+            where
+                F::INNER: TryFrom<Self::INNER>,
+            {
+                self.try_convert::<F>().unwrap()
+            }
+
+            fn try_convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
             where
                 F::INNER: TryFrom<Self::INNER>,
             {
@@ -167,7 +177,7 @@ macro_rules! define_real {
                 if Self::BITS < F::BITS {
                     let inner = if shift >= 0 {
                         self.0 << (shift as u32)
-                    } else if shift < 0 {
+                    } else {
                         self.0 >> (-shift as u32)
                     };
                     Ok(F::from_inner(
@@ -178,7 +188,7 @@ macro_rules! define_real {
                         F::INNER::try_from(self.0).map_err(|_| FixedPointError::Overflow)?;
                     if shift >= 0 {
                         Ok(F::from_inner(inner << (shift as u32)))
-                    } else if shift < 0 {
+                    } else {
                         Ok(F::from_inner(inner >> (-shift as u32)))
                     }
                 }
@@ -620,14 +630,14 @@ macro_rules! define_real {
         //     self.convert::<F>().unwrap()
         // }
 
-        impl<S, F: FixedPoint<INNER = S>> From<F> for $name
-        where
-            <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
-        {
-            fn from(value: F) -> Self {
-                value.convert::<$name>().unwrap()
-            }
-        }
+        // impl<S, F: FixedPoint<INNER = S>> From<F> for $name
+        // where
+        //     <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+        // {
+        //     fn from(value: F) -> Self {
+        //         value.convert::<$name>().unwrap()
+        //     }
+        // }
 
         // impl<F: FixedPoint> Into<F> for $name
         // where
@@ -638,29 +648,29 @@ macro_rules! define_real {
         //     }
         // }
 
-        // impl From<u8> for $name {
-        //     fn from(value: u8) -> Self {
-        //         Self::from_int(value as $inner)
-        //     }
-        // }
+        impl From<u8> for $name {
+            fn from(value: u8) -> Self {
+                Self::from_int(value as $inner)
+            }
+        }
 
-        // impl From<u16> for $name {
-        //     fn from(value: u16) -> Self {
-        //         Self::from_int(value as $inner)
-        //     }
-        // }
+        impl From<u16> for $name {
+            fn from(value: u16) -> Self {
+                Self::from_int(value as $inner)
+            }
+        }
 
-        // impl From<u32> for $name {
-        //     fn from(value: u32) -> Self {
-        //         Self::from_int(value as $inner)
-        //     }
-        // }
+        impl From<u32> for $name {
+            fn from(value: u32) -> Self {
+                Self::from_int(value as $inner)
+            }
+        }
 
-        // impl From<u64> for $name {
-        //     fn from(value: u64) -> Self {
-        //         Self::from_int(value as $inner)
-        //     }
-        // }
+        impl From<u64> for $name {
+            fn from(value: u64) -> Self {
+                Self::from_int(value as $inner)
+            }
+        }
 
         impl Add for $name {
             type Output = Self;
@@ -931,7 +941,14 @@ macro_rules! define_num_unsigned {
                 inner
             }
 
-            fn convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            fn convert<F: FixedPoint>(self) -> F
+            where
+                F::INNER: TryFrom<Self::INNER>,
+            {
+                self.try_convert::<F>().unwrap()
+            }
+
+            fn try_convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
             where
                 F::INNER: TryFrom<Self::INNER>,
             {

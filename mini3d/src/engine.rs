@@ -1,5 +1,5 @@
 use alloc::boxed::Box;
-use mini3d_derive::Error;
+use mini3d_derive::{fixed, Error};
 
 use crate::activity::{ActivityEntry, ActivityManager};
 use crate::api::time::TimeAPI;
@@ -231,8 +231,7 @@ impl Engine {
                 platform: &mut self.platform,
                 logger: &mut self.logger,
                 time: TimeAPI {
-                    delta: 0.0,
-                    global: 0.0,
+                    delta: fixed!(0),
                     frame: 0,
                 },
                 ecs: root,
@@ -328,7 +327,6 @@ impl Engine {
                 renderer: &mut self.renderer,
                 platform: &mut self.platform,
                 logger: &mut self.logger,
-                global_time: &mut self.global_time,
             })
             .map_err(|err| TickError::System)?;
 

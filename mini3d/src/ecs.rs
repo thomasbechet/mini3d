@@ -9,7 +9,7 @@ use crate::{
     },
     input::InputManager,
     logger::LoggerManager,
-    math::fixed::{FixedPoint, I32F16},
+    math::fixed::{FixedPoint, U32F16},
     platform::PlatformManager,
     renderer::RendererManager,
     resource::ResourceManager,
@@ -113,7 +113,6 @@ pub(crate) struct ECSUpdateContext<'a> {
     pub(crate) renderer: &'a mut RendererManager,
     pub(crate) platform: &'a mut PlatformManager,
     pub(crate) logger: &'a mut LoggerManager,
-    pub(crate) global_time: &'a mut f64,
 }
 
 impl ECSManager {
@@ -146,7 +145,7 @@ impl ECSManager {
         let active_ecs = context.activity.activities[context.activity.active].ecs;
         let frame_index = context.activity.activities[context.activity.active].frame_index;
         let delta_time =
-            I32F16::ONE / context.activity.activities[context.activity.active].target_fps as u32;
+            U32F16::ONE / context.activity.activities[context.activity.active].target_fps as u32;
         let (ecs, systems) = self.instances.get_mut(active_ecs).unwrap();
 
         // Begin frame
@@ -217,7 +216,6 @@ impl ECSManager {
         }
 
         // Integrate global time
-        *context.global_time += delta_time;
         context.activity.activities[context.activity.active].frame_index += 1;
 
         Ok(())
