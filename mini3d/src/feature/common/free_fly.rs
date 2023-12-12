@@ -122,7 +122,7 @@ impl ParallelSystem for FreeFlySystem {
 
             // Apply transformation
             transform.translation +=
-                direction * direction_length * (Time::delta(ctx) * speed).convert();
+                direction * direction_length * (Time::delta(ctx) * speed).cast::<I32F16>();
 
             // Apply rotation
             let motion_x = expect!(ctx, Input::axis(ctx, free_fly.view_x)).value;
@@ -132,36 +132,36 @@ impl ParallelSystem for FreeFlySystem {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Y,
                         -motion_x.to_radians()
-                            * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert(),
+                            * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).cast::<I32F16>(),
                     );
                 }
                 if motion_y != fixed!(0) {
                     transform.rotation *= Q::from_axis_angle(
                         V3::X,
                         motion_y.to_radians()
-                            * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert(),
+                            * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).cast::<I32F16>(),
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_left)).is_pressed() {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Z,
-                        -(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)).convert::<I32F16>(),
+                        -(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)).cast::<I32F16>(),
                     );
                 }
                 if expect!(ctx, Input::action(ctx, free_fly.roll_right)).is_pressed() {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Z,
-                        (FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)).convert(),
+                        (FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)).cast::<I32F16>(),
                     );
                 }
             } else {
                 if motion_x != fixed!(0) {
-                    free_fly.yaw +=
-                        motion_x * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert();
+                    free_fly.yaw += motion_x
+                        * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).cast::<I32F16>();
                 }
                 if motion_y != fixed!(0) {
-                    free_fly.pitch +=
-                        motion_y * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).convert();
+                    free_fly.pitch += motion_y
+                        * (FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)).cast::<I32F16>();
                 }
 
                 if free_fly.pitch < fixed!(-90.0) {

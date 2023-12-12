@@ -9,7 +9,7 @@ use crate::{
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     math::{
-        fixed::{TrigFixedPoint, I32F16},
+        fixed::{FixedPoint, TrigFixedPoint, I32F16},
         quat::Q,
         vec::V3,
     },
@@ -45,8 +45,10 @@ impl ParallelSystem for RotatorSystem {
 
     fn run(mut self, ctx: &Context) {
         for e in self.query.iter() {
-            self.transform[e].rotation *=
-                Q::from_axis_angle(V3::Y, Time::delta(ctx) * self.rotator[e].speed.to_radians());
+            self.transform[e].rotation *= Q::from_axis_angle(
+                V3::Y,
+                Time::delta(ctx).cast::<I32F16>() * self.rotator[e].speed.to_radians(),
+            );
         }
     }
 }

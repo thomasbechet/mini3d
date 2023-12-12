@@ -113,10 +113,10 @@ pub trait FixedPoint:
     const TWO: Self;
     type INNER: Shl<u32, Output = Self::INNER> + Shr<u32, Output = Self::INNER>;
     fn from_inner(inner: Self::INNER) -> Self;
-    fn convert<F: FixedPoint>(self) -> F
+    fn cast<F: FixedPoint>(self) -> F
     where
         F::INNER: TryFrom<Self::INNER>;
-    fn try_convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+    fn try_cast<F: FixedPoint>(self) -> Result<F, FixedPointError>
     where
         F::INNER: TryFrom<Self::INNER>;
     fn powi(self, n: u32) -> Self;
@@ -162,14 +162,14 @@ macro_rules! define_real {
                 Self(inner)
             }
 
-            fn convert<F: FixedPoint>(self) -> F
+            fn cast<F: FixedPoint>(self) -> F
             where
                 F::INNER: TryFrom<Self::INNER>,
             {
-                self.try_convert::<F>().unwrap()
+                self.try_cast::<F>().unwrap()
             }
 
-            fn try_convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            fn try_cast<F: FixedPoint>(self) -> Result<F, FixedPointError>
             where
                 F::INNER: TryFrom<Self::INNER>,
             {
@@ -941,14 +941,14 @@ macro_rules! define_num_unsigned {
                 inner
             }
 
-            fn convert<F: FixedPoint>(self) -> F
+            fn cast<F: FixedPoint>(self) -> F
             where
                 F::INNER: TryFrom<Self::INNER>,
             {
-                self.try_convert::<F>().unwrap()
+                self.try_cast::<F>().unwrap()
             }
 
-            fn try_convert<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            fn try_cast<F: FixedPoint>(self) -> Result<F, FixedPointError>
             where
                 F::INNER: TryFrom<Self::INNER>,
             {

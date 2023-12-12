@@ -1,6 +1,6 @@
 use mini3d_derive::Serialize;
 
-use super::vec::{V2, V2I32};
+use super::vec::{V2, V2I32, V2U32};
 
 /// Basic rectangle structure with useful functions
 /// Vec4: xy -> top-left, zw -> bottom-right

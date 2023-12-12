@@ -51,7 +51,7 @@ pub trait ReadProperty {
     read_property!(V4I32F16, read_v4i32f16);
     read_property!(V4I32, read_v4i32);
     read_property!(M4I32F16, read_m4i32f16);
-    read_property!(QI32F16, read_qi32f16);
+    read_property!(QI32F16, read_q32f16);
     read_property!(Entity, read_entity);
     read_property!(UID, read_uid);
 }
@@ -69,7 +69,7 @@ pub trait WriteProperty {
     write_property!(V4I32F16, write_v4i32f16);
     write_property!(V4I32, write_v4i32);
     write_property!(M4I32F16, write_m4i32f16);
-    write_property!(QI32F16, write_qi32f16);
+    write_property!(QI32F16, write_q32f16);
     write_property!(Entity, write_entity);
     write_property!(UID, write_uid);
 }

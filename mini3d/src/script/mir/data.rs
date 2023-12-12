@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use crate::{
     math::{
         mat::{M4, M4I32F16},
-        quat::Q,
+        quat::{Q, QI32F16},
         vec::{V2, V2I32, V2I32F16, V3, V3I32, V3I32F16, V4, V4I32, V4I32F16},
     },
     serialize::{Serialize, SliceDecoder},
@@ -111,7 +111,7 @@ impl DataTable {
         let id = self.entries.len() as u16;
         self.entries.push(DataEntry {
             ty: PrimitiveType::I32,
-            data: value,
+            data: value as u32,
         });
         DataId(id)
     }
@@ -217,7 +217,7 @@ impl DataTable {
     pub(crate) fn read_i32(&self, id: DataId) -> i32 {
         let entry = &self.entries[id.0 as usize];
         assert!(entry.ty == PrimitiveType::I32);
-        entry.data
+        entry.data as i32
     }
 
     pub(crate) fn read_str(&self, id: DataId) -> &str {
