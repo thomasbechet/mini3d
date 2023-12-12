@@ -16,6 +16,7 @@ use mini3d::{
         ecs::system::{System, SystemOrder, SystemSet, SystemStage},
     },
     info,
+    math::vec::V3I32F16,
 };
 use mini3d_stdlog::logger::stdout::StdoutLogger;
 
@@ -35,15 +36,15 @@ impl ExclusiveSystem for SpawnSystem {
         for i in 0..2 {
             let e = Entity::create(ctx);
             self.transform
-                .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
+                .add(e, Transform::from_translation(V3I32F16::ZERO));
             if i == 1 {
                 Entity::destroy(ctx, e);
             }
             self.transform
-                .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
+                .add(e, Transform::from_translation(V3I32F16::ZERO));
         }
         self.transform
-            .add(e, Transform::from_translation([0.0, 0.0, 0.0].into()));
+            .add(e, Transform::from_translation(V3I32F16::ZERO));
         info!(ctx, "Spawned entity: {:?}", e);
     }
 }
@@ -66,13 +67,7 @@ impl ExclusiveSystem for TestSystem {
             let transform = &self.transform[e];
             info!(ctx, "{} {:?}", i, transform);
         }
-        info!(
-            ctx,
-            "{:.3} {:.3} {}",
-            Time::global(ctx),
-            Time::delta(ctx),
-            Time::frame(ctx)
-        );
+        info!(ctx, "{:.3} {}", Time::delta(ctx), Time::frame(ctx));
     }
 }
 

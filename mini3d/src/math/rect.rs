@@ -1,6 +1,9 @@
 use mini3d_derive::Serialize;
 
-use super::vec::{V2, V2I32, V2U32};
+use super::{
+    fixed::I32F16,
+    vec::{V2, V2I32, V2I32F16, V2U32},
+};
 
 /// Basic rectangle structure with useful functions
 /// Vec4: xy -> top-left, zw -> bottom-right
@@ -125,10 +128,10 @@ impl IRect {
     }
 
     #[inline]
-    pub fn lerp(self, rect: IRect, a: f32) -> Self {
+    pub fn lerp(self, rect: IRect, t: I32F16) -> Self {
         Self {
-            tl: self.tl.as_vec2().lerp(rect.tl.as_vec2(), a).as_ivec2(),
-            br: self.br.as_vec2().lerp(rect.br.as_vec2(), a).as_ivec2(),
+            tl: V2I32::cast(V2I32F16::cast(self.tl).lerp(V2I32F16::cast(rect.tl), t)),
+            br: V2I32::cast(V2I32F16::cast(self.br).lerp(V2I32F16::cast(rect.br), t)),
         }
     }
 

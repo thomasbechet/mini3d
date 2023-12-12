@@ -2,7 +2,7 @@ use crate::feature::core::resource::ResourceTypeHandle;
 use crate::feature::renderer::font::{Font, FontHandle};
 use crate::feature::renderer::mesh::{Mesh, MeshHandle};
 use crate::feature::renderer::texture::{Texture, TextureHandle};
-use crate::math::fixed::I32F16;
+use crate::math::fixed::{FixedPoint, I32F16};
 use crate::math::vec::{V2, V2U32};
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
@@ -40,12 +40,13 @@ pub const SCREEN_HEIGHT: u32 = 400;
 // pub const SCREEN_WIDTH: u32 = 384;
 // pub const SCREEN_HEIGHT: u32 = 216;
 
-pub const SCREEN_PIXEL_COUNT: usize = SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize;
+pub const SCREEN_PIXEL_COUNT: u32 = SCREEN_WIDTH * SCREEN_HEIGHT;
 pub const SCREEN_RESOLUTION: V2U32 = V2::new(SCREEN_WIDTH, SCREEN_HEIGHT);
 pub const SCREEN_CENTER: V2U32 = V2::new(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
 pub const SCREEN_VIEWPORT: IRect = IRect::new(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-pub const SCREEN_ASPECT_RATIO: I32F16 = I32F16::from(SCREEN_WIDTH) / I32F16::from(SCREEN_HEIGHT);
-pub const SCREEN_INV_ASPECT_RATIO: I32F16 = 1 / SCREEN_ASPECT_RATIO;
+pub const SCREEN_ASPECT_RATIO: I32F16 =
+    I32F16::from_int(SCREEN_WIDTH as i32).div(I32F16::from_int(SCREEN_HEIGHT as i32));
+pub const SCREEN_INV_ASPECT_RATIO: I32F16 = I32F16::ONE.div(SCREEN_ASPECT_RATIO);
 
 pub const TILE_SIZE: u32 = 8;
 pub const TILE_HCOUNT: u32 = SCREEN_WIDTH / TILE_SIZE;
@@ -53,8 +54,8 @@ pub const TILE_VCOUNT: u32 = SCREEN_HEIGHT / TILE_SIZE;
 
 #[derive(Default, Clone, Copy, Serialize)]
 pub struct RendererStatistics {
-    pub triangle_count: usize,
-    pub draw_count: usize,
+    pub triangle_count: u32,
+    pub draw_count: u32,
 }
 
 #[derive(Default, Clone, Copy, Serialize)]

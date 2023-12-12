@@ -7,7 +7,7 @@ use crate::math::{
 };
 
 // Column-major matrix (follow math convention)
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct M4<T: FixedPoint> {
     pub xaxis: V4<T>,
     pub yaxis: V4<T>,
@@ -64,7 +64,7 @@ impl<T: FixedPoint> M4<T> {
         }
     }
 
-    pub fn to_cols_array(self) -> [T; 16] {
+    pub fn to_cols_array(&self) -> [T; 16] {
         [
             self.xaxis.x,
             self.yaxis.x,

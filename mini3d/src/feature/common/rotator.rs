@@ -47,7 +47,7 @@ impl ParallelSystem for RotatorSystem {
         for e in self.query.iter() {
             self.transform[e].rotation *= Q::from_axis_angle(
                 V3::Y,
-                Time::delta(ctx).cast::<I32F16>() * self.rotator[e].speed.to_radians(),
+                I32F16::cast(Time::delta(ctx)) * self.rotator[e].speed.to_radians(),
             );
         }
     }

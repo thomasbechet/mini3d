@@ -3,7 +3,7 @@ use core::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::math::fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint};
+use crate::math::fixed::{FixedPoint, FixedPointError, RealFixedPoint, SignedFixedPoint};
 
 use super::{V2, V3};
 
@@ -21,6 +21,25 @@ impl<T: FixedPoint> V4<T> {
     pub const Y: Self = Self::new(T::ZERO, T::ONE, T::ZERO, T::ZERO);
     pub const Z: Self = Self::new(T::ZERO, T::ZERO, T::ONE, T::ZERO);
     pub const W: Self = Self::new(T::ZERO, T::ZERO, T::ZERO, T::ONE);
+
+    pub fn cast<F: FixedPoint>(v: V4<F>) -> Self
+    where
+        <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+    {
+        Self::new(T::cast(v.x), T::cast(v.y), T::cast(v.z), T::cast(v.w))
+    }
+
+    pub fn try_cast<F: FixedPoint>(v: V4<F>) -> Result<Self, FixedPointError>
+    where
+        <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+    {
+        Ok(Self::new(
+            T::try_cast(v.x)?,
+            T::try_cast(v.y)?,
+            T::try_cast(v.z)?,
+            T::try_cast(v.w)?,
+        ))
+    }
 
     pub const fn new(x: T, y: T, z: T, w: T) -> Self {
         Self { x, y, z, w }
@@ -42,8 +61,8 @@ impl<T: FixedPoint> V4<T> {
         V3::new(self.x, self.y, self.z)
     }
 
-    pub fn dot(self, rhs: Self) -> T {
-        (self.x * rhs.x) + (self.y * rhs.y) + (self.z * rhs.z) + (self.w * rhs.w)
+    pub fn dot(self, v: Self) -> T {
+        (self.x * v.x) + (self.y * v.y) + (self.z * v.z) + (self.w * v.w)
     }
 
     pub fn length_squared(self) -> T {

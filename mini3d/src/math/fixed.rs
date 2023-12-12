@@ -112,16 +112,16 @@ pub trait FixedPoint:
     const ONE: Self;
     const TWO: Self;
     type INNER: Shl<u32, Output = Self::INNER> + Shr<u32, Output = Self::INNER>;
-    fn from_inner(inner: Self::INNER) -> Self;
-    fn cast<F: FixedPoint>(self) -> F
+    fn inner(self) -> Self::INNER;
+    fn cast<F: FixedPoint>(f: F) -> Self
     where
-        F::INNER: TryFrom<Self::INNER>;
-    fn try_cast<F: FixedPoint>(self) -> Result<F, FixedPointError>
+        Self::INNER: TryFrom<F::INNER>;
+    fn try_cast<F: FixedPoint>(f: F) -> Result<Self, FixedPointError>
     where
-        F::INNER: TryFrom<Self::INNER>;
+        Self::INNER: TryFrom<F::INNER>;
     fn powi(self, n: u32) -> Self;
-    fn min(self, rhs: Self) -> Self;
-    fn max(self, rhs: Self) -> Self;
+    fn min(self, x: Self) -> Self;
+    fn max(self, x: Self) -> Self;
 }
 
 pub trait SignedFixedPoint: FixedPoint + Neg<Output = Self> {
@@ -134,6 +134,7 @@ pub trait RealFixedPoint {
     fn sqrt(self) -> Self;
     fn pow(self, v: Self) -> Self;
     fn recip(self) -> Self;
+    fn lerp(self, a: Self, t: Self) -> Self;
 }
 
 pub trait TrigFixedPoint: Sized + Copy + Clone {
@@ -158,38 +159,38 @@ macro_rules! define_real {
             const TWO: Self = Self::from_int(2);
             type INNER = $inner;
 
-            fn from_inner(inner: Self::INNER) -> Self {
-                Self(inner)
+            fn inner(self) -> Self::INNER {
+                self.0
             }
 
-            fn cast<F: FixedPoint>(self) -> F
+            fn cast<F: FixedPoint>(f: F) -> Self
             where
-                F::INNER: TryFrom<Self::INNER>,
+                Self::INNER: TryFrom<F::INNER>,
             {
-                self.try_cast::<F>().unwrap()
+                Self::try_cast(f).unwrap()
             }
 
-            fn try_cast<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            fn try_cast<F: FixedPoint>(f: F) -> Result<Self, FixedPointError>
             where
-                F::INNER: TryFrom<Self::INNER>,
+                Self::INNER: TryFrom<F::INNER>,
             {
-                let shift = F::FRAC as isize - Self::FRAC as isize;
-                if Self::BITS < F::BITS {
+                let shift = Self::FRAC as isize - F::FRAC as isize;
+                if F::BITS < Self::BITS {
                     let inner = if shift >= 0 {
-                        self.0 << (shift as u32)
+                        f.inner() << (shift as u32)
                     } else {
-                        self.0 >> (-shift as u32)
+                        f.inner() >> (-shift as u32)
                     };
-                    Ok(F::from_inner(
-                        F::INNER::try_from(inner).map_err(|_| FixedPointError::InvalidSign)?,
+                    Ok(Self::from_bits(
+                        Self::INNER::try_from(inner).map_err(|_| FixedPointError::InvalidSign)?,
                     ))
                 } else {
                     let inner =
-                        F::INNER::try_from(self.0).map_err(|_| FixedPointError::Overflow)?;
+                        Self::INNER::try_from(f.inner()).map_err(|_| FixedPointError::Overflow)?;
                     if shift >= 0 {
-                        Ok(F::from_inner(inner << (shift as u32)))
+                        Ok(Self::from_bits(inner << (shift as u32)))
                     } else {
-                        Ok(F::from_inner(inner >> (-shift as u32)))
+                        Ok(Self::from_bits(inner >> (-shift as u32)))
                     }
                 }
             }
@@ -198,19 +199,19 @@ macro_rules! define_real {
                 self.powi(n)
             }
 
-            fn min(self, rhs: Self) -> Self {
-                if self.0 < rhs.0 {
+            fn min(self, a: Self) -> Self {
+                if self.0 < a.0 {
                     self
                 } else {
-                    rhs
+                    a
                 }
             }
 
-            fn max(self, rhs: Self) -> Self {
-                if self.0 > rhs.0 {
+            fn max(self, a: Self) -> Self {
+                if self.0 > a.0 {
                     self
                 } else {
-                    rhs
+                    a
                 }
             }
         }
@@ -235,6 +236,10 @@ macro_rules! define_real {
             fn recip(self) -> Self {
                 Self::ONE.div(self)
             }
+
+            fn lerp(self, a: Self, t: Self) -> Self {
+                Self::ONE.sub(t).mul(self).add(t.mul(a))
+            }
         }
 
         impl $name {
@@ -246,9 +251,9 @@ macro_rules! define_real {
             pub const FRAC_MASK: $inner = (1 << $frac) - 1;
             pub const INT_MASK: $inner = !Self::FRAC_MASK;
 
-            pub const MAX: Self = Self::from_inner(<$inner>::MAX);
-            pub const MIN: Self = Self::from_inner(<$inner>::MIN);
-            pub const EPSILON: Self = Self::from_inner(1);
+            pub const MAX: Self = Self::from_bits(<$inner>::MAX);
+            pub const MIN: Self = Self::from_bits(<$inner>::MIN);
+            pub const EPSILON: Self = Self::from_bits(1);
 
             pub const HALF: Self = Self::from_int(1).div(Self::from_int(2));
             pub const PI: Self = Self::lit("3.1415926535897932384626433832795028");
@@ -297,10 +302,10 @@ macro_rules! define_real {
                 if signed {
                     fixed = !fixed + 1;
                 }
-                Self::from_inner(fixed as $inner)
+                Self::from_bits(fixed as $inner)
             }
 
-            pub const fn from_inner(inner: $inner) -> Self {
+            pub const fn from_bits(inner: $inner) -> Self {
                 Self(inner)
             }
 
@@ -616,38 +621,6 @@ macro_rules! define_real {
             }
         }
 
-        // pub fn from<F: FixedPoint>(value: F) -> Self
-        // where
-        //     <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
-        // {
-        //     value.convert::<$name>().unwrap()
-        // }
-
-        // pub fn into<F: FixedPoint>(self) -> F
-        // where
-        //     <F as FixedPoint>::INNER: TryFrom<<$name as FixedPoint>::INNER>,
-        // {
-        //     self.convert::<F>().unwrap()
-        // }
-
-        // impl<S, F: FixedPoint<INNER = S>> From<F> for $name
-        // where
-        //     <$name as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
-        // {
-        //     fn from(value: F) -> Self {
-        //         value.convert::<$name>().unwrap()
-        //     }
-        // }
-
-        // impl<F: FixedPoint> Into<F> for $name
-        // where
-        //     <F as FixedPoint>::INNER: TryFrom<<$name as FixedPoint>::INNER>,
-        // {
-        //     fn into(self) -> F {
-        //         self.convert::<F>().unwrap()
-        //     }
-        // }
-
         impl From<u8> for $name {
             fn from(value: u8) -> Self {
                 Self::from_int(value as $inner)
@@ -857,7 +830,7 @@ macro_rules! define_real {
                 decoder: &mut impl Decoder,
                 header: &Self::Header,
             ) -> Result<Self, DecoderError> {
-                Ok(Self::from_inner(<$inner>::deserialize(decoder, header)?))
+                Ok(Self::from_bits(<$inner>::deserialize(decoder, header)?))
             }
         }
     };
@@ -937,41 +910,36 @@ macro_rules! define_num_unsigned {
             const TWO: Self = 2;
             type INNER = Self;
 
-            fn from_inner(inner: Self::INNER) -> Self {
-                inner
+            fn inner(self) -> Self::INNER {
+                self
             }
 
-            fn cast<F: FixedPoint>(self) -> F
+            fn cast<F: FixedPoint>(f: F) -> Self
             where
-                F::INNER: TryFrom<Self::INNER>,
+                Self::INNER: TryFrom<F::INNER>,
             {
-                self.try_cast::<F>().unwrap()
+                Self::try_cast(f).unwrap()
             }
 
-            fn try_cast<F: FixedPoint>(self) -> Result<F, FixedPointError>
+            fn try_cast<F: FixedPoint>(f: F) -> Result<Self, FixedPointError>
             where
-                F::INNER: TryFrom<Self::INNER>,
+                Self::INNER: TryFrom<F::INNER>,
             {
-                let shift = F::FRAC as isize - Self::FRAC as isize;
-                if Self::BITS < F::BITS {
-                    let inner = if shift > 0 {
-                        self << (shift as u32)
-                    } else if shift < 0 {
-                        self >> (-shift as u32)
+                let shift = Self::FRAC as isize - F::FRAC as isize;
+                if F::BITS < Self::BITS {
+                    let inner = if shift >= 0 {
+                        f.inner() << (shift as u32)
                     } else {
-                        self
+                        f.inner() >> (-shift as u32)
                     };
-                    Ok(F::from_inner(
-                        F::INNER::try_from(inner).map_err(|_| FixedPointError::InvalidSign)?,
-                    ))
+                    Ok(Self::INNER::try_from(inner).map_err(|_| FixedPointError::InvalidSign)?)
                 } else {
-                    let inner = F::INNER::try_from(self).map_err(|_| FixedPointError::Overflow)?;
-                    if shift > 0 {
-                        Ok(F::from_inner(inner << (shift as u32)))
-                    } else if shift < 0 {
-                        Ok(F::from_inner(inner >> (-shift as u32)))
+                    let inner =
+                        Self::INNER::try_from(f.inner()).map_err(|_| FixedPointError::Overflow)?;
+                    if shift >= 0 {
+                        Ok(inner << (shift as u32))
                     } else {
-                        Ok(F::from_inner(inner))
+                        Ok(inner >> (-shift as u32))
                     }
                 }
             }
@@ -980,19 +948,19 @@ macro_rules! define_num_unsigned {
                 self.powi(n)
             }
 
-            fn min(self, rhs: Self) -> Self {
-                if self < rhs {
+            fn min(self, x: Self) -> Self {
+                if self < x {
                     self
                 } else {
-                    rhs
+                    x
                 }
             }
 
-            fn max(self, rhs: Self) -> Self {
-                if self > rhs {
+            fn max(self, x: Self) -> Self {
+                if self > x {
                     self
                 } else {
-                    rhs
+                    x
                 }
             }
         }

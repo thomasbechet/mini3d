@@ -3,7 +3,7 @@ use core::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use crate::math::fixed::{FixedPoint, RealFixedPoint};
+use crate::math::fixed::{FixedPoint, FixedPointError, RealFixedPoint};
 
 use super::{V3, V4};
 
@@ -14,6 +14,20 @@ pub struct V2<T: FixedPoint> {
 }
 
 impl<T: FixedPoint> V2<T> {
+    pub fn cast<F: FixedPoint>(v: V2<F>) -> Self
+    where
+        <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+    {
+        Self::new(T::cast(v.x), T::cast(v.y))
+    }
+
+    pub fn try_cast<F: FixedPoint>(v: V2<F>) -> Result<Self, FixedPointError>
+    where
+        <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+    {
+        Ok(Self::new(T::try_cast(v.x)?, T::try_cast(v.y)?))
+    }
+
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
@@ -26,20 +40,24 @@ impl<T: FixedPoint> V2<T> {
         Self::new(v.x, v.y)
     }
 
-    pub fn dot(self, rhs: Self) -> T {
-        (self.x * rhs.x) + (self.y * rhs.y)
+    pub fn dot(self, v: Self) -> T {
+        (self.x * v.x) + (self.y * v.y)
     }
 
     pub fn length_squared(self) -> T {
         self.dot(self)
     }
 
-    pub fn min(self, rhs: Self) -> Self {
-        Self::new(self.x.min(rhs.x), self.y.min(rhs.y))
+    pub fn min(self, v: Self) -> Self {
+        Self::new(self.x.min(v.x), self.y.min(v.y))
     }
 
-    pub fn max(self, rhs: Self) -> Self {
-        Self::new(self.x.max(rhs.x), self.y.max(rhs.y))
+    pub fn max(self, v: Self) -> Self {
+        Self::new(self.x.max(v.x), self.y.max(v.y))
+    }
+
+    pub fn lerp(self, v: Self, t: T) -> Self {
+        self + (v - self) * t
     }
 }
 

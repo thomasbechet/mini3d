@@ -3,7 +3,7 @@ use core::{
     ops::{Add, AddAssign, Div, Mul, Sub},
 };
 
-use crate::math::fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint};
+use crate::math::fixed::{FixedPoint, FixedPointError, RealFixedPoint, SignedFixedPoint};
 
 use super::{V2, V4};
 
@@ -20,6 +20,24 @@ impl<T: FixedPoint> V3<T> {
     pub const X: Self = Self::new(T::ONE, T::ZERO, T::ZERO);
     pub const Y: Self = Self::new(T::ZERO, T::ONE, T::ZERO);
     pub const Z: Self = Self::new(T::ZERO, T::ZERO, T::ONE);
+
+    pub fn cast<F: FixedPoint>(v: V3<F>) -> Self
+    where
+        <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+    {
+        Self::new(T::cast(v.x), T::cast(v.y), T::cast(v.z))
+    }
+
+    pub fn try_cast<F: FixedPoint>(v: V3<F>) -> Result<Self, FixedPointError>
+    where
+        <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
+    {
+        Ok(Self::new(
+            T::try_cast(v.x)?,
+            T::try_cast(v.y)?,
+            T::try_cast(v.z)?,
+        ))
+    }
 
     pub const fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
@@ -45,11 +63,11 @@ impl<T: FixedPoint> V3<T> {
         self.dot(self)
     }
 
-    pub fn cross(self, rhs: Self) -> Self {
+    pub fn cross(self, v: Self) -> Self {
         Self::new(
-            self.x * rhs.y - self.y * rhs.x,
-            self.y * rhs.z - self.z * rhs.y,
-            self.z * rhs.x - self.x * rhs.z,
+            self.x * v.y - self.y * v.x,
+            self.y * v.z - self.z * v.y,
+            self.z * v.x - self.x * v.z,
         )
     }
 }
