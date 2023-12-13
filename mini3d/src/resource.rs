@@ -1,6 +1,5 @@
 use alloc::boxed::Box;
 
-use crate::activity::ActivityInstanceHandle;
 use crate::feature::core::resource::{Resource, ResourceType, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::slot_map_key;
@@ -24,7 +23,6 @@ slot_map_key!(ResourceEntryKey);
 pub struct ResourceInfo<'a> {
     pub name: &'a str,
     pub ty: ResourceTypeHandle,
-    pub owner: ActivityInstanceHandle,
     pub ref_count: u32,
     pub handle: ResourceHandle,
 }
@@ -33,7 +31,6 @@ pub(crate) struct ResourceEntry {
     name: ResourceName,
     handle: ResourceHandle,
     ty: ResourceTypeHandle,
-    owner: ActivityInstanceHandle,
     ref_count: u32,
 }
 
@@ -82,7 +79,7 @@ impl Default for ResourceManager {
 }
 
 impl ResourceManager {
-    pub(crate) fn define_meta_type(&mut self, root: ActivityInstanceHandle) {
+    pub(crate) fn define_meta_type(&mut self) {
         // Create container
         self.type_container_key =
             self.containers
@@ -96,7 +93,6 @@ impl ResourceManager {
             name: ResourceName::new(ResourceType::NAME),
             ty: ResourceTypeHandle::null(),
             handle: ResourceHandle::null(),
-            owner: root,
             ref_count: 1, // Keep it alive (reference itslef)
         });
         // Create meta type data
@@ -171,7 +167,6 @@ impl ResourceManager {
         &mut self,
         name: Option<&str>,
         ty: ResourceTypeHandle,
-        owner: ActivityInstanceHandle,
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
         // Check existing type and container
@@ -199,7 +194,6 @@ impl ResourceManager {
             name,
             ty,
             handle: ResourceHandle::null(),
-            owner,
             ref_count: 0,
         });
         // Allocate in container
@@ -224,10 +218,9 @@ impl ResourceManager {
     pub(crate) fn create_resource_type(
         &mut self,
         name: Option<&str>,
-        owner: ActivityInstanceHandle,
         data: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
-        self.create(name, self.meta_type, owner, data)
+        self.create(name, self.meta_type, data)
             .map(|handle| handle.into())
     }
 
@@ -391,7 +384,6 @@ impl ResourceManager {
         Ok(ResourceInfo {
             name: entry.name.as_str(),
             ty: entry.ty,
-            owner: entry.owner,
             ref_count: entry.ref_count,
             handle: handle.to_handle(),
         })

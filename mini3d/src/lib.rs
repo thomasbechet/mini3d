@@ -1,6 +1,5 @@
 #![no_std]
 
-pub mod activity;
 pub mod api;
 pub mod disk;
 pub mod ecs;

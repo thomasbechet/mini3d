@@ -1,5 +1,5 @@
 use mini3d::{
-    api::{activity::Activity, resource::Resource, time::Time, Context},
+    api::{resource::Resource, time::Time, Context},
     ecs::{
         entity::Entity,
         error::ResolverError,
@@ -94,7 +94,7 @@ fn main() {
                 .with("free_fly", free_fly, stage, SystemOrder::default()),
         )
         .unwrap();
-        Activity::add_system_set(ctx, Activity::active(ctx), set);
+        SystemSet::add(ctx, set);
         for (i, handle) in Resource::iter(ctx).enumerate() {
             let info = Resource::info(ctx, handle).unwrap();
             let ty_name = Resource::info(ctx, info.ty).unwrap().name;
@@ -105,6 +105,6 @@ fn main() {
     for _ in 0..10 {
         engine.tick().expect("Instance error");
     }
-    println!("target_fps: {}", engine.target_fps());
+    println!("target_fps: {}", engine.target_tps());
     println!("DONE");
 }

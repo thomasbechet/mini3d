@@ -19,9 +19,7 @@ impl Resource {
         key: &str,
         data: R,
     ) -> Result<ResourceHandle, ResourceError> {
-        let handle = ctx
-            .resource
-            .create(Some(key), ty, ctx.activity.active, data)?;
+        let handle = ctx.resource.create(Some(key), ty, data)?;
         R::hook_added(
             handle,
             ResourceHookContext {
@@ -59,8 +57,7 @@ impl ResourceType {
         key: &str,
         ty: ResourceType,
     ) -> Result<ResourceTypeHandle, ResourceError> {
-        ctx.resource
-            .create_resource_type(Some(key), ctx.activity.active, ty)
+        ctx.resource.create_resource_type(Some(key), ty)
     }
 
     pub fn find(ctx: &Context, key: impl ToUID) -> Option<ResourceTypeHandle> {

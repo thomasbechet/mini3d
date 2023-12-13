@@ -1,7 +1,6 @@
 use alloc::boxed::Box;
 use mini3d_derive::{fixed, Error};
 
-use crate::activity::{ActivityEntry, ActivityManager};
 use crate::api::time::TimeAPI;
 use crate::api::Context;
 use crate::disk::provider::DiskProvider;
@@ -37,6 +36,7 @@ pub struct EngineConfig {
     common: bool,
     renderer: bool,
     ui: bool,
+    target_tps: u16,
 }
 
 impl Default for EngineConfig {
@@ -46,6 +46,7 @@ impl Default for EngineConfig {
             common: true,
             renderer: true,
             ui: true,
+            target_tps: 60,
         }
     }
 }
@@ -58,7 +59,6 @@ impl EngineConfig {
 }
 
 pub struct Engine {
-    pub(crate) activity: ActivityManager,
     pub(crate) ecs: ECSManager,
     pub(crate) resource: ResourceManager,
     pub(crate) storage: DiskManager,
@@ -67,24 +67,11 @@ pub struct Engine {
     pub(crate) physics: PhysicsManager,
     pub(crate) platform: PlatformManager,
     pub(crate) logger: LoggerManager,
-    global_time: f64,
 }
 
 impl Engine {
-    fn setup_root_activity(&mut self) {
-        self.activity.root = self.activity.activities.add(ActivityEntry {
-            name: "root".into(),
-            parent: Default::default(),
-            ecs: Default::default(),
-            frame_index: 0,
-            target_fps: 60,
-        });
-        self.activity.activities[self.activity.root].ecs = self.ecs.add(self.activity.root);
-        self.activity.active = self.activity.root;
-    }
-
     fn setup_resource_manager(&mut self) {
-        self.resource.define_meta_type(self.activity.root);
+        self.resource.define_meta_type();
     }
 
     fn define_resource_types(&mut self, config: &EngineConfig) {
@@ -93,7 +80,6 @@ impl Engine {
                 self.resource
                     .create_resource_type(
                         Some(<$resource>::NAME),
-                        self.activity.root,
                         ResourceType::native::<$resource>(),
                     )
                     .unwrap()
@@ -116,7 +102,6 @@ impl Engine {
         self.renderer.handles.model = define_resource!(renderer::model::Model);
         self.renderer.handles.transform = define_resource!(renderer::transform::RenderTransform);
 
-        define_resource!(core::activity::Activity);
         define_resource!(core::structure::StructDefinition);
 
         if config.common {
@@ -132,7 +117,6 @@ impl Engine {
                     .create(
                         Some(<$component>::NAME),
                         self.ecs.handles.component,
-                        self.activity.root,
                         ComponentType::native::<$component>($storage),
                     )
                     .unwrap()
@@ -145,7 +129,6 @@ impl Engine {
                     .create(
                         self.ecs.handles.system,
                         Some(<$system>::NAME),
-                        self.activity.root,
                         System::native_exclusive::<$system>(),
                     )
                     .unwrap()
@@ -158,7 +141,6 @@ impl Engine {
                     .create(
                         Some(<$system>::NAME),
                         self.ecs.handles.system,
-                        self.activity.root,
                         System::native_parallel::<$system>(),
                     )
                     .unwrap()
@@ -197,12 +179,11 @@ impl Engine {
             // define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
         }
 
-        self.ecs.handles.update_stage = self
+        self.ecs.handles.tick_stage = self
             .resource
             .create(
                 Some(SystemStage::TICK),
                 self.ecs.handles.system_stage,
-                self.activity.root,
                 SystemStage::default(),
             )
             .unwrap()
@@ -212,19 +193,23 @@ impl Engine {
             .create(
                 Some(SystemStage::START),
                 self.ecs.handles.system_stage,
-                self.activity.root,
                 SystemStage::default(),
             )
             .unwrap()
             .into();
     }
 
+    fn setup_ecs(&mut self, config: &EngineConfig) {
+        self.ecs.target_tps = config.target_tps;
+    }
+
     fn run_bootstrap(&mut self, config: &EngineConfig) {
         if let Some(bootstrap) = config.bootstrap {
-            let root_ecs = self.activity.activities[self.activity.root].ecs;
-            let (root, _) = &mut self.ecs.instances[root_ecs];
             bootstrap(&mut Context {
-                activity: &mut self.activity,
+                entities: &mut self.ecs.entities,
+                scheduler: &mut self.ecs.scheduler,
+                entity_created: &mut self.ecs.entity_created,
+                entity_destroyed: &mut self.ecs.entity_destroyed,
                 resource: &mut self.resource,
                 input: &mut self.input,
                 renderer: &mut self.renderer,
@@ -233,19 +218,17 @@ impl Engine {
                 time: TimeAPI {
                     delta: fixed!(0),
                     frame: 0,
+                    target_tps: self.ecs.target_tps,
                 },
-                ecs: root,
                 ecs_types: &self.ecs.handles,
+                commands: &mut self.ecs.commands,
             });
-            // Flush activity commands
-            self.activity
-                .flush_commands(&mut self.ecs, &mut self.resource);
+            self.ecs.flush_commands(&mut self.resource);
         }
     }
 
     pub fn new(config: EngineConfig) -> Self {
         let mut engine = Self {
-            activity: Default::default(),
             ecs: Default::default(),
             storage: Default::default(),
             resource: Default::default(),
@@ -254,12 +237,11 @@ impl Engine {
             physics: Default::default(),
             platform: Default::default(),
             logger: Default::default(),
-            global_time: 0.0,
         };
-        engine.setup_root_activity();
         engine.setup_resource_manager();
         engine.define_resource_types(&config);
         engine.define_component_types(&config);
+        engine.setup_ecs(&config);
         engine.run_bootstrap(&config);
         engine
     }
@@ -292,8 +274,8 @@ impl Engine {
         Ok(())
     }
 
-    pub fn target_fps(&self) -> u16 {
-        self.activity.activities[self.activity.active].target_fps
+    pub fn target_tps(&self) -> u16 {
+        self.ecs.target_tps
     }
 
     pub fn tick(&mut self) -> Result<(), TickError> {
@@ -321,7 +303,6 @@ impl Engine {
         // Update ECS
         self.ecs
             .update(ECSUpdateContext {
-                activity: &mut self.activity,
                 resource: &mut self.resource,
                 input: &mut self.input,
                 renderer: &mut self.renderer,
@@ -329,10 +310,6 @@ impl Engine {
                 logger: &mut self.logger,
             })
             .map_err(|err| TickError::System)?;
-
-        // Flush activity commands
-        self.activity
-            .flush_commands(&mut self.ecs, &mut self.resource);
 
         // ================= POST-UPDATE STAGE ================== //
 
