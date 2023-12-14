@@ -19,11 +19,11 @@ impl Time {
         ctx.time.frame
     }
 
-    pub fn target_fps(ctx: &Context) -> u16 {
+    pub fn target_tps(ctx: &Context) -> u16 {
         ctx.time.target_tps
     }
 
-    pub fn set_target_fps(ctx: &mut Context, tps: u16) {
+    pub fn set_target_tps(ctx: &mut Context, tps: u16) {
         ctx.commands.push(ECSCommand::SetTargetTPS(tps));
     }
 }

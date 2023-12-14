@@ -105,6 +105,6 @@ fn main() {
     for _ in 0..10 {
         engine.tick().expect("Instance error");
     }
-    println!("target_fps: {}", engine.target_tps());
+    println!("target_tps: {}", engine.target_tps());
     println!("DONE");
 }
