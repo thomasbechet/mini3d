@@ -4,7 +4,6 @@ pub mod api;
 pub mod disk;
 pub mod ecs;
 pub mod engine;
-pub mod feature;
 pub mod input;
 pub mod io;
 pub mod logger;

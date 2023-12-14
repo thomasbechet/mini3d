@@ -1,10 +1,9 @@
-use crate::{
-    feature::renderer::font::Font,
-    math::{
-        rect::IRect,
-        vec::{V2, V2I32},
-    },
+use crate::math::{
+    rect::IRect,
+    vec::{V2, V2I32},
 };
+
+use super::resource::font::Font;
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer

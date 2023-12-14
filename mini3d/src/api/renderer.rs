@@ -4,13 +4,13 @@ use crate::{
         material::{Material, MaterialHandle},
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
+        node::{RenderNode, RenderTransformHandle},
         renderpass::{
             canvas::{CanvasPass, CanvasPassHandle},
             diffuse::{DiffusePass, DiffusePassHandle},
             RenderPass, RenderPassType,
         },
         texture::{Texture, TextureHandle, TextureWrapMode},
-        transform::{RenderTransform, RenderTransformHandle},
     },
     math::{mat::M4I32F16, rect::IRect, vec::V2I32},
     renderer::{color::Color, RendererFeatures, RendererStatistics},
@@ -80,7 +80,7 @@ impl Model {
     }
 }
 
-impl RenderTransform {
+impl RenderNode {
     pub fn create(ctx: &mut Context, interpolate: bool) -> RenderTransformHandle {
         todo!()
     }

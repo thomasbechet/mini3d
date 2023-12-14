@@ -1,7 +1,3 @@
-use crate::feature::core::resource::ResourceTypeHandle;
-use crate::feature::renderer::font::{Font, FontHandle};
-use crate::feature::renderer::mesh::{Mesh, MeshHandle};
-use crate::feature::renderer::texture::{Texture, TextureHandle};
 use crate::math::fixed::{FixedPoint, I32F16};
 use crate::math::vec::{V2, V2U32};
 use crate::serialize::{Decoder, DecoderError};
@@ -20,6 +16,7 @@ pub mod event;
 pub mod graphics;
 pub mod provider;
 pub mod rasterizer;
+pub mod resource;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;

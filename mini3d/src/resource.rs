@@ -1,6 +1,5 @@
 use alloc::boxed::Box;
 
-use crate::feature::core::resource::{Resource, ResourceType, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use crate::slot_map_key;
 use crate::utils::prng::PCG32;
@@ -16,6 +15,9 @@ pub mod container;
 pub mod error;
 pub mod handle;
 pub mod key;
+pub mod resource;
+
+pub use resource::*;
 
 slot_map_key!(ResourceEntryKey);
 

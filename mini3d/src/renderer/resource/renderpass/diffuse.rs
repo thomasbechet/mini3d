@@ -4,7 +4,7 @@ use crate::{
     define_resource_handle,
     feature::renderer::{
         camera::RenderCameraHandle, material::MaterialHandle, mesh::MeshHandle,
-        texture::TextureHandle, transform::RenderTransformHandle,
+        node::RenderTransformHandle, texture::TextureHandle,
     },
     math::vec::V3I32F16,
 };

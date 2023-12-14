@@ -3,10 +3,6 @@ use mini3d_derive::Error;
 
 use crate::{
     define_provider_handle,
-    feature::renderer::{
-        mesh::Mesh,
-        texture::{Texture, TextureWrapMode},
-    },
     math::{
         mat::M4I32F16,
         rect::IRect,
@@ -14,7 +10,14 @@ use crate::{
     },
 };
 
-use super::{color::Color, event::RendererEvent};
+use super::{
+    color::Color,
+    event::RendererEvent,
+    resource::{
+        mesh::Mesh,
+        texture::{Texture, TextureWrapMode},
+    },
+};
 
 #[derive(Debug, Error)]
 pub enum RendererProviderError {
