@@ -1,6 +1,11 @@
 use mini3d_derive::Serialize;
 
-use crate::{resource::handle::MAX_RESOURCE_NAME_LEN, utils::string::AsciiArray};
+use crate::{
+    renderer::resource::{Font, Material, Mesh, Model, Texture},
+    resource::handle::MAX_RESOURCE_NAME_LEN,
+    script::resource::Script,
+    utils::string::AsciiArray,
+};
 
 pub struct AssetImportEntry<T> {
     pub name: AsciiArray<MAX_RESOURCE_NAME_LEN>,
@@ -9,7 +14,7 @@ pub struct AssetImportEntry<T> {
 
 pub enum ImportAssetEvent {
     Font(AssetImportEntry<Font>),
-    Material(AssetImportEntry<Materiat>),
+    Material(AssetImportEntry<Material>),
     Mesh(AssetImportEntry<Mesh>),
     Model(AssetImportEntry<Model>),
     Script(AssetImportEntry<Script>),

@@ -3,10 +3,9 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
-    feature::core::resource::{Resource, ResourceHookContext},
     math::vec::{V2I32F16, V3I32F16, V4I32F16},
     renderer::provider::RendererProviderHandle,
-    resource::handle::ResourceHandle,
+    resource::{handle::ResourceHandle, Resource, ResourceHookContext},
 };
 
 #[derive(Clone, Serialize)]

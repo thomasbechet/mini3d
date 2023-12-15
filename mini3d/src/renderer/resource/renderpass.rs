@@ -1,5 +1,7 @@
 use mini3d_derive::{Reflect, Serialize};
 
+use crate::resource::Resource;
+
 pub mod canvas;
 pub mod depth;
 pub mod diffuse;

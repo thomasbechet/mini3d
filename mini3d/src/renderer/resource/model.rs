@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use mini3d_derive::{Reflect, Serialize};
 
-use crate::{define_resource_handle, feature::core::resource::Resource};
+use crate::{define_resource_handle, resource::Resource};
 
 use super::{material::MaterialHandle, mesh::MeshHandle};
 

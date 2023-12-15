@@ -1,3 +1,7 @@
+use mini3d_derive::{fixed, Component, Reflect, Serialize};
+
+use crate::math::fixed::U32F16;
+
 #[derive(Component, Serialize, Reflect, Clone)]
 pub struct Camera {
     pub fov: U32F16,

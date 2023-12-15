@@ -142,6 +142,7 @@ define_resource_handle!(SystemStageHandle);
 
 impl SystemStage {
     pub const NAME: &'static str = "RTY_SystemStage";
+    pub const START: &'static str = "STA_Start";
     pub const TICK: &'static str = "STA_Tick";
 
     pub fn periodic(periodic: U32F16) -> Self {

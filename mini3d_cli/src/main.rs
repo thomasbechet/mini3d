@@ -1,20 +1,15 @@
 use mini3d::{
     api::{resource::Resource, time::Time, Context},
     ecs::{
+        component::{FreeFlySystem, PropagateTransforms, Transform},
         entity::Entity,
         error::ResolverError,
         query::Query,
+        resource::{System, SystemOrder, SystemSet, SystemStage},
         system::{ExclusiveSystem, SystemResolver},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     engine::{Engine, EngineConfig},
-    feature::{
-        common::{
-            free_fly::FreeFlySystem,
-            transform::{PropagateTransforms, Transform},
-        },
-        ecs::system::{System, SystemOrder, SystemSet, SystemStage},
-    },
     info,
     math::vec::V3I32F16,
 };

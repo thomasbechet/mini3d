@@ -8,14 +8,14 @@ use crate::{
     math::fixed::{FixedPoint, U32F16},
     platform::PlatformManager,
     renderer::RendererManager,
-    resource::ResourceManager,
+    resource::{ResourceManager, ResourceTypeHandle},
 };
 
 use self::{
     container::ContainerTable,
     entity::{Entity, EntityEntry, EntityTable},
     query::QueryTable,
-    resource::SystemStageHandle,
+    resource::{SystemSetHandle, SystemStageHandle},
     scheduler::Scheduler,
     system::{SystemInstance, SystemTable},
 };

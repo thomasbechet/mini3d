@@ -1,12 +1,11 @@
 use crate::{
     define_resource_handle,
-    feature::core::resource::{Resource, ResourceHookContext},
     math::{
         rect::IRect,
         vec::{V2, V2U32},
     },
     renderer::provider::RendererProviderHandle,
-    resource::handle::ResourceHandle,
+    resource::{handle::ResourceHandle, Resource, ResourceHookContext},
 };
 use alloc::vec::Vec;
 use mini3d_derive::{Reflect, Serialize};

@@ -1,11 +1,9 @@
-use mini3d_derive::{fixed, Component, Reflect, Serialize};
+use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
-    feature::core::resource::{Resource, ResourceHookContext},
-    math::fixed::U32F16,
     renderer::provider::RendererProviderHandle,
-    resource::handle::ResourceHandle,
+    resource::{handle::ResourceHandle, Resource, ResourceHookContext},
 };
 
 define_resource_handle!(RenderCameraHandle);

@@ -1,6 +1,6 @@
 use mini3d_derive::{Reflect, Serialize};
 
-use crate::{define_resource_handle, feature::core::resource::Resource, math::vec::V2I32F16};
+use crate::{define_resource_handle, math::vec::V2I32F16, resource::Resource};
 
 use super::texture::TextureHandle;
 

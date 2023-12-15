@@ -2,13 +2,16 @@ use alloc::boxed::Box;
 use mini3d_derive::Error;
 
 use crate::resource::handle::ResourceHandle;
-use crate::resource::ResourceManager;
+use crate::resource::{ResourceManager, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
 use crate::utils::uid::ToUID;
 
 use self::event::InputEvent;
 use self::provider::InputProvider;
+use self::resource::{
+    InputAction, InputActionHandle, InputAxis, InputAxisHandle, InputText, InputTextHandle,
+};
 
 pub mod event;
 pub mod provider;

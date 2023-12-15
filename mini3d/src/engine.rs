@@ -5,9 +5,8 @@ use crate::api::time::TimeAPI;
 use crate::api::Context;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::ecs::resource::{
-    ComponentStorage, ComponentType, ComponentTypeHandle, System, SystemStage,
-};
+use crate::ecs::resource::{ComponentStorage, ComponentType, System, SystemStage};
+use crate::ecs::scheduler::Invocation;
 use crate::ecs::{self, ECSManager, ECSUpdateContext};
 use crate::input::provider::InputProvider;
 use crate::input::{self, InputManager};
@@ -141,39 +140,25 @@ impl Engine {
             };
         }
 
-        if config.common {
-            define_component!(common::free_fly::FreeFly, ComponentStorage::Single);
-            define_component!(common::rotator::Rotator, ComponentStorage::Single);
-            define_component!(common::transform::Transform, ComponentStorage::Single);
-            define_component!(common::hierarchy::Hierarchy, ComponentStorage::Single);
-            define_component!(
-                common::local_to_world::LocalToWorld,
-                ComponentStorage::Single
-            );
+        define_component!(ecs::component::FreeFly, ComponentStorage::Single);
+        define_component!(ecs::component::Rotator, ComponentStorage::Single);
+        define_component!(ecs::component::Transform, ComponentStorage::Single);
+        define_component!(ecs::component::Hierarchy, ComponentStorage::Single);
+        define_component!(ecs::component::LocalToWorld, ComponentStorage::Single);
 
-            define_parallel_system!(common::free_fly::FreeFlySystem);
-            define_parallel_system!(common::rotator::RotatorSystem);
-            define_parallel_system!(common::transform::PropagateTransforms);
-        }
+        define_parallel_system!(ecs::component::FreeFlySystem);
+        define_parallel_system!(ecs::component::RotatorSystem);
+        define_parallel_system!(ecs::component::PropagateTransforms);
 
         if config.renderer {
             define_component!(renderer::component::Camera, ComponentStorage::Single);
-            define_component!(renderer::resource::StaticMesh, ComponentStorage::Single);
+            define_component!(renderer::component::StaticMesh, ComponentStorage::Single);
             define_component!(renderer::resource::Tilemap, ComponentStorage::Single);
             define_component!(renderer::resource::Tileset, ComponentStorage::Single);
             define_component!(renderer::resource::Viewport, ComponentStorage::Single);
             define_component!(renderer::resource::Canvas, ComponentStorage::Single);
         }
 
-        self.ecs.handles.tick_stage = self
-            .resource
-            .create(
-                Some(SystemStage::TICK),
-                self.ecs.handles.system_stage,
-                SystemStage::default(),
-            )
-            .unwrap()
-            .into();
         self.ecs.handles.start_stage = self
             .resource
             .create(
@@ -183,10 +168,22 @@ impl Engine {
             )
             .unwrap()
             .into();
+        self.ecs.handles.tick_stage = self
+            .resource
+            .create(
+                Some(SystemStage::TICK),
+                self.ecs.handles.system_stage,
+                SystemStage::default(),
+            )
+            .unwrap()
+            .into();
     }
 
     fn setup_ecs(&mut self, config: &EngineConfig) {
         self.ecs.target_tps = config.target_tps;
+        self.ecs
+            .scheduler
+            .invoke(self.ecs.handles.start_stage, Invocation::Immediate);
     }
 
     fn run_bootstrap(&mut self, config: &EngineConfig) {

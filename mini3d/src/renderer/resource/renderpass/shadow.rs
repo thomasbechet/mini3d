@@ -1,6 +1,6 @@
 use crate::{
-    feature::renderer::{camera::RenderCameraHandle, texture::TextureHandle},
     math::mat::M4I32F16,
+    renderer::resource::{RenderCameraHandle, TextureHandle},
 };
 
 pub struct ShadowPassInfo {

@@ -1,4 +1,7 @@
-use crate::{define_resource_handle, feature::renderer::mesh::MeshHandle, renderer::color::Color};
+use crate::{
+    define_resource_handle,
+    renderer::{color::Color, resource::MeshHandle},
+};
 
 pub(crate) enum WireframePassCommand {
     DrawMesh { mesh: MeshHandle, color: Color },
