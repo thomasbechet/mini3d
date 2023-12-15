@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File};
 
 use gilrs::GamepadId;
-use mini3d::{
+use mini3d_core::{
     feature::input::{
         action::InputAction,
         axis::{InputAxis, InputAxisRange},

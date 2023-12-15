@@ -1,5 +1,5 @@
 // use libc::c_void;
-// use mini3d::event::{input::{InputEvent, InputActionEvent, InputAxisEvent}, Events};
+// use mini3d_core::event::{input::{InputEvent, InputActionEvent, InputAxisEvent}, Events};
 
 // #[repr(C)]
 // pub enum mini3d_action_state {

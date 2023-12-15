@@ -1,4 +1,4 @@
-use mini3d::{glam::UVec2, renderer::provider::SceneCameraProviderHandle};
+use mini3d_core::{glam::UVec2, renderer::provider::SceneCameraProviderHandle};
 
 use crate::context::WGPUContext;
 

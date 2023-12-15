@@ -2,7 +2,7 @@ use std::fmt::Arguments;
 
 use chrono::{SecondsFormat, Utc};
 use colored::Colorize;
-use mini3d::logger::{level::LogLevel, provider::LoggerProvider};
+use mini3d_core::logger::{level::LogLevel, provider::LoggerProvider};
 
 #[derive(Default)]
 pub struct StdoutLogger;

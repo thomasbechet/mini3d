@@ -1,10 +1,10 @@
 [package]
-name = "mini3d_utils"
+name = "mini3d_import"
 version = "0.1.0"
 authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mini3d = { path = "../mini3d" }
+mini3d_core = { path = "../mini3d_core" }
 wavefront_obj = "10.0.0"
 image = "0.24.3"

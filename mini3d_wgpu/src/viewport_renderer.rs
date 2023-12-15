@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d::{
+use mini3d_core::{
     renderer::{
         provider::{MaterialProviderHandle, SceneCameraProviderHandle, ViewportProviderHandle},
         RendererStatistics,

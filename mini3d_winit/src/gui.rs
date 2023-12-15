@@ -1,4 +1,4 @@
-use mini3d::{
+use mini3d_core::{
     feature::input::axis::InputAxisRange,
     glam::Vec4,
     utils::uid::{ToUID, UID},

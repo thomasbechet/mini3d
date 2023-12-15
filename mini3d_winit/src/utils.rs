@@ -1,4 +1,4 @@
-use mini3d::{
+use mini3d_core::{
     glam::{Vec4, Vec4Swizzles},
     renderer::{SCREEN_ASPECT_RATIO, SCREEN_HEIGHT, SCREEN_INV_ASPECT_RATIO, SCREEN_WIDTH},
 };

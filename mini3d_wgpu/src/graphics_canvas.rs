@@ -1,6 +1,10 @@
-use mini3d::glam::UVec2;
+use mini3d_core::glam::UVec2;
 
-use crate::{context::WGPUContext, graphics_renderer::{GPUGlobalData, GraphicsRenderer}, graphics_render_pass::GraphicsRenderPass};
+use crate::{
+    context::WGPUContext,
+    graphics_render_pass::GraphicsRenderPass,
+    graphics_renderer::{GPUGlobalData, GraphicsRenderer},
+};
 
 pub(crate) const CANVAS_COLOR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub(crate) const CANVAS_DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -18,7 +22,10 @@ fn create_color_view(context: &WGPUContext, extent: &wgpu::Extent3d) -> wgpu::Te
     color_texture.create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-pub(crate) fn create_depth_view(context: &WGPUContext, extent: &wgpu::Extent3d) -> wgpu::TextureView {
+pub(crate) fn create_depth_view(
+    context: &WGPUContext,
+    extent: &wgpu::Extent3d,
+) -> wgpu::TextureView {
     let depth_texture = context.device.create_texture(&wgpu::TextureDescriptor {
         size: *extent,
         mip_level_count: 1,
@@ -41,19 +48,24 @@ pub(crate) struct GraphicsCanvas {
 }
 
 impl GraphicsCanvas {
-    
     fn write_global_buffer(&self, context: &WGPUContext) {
         let global_data = GPUGlobalData {
             resolution: [self.extent.width, self.extent.height],
         };
-        context.queue.write_buffer(&self.global_buffer, 0, bytemuck::bytes_of(&global_data));
+        context
+            .queue
+            .write_buffer(&self.global_buffer, 0, bytemuck::bytes_of(&global_data));
     }
 
-    pub(crate) fn new(context: &WGPUContext, graphics_renderer: &GraphicsRenderer, resolution: UVec2) -> Self {
+    pub(crate) fn new(
+        context: &WGPUContext,
+        graphics_renderer: &GraphicsRenderer,
+        resolution: UVec2,
+    ) -> Self {
         let extent = wgpu::Extent3d {
             width: resolution.x,
             height: resolution.y,
-            depth_or_array_layers: 1
+            depth_or_array_layers: 1,
         };
         let global_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("global_buffer"),
@@ -69,7 +81,6 @@ impl GraphicsCanvas {
             render_pass: GraphicsRenderPass::new(context),
             global_buffer,
             global_bind_group,
-
         };
         canvas.write_global_buffer(context);
         canvas
@@ -79,7 +90,7 @@ impl GraphicsCanvas {
         self.extent = wgpu::Extent3d {
             width: resolution.x,
             height: resolution.y,
-            depth_or_array_layers: 1
+            depth_or_array_layers: 1,
         };
         self.color_view = create_color_view(context, &self.extent);
         self.depth_view = create_depth_view(context, &self.extent);

@@ -1,4 +1,4 @@
-use mini3d::renderer::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use mini3d_core::renderer::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use winit::{
     dpi::PhysicalSize,
     event_loop::EventLoop,

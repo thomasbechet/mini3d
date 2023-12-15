@@ -8,4 +8,4 @@ wgpu = "0.14.2"
 raw-window-handle = "0.5.0"
 bytemuck = { version = "1.10.0", features = [ "derive" ] }
 futures = { version = "0.3", features = ["compat"] }
-mini3d = { path = "../mini3d" }
+mini3d_core = { path = "../mini3d_core" }

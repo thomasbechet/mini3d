@@ -1,4 +1,4 @@
-use mini3d::{
+use mini3d_core::{
     ecs::{
         api::{
             context::Context,

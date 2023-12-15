@@ -1,10 +1,10 @@
 // use libc::{c_void, c_ulong};
-// use mini3d::{app::App, glam::{Vec2, UVec2, Vec4}, graphics::SCREEN_RESOLUTION, math::rect::IRect};
+// use mini3d_core::{app::App, glam::{Vec2, UVec2, Vec4}, graphics::SCREEN_RESOLUTION, math::rect::IRect};
 // use mini3d_wgpu::WGPURenderer;
 
 // use crate::app::mini3d_app;
 
-// #[repr(C)] 
+// #[repr(C)]
 // pub struct mini3d_renderer(*mut c_void);
 
 // pub enum RendererContext {
@@ -66,7 +66,7 @@
 //             //     Err(e) => {
 //             //         eprintln!("{:?}", e);
 //             //         false
-//             //     } 
+//             //     }
 //             // }
 //         },
 //     }

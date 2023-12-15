@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mini3d::{renderer::provider::MaterialProviderHandle, utils::uid::UID};
+use mini3d_core::{renderer::provider::MaterialProviderHandle, utils::uid::UID};
 
 use crate::{
     context::WGPUContext, error::WGPURendererError, model_buffer::ModelIndex,

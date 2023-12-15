@@ -25,4 +25,4 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
-extern crate self as mini3d;
+extern crate self as mini3d_core;

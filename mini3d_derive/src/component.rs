@@ -122,8 +122,8 @@ fn derive_struct(
     let script_name = meta.script_name;
 
     let q = quote! {
-        impl mini3d::ecs::resource::component::Component for #ident #ty_generics #where_clause {
-            fn resolve_references(&mut self, references: &mut mini3d::resource::handle::ReferenceResolver) {}
+        impl mini3d_core::ecs::resource::component::Component for #ident #ty_generics #where_clause {
+            fn resolve_references(&mut self, references: &mut mini3d_core::resource::handle::ReferenceResolver) {}
         }
 
         impl #ident #ty_generics #where_clause {
@@ -154,7 +154,7 @@ pub(crate) fn derive_tuple(
     let script_name = meta.script_name;
 
     let q = quote! {
-        impl mini3d::ecs::resource::component::Component for #ident #ty_generics #where_clause {}
+        impl mini3d_core::ecs::resource::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #name;
@@ -184,7 +184,7 @@ fn derive_enum(
     let script_name = meta.script_name;
 
     let q = quote! {
-        impl mini3d::ecs::resource::component::Component for #ident #ty_generics #where_clause {}
+        impl mini3d_core::ecs::resource::component::Component for #ident #ty_generics #where_clause {}
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #name;

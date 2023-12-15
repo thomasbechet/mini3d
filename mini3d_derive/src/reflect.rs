@@ -50,10 +50,10 @@ fn derive_struct(
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
-        impl #impl_generics mini3d::reflection::ReadProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d::reflection::WriteProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d::reflection::Reflect for #ident #ty_generics #where_clause {
-            const PROPERTIES: &'static [mini3d::reflection::Property] = &[];
+        impl #impl_generics mini3d_core::reflection::ReadProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d_core::reflection::WriteProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {
+            const PROPERTIES: &'static [mini3d_core::reflection::Property] = &[];
         }
     })
 }
@@ -67,10 +67,10 @@ fn derive_tuple(
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
-        impl #impl_generics mini3d::reflection::ReadProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d::reflection::WriteProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d::reflection::Reflect for #ident #ty_generics #where_clause {
-            const PROPERTIES: &'static [mini3d::reflection::Property] = &[];
+        impl #impl_generics mini3d_core::reflection::ReadProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d_core::reflection::WriteProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {
+            const PROPERTIES: &'static [mini3d_core::reflection::Property] = &[];
         }
     })
 }
@@ -84,10 +84,10 @@ fn derive_enum(
 ) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     Ok(quote! {
-        impl #impl_generics mini3d::reflection::ReadProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d::reflection::WriteProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d::reflection::Reflect for #ident #ty_generics #where_clause {
-            const PROPERTIES: &'static [mini3d::reflection::Property] = &[];
+        impl #impl_generics mini3d_core::reflection::ReadProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d_core::reflection::WriteProperty for #ident #ty_generics #where_clause {}
+        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {
+            const PROPERTIES: &'static [mini3d_core::reflection::Property] = &[];
         }
     })
 }

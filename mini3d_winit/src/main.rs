@@ -9,7 +9,7 @@ use std::{
 
 use gui::{WindowControl, WindowGUI};
 use mapper::InputMapper;
-use mini3d::{
+use mini3d_core::{
     ecs::scheduler::Invocation,
     engine::{Engine, EngineConfig},
     feature::common::script::Script,
@@ -22,8 +22,8 @@ use mini3d::{
     serialize::SliceDecoder,
 };
 use mini3d_derive::Serialize;
+use mini3d_import::{image::ImageImporter, model::ModelImporter, stdout::StdoutLogger};
 use mini3d_os::system::bootstrap::OSBootstrap;
-use mini3d_utils::{image::ImageImporter, model::ModelImporter, stdout::StdoutLogger};
 use mini3d_wgpu::WGPURenderer;
 use provider::{
     input::WinitInputProvider, renderer::WinitRendererProvider, storage::WinitStorageProvider,
@@ -578,7 +578,7 @@ fn main() {
     //         let mut file = File::create("assets/state.bin").unwrap();
     //         let mut bytes = Vec::new();
     //         let vec = vec![Test {a: 1, b: 2}, Test {a: 3, b: 4}];
-    //         <Test as mini3d::serialize::Serialize>::Header::default().serialize(&mut bytes).unwrap();
+    //         <Test as mini3d_core::serialize::Serialize>::Header::default().serialize(&mut bytes).unwrap();
     //         vec.serialize(&mut bytes).unwrap();
     //         file.write_all(&bytes).unwrap();
     //     }
@@ -587,7 +587,7 @@ fn main() {
     //         let mut bytes: Vec<u8> = Default::default();
     //         file.read_to_end(&mut bytes).expect("Failed to read to end");
     //         let mut decoder = SliceDecoder::new(&bytes);
-    //         let header = <Test as mini3d::serialize::Serialize>::Header::deserialize(&mut decoder, &Default::default()).unwrap();
+    //         let header = <Test as mini3d_core::serialize::Serialize>::Header::deserialize(&mut decoder, &Default::default()).unwrap();
     //         let vec = Vec::<Test>::deserialize(&mut decoder, &header).unwrap();
     //         println!("{:?}", vec);
     //     }

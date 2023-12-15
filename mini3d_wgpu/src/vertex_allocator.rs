@@ -1,4 +1,4 @@
-use mini3d::feature::renderer;
+use mini3d_core::feature::renderer;
 
 use crate::{context::WGPUContext, error::WGPURendererError};
 

@@ -1,4 +1,4 @@
-use mini3d::{
+use mini3d_core::{
     glam::{IVec2, UVec2},
     math::rect::IRect,
     renderer::{

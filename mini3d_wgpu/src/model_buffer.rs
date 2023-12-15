@@ -1,6 +1,6 @@
 use std::mem;
 
-use mini3d::glam::Mat4;
+use mini3d_core::glam::Mat4;
 
 use crate::context::WGPUContext;
 
@@ -27,13 +27,14 @@ pub(crate) struct ModelBuffer {
 }
 
 impl ModelBuffer {
-    
     pub(crate) fn new(context: &WGPUContext, max_model_count: usize) -> Self {
         Self {
             buffer: context.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("model_buffer"),
                 size: (GPUModelData::size() * max_model_count) as u64,
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                usage: wgpu::BufferUsages::VERTEX
+                    | wgpu::BufferUsages::UNIFORM
+                    | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             }),
             local: vec![GPUModelData::default(); max_model_count].into_boxed_slice(),
@@ -50,7 +51,7 @@ impl ModelBuffer {
                 let index: ModelIndex = self.model_count;
                 self.model_count += 1;
                 index
-            },
+            }
         }
     }
 
@@ -63,7 +64,8 @@ impl ModelBuffer {
     }
 
     pub(crate) fn write_buffer(&self, context: &WGPUContext) {
-        context.queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.local));
+        context
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.local));
     }
 }
-

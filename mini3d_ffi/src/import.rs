@@ -1,20 +1,20 @@
 // use std::{path::Path, ffi::CStr};
 
-// use mini3d::event::Events;
-// use mini3d_utils::{image::ImageImporter, model::ModelImporter};
+// use mini3d_core::event::Events;
+// use mini3d_import::{image::ImageImporter, model::ModelImporter};
 
 // use crate::event::mini3d_app_events;
 
 // #[repr(C)]
-// pub struct mini3d_utils_import_image_info {
+// pub struct mini3d_import_import_image_info {
 //     source: *const libc::c_char,
 //     name: *const libc::c_char,
 // }
 
 // #[no_mangle]
 // #[allow(clippy::missing_safety_doc)]
-// pub unsafe extern "C" fn mini3d_utils_import_image(
-//     info: *const mini3d_utils_import_image_info,
+// pub unsafe extern "C" fn mini3d_import_import_image(
+//     info: *const mini3d_import_import_image_info,
 //     events: *mut mini3d_app_events,
 // ) -> libc::c_int {
 //     let events = (events as *mut Events).as_mut().unwrap();
@@ -27,7 +27,7 @@
 // }
 
 // #[repr(C)]
-// pub struct mini3d_utils_import_model_info {
+// pub struct mini3d_import_import_model_info {
 //     obj_source: *const libc::c_char,
 //     name: *const libc::c_char,
 //     flat_normals: bool,
@@ -35,8 +35,8 @@
 
 // #[no_mangle]
 // #[allow(clippy::missing_safety_doc)]
-// pub unsafe extern "C" fn mini3d_utils_import_model(
-//     info: *const mini3d_utils_import_model_info,
+// pub unsafe extern "C" fn mini3d_import_import_model(
+//     info: *const mini3d_import_import_model_info,
 //     events: *mut mini3d_app_events,
 // ) -> libc::c_int {
 //     let events = (events as *mut Events).as_mut().unwrap();

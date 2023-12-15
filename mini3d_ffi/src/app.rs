@@ -1,5 +1,5 @@
 // use libc::c_void;
-// use mini3d::{app::{self, App}, event::AppEvents, server::serverDescriptor, request::AppRequests, input::InputActionState};
+// use mini3d_core::{app::{self, App}, event::AppEvents, server::serverDescriptor, request::AppRequests, input::InputActionState};
 // use mini3d_os::program::OSProgram;
 
 // use crate::{renderer::{mini3d_renderer, RendererContext}, event::mini3d_app_events, request::mini3d_app_requests};

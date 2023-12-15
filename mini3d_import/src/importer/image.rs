@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use mini3d::{
+use mini3d_core::{
     feature::renderer::texture::{Texture, TextureFormat},
     platform::event::{AssetImportEntry, ImportAssetEvent},
 };

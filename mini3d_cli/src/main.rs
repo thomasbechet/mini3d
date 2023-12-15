@@ -1,4 +1,4 @@
-use mini3d::{
+use mini3d_core::{
     api::{resource::Resource, time::Time, Context},
     ecs::{
         component::{FreeFlySystem, PropagateTransforms, Transform},

@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use mini3d::{
+use mini3d_core::{
     feature::renderer::{
         material::Material,
         mesh::{Mesh, SubMesh, Vertex},

@@ -1,4 +1,4 @@
-use mini3d::glam::{Mat4, Vec3};
+use mini3d_core::glam::{Mat4, Vec3};
 
 pub(crate) struct Camera {
     eye: Vec3,
@@ -9,12 +9,16 @@ pub(crate) struct Camera {
 
 impl Default for Camera {
     fn default() -> Self {
-        Self { eye: Vec3::ZERO, center: Vec3::Z, up: Vec3::Y, fov: 80.0 }
+        Self {
+            eye: Vec3::ZERO,
+            center: Vec3::Z,
+            up: Vec3::Y,
+            fov: 80.0,
+        }
     }
 }
 
 impl Camera {
-
     pub(crate) fn update(&mut self, eye: Vec3, forward: Vec3, up: Vec3, fov: f32) {
         self.eye = eye;
         self.up = up;

@@ -2,7 +2,7 @@
 // use std::ffi::CString;
 
 // use libc::c_void;
-// use mini3d::{app::App, slotmap::KeyData};
+// use mini3d_core::{app::App, slotmap::KeyData};
 
 // use crate::app::mini3d_app;
 
@@ -61,7 +61,7 @@
 
 // #[no_mangle]
 // pub unsafe extern "C" fn mini3d_input_database_get_action(
-//     app: *const mini3d_app, 
+//     app: *const mini3d_app,
 //     id: u64,
 //     action: *mut mini3d_input_action,
 // ) -> libc::c_int {
@@ -76,7 +76,7 @@
 //     let bytes = slice::from_raw_parts(bytes.as_ptr() as *const i8, bytes.len());
 //     (*action).name[..bytes.len()].copy_from_slice(bytes);
 //     (*action).group = KeyData::as_ffi(b.group.data());
-//     0    
+//     0
 // }
 
 // #[repr(C)]
@@ -87,7 +87,7 @@
 
 // #[no_mangle]
 // pub unsafe extern "C" fn mini3d_input_database_get_axis(
-//     app: *const mini3d_app, 
+//     app: *const mini3d_app,
 //     id: u64,
 //     axis: *mut mini3d_input_axis,
 // ) -> libc::c_int {
@@ -112,7 +112,7 @@
 
 // #[no_mangle]
 // pub unsafe extern "C" fn mini3d_input_database_get_group(
-//     app: *const mini3d_app, 
+//     app: *const mini3d_app,
 //     id: u64,
 //     group: *mut mini3d_input_group,
 // ) -> libc::c_int {

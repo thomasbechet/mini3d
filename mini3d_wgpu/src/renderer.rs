@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
-use mini3d::feature::renderer::{mesh, texture};
-use mini3d::glam::{IVec2, Mat4, UVec2, Vec3, Vec4};
-use mini3d::math::rect::IRect;
-use mini3d::renderer::color::{srgb_to_linear, Color};
-use mini3d::renderer::event::RendererEvent;
-use mini3d::renderer::graphics::TextureWrapMode;
-use mini3d::renderer::provider::{
+use mini3d_core::feature::renderer::{mesh, texture};
+use mini3d_core::glam::{IVec2, Mat4, UVec2, Vec3, Vec4};
+use mini3d_core::math::rect::IRect;
+use mini3d_core::renderer::color::{srgb_to_linear, Color};
+use mini3d_core::renderer::event::RendererEvent;
+use mini3d_core::renderer::graphics::TextureWrapMode;
+use mini3d_core::renderer::provider::{
     MaterialProviderHandle, MeshProviderHandle, ProviderMaterialDescriptor, RendererProvider,
     RendererProviderError, SceneCameraProviderHandle, SceneCanvasProviderHandle,
     SceneModelProviderHandle, TextureProviderHandle, ViewportProviderHandle,
 };
-use mini3d::renderer::{RendererStatistics, SCREEN_RESOLUTION};
-use mini3d::utils::uid::{SequentialGenerator, UID};
+use mini3d_core::renderer::{RendererStatistics, SCREEN_RESOLUTION};
+use mini3d_core::utils::uid::{SequentialGenerator, UID};
 
 use crate::blit_bind_group::{create_blit_bind_group, create_blit_bind_group_layout};
 use crate::blit_pipeline::{
@@ -696,12 +696,12 @@ impl RendererProvider for WGPURenderer {
 
     fn scene_add(
         &mut self,
-    ) -> Result<mini3d::renderer::provider::SceneProviderHandle, RendererProviderError> {
+    ) -> Result<mini3d_core::renderer::provider::SceneProviderHandle, RendererProviderError> {
         todo!()
     }
     fn scene_remove(
         &mut self,
-        handle: mini3d::renderer::provider::SceneProviderHandle,
+        handle: mini3d_core::renderer::provider::SceneProviderHandle,
     ) -> Result<(), RendererProviderError> {
         todo!()
     }
