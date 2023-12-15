@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use mini3d_derive::Error;
 
 use crate::{
-    api::{time::TimeAPI, Context},
     input::InputManager,
     logger::LoggerManager,
     math::fixed::{FixedPoint, U32F16},
@@ -12,6 +11,7 @@ use crate::{
 };
 
 use self::{
+    api::{time::TimeAPI, Context},
     container::ContainerTable,
     entity::{Entity, EntityEntry, EntityTable},
     query::QueryTable,
@@ -20,6 +20,7 @@ use self::{
     system::{SystemInstance, SystemTable},
 };
 
+pub mod api;
 pub mod archetype;
 pub mod component;
 pub mod container;

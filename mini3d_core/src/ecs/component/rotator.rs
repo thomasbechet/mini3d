@@ -1,8 +1,8 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
-    api::{time::Time, Context},
     ecs::{
+        api::{Context, Time},
         error::ResolverError,
         query::Query,
         system::{ParallelSystem, SystemResolver},

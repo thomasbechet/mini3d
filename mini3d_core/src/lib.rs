@@ -1,6 +1,5 @@
 #![no_std]
 
-pub mod api;
 pub mod disk;
 pub mod ecs;
 pub mod engine;

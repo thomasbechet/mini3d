@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{api::Context, utils::uid::ToUID};
+use crate::{ecs::api::Context, utils::uid::ToUID};
 
 use super::{
     backend::compiler::BackendCompiler,

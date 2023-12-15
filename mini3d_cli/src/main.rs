@@ -1,6 +1,6 @@
 use mini3d_core::{
-    api::{resource::Resource, time::Time, Context},
     ecs::{
+        api::{Context, Resource, Time},
         component::{FreeFlySystem, PropagateTransforms, Transform},
         entity::Entity,
         error::ResolverError,

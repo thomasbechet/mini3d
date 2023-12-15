@@ -2,8 +2,8 @@ use alloc::vec::Vec;
 use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
-    api::Context,
     ecs::{
+        api::Context,
         entity::Entity,
         error::ResolverError,
         query::Query,

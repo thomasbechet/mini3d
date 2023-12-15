@@ -10,7 +10,8 @@ members = [
     "mini3d_ffi",
     "mini3d_winit",
 ]
-default-members = ["mini3d_cli"]
+# default-members = ["mini3d_cli"]
+default-members = ["mini3d_core"]
 resolver = "2"
 
 [profile.release]

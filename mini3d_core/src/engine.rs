@@ -1,10 +1,10 @@
 use alloc::boxed::Box;
 use mini3d_derive::{fixed, Error};
 
-use crate::api::time::TimeAPI;
-use crate::api::Context;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
+use crate::ecs::api::time::TimeAPI;
+use crate::ecs::api::Context;
 use crate::ecs::resource::{ComponentStorage, ComponentType, System, SystemStage};
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{self, ECSManager, ECSUpdateContext};

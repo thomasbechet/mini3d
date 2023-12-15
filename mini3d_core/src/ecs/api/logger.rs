@@ -7,35 +7,35 @@ use super::Context;
 #[macro_export]
 macro_rules! info {
     ($ctx:ident, $($arg:tt)*) => {{
-        $crate::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Info, Some((file!(), line!())));
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Info, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! debug {
     ($ctx:ident, $($arg:tt)*) => {{
-        $crate::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Debug, Some((file!(), line!())));
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Debug, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! warn {
     ($ctx:ident, $($arg:tt)*) => {{
-        $crate::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Warning, Some((file!(), line!())));
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Warning, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! error {
     ($ctx:ident, $($arg:tt)*) => {{
-        $crate::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Error, Some((file!(), line!())));
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Error, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! panic {
     ($api:ident, $($arg:tt)*) => {{
-        $crate::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
+        $crate::ecs::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
         panic!()
     }}
 }
@@ -43,7 +43,7 @@ macro_rules! panic {
 #[macro_export]
 macro_rules! expect {
     ($ctx:ident, $result:expr, $($arg:tt)*) => {{
-        match $crate::api::logger::IntoResult::into_result($result) {
+        match $crate::ecs::api::logger::IntoResult::into_result($result) {
             std::result::Result::Err(_) => {
                 $crate::api::logger::Logger::log($ctx, format_args!($($arg)*), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
                 panic!()
@@ -54,9 +54,9 @@ macro_rules! expect {
         }
     }};
     ($ctx:ident, $result:expr) => {{
-        match $crate::api::logger::IntoResult::into_result($result) {
+        match $crate::ecs::api::logger::IntoResult::into_result($result) {
             core::result::Result::Err(e) => {
-                $crate::api::logger::Logger::log($ctx, format_args!("{}", e), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
+                $crate::ecs::api::logger::Logger::log($ctx, format_args!("{}", e), $crate::logger::level::LogLevel::Critical, Some((file!(), line!())));
                 panic!()
             },
             core::result::Result::Ok(v) => {
