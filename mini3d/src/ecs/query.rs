@@ -3,11 +3,7 @@ use core::{cell::UnsafeCell, ops::Range};
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    feature::{
-        core::resource::ResourceTypeHandle,
-        ecs::component::{ComponentKey, ComponentTypeHandle},
-    },
-    resource::ResourceManager,
+    resource::{ResourceManager, ResourceTypeHandle},
     slot_map_key,
     utils::{
         slotmap::SlotMap,
@@ -20,6 +16,7 @@ use super::{
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
+    resource::{ComponentKey, ComponentTypeHandle},
     system::SystemResolver,
 };
 

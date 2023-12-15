@@ -1,11 +1,8 @@
 use alloc::vec::Vec;
 
-use crate::{
-    feature::common::script::ScriptHandle,
-    utils::uid::{ToUID, UID},
-};
+use crate::utils::uid::{ToUID, UID};
 
-use super::{interface::InterfaceId, mir::primitive::PrimitiveType};
+use super::{interface::InterfaceId, mir::primitive::PrimitiveType, resource::ScriptHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModuleId(u32);

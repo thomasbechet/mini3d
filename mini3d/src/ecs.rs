@@ -3,10 +3,6 @@ use mini3d_derive::Error;
 
 use crate::{
     api::{time::TimeAPI, Context},
-    feature::{
-        core::resource::ResourceTypeHandle,
-        ecs::system::{SystemSetHandle, SystemStageHandle},
-    },
     input::InputManager,
     logger::LoggerManager,
     math::fixed::{FixedPoint, U32F16},
@@ -19,15 +15,18 @@ use self::{
     container::ContainerTable,
     entity::{Entity, EntityEntry, EntityTable},
     query::QueryTable,
+    resource::SystemStageHandle,
     scheduler::Scheduler,
     system::{SystemInstance, SystemTable},
 };
 
 pub mod archetype;
+pub mod component;
 pub mod container;
 pub mod entity;
 pub mod error;
 pub mod query;
+pub mod resource;
 pub mod scheduler;
 pub mod sparse;
 pub mod system;

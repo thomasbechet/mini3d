@@ -1,8 +1,6 @@
 use mini3d_derive::{Component, Reflect, Serialize};
 
-use crate::{
-    feature::core::resource::ResourceTypeHandle, renderer::provider::RendererProviderHandle,
-};
+use crate::{renderer::provider::RendererProviderHandle, resource::ResourceTypeHandle};
 
 #[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct StaticMesh {

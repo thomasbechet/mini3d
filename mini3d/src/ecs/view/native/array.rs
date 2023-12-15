@@ -1,9 +1,9 @@
 use crate::{
+    ecs::resource::component::Component,
     ecs::{
         container::native::array::NativeArrayContainer, entity::Entity, error::ResolverError,
         system::SystemResolver,
     },
-    feature::ecs::component::Component,
     utils::uid::ToUID,
 };
 

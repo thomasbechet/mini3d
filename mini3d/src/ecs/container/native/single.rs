@@ -3,13 +3,13 @@ use core::any::Any;
 use alloc::vec::Vec;
 
 use crate::{
+    ecs::resource::component::{Component, ComponentKey},
     ecs::{
         container::{Container, SingleContainer},
         entity::{Entity, EntityTable},
         query::QueryTable,
         sparse::PagedVector,
     },
-    feature::ecs::component::{Component, ComponentKey},
     math::{
         mat::M4I32F16,
         quat::QI32F16,

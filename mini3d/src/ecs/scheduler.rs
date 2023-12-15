@@ -2,7 +2,7 @@ use alloc::{collections::VecDeque, vec::Vec};
 use mini3d_derive::fixed;
 
 use crate::{
-    feature::ecs::system::{SystemStage, SystemStageHandle},
+    ecs::resource::system::{SystemStage, SystemStageHandle},
     math::fixed::U32F16,
     resource::ResourceManager,
     slot_map_key,

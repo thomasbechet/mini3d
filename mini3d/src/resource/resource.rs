@@ -3,7 +3,6 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
-    feature::core::structure::StructDefinitionHandle,
     input::InputManager,
     reflection::{Property, Reflect},
     renderer::RendererManager,
@@ -13,6 +12,7 @@ use crate::{
         key::ResourceTypeKey,
         ResourceContainer, ResourceManager,
     },
+    script::resource::StructDefinitionHandle,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
     utils::slotmap::Key,
 };

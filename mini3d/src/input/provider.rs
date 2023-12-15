@@ -1,12 +1,12 @@
 use alloc::boxed::Box;
 use mini3d_derive::Error;
 
-use crate::{
-    define_provider_handle,
-    feature::input::{action::InputAction, axis::InputAxis},
-};
+use crate::define_provider_handle;
 
-use super::event::InputEvent;
+use super::{
+    event::InputEvent,
+    resource::{action::InputAction, axis::InputAxis},
+};
 
 #[derive(Debug, Error)]
 pub enum InputProviderError {

@@ -12,9 +12,9 @@ use crate::{
             SystemResolver,
         },
     },
-    feature::{common::script::ScriptHandle, core::resource::Resource},
     math::fixed::U32F16,
-    resource::handle::ReferenceResolver,
+    resource::{handle::ReferenceResolver, Resource},
+    script::resource::ScriptHandle,
     utils::string::AsciiArray,
 };
 

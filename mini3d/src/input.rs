@@ -1,10 +1,6 @@
 use alloc::boxed::Box;
 use mini3d_derive::Error;
 
-use crate::feature::core::resource::ResourceTypeHandle;
-use crate::feature::input::action::{InputAction, InputActionHandle};
-use crate::feature::input::axis::{InputAxis, InputAxisHandle};
-use crate::feature::input::text::{InputText, InputTextHandle};
 use crate::resource::handle::ResourceHandle;
 use crate::resource::ResourceManager;
 use crate::serialize::{Decoder, DecoderError};
@@ -16,6 +12,7 @@ use self::provider::InputProvider;
 
 pub mod event;
 pub mod provider;
+pub mod resource;
 
 #[derive(Debug, Error)]
 pub enum InputError {

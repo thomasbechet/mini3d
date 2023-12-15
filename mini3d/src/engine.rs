@@ -5,21 +5,22 @@ use crate::api::time::TimeAPI;
 use crate::api::Context;
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::ecs::{ECSManager, ECSUpdateContext};
-use crate::feature::core::resource::ResourceType;
-use crate::feature::ecs::component::{ComponentStorage, ComponentType};
-use crate::feature::ecs::system::{System, SystemStage};
-use crate::feature::{common, core, ecs, input, renderer};
+use crate::ecs::resource::{
+    ComponentStorage, ComponentType, ComponentTypeHandle, System, SystemStage,
+};
+use crate::ecs::{self, ECSManager, ECSUpdateContext};
 use crate::input::provider::InputProvider;
-use crate::input::InputManager;
+use crate::input::{self, InputManager};
 use crate::logger::provider::LoggerProvider;
 use crate::logger::LoggerManager;
 use crate::physics::PhysicsManager;
 use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
 use crate::renderer::provider::RendererProvider;
-use crate::renderer::RendererManager;
+use crate::renderer::{self, RendererManager};
 use crate::resource::ResourceManager;
+use crate::resource::ResourceType;
+use crate::script;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 
 #[derive(Error, Debug)]
@@ -33,9 +34,7 @@ pub enum TickError {
 #[derive(Clone)]
 pub struct EngineConfig {
     bootstrap: Option<fn(&mut Context)>,
-    common: bool,
     renderer: bool,
-    ui: bool,
     target_tps: u16,
 }
 
@@ -43,9 +42,7 @@ impl Default for EngineConfig {
     fn default() -> Self {
         Self {
             bootstrap: None,
-            common: true,
             renderer: true,
-            ui: true,
             target_tps: 60,
         }
     }
@@ -86,28 +83,25 @@ impl Engine {
             };
         }
 
-        self.ecs.handles.component = define_resource!(ecs::component::ComponentType);
-        self.ecs.handles.system = define_resource!(ecs::system::System);
-        self.ecs.handles.system_set = define_resource!(ecs::system::SystemSet);
-        self.ecs.handles.system_stage = define_resource!(ecs::system::SystemStage);
+        self.ecs.handles.component = define_resource!(ecs::resource::ComponentType);
+        self.ecs.handles.system = define_resource!(ecs::resource::System);
+        self.ecs.handles.system_set = define_resource!(ecs::resource::SystemSet);
+        self.ecs.handles.system_stage = define_resource!(ecs::resource::SystemStage);
 
-        self.input.handles.action = define_resource!(input::action::InputAction);
-        self.input.handles.axis = define_resource!(input::axis::InputAxis);
-        self.input.handles.text = define_resource!(input::text::InputText);
+        self.input.handles.action = define_resource!(input::resource::InputAction);
+        self.input.handles.axis = define_resource!(input::resource::InputAxis);
+        self.input.handles.text = define_resource!(input::resource::InputText);
 
-        self.renderer.handles.font = define_resource!(renderer::font::Font);
-        self.renderer.handles.material = define_resource!(renderer::material::Material);
-        self.renderer.handles.mesh = define_resource!(renderer::mesh::Mesh);
-        self.renderer.handles.texture = define_resource!(renderer::texture::Texture);
-        self.renderer.handles.model = define_resource!(renderer::model::Model);
-        self.renderer.handles.transform = define_resource!(renderer::node::RenderNode);
+        self.renderer.handles.font = define_resource!(renderer::resource::Font);
+        self.renderer.handles.material = define_resource!(renderer::resource::Material);
+        self.renderer.handles.mesh = define_resource!(renderer::resource::Mesh);
+        self.renderer.handles.texture = define_resource!(renderer::resource::Texture);
+        self.renderer.handles.model = define_resource!(renderer::resource::Model);
+        self.renderer.handles.transform = define_resource!(renderer::resource::RenderNode);
 
-        define_resource!(core::structure::StructDefinition);
-
-        if config.common {
-            define_resource!(common::script::Script);
-            define_resource!(common::program::Program);
-        }
+        define_resource!(script::resource::structure::StructDefinition);
+        define_resource!(script::resource::script::Script);
+        define_resource!(script::resource::program::Program);
     }
 
     fn define_component_types(&mut self, config: &EngineConfig) {
@@ -163,20 +157,12 @@ impl Engine {
         }
 
         if config.renderer {
-            define_component!(renderer::camera::Camera, ComponentStorage::Single);
-            define_component!(renderer::staticmesh::StaticMesh, ComponentStorage::Single);
-            define_component!(renderer::tilemap::Tilemap, ComponentStorage::Single);
-            define_component!(renderer::tileset::Tileset, ComponentStorage::Single);
-            define_component!(renderer::viewport::Viewport, ComponentStorage::Single);
-            define_component!(renderer::canvas::Canvas, ComponentStorage::Single);
-        }
-
-        if config.ui {
-            // define_component!(ui::ui_stylesheet::UIStyleSheet);
-            // define_component!(ui::ui::UI);
-            // define_component!(ui::ui::UIRenderTarget);
-            // define_system_parallel!(ui::update_ui::UpdateUI, SystemStage::UPDATE);
-            // define_system_exclusive!(ui::render_ui::RenderUI, SystemStage::UPDATE);
+            define_component!(renderer::component::Camera, ComponentStorage::Single);
+            define_component!(renderer::resource::StaticMesh, ComponentStorage::Single);
+            define_component!(renderer::resource::Tilemap, ComponentStorage::Single);
+            define_component!(renderer::resource::Tileset, ComponentStorage::Single);
+            define_component!(renderer::resource::Viewport, ComponentStorage::Single);
+            define_component!(renderer::resource::Canvas, ComponentStorage::Single);
         }
 
         self.ecs.handles.tick_stage = self

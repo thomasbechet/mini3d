@@ -3,7 +3,7 @@ use core::ops::{Index, IndexMut, Range};
 use alloc::vec::Vec;
 
 use crate::{
-    feature::ecs::component::ComponentKey,
+    ecs::resource::component::ComponentKey,
     slot_map_key,
     utils::slotmap::{Key, SlotMap},
 };

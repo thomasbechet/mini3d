@@ -3,7 +3,7 @@ use core::{any::Any, cell::UnsafeCell};
 use alloc::boxed::Box;
 
 use crate::{
-    feature::ecs::component::{ComponentKey, ComponentType, ComponentTypeHandle},
+    ecs::resource::component::{ComponentKey, ComponentType, ComponentTypeHandle},
     math::{
         mat::M4I32F16,
         quat::QI32F16,

@@ -2,10 +2,10 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
-    feature::core::resource::{Resource, ResourceHookContext},
     input::provider::InputProviderHandle,
     math::fixed::I32F16,
     resource::handle::ResourceHandle,
+    resource::resource::{Resource, ResourceHookContext},
     utils::string::AsciiArray,
 };
 

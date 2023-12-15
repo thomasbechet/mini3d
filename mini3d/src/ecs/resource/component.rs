@@ -4,9 +4,9 @@ use mini3d_derive::{Reflect, Serialize};
 use crate::{
     define_resource_handle,
     ecs::container::{native::single::NativeSingleContainer, Container, ContainerTable},
-    feature::core::{resource::Resource, structure::StructDefinitionHandle},
     reflection::{Property, Reflect},
-    resource::handle::ReferenceResolver,
+    resource::{handle::ReferenceResolver, Resource},
+    script::resource::StructDefinitionHandle,
     serialize::Serialize,
     slot_map_key,
 };

@@ -3,9 +3,8 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     define_resource_handle,
-    feature::core::resource::{Resource, ResourceHookContext},
     renderer::provider::RendererProviderHandle,
-    resource::handle::ResourceHandle,
+    resource::{handle::ResourceHandle, Resource, ResourceHookContext},
 };
 
 #[derive(Clone, Serialize, Default)]

@@ -1,13 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{
-    define_resource_handle,
-    feature::renderer::{
-        camera::RenderCameraHandle, material::MaterialHandle, mesh::MeshHandle,
-        node::RenderTransformHandle, texture::TextureHandle,
-    },
-    math::vec::V3I32F16,
-};
+use crate::{define_resource_handle, math::vec::V3I32F16};
 
 pub enum TextureRenderTarget {
     Texture(TextureHandle),

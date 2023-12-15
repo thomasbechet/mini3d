@@ -3,7 +3,7 @@ use core::cell::UnsafeCell;
 use alloc::vec::Vec;
 
 use crate::{
-    feature::ecs::component::ComponentKey,
+    ecs::resource::component::ComponentKey,
     serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
 };
 

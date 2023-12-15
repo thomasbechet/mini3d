@@ -1,15 +1,15 @@
 use crate::{
+    ecs::resource::{
+        component::{ComponentType, ComponentTypeHandle},
+        system::{
+            System, SystemHandle, SystemSet, SystemSetHandle, SystemStage, SystemStageHandle,
+        },
+    },
     ecs::{
         entity::Entity,
         scheduler::Invocation,
         system::{ExclusiveSystem, ParallelSystem},
         ECSCommand,
-    },
-    feature::ecs::{
-        component::{ComponentType, ComponentTypeHandle},
-        system::{
-            System, SystemHandle, SystemSet, SystemSetHandle, SystemStage, SystemStageHandle,
-        },
     },
     resource::error::ResourceError,
     utils::uid::ToUID,

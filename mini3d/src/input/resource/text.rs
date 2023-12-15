@@ -2,8 +2,8 @@ use alloc::string::String;
 use mini3d_derive::{Reflect, Resource, Serialize};
 
 use crate::{
-    define_resource_handle, feature::core::resource::Resource,
-    input::provider::InputProviderHandle, utils::string::AsciiArray,
+    define_resource_handle, input::provider::InputProviderHandle, resource::Resource,
+    utils::string::AsciiArray,
 };
 
 #[derive(Serialize, Default, Reflect)]

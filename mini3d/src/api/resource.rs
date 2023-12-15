@@ -1,5 +1,5 @@
 use crate::{
-    feature::core::resource::{self, ResourceHookContext, ResourceType, ResourceTypeHandle},
+    resource::resource::{self, ResourceHookContext, ResourceType, ResourceTypeHandle},
     resource::{
         error::ResourceError,
         handle::{ResourceHandle, ToResourceHandle},

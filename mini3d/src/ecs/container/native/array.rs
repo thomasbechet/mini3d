@@ -3,13 +3,13 @@ use core::any::Any;
 use alloc::vec::Vec;
 
 use crate::{
+    ecs::resource::component::{Component, ComponentKey},
     ecs::{
         container::{ArrayContainer, Container},
         entity::{Entity, EntityTable},
         query::QueryTable,
         sparse::PagedVector,
     },
-    feature::ecs::component::{Component, ComponentKey},
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
 };
 

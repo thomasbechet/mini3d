@@ -1,11 +1,9 @@
-use crate::{
-    feature::common::script::Script,
-    script::{
-        compiler::CompilationUnit,
-        frontend::error::CompileError,
-        mir::mir::MIR,
-        module::{ModuleId, ModuleTable},
-    },
+use crate::script::{
+    compiler::CompilationUnit,
+    frontend::error::CompileError,
+    mir::mir::MIR,
+    module::{ModuleId, ModuleTable},
+    resource::Script,
 };
 
 use super::{

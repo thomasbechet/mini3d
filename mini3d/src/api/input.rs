@@ -1,5 +1,5 @@
 use crate::{
-    feature::input::{
+    input::resource::{
         action::{InputAction, InputActionHandle, InputActionState},
         axis::{InputAxis, InputAxisHandle, InputAxisState},
         text::InputTextHandle,

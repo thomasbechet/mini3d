@@ -1,13 +1,13 @@
 use core::ops::{Index, IndexMut};
 
 use crate::{
+    ecs::resource::component::Component,
     ecs::{
         container::{native::single::NativeSingleContainer, Container},
         entity::Entity,
         error::ResolverError,
         system::SystemResolver,
     },
-    feature::ecs::component::Component,
     utils::uid::ToUID,
 };
 

@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 
-use crate::{feature::common::program::Program, script::interpreter::opcode::Opcode};
+use crate::script::resource::Program;
+
+use super::opcode::Opcode;
 
 pub(crate) type Word = u32;
 

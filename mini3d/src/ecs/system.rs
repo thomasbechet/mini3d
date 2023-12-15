@@ -2,19 +2,21 @@ use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
     api::Context,
-    feature::{
-        core::resource::ResourceTypeHandle,
-        ecs::{
-            component::{ComponentKey, ComponentType, ComponentTypeHandle},
-            system::{
-                System, SystemHandle, SystemKind, SystemSet, SystemSetHandle, SystemStageHandle,
-            },
-        },
-    },
-    resource::ResourceManager,
+    resource::{ResourceManager, ResourceTypeHandle},
+    script::resource::Program,
+    utils::uid::ToUID,
 };
 
-use super::{container::ContainerTable, error::ResolverError};
+use super::{
+    container::ContainerTable,
+    entity::EntityTable,
+    error::ResolverError,
+    query::QueryTable,
+    resource::{
+        ComponentKey, ComponentType, ComponentTypeHandle, System, SystemHandle, SystemKind,
+        SystemSet, SystemSetHandle, SystemStageHandle,
+    },
+};
 
 pub trait ExclusiveSystem: 'static + Default + Clone {
     fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
@@ -29,10 +31,6 @@ pub trait ParallelSystem: 'static + Default + Clone {
     }
     fn run(self, _ctx: &Context) {}
 }
-
-use crate::{feature::common::program::Program, utils::uid::ToUID};
-
-use super::{entity::EntityTable, query::QueryTable};
 
 pub struct SystemResolver<'a> {
     pub(crate) component_type: ResourceTypeHandle,

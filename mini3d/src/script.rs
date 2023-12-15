@@ -5,3 +5,4 @@ pub mod interface;
 pub mod interpreter;
 pub mod mir;
 pub mod module;
+pub mod resource;

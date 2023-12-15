@@ -9,7 +9,7 @@ use crate::{
         view::native::single::NativeSingleViewMut,
     },
     expect,
-    feature::input::{action::InputActionHandle, axis::InputAxisHandle},
+    input::resource::{action::InputActionHandle, axis::InputAxisHandle},
     math::{
         fixed::{FixedPoint, TrigFixedPoint, I32F16, U32F16},
         quat::Q,

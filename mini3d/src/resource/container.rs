@@ -2,9 +2,9 @@ use core::any::Any;
 
 use alloc::boxed::Box;
 
-use crate::{feature::core::resource::Resource, utils::slotmap::SlotMap};
+use crate::utils::slotmap::SlotMap;
 
-use super::{key::ResourceSlotKey, ResourceEntryKey};
+use super::{key::ResourceSlotKey, Resource, ResourceEntryKey};
 
 struct ResourceEntry<R: Resource> {
     data: R,

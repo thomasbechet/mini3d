@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{api::Context, feature::common::script::Script, utils::uid::ToUID};
+use crate::{api::Context, utils::uid::ToUID};
 
 use super::{
     backend::compiler::BackendCompiler,
@@ -10,6 +10,7 @@ use super::{
     interface::InterfaceTable,
     mir::MIRTable,
     module::{Module, ModuleId, ModuleTable},
+    resource::Script,
 };
 
 #[derive(Default)]

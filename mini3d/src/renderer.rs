@@ -1,5 +1,6 @@
 use crate::math::fixed::{FixedPoint, I32F16};
 use crate::math::vec::{V2, V2U32};
+use crate::resource::ResourceTypeHandle;
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
     math::rect::IRect,
@@ -9,9 +10,11 @@ use alloc::boxed::Box;
 use mini3d_derive::Serialize;
 
 use self::event::RendererEvent;
+use self::resource::{Font, FontHandle, Mesh, MeshHandle, Texture, TextureHandle};
 use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
+pub mod component;
 pub mod event;
 pub mod graphics;
 pub mod provider;

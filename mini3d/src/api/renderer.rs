@@ -1,5 +1,6 @@
 use crate::{
-    feature::renderer::{
+    math::{mat::M4I32F16, rect::IRect, vec::V2I32},
+    renderer::resource::{
         font::{Font, FontHandle},
         material::{Material, MaterialHandle},
         mesh::{Mesh, MeshHandle},
@@ -12,7 +13,6 @@ use crate::{
         },
         texture::{Texture, TextureHandle, TextureWrapMode},
     },
-    math::{mat::M4I32F16, rect::IRect, vec::V2I32},
     renderer::{color::Color, RendererFeatures, RendererStatistics},
     resource::handle::ResourceHandle,
     utils::uid::ToUID,
