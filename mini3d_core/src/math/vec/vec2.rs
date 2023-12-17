@@ -14,6 +14,11 @@ pub struct V2<T: FixedPoint> {
 }
 
 impl<T: FixedPoint> V2<T> {
+    pub const ZERO: Self = Self::new(T::ZERO, T::ZERO);
+    pub const ONE: Self = Self::new(T::ONE, T::ONE);
+    pub const X: Self = Self::new(T::ONE, T::ZERO);
+    pub const Y: Self = Self::new(T::ZERO, T::ONE);
+
     pub fn cast<F: FixedPoint>(v: V2<F>) -> Self
     where
         <T as FixedPoint>::INNER: TryFrom<<F as FixedPoint>::INNER>,
@@ -68,6 +73,10 @@ impl<T: FixedPoint + RealFixedPoint> V2<T> {
 
     pub fn normalize(self) -> Self {
         self / self.length()
+    }
+
+    pub fn recip(self) -> Self {
+        Self::new(self.x.recip(), self.y.recip())
     }
 }
 

@@ -59,7 +59,7 @@ impl RendererProvider for WinitRendererProvider {
 
     fn material_add(
         &mut self,
-        desc: mini3d_core::renderer::provider::ProviderMaterialDescriptor,
+        desc: mini3d_core::renderer::provider::ProviderMaterialInfo,
     ) -> Result<
         mini3d_core::renderer::provider::MaterialProviderHandle,
         mini3d_core::renderer::provider::RendererProviderError,

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use mini3d_core::{
-    feature::renderer::texture::{Texture, TextureFormat},
     platform::event::{AssetImportEntry, ImportAssetEvent},
+    renderer::resource::{Texture, TextureFormat},
 };
 
 pub struct ImageImport {
@@ -55,16 +55,16 @@ impl ImageImporter {
         let data = image.to_rgba8();
         // Build the texture
         let texture = Texture::new(
-            TextureFormat::R8G8B8A8,
+            TextureFormat::Color,
             data.to_vec(),
-            image.width(),
-            image.height(),
+            image.width() as u16,
+            image.height() as u16,
         );
         // Return the texture import
         Ok(ImageImport {
             texture: AssetImportEntry::<Texture> {
                 data: texture,
-                name: filename,
+                name: filename.into(),
             },
         })
     }

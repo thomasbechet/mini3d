@@ -1,19 +1,20 @@
 use crate::{
+    input::resource::InputAxisHandle,
     math::{mat::M4I32F16, rect::IRect, vec::V2I32},
     renderer::resource::{
         font::{Font, FontHandle},
         material::{Material, MaterialHandle},
         mesh::{Mesh, MeshHandle},
         model::{Model, ModelHandle},
-        node::{RenderNode, RenderTransformHandle},
-        renderpass::{
-            canvas::{CanvasPass, CanvasPassHandle},
-            diffuse::{DiffusePass, DiffusePassHandle},
-            RenderPass, RenderPassType,
-        },
+        renderpass::{RenderPass, RenderPassType},
         texture::{Texture, TextureHandle, TextureWrapMode},
+        transform::{RenderTransform, RenderTransformHandle},
     },
-    renderer::{color::Color, RendererFeatures, RendererStatistics},
+    renderer::{
+        color::Color,
+        resource::{diffuse::DiffusePassInfo, CanvasPassHandle, DiffusePassHandle},
+        RendererFeatures, RendererStatistics,
+    },
     resource::handle::ResourceHandle,
     utils::uid::ToUID,
 };
@@ -80,12 +81,21 @@ impl Model {
     }
 }
 
-impl RenderNode {
+impl RenderTransform {
     pub fn create(ctx: &mut Context, interpolate: bool) -> RenderTransformHandle {
         todo!()
     }
 
     pub fn update(ctx: &mut Context, value: M4I32F16, teleport: bool) {
+        todo!()
+    }
+
+    pub fn bind_axis(
+        ctx: &mut Context,
+        transform: RenderTransformHandle,
+        x_axis: InputAxisHandle,
+        y_axis: InputAxisHandle,
+    ) {
         todo!()
     }
 }
@@ -102,8 +112,10 @@ impl Renderer {
     }
 }
 
+pub struct DiffusePass;
+
 impl DiffusePass {
-    pub fn create(ctx: &mut Context, name: &str) -> DiffusePassHandle {
+    pub fn create(ctx: &mut Context, name: &str, info: DiffusePassInfo) -> DiffusePassHandle {
         todo!()
     }
 
@@ -124,6 +136,8 @@ impl DiffusePass {
         todo!()
     }
 
+    pub fn add_point_light(ctx: &mut Context, pass: DiffusePassHandle, position: V2I32) {}
+
     pub fn draw_mesh(
         ctx: &mut Context,
         pass: DiffusePassHandle,
@@ -134,6 +148,8 @@ impl DiffusePass {
     ) {
     }
 }
+
+pub struct CanvasPass;
 
 impl CanvasPass {
     pub fn create(ctx: &mut Context, name: &str) -> CanvasPassHandle {

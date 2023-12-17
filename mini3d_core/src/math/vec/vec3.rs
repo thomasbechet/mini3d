@@ -70,6 +70,14 @@ impl<T: FixedPoint> V3<T> {
             self.z * v.x - self.x * v.z,
         )
     }
+
+    pub fn project_onto_normalized(self, v: Self) -> Self {
+        v * self.dot(v)
+    }
+
+    pub fn reject_from_normalized(self, v: Self) -> Self {
+        self - self.project_onto_normalized(v)
+    }
 }
 
 impl<T: FixedPoint + SignedFixedPoint> V3<T> {

@@ -5,22 +5,25 @@ use std::{
 };
 
 use mini3d_core::{
-    feature::renderer::{
-        material::Material,
-        mesh::{Mesh, SubMesh, Vertex},
-        model::Model,
+    math::{
+        fixed::{FixedPoint, RealFixedPoint, I32F16},
+        vec::{V2, V2I32F16, V3, V3I32F16, V4},
     },
-    glam::{Vec2, Vec3, Vec4},
     platform::event::{AssetImportEntry, ImportAssetEvent},
+    renderer::resource::{Material, Mesh, Model, SubMesh, Vertex},
 };
 use wavefront_obj::obj::{self, Primitive};
 
-fn vec3_from_vertex(v: &obj::Vertex) -> Vec3 {
-    Vec3::new(v.x as f32, v.y as f32, v.z as f32)
+fn vec3_from_vertex(v: &obj::Vertex) -> V3I32F16 {
+    V3::new(
+        I32F16::from_f64(v.x),
+        I32F16::from_f64(v.y),
+        I32F16::from_f64(v.z),
+    )
 }
 
-fn vec2_from_tvertex(v: &obj::TVertex) -> Vec2 {
-    Vec2::new(v.u as f32, v.v as f32)
+fn vec2_from_tvertex(v: &obj::TVertex) -> V2I32F16 {
+    V2::new(I32F16::from_f64(v.u), I32F16::from_f64(v.v))
 }
 
 #[derive(Default)]
@@ -106,7 +109,7 @@ impl ModelImporter {
                             let position = vec3_from_vertex(&object.vertices[v_index]);
                             let uv = t_index.map(|i| vec2_from_tvertex(&object.tex_vertices[i]));
                             let normal = n_index.map(|i| vec3_from_vertex(&object.normals[i]));
-                            let tangent = Vec4::new(0.0, 0.0, 0.0, 1.0);
+                            let tangent = V4::W;
                             (position, uv, normal, tangent)
                         });
 
@@ -127,9 +130,9 @@ impl ModelImporter {
                         // Compute uvs if missing
                         let missing_uv = triangle.iter().any(|(_, uv, _, _)| uv.is_none());
                         if missing_uv {
-                            triangle[0].1 = Some(Vec2::ZERO);
-                            triangle[1].1 = Some(Vec2::X);
-                            triangle[2].1 = Some(Vec2::Y);
+                            triangle[0].1 = Some(V2::ZERO);
+                            triangle[1].1 = Some(V2::X);
+                            triangle[2].1 = Some(V2::Y);
                         }
 
                         // Compute tangent and bitangent
@@ -137,18 +140,18 @@ impl ModelImporter {
                         let delta_pos2 = triangle[2].0 - triangle[0].0;
                         let delta_uv1 = triangle[1].1.unwrap() - triangle[0].1.unwrap();
                         let delta_uv2 = triangle[2].1.unwrap() - triangle[0].1.unwrap();
-                        let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+                        let r = (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x).recip();
                         let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
                         let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
 
                         // Compute final tangent and handedness
                         triangle.iter_mut().for_each(|(_, _, n, t)| {
-                            let w = if tangent.cross(bitangent).dot(n.unwrap()) > 0.0 {
-                                1.0
+                            let w = if tangent.cross(bitangent).dot(n.unwrap()) > I32F16::ZERO {
+                                I32F16::ONE
                             } else {
-                                -1.0
+                                I32F16::NEG_ONE
                             };
-                            *t = Vec4::from((tangent.reject_from_normalized(n.unwrap()), w));
+                            *t = V4::from((tangent.reject_from_normalized(n.unwrap()), w));
                         });
 
                         // Append vertices
@@ -182,9 +185,10 @@ impl ModelImporter {
             });
 
             // Append object mesh
-            model_import
-                .meshes
-                .push(AssetImportEntry { data: mesh, name });
+            model_import.meshes.push(AssetImportEntry {
+                data: mesh,
+                name: name.into(),
+            });
         }
 
         Ok(model_import)

@@ -96,7 +96,7 @@ impl Engine {
         self.renderer.handles.mesh = define_resource!(renderer::resource::Mesh);
         self.renderer.handles.texture = define_resource!(renderer::resource::Texture);
         self.renderer.handles.model = define_resource!(renderer::resource::Model);
-        self.renderer.handles.transform = define_resource!(renderer::resource::RenderNode);
+        self.renderer.handles.transform = define_resource!(renderer::resource::RenderTransform);
 
         define_resource!(script::resource::structure::StructDefinition);
         define_resource!(script::resource::script::Script);

@@ -1,7 +1,5 @@
-use crate::define_resource_handle;
+pub enum CanvasPassCommand {}
 
-pub(crate) enum CanvasPassCommand {}
+pub struct CanvasPassInfo {}
 
-pub(crate) struct CanvasPass {}
-
-define_resource_handle!(CanvasPassHandle);
+pub struct CanvasPassRenderInfo {}

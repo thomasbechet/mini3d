@@ -1,21 +1,15 @@
 use alloc::boxed::Box;
 use mini3d_derive::Error;
 
-use crate::{
-    define_provider_handle,
-    math::{
-        mat::M4I32F16,
-        rect::IRect,
-        vec::{V2I32, V2U32, V3I32F16},
-    },
-};
+use crate::{define_provider_handle, math::mat::M4I32F16};
 
 use super::{
-    color::Color,
     event::RendererEvent,
     resource::{
+        diffuse::{DiffusePassCommand, DiffusePassInfo, DiffusePassRenderInfo},
         mesh::Mesh,
-        texture::{Texture, TextureWrapMode},
+        renderpass::canvas::{CanvasPassCommand, CanvasPassInfo, CanvasPassRenderInfo},
+        texture::Texture,
     },
 };
 
@@ -31,9 +25,8 @@ pub enum RendererProviderError {
 
 define_provider_handle!(RendererProviderHandle);
 
-pub struct ProviderMaterialDescriptor<'a> {
+pub struct ProviderMaterialInfo {
     pub diffuse: RendererProviderHandle,
-    pub name: &'a str,
 }
 
 pub trait RendererProvider {
@@ -45,157 +38,76 @@ pub trait RendererProvider {
     fn next_event(&mut self) -> Option<RendererEvent>;
     fn reset(&mut self) -> Result<(), RendererProviderError>;
 
-    /// Assets API
+    /// Resource API
 
-    fn mesh_add(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn mesh_remove(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError>;
+    fn add_mesh(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn remove_mesh(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError>;
 
-    fn texture_add(
+    fn add_texture(
         &mut self,
         texture: &Texture,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn texture_remove(
+    fn remove_texture(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
 
-    fn material_add(
+    fn add_material(
         &mut self,
-        desc: ProviderMaterialDescriptor,
+        desc: ProviderMaterialInfo,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn material_remove(
+    fn remove_material(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
 
-    /// Canvas API
-
-    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererProviderError>;
-    fn scene_canvas_begin(
-        &mut self,
-        canvas: RendererProviderHandle,
-        clear_color: Color,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_end(&mut self) -> Result<(), RendererProviderError>;
-    fn canvas_blit_texture(
-        &mut self,
-        texture: RendererProviderHandle,
-        extent: IRect,
-        texture_extent: IRect,
-        filtering: Color,
-        wrap_mode: TextureWrapMode,
-        alpha_threshold: u8,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_blit_viewport(
-        &mut self,
-        viewport: RendererProviderHandle,
-        position: V2I32,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_fill_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_draw_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_draw_line(
-        &mut self,
-        x0: V2I32,
-        x1: V2I32,
-        color: Color,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_draw_vline(
-        &mut self,
-        x: i32,
-        y0: i32,
-        y1: i32,
-        color: Color,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_draw_hline(
-        &mut self,
-        y: i32,
-        x0: i32,
-        x1: i32,
-        color: Color,
-    ) -> Result<(), RendererProviderError>;
-    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererProviderError>;
-
-    /// Viewport API
-
-    fn viewport_add(
-        &mut self,
-        resolution: V2U32,
-    ) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn viewport_remove(
+    fn add_transform(&mut self) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn remove_transform(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
-    fn viewport_set_camera(
-        &mut self,
-        handle: RendererProviderHandle,
-        camera: Option<RendererProviderHandle>,
-    ) -> Result<(), RendererProviderError>;
-    fn viewport_set_resolution(
-        &mut self,
-        handle: RendererProviderHandle,
-        resolution: V2U32,
-    ) -> Result<(), RendererProviderError>;
-
-    /// Scene API
-
-    fn scene_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn scene_remove(&mut self, handle: RendererProviderHandle)
-        -> Result<(), RendererProviderError>;
-
-    fn scene_camera_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn scene_camera_remove(
-        &mut self,
-        handle: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError>;
-    fn scene_camera_update(
-        &mut self,
-        handle: RendererProviderHandle,
-        eye: V3I32F16,
-        forward: V3I32F16,
-        up: V3I32F16,
-        fov: f32,
-    ) -> Result<(), RendererProviderError>;
-
-    fn scene_model_add(
-        &mut self,
-        mesh: RendererProviderHandle,
-    ) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn scene_model_remove(
-        &mut self,
-        handle: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError>;
-    fn scene_model_set_material(
-        &mut self,
-        handle: RendererProviderHandle,
-        index: usize,
-        material: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError>;
-    fn scene_model_transfer_matrix(
+    fn update_transform(
         &mut self,
         handle: RendererProviderHandle,
         mat: M4I32F16,
     ) -> Result<(), RendererProviderError>;
 
-    fn scene_canvas_add(
+    fn add_diffuse_pass(
         &mut self,
-        resolution: V2U32,
+        info: &DiffusePassInfo,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
-    fn scene_canvas_remove(
+    fn remove_diffuse_pass(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
-    fn scene_canvas_transfer_matrix(
+    fn submit_diffuse_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        command: &DiffusePassCommand,
+    ) -> Result<(), RendererProviderError>;
+    fn render_diffuse_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        info: &DiffusePassRenderInfo,
+    ) -> Result<(), RendererProviderError>;
+
+    fn add_canvas_pass(
+        &mut self,
+        info: &CanvasPassInfo,
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn remove_canvas_pass(
         &mut self,
         handle: RendererProviderHandle,
-        mat: M4I32F16,
+    ) -> Result<(), RendererProviderError>;
+    fn submit_canvas_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        command: &CanvasPassCommand,
+    ) -> Result<(), RendererProviderError>;
+    fn render_canvas_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        info: &CanvasPassRenderInfo,
     ) -> Result<(), RendererProviderError>;
 }
 
@@ -216,200 +128,51 @@ impl RendererProvider for PassiveRendererProvider {
         Ok(())
     }
 
-    /// Assets API
+    /// Resource API
 
-    fn mesh_add(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError> {
+    fn add_mesh(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn mesh_remove(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError> {
+    fn remove_mesh(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
-    fn texture_add(
+    fn add_texture(
         &mut self,
         texture: &Texture,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn texture_remove(
+    fn remove_texture(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
-    fn material_add(
+    fn add_material(
         &mut self,
-        desc: ProviderMaterialDescriptor,
+        desc: ProviderMaterialInfo,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
-    fn material_remove(
+    fn remove_material(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
-    /// Canvas API
-
-    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererProviderError> {
-        Ok(())
+    fn add_transform(&mut self) -> Result<RendererProviderHandle, RendererProviderError> {
+        Ok(Default::default())
     }
-    fn scene_canvas_begin(
-        &mut self,
-        canvas: RendererProviderHandle,
-        clear_color: Color,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_end(&mut self) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_blit_texture(
-        &mut self,
-        texture: RendererProviderHandle,
-        extent: IRect,
-        texture_extent: IRect,
-        filtering: Color,
-        wrap_mode: TextureWrapMode,
-        alpha_threshold: u8,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_blit_viewport(
-        &mut self,
-        viewport: RendererProviderHandle,
-        position: V2I32,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_fill_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_draw_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_draw_line(
-        &mut self,
-        x0: V2I32,
-        x1: V2I32,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_draw_vline(
-        &mut self,
-        x: i32,
-        y0: i32,
-        y1: i32,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_draw_hline(
-        &mut self,
-        y: i32,
-        x0: i32,
-        x1: i32,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-
-    /// Viewport API
-
-    fn viewport_add(
-        &mut self,
-        resolution: V2U32,
-    ) -> Result<RendererProviderHandle, RendererProviderError> {
-        Ok(0.into())
-    }
-    fn viewport_remove(
+    fn remove_transform(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
-    fn viewport_set_camera(
-        &mut self,
-        handle: RendererProviderHandle,
-        camera: Option<RendererProviderHandle>,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn viewport_set_resolution(
-        &mut self,
-        handle: RendererProviderHandle,
-        resolution: V2U32,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-
-    /// Scene API
-
-    fn scene_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError> {
-        Ok(0.into())
-    }
-    fn scene_remove(
-        &mut self,
-        handle: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-
-    fn scene_camera_add(&mut self) -> Result<RendererProviderHandle, RendererProviderError> {
-        Ok(0.into())
-    }
-    fn scene_camera_remove(
-        &mut self,
-        handle: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn scene_camera_update(
-        &mut self,
-        handle: RendererProviderHandle,
-        eye: V3I32F16,
-        forward: V3I32F16,
-        up: V3I32F16,
-        fov: f32,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-
-    fn scene_model_add(
-        &mut self,
-        mesh: RendererProviderHandle,
-    ) -> Result<RendererProviderHandle, RendererProviderError> {
-        Ok(0.into())
-    }
-    fn scene_model_remove(
-        &mut self,
-        handle: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn scene_model_set_material(
-        &mut self,
-        handle: RendererProviderHandle,
-        index: usize,
-        material: RendererProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        Ok(())
-    }
-    fn scene_model_transfer_matrix(
+    fn update_transform(
         &mut self,
         handle: RendererProviderHandle,
         mat: M4I32F16,
@@ -417,22 +180,56 @@ impl RendererProvider for PassiveRendererProvider {
         Ok(())
     }
 
-    fn scene_canvas_add(
+    fn add_diffuse_pass(
         &mut self,
-        resolution: V2U32,
+        info: &DiffusePassInfo,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
-        Ok(0.into())
+        Ok(Default::default())
     }
-    fn scene_canvas_remove(
+    fn remove_diffuse_pass(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }
-    fn scene_canvas_transfer_matrix(
+    fn submit_diffuse_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        command: &DiffusePassCommand,
+    ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
+    fn render_diffuse_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        info: &DiffusePassRenderInfo,
+    ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
+
+    fn add_canvas_pass(
+        &mut self,
+        info: &CanvasPassInfo,
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
+        Ok(Default::default())
+    }
+    fn remove_canvas_pass(
         &mut self,
         handle: RendererProviderHandle,
-        mat: M4I32F16,
+    ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
+    fn submit_canvas_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        command: &CanvasPassCommand,
+    ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
+    fn render_canvas_pass(
+        &mut self,
+        pass: RendererProviderHandle,
+        info: &CanvasPassRenderInfo,
     ) -> Result<(), RendererProviderError> {
         Ok(())
     }

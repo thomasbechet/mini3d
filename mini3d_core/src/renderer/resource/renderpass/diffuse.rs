@@ -1,10 +1,8 @@
-use alloc::vec::Vec;
-
 use crate::{
-    define_resource_handle,
     math::vec::V3I32F16,
-    renderer::resource::{
-        MaterialHandle, MeshHandle, RenderCameraHandle, RenderTransformHandle, TextureHandle,
+    renderer::{
+        provider::RendererProviderHandle,
+        resource::{RenderCameraHandle, TextureHandle},
     },
 };
 
@@ -13,35 +11,32 @@ pub enum TextureRenderTarget {
     CubeMap(TextureHandle),
 }
 
-pub(crate) enum DiffusePassCommand {
+pub enum DiffusePassCommand {
     DrawMesh {
-        mesh: MeshHandle,
-        material: MaterialHandle,
-        transform: RenderTransformHandle,
+        mesh: RendererProviderHandle,
+        material: RendererProviderHandle,
+        transform: RendererProviderHandle,
     },
     DrawMeshSkinned {
-        mesh: MeshHandle,
-        material: MaterialHandle,
-        transform: RenderTransformHandle,
+        mesh: RendererProviderHandle,
+        material: RendererProviderHandle,
+        transform: RendererProviderHandle,
     },
     DrawBillboard,
+    PushPointLight {
+        transform: RendererProviderHandle,
+        color: V3I32F16,
+    },
 }
 
-pub(crate) struct DiffusePassRunInfo {
+pub struct DiffusePassRenderInfo {
     pub camera: RenderCameraHandle,
     pub target: TextureRenderTarget,
 }
 
-pub(crate) struct PointLight {
-    position: V3I32F16,
+pub struct DiffusePassInfo {
+    pub per_vertex_lighting: bool,
+    pub max_point_lights: u8,
+    pub max_spot_lights: u8,
+    pub max_directional_lights: u8,
 }
-
-pub(crate) struct DiffusePass {
-    per_vertex_lighting: bool,
-    max_point_lights: u8,
-    max_spot_lights: u8,
-    max_directional_lights: u8,
-    commands: Vec<DiffusePassCommand>,
-}
-
-define_resource_handle!(DiffusePassHandle);

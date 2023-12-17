@@ -9,16 +9,16 @@ use crate::{
 define_resource_handle!(RenderTransformHandle);
 
 #[derive(Clone, Serialize, Default, Reflect)]
-pub struct RenderNode {
+pub struct RenderTransform {
     #[serialize(skip)]
     pub(crate) handle: RendererProviderHandle,
 }
 
-impl RenderNode {
-    pub const NAME: &'static str = "RTY_RenderNode";
+impl RenderTransform {
+    pub const NAME: &'static str = "RTY_RenderTransform";
 }
 
-impl Resource for RenderNode {
+impl Resource for RenderTransform {
     fn hook_added(handle: ResourceHandle, ctx: ResourceHookContext) {}
     fn hook_removed(handle: ResourceHandle, ctx: ResourceHookContext) {}
 }

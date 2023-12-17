@@ -3,7 +3,7 @@ use core::{
     ops::Deref,
 };
 
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use mini3d_derive::Error;
 
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
@@ -95,6 +95,12 @@ impl<const SIZE: usize> From<&str> for AsciiArray<SIZE> {
 impl<'a, const SIZE: usize> From<&'a AsciiArray<SIZE>> for &'a str {
     fn from(value: &'a AsciiArray<SIZE>) -> Self {
         value.as_str()
+    }
+}
+
+impl<const SIZE: usize> From<String> for AsciiArray<SIZE> {
+    fn from(value: String) -> Self {
+        Self::from(value.as_str())
     }
 }
 

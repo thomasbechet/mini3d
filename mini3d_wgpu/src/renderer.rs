@@ -7,7 +7,7 @@ use mini3d_core::renderer::color::{srgb_to_linear, Color};
 use mini3d_core::renderer::event::RendererEvent;
 use mini3d_core::renderer::graphics::TextureWrapMode;
 use mini3d_core::renderer::provider::{
-    MaterialProviderHandle, MeshProviderHandle, ProviderMaterialDescriptor, RendererProvider,
+    MaterialProviderHandle, MeshProviderHandle, ProviderMaterialInfo, RendererProvider,
     RendererProviderError, SceneCameraProviderHandle, SceneCanvasProviderHandle,
     SceneModelProviderHandle, TextureProviderHandle, ViewportProviderHandle,
 };
@@ -475,7 +475,7 @@ impl RendererProvider for WGPURenderer {
 
     fn material_add(
         &mut self,
-        desc: ProviderMaterialDescriptor,
+        desc: ProviderMaterialInfo,
     ) -> Result<MaterialProviderHandle, RendererProviderError> {
         let diffuse = self.textures.get(&desc.diffuse).expect("Texture not found");
         let handle: MaterialProviderHandle = self.generator.next().into();
