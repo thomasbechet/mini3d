@@ -1,7 +1,7 @@
 // use std::{path::Path, ffi::CStr};
 
 // use mini3d_core::event::Events;
-// use mini3d_import::{image::ImageImporter, model::ModelImporter};
+// use mini3d_importer::{image::ImageImporter, model::ModelImporter};
 
 // use crate::event::mini3d_app_events;
 

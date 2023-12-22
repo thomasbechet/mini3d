@@ -5,7 +5,7 @@ use crate::define_provider_handle;
 
 use super::{
     event::InputEvent,
-    resource::{action::InputAction, axis::InputAxis},
+    resource::{action::InputAction, axis::InputAxis, InputActionHandle, InputAxisHandle},
 };
 
 #[derive(Debug, Error)]
@@ -25,13 +25,15 @@ pub trait InputProvider {
 
     fn add_action(
         &mut self,
+        name: &str,
         action: &InputAction,
-        id: u32,
+        handle: InputActionHandle,
     ) -> Result<InputProviderHandle, InputProviderError>;
     fn add_axis(
         &mut self,
+        name: &str,
         axis: &InputAxis,
-        id: u32,
+        handle: InputAxisHandle,
     ) -> Result<InputProviderHandle, InputProviderError>;
     fn remove_action(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
     fn remove_axis(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
@@ -50,15 +52,17 @@ impl InputProvider for PassiveInputProvider {
 
     fn add_action(
         &mut self,
+        _name: &str,
         _action: &InputAction,
-        _id: u32,
+        _handle: InputActionHandle,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
     }
     fn add_axis(
         &mut self,
+        _name: &str,
         _axis: &InputAxis,
-        _id: u32,
+        _handle: InputAxisHandle,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
     }

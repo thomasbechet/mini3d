@@ -1,26 +1,20 @@
 [package]
-name = "mini3d_winit"
+name = "mini3d_win32"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-winit = { version = "0.29.4", features = ["serde"] }
-wgpu = "0.18.0"
-egui = "0.24.1"
-egui_extras = "0.24.2"
-egui-wgpu = "0.24.1"
-egui-winit = "0.24.1"
+native-windows-gui = { version = "1.0.13", features = ["cursor", "raw-win-handle", "animation-timer"] }
+native-windows-derive = "1.0.5"
+raw-window-handle = "0.5.0"
+winapi = "0.3.9"
 gilrs = { version = "0.10.4", features = ["serde-serialize"] }
 serde = { version = "1.0.193", features = ["derive"] }
-postcard = { version = "1.0.2", features = ["alloc"] }
-serde_json = "1.0.91"
-bincode = "1.3.3"
-miniz_oxide = "0.7.1"
 mini3d_core = { path = "../mini3d_core" }
-# mini3d_os = { path = "../mini3d_os" }
 mini3d_wgpu = { path = "../mini3d_wgpu" }
 mini3d_importer = { path = "../mini3d_importer" }
 mini3d_input = { path = "../mini3d_input" }
 mini3d_stdlog = { path = "../mini3d_stdlog" }
-colored = "2.0.4"
-chrono = "0.4.30"
+
+[build-dependencies]
+embed-manifest = "1.3.1"

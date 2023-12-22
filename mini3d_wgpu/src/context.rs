@@ -1,23 +1,34 @@
 use futures::executor;
-use wgpu::{RequestAdapterOptions, PowerPreference};
+use wgpu::{
+    Dx12Compiler, Gles3MinorVersion, InstanceDescriptor, InstanceFlags, PowerPreference,
+    RequestAdapterOptions,
+};
 
-pub struct WGPUContext {
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub config: wgpu::SurfaceConfiguration,
-    pub surface: wgpu::Surface,
+pub(crate) struct WGPUContext {
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
+    pub(crate) config: wgpu::SurfaceConfiguration,
+    pub(crate) surface: wgpu::Surface,
 }
 
 impl WGPUContext {
-    pub(crate) fn new<W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle>(window: &W) -> Self {
-        
-        let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+    pub(crate) fn new<
+        W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle,
+    >(
+        window: &W,
+    ) -> Self {
+        let backends = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
 
         // Create instance
-        let instance = wgpu::Instance::new(backend);
-        
+        let instance = wgpu::Instance::new(InstanceDescriptor {
+            backends,
+            flags: InstanceFlags::default(),
+            dx12_shader_compiler: Dx12Compiler::default(),
+            gles_minor_version: Gles3MinorVersion::Automatic,
+        });
+
         // Create surface
-        let surface = unsafe { instance.create_surface(window) };
+        let surface = unsafe { instance.create_surface(window) }.expect("Failed to create surface");
 
         // Build the adaptor based on backend environment
         let adapter = executor::block_on(
@@ -25,8 +36,7 @@ impl WGPUContext {
                 power_preference: PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
-            })
-            // wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
+            }), // wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
         )
         .expect("Failed to create adapter");
 
@@ -35,7 +45,7 @@ impl WGPUContext {
         println!("Using {} ({:?})", adapter_info.name, adapter_info.backend);
 
         // Find features
-        let mut features = adapter.features(); 
+        let mut features = adapter.features();
         features |= wgpu::Features::INDIRECT_FIRST_INSTANCE;
         features |= wgpu::Features::MULTI_DRAW_INDIRECT;
 
@@ -46,20 +56,29 @@ impl WGPUContext {
 
         // Request device and queue from adaptor
         let (device, queue) = executor::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor { features, limits, label: None },
+            &wgpu::DeviceDescriptor {
+                features,
+                limits,
+                label: None,
+            },
             None,
         ))
         .expect("Failed to find suitable GPU adapter");
 
         println!("Supported formats: ");
-        for format in surface.get_supported_formats(&adapter) {
+        for format in surface.get_capabilities(&adapter).formats {
             println!("- {:?}", format);
         }
 
         // Configure the surface
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter).first().unwrap().to_owned(),
+            format: surface
+                .get_capabilities(&adapter)
+                .formats
+                .first()
+                .unwrap()
+                .to_owned(),
             // format: wgpu::TextureFormat::Bgra8UnormSrgb,
             // format: wgpu::TextureFormat::Bgra8Unorm,
             width: 1600,
@@ -67,6 +86,7 @@ impl WGPUContext {
             present_mode: wgpu::PresentMode::Fifo,
             // present_mode: wgpu::PresentMode::Mailbox,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            view_formats: surface.get_capabilities(&adapter).formats,
         };
         surface.configure(&device, &config);
 

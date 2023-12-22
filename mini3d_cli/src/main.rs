@@ -9,9 +9,9 @@ use mini3d_core::{
         system::{ExclusiveSystem, SystemResolver},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
-    engine::{Engine, EngineConfig},
     info,
     math::vec::V3I32F16,
+    simulation::{Simulation, SimulationConfig},
 };
 use mini3d_stdlog::logger::stdout::StdoutLogger;
 
@@ -67,7 +67,7 @@ impl ExclusiveSystem for TestSystem {
 }
 
 fn main() {
-    let mut engine = Engine::new(EngineConfig::default().bootstrap(|ctx| {
+    let mut simulation = Simulation::new(SimulationConfig::default().bootstrap(|ctx| {
         let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
         let test = System::create_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
         let propagate_transform = System::find(ctx, PropagateTransforms::NAME).unwrap();
@@ -96,10 +96,10 @@ fn main() {
             println!("[{}] {}   {}", i + 1, info.name, ty_name);
         }
     }));
-    engine.set_logger(StdoutLogger);
+    simulation.set_logger(StdoutLogger);
     for _ in 0..10 {
-        engine.tick().expect("Instance error");
+        simulation.tick().expect("Simulation error");
     }
-    println!("target_tps: {}", engine.target_tps());
+    println!("target_tps: {}", simulation.target_tps());
     println!("DONE");
 }

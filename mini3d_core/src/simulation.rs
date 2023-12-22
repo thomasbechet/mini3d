@@ -31,13 +31,13 @@ pub enum TickError {
 }
 
 #[derive(Clone)]
-pub struct EngineConfig {
+pub struct SimulationConfig {
     bootstrap: Option<fn(&mut Context)>,
     renderer: bool,
     target_tps: u16,
 }
 
-impl Default for EngineConfig {
+impl Default for SimulationConfig {
     fn default() -> Self {
         Self {
             bootstrap: None,
@@ -47,14 +47,14 @@ impl Default for EngineConfig {
     }
 }
 
-impl EngineConfig {
+impl SimulationConfig {
     pub fn bootstrap(mut self, bootstrap: fn(&mut Context)) -> Self {
         self.bootstrap = Some(bootstrap);
         self
     }
 }
 
-pub struct Engine {
+pub struct Simulation {
     pub(crate) ecs: ECSManager,
     pub(crate) resource: ResourceManager,
     pub(crate) storage: DiskManager,
@@ -65,12 +65,12 @@ pub struct Engine {
     pub(crate) logger: LoggerManager,
 }
 
-impl Engine {
+impl Simulation {
     fn setup_resource_manager(&mut self) {
         self.resource.define_meta_type();
     }
 
-    fn define_resource_types(&mut self, config: &EngineConfig) {
+    fn define_resource_types(&mut self, config: &SimulationConfig) {
         macro_rules! define_resource {
             ($resource: ty) => {
                 self.resource
@@ -103,7 +103,7 @@ impl Engine {
         define_resource!(script::resource::program::Program);
     }
 
-    fn define_component_types(&mut self, config: &EngineConfig) {
+    fn define_component_types(&mut self, config: &SimulationConfig) {
         macro_rules! define_component {
             ($component: ty, $storage: expr) => {
                 self.resource
@@ -179,14 +179,14 @@ impl Engine {
             .into();
     }
 
-    fn setup_ecs(&mut self, config: &EngineConfig) {
+    fn setup_ecs(&mut self, config: &SimulationConfig) {
         self.ecs.target_tps = config.target_tps;
         self.ecs
             .scheduler
             .invoke(self.ecs.handles.start_stage, Invocation::Immediate);
     }
 
-    fn run_bootstrap(&mut self, config: &EngineConfig) {
+    fn run_bootstrap(&mut self, config: &SimulationConfig) {
         if let Some(bootstrap) = config.bootstrap {
             bootstrap(&mut Context {
                 entities: &mut self.ecs.entities,
@@ -210,8 +210,8 @@ impl Engine {
         }
     }
 
-    pub fn new(config: EngineConfig) -> Self {
-        let mut engine = Self {
+    pub fn new(config: SimulationConfig) -> Self {
+        let mut simulation = Self {
             ecs: Default::default(),
             storage: Default::default(),
             resource: Default::default(),
@@ -221,12 +221,12 @@ impl Engine {
             platform: Default::default(),
             logger: Default::default(),
         };
-        engine.setup_resource_manager();
-        engine.define_resource_types(&config);
-        engine.define_component_types(&config);
-        engine.setup_ecs(&config);
-        engine.run_bootstrap(&config);
-        engine
+        simulation.setup_resource_manager();
+        simulation.define_resource_types(&config);
+        simulation.define_component_types(&config);
+        simulation.setup_ecs(&config);
+        simulation.run_bootstrap(&config);
+        simulation
     }
 
     pub fn set_renderer(&mut self, provider: impl RendererProvider + 'static) {

@@ -8,43 +8,36 @@ use std::{
 };
 
 use gui::{WindowControl, WindowGUI};
-use mapper::InputMapper;
 use mini3d_core::{
-    ecs::scheduler::Invocation,
-    engine::{Engine, EngineConfig},
-    feature::common::script::Script,
-    glam::Vec2,
     platform::{
         event::{AssetImportEntry, ImportAssetEvent, PlatformEvent},
         provider::PlatformProvider,
     },
-    renderer::SCREEN_RESOLUTION,
+    script::resource::Script,
     serialize::SliceDecoder,
+    simulation::{Simulation, SimulationConfig},
 };
-use mini3d_derive::Serialize;
-use mini3d_import::{image::ImageImporter, model::ModelImporter, stdout::StdoutLogger};
-use mini3d_os::system::bootstrap::OSBootstrap;
-use mini3d_wgpu::WGPURenderer;
+use mini3d_importer::{image::ImageImporter, model::ModelImporter};
+use mini3d_input::mapper::InputMapper;
+use mini3d_stdlog::logger::stdout::StdoutLogger;
+use mini3d_wgpu::renderer::WGPURenderer;
 use provider::{
     input::WinitInputProvider, renderer::WinitRendererProvider, storage::WinitStorageProvider,
     system::WinitSystemProvider,
 };
 // use serde::Serialize;
-use utils::{compute_fixed_viewport, ViewportMode};
 use virtual_disk::VirtualDisk;
 use window::Window;
 use winit::{
     event::{
-        DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode,
-        WindowEvent,
+        DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop},
+    keyboard::{KeyCode, PhysicalKey},
 };
 
 pub mod gui;
-pub mod mapper;
 pub mod provider;
-pub mod utils;
 pub mod virtual_disk;
 pub mod window;
 
@@ -131,7 +124,7 @@ fn main_run() {
     let mapper = Rc::new(RefCell::new(InputMapper::new()));
 
     // Renderer
-    let renderer = Rc::new(RefCell::new(WGPURenderer::new(&window.handle)));
+    let renderer = Rc::new(RefCell::new(WGPURenderer::new(window.handle)));
     let mut gui = WindowGUI::new(
         renderer.borrow_mut().context(),
         &window.handle,
@@ -145,18 +138,12 @@ fn main_run() {
     // System
     let system_status = Rc::new(RefCell::new(WinitSystemStatus::default()));
 
-    let mut instance = Engine::new(EngineConfig::all());
+    let mut instance = Simulation::new(SimulationConfig::default());
     instance.set_input(WinitInputProvider::new(mapper.clone()));
     instance.set_storage(WinitStorageProvider::new(disk));
     instance.set_platform(WinitSystemProvider::new(system_status.clone()));
     instance.set_renderer(WinitRendererProvider::new(renderer.clone()));
     instance.set_logger(StdoutLogger);
-    instance
-        .register_system::<OSBootstrap>(OSBootstrap::NAME, OSBootstrap::NAME)
-        .unwrap();
-    instance
-        .invoke(OSBootstrap::NAME, Invocation::NextFrame)
-        .unwrap();
 
     let mut last_click: Option<SystemTime> = None;
     let mut last_time = Instant::now();
@@ -170,8 +157,6 @@ fn main_run() {
 
     // Set initial display
     let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
-    let viewport_mode = ViewportMode::StretchKeepAspect;
-    // let viewport_mode = ViewportMode::FixedBestFit;
 
     // Save state
     let mut save_state = false;
@@ -215,7 +200,7 @@ fn main_run() {
         .borrow_mut()
         .imports
         .push(ImportAssetEvent::Script(AssetImportEntry {
-            name: "main_script".to_string(),
+            name: "main_script".into(),
             data: Script { source: script },
         }));
     let script = std::fs::read_to_string("assets/script_utils.ms").expect("Failed to load.");
@@ -223,7 +208,7 @@ fn main_run() {
         .borrow_mut()
         .imports
         .push(ImportAssetEvent::Script(AssetImportEntry {
-            name: "utils_script".to_string(),
+            name: "utils_script".into(),
             data: Script { source: script },
         }));
 
@@ -256,9 +241,9 @@ fn main_run() {
                 if window_id == window.handle.id() {
                     match event {
                         WindowEvent::KeyboardInput {
-                            input:
-                                winit::event::KeyboardInput {
-                                    virtual_keycode: Some(keycode),
+                            event:
+                                KeyEvent {
+                                    physical_key: PhysicalKey::Code(keycode),
                                     state,
                                     ..
                                 },
@@ -266,7 +251,7 @@ fn main_run() {
                         } => {
                             // Unfocus mouse
                             if state == ElementState::Pressed
-                                && keycode == VirtualKeyCode::Escape
+                                && keycode == KeyCode::Escape
                                 && !gui.is_recording()
                             {
                                 display_mode = set_display_mode(
@@ -278,12 +263,12 @@ fn main_run() {
 
                             // Save/Load state
                             if state == ElementState::Pressed
-                                && keycode == VirtualKeyCode::F5
+                                && keycode == KeyCode::F5
                                 && !gui.is_recording()
                             {
                                 save_state = true;
                             } else if state == ElementState::Pressed
-                                && keycode == VirtualKeyCode::F6
+                                && keycode == KeyCode::F6
                                 && !gui.is_recording()
                             {
                                 load_state = true;
@@ -291,7 +276,7 @@ fn main_run() {
 
                             // Toggle fullscreen
                             if state == ElementState::Pressed
-                                && keycode == VirtualKeyCode::F11
+                                && keycode == KeyCode::F11
                                 && !gui.is_fullscreen()
                             {
                                 match display_mode {
@@ -314,7 +299,9 @@ fn main_run() {
 
                             // Dispatch keyboard
                             if window.is_focus() {
-                                mapper.borrow_mut().dispatch_keyboard(keycode, state);
+                                mapper
+                                    .borrow_mut()
+                                    .dispatch_keyboard(keycode, state == ElementState::Pressed);
                             }
                         }
                         WindowEvent::MouseInput {
@@ -342,13 +329,16 @@ fn main_run() {
 
                             // Dispatch mouse
                             if window.is_focus() {
-                                mapper.borrow_mut().dispatch_mouse_button(button, state);
+                                mapper
+                                    .borrow_mut()
+                                    .dispatch_mouse_button(button, state == ElementState::Pressed);
                             }
                         }
                         WindowEvent::CloseRequested => {
                             system_status.borrow_mut().stop();
                         }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                        WindowEvent::ScaleFactorChanged { .. } => {
+                            let new_inner_size = window.handle.inner_size();
                             renderer
                                 .borrow_mut()
                                 .resize(new_inner_size.width, new_inner_size.height);
@@ -370,17 +360,10 @@ fn main_run() {
                             ..
                         } => {
                             if window.is_focus() {
-                                let position = Vec2::new(position.x as f32, position.y as f32);
-                                let viewport =
-                                    compute_fixed_viewport(gui.central_viewport(), viewport_mode);
-                                let relative_position =
-                                    position - Vec2::new(viewport.x, viewport.y);
-                                let final_position = (relative_position
-                                    / Vec2::new(viewport.z, viewport.w))
-                                    * SCREEN_RESOLUTION.as_vec2();
-                                mapper
-                                    .borrow_mut()
-                                    .dispatch_mouse_cursor((final_position.x, final_position.y));
+                                let position = renderer
+                                    .get_mut()
+                                    .cursor_position(position.x as f32, position.y as f32);
+                                mapper.borrow_mut().dispatch_mouse_cursor(position);
                             }
                         }
                         // WindowEvent::MouseWheel { device_id: _, delta, .. } => {
@@ -475,7 +458,7 @@ fn main_run() {
                 }
 
                 // Progress instance
-                instance.tick(dt).expect("Failed to progress instance");
+                instance.tick().expect("Failed to progress instance");
 
                 // Save/Load state
                 if save_state {
@@ -541,10 +524,9 @@ fn main_run() {
                 }
 
                 // Invoke WGPU Renderer
-                let viewport = compute_fixed_viewport(gui.central_viewport(), viewport_mode);
                 renderer
                     .borrow_mut()
-                    .render(viewport, |device, queue, encoder, output| {
+                    .render(|device, queue, encoder, output| {
                         gui.render(&window.handle, device, queue, encoder, output);
                     })
                     .expect("Failed to render");
@@ -563,13 +545,6 @@ fn main_run() {
             _ => {}
         }
     });
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-struct Test {
-    a: i32,
-    // #[serialize(skip)]
-    b: i32,
 }
 
 fn main() {

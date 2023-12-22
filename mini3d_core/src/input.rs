@@ -1,7 +1,6 @@
 use alloc::boxed::Box;
 use mini3d_derive::Error;
 
-use crate::resource::handle::ResourceHandle;
 use crate::resource::{ResourceManager, ResourceTypeHandle};
 use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
@@ -70,13 +69,11 @@ impl InputManager {
         while let Some(event) = self.provider.next_event() {
             match event {
                 InputEvent::Action(event) => {
-                    let action = resource
-                        .native_mut_unchecked::<InputAction>(ResourceHandle::from_raw(event.id));
+                    let action = resource.native_mut_unchecked::<InputAction>(event.handle);
                     action.state.pressed = event.pressed;
                 }
                 InputEvent::Axis(event) => {
-                    let axis = resource
-                        .native_mut_unchecked::<InputAxis>(ResourceHandle::from_raw(event.id));
+                    let axis = resource.native_mut_unchecked::<InputAxis>(event.handle);
                     axis.set_value(event.value);
                 }
                 InputEvent::Text(event) => {
@@ -99,11 +96,16 @@ impl InputManager {
         handle: InputActionHandle,
         resources: &mut ResourceManager,
     ) {
-        let action = resources.native_mut_unchecked::<InputAction>(handle);
-        action.state.handle = self
+        let action = resources.native_unchecked::<InputAction>(handle);
+        let name = resources.info(handle).unwrap().name;
+        let provider_handle = self
             .provider
-            .add_action(action, handle.raw())
+            .add_action(name, &action, handle)
             .expect("Input provider failed to add action");
+        resources
+            .native_mut_unchecked::<InputAction>(handle)
+            .state
+            .handle = provider_handle;
     }
 
     pub(crate) fn on_axis_added(
@@ -111,11 +113,15 @@ impl InputManager {
         handle: InputAxisHandle,
         resources: &mut ResourceManager,
     ) {
-        let axis = resources.native_mut_unchecked::<InputAxis>(handle);
-        axis.state.handle = self
-            .provider
-            .add_axis(axis, handle.raw())
+        let axis = resources.native_unchecked::<InputAxis>(handle);
+        let name = resources.info(handle).unwrap().name;
+        self.provider
+            .add_axis(name, axis, handle)
             .expect("Input provider failed to add axis");
+        resources
+            .native_mut_unchecked::<InputAxis>(handle)
+            .state
+            .handle = axis.state.handle;
     }
 
     pub(crate) fn on_action_removed(

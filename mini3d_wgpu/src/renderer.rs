@@ -1,113 +1,26 @@
-use std::collections::HashMap;
+use mini3d_core::renderer::provider::RendererProvider;
+use wgpu::StoreOp;
 
-use mini3d_core::feature::renderer::{mesh, texture};
-use mini3d_core::glam::{IVec2, Mat4, UVec2, Vec3, Vec4};
-use mini3d_core::math::rect::IRect;
-use mini3d_core::renderer::color::{srgb_to_linear, Color};
-use mini3d_core::renderer::event::RendererEvent;
-use mini3d_core::renderer::graphics::TextureWrapMode;
-use mini3d_core::renderer::provider::{
-    MaterialProviderHandle, MeshProviderHandle, ProviderMaterialInfo, RendererProvider,
-    RendererProviderError, SceneCameraProviderHandle, SceneCanvasProviderHandle,
-    SceneModelProviderHandle, TextureProviderHandle, ViewportProviderHandle,
+use crate::{
+    context::WGPUContext,
+    error::WGPURendererError,
+    viewport::{Viewport, ViewportMode},
 };
-use mini3d_core::renderer::{RendererStatistics, SCREEN_RESOLUTION};
-use mini3d_core::utils::uid::{SequentialGenerator, UID};
-
-use crate::blit_bind_group::{create_blit_bind_group, create_blit_bind_group_layout};
-use crate::blit_pipeline::{
-    create_blit_pipeline, create_blit_pipeline_layout, create_blit_shader_module,
-};
-use crate::camera::Camera;
-use crate::context::WGPUContext;
-use crate::error::WGPURendererError;
-use crate::flat_pipeline::create_flat_pipeline;
-use crate::graphics_canvas::GraphicsCanvas;
-use crate::graphics_renderer::GraphicsRenderer;
-use crate::material_bind_group::{
-    create_flat_material_bind_group, create_flat_material_bind_group_layout,
-};
-use crate::mesh_pass::{create_mesh_pass_bind_group_layout, MeshPass};
-use crate::model_buffer::{ModelBuffer, ModelIndex};
-use crate::texture::Texture;
-use crate::vertex_allocator::{VertexAllocator, VertexBufferDescriptor};
-use crate::viewport::Viewport;
-use crate::viewport_renderer::ViewportRenderer;
-
-pub const MAX_MODEL_COUNT: usize = 256;
-pub const MAX_OBJECT_COUNT: usize = 512;
-pub const MAX_VERTEX_COUNT: usize = 125000;
-
-struct Mesh {
-    submeshes: Vec<UID>,
-}
-
-pub(crate) struct Material {
-    pub(crate) bind_group: wgpu::BindGroup,
-}
-
-/// Concrete submesh object (can be clipped)
-/// Multiple object can have a single model
-pub(crate) struct Object {
-    pub(crate) submesh: UID,
-    pub(crate) material: MaterialProviderHandle,
-    pub(crate) model_index: ModelIndex,
-    pub(crate) draw_forward_pass: bool,
-    pub(crate) draw_shadow_pass: bool,
-}
-
-/// API model representation
-/// Model has a single transform matrix
-pub(crate) struct Model {
-    mesh: MeshProviderHandle,
-    model_index: ModelIndex,
-    objects: Vec<Option<UID>>,
-}
 
 pub struct WGPURenderer {
-    // Context
     context: WGPUContext,
-    generator: SequentialGenerator,
+    viewport: Viewport,
+}
 
-    // Scene Render Pass
-    viewport_renderer: ViewportRenderer,
-    flat_pipeline: wgpu::RenderPipeline,
-    flat_material_bind_group_layout: wgpu::BindGroupLayout,
-
-    // Post Process Render Pass
-    blit_canvas_bind_group_layout: wgpu::BindGroupLayout,
-    blit_canvas_pipeline: wgpu::RenderPipeline,
-
-    // Assets
-    vertex_allocator: VertexAllocator,
-    meshes: HashMap<MeshProviderHandle, Mesh>,
-    submeshes: HashMap<UID, VertexBufferDescriptor>,
-    textures: HashMap<TextureProviderHandle, Texture>,
-    materials: HashMap<MaterialProviderHandle, Material>,
-
-    // Scene resources
-    cameras: HashMap<SceneCameraProviderHandle, Camera>,
-    models: HashMap<SceneModelProviderHandle, Model>,
-    model_buffer: ModelBuffer,
-    objects: HashMap<UID, Object>,
-
-    // Mesh passes
-    mesh_pass_bind_group_layout: wgpu::BindGroupLayout,
-    forward_mesh_pass: MeshPass,
-
-    // Viewports
-    viewports: HashMap<ViewportProviderHandle, Viewport>,
-
-    // Canvas resources
-    nearest_sampler: wgpu::Sampler,
-    graphics_renderer: GraphicsRenderer,
-    canvases: HashMap<UID, GraphicsCanvas>,
-    screen_canvas: UID,
-    current_canvas: Option<UID>,
-    screen_canvas_blit_bind_group: wgpu::BindGroup,
-
-    // Statistics
-    statistics: RendererStatistics,
+pub fn srgb_to_linear(c: [f32; 3]) -> [f32; 3] {
+    let f = |x: f32| -> f32 {
+        if x > 0.04045 {
+            ((x + 0.055) / 1.055).powf(2.4)
+        } else {
+            x / 12.92
+        }
+    };
+    [f(c[0]), f(c[1]), f(c[2])]
 }
 
 impl WGPURenderer {
@@ -116,124 +29,10 @@ impl WGPURenderer {
     >(
         window: &W,
     ) -> Self {
-        //////// Context ////////
-        let context = WGPUContext::new(&window);
-        let mut generator = SequentialGenerator::default();
-
-        //////// Common Resources ////////
-
-        let nearest_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("nearest_sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
-
-        let linear_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("linear_sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
-
-        //////// Scene Render Pass ////////
-
-        let mesh_pass_bind_group_layout = create_mesh_pass_bind_group_layout(&context);
-        let model_buffer = ModelBuffer::new(&context, MAX_MODEL_COUNT);
-        let flat_material_bind_group_layout = create_flat_material_bind_group_layout(&context);
-        let viewport_renderer = ViewportRenderer::new(&context, &model_buffer, &nearest_sampler);
-        let flat_pipeline = create_flat_pipeline(
-            &context,
-            &viewport_renderer.viewport_bind_group_layout,
-            &mesh_pass_bind_group_layout,
-            &flat_material_bind_group_layout,
-        );
-        let vertex_allocator = VertexAllocator::new(&context, MAX_VERTEX_COUNT);
-
-        //////// Blit Canvas Render Pass ////////
-
-        let blit_shader_module = create_blit_shader_module(&context);
-        let blit_canvas_bind_group_layout = create_blit_bind_group_layout(&context);
-        let blit_canvas_pipeline_layout =
-            create_blit_pipeline_layout(&context, &blit_canvas_bind_group_layout);
-        let blit_canvas_pipeline = create_blit_pipeline(
-            &context,
-            &blit_canvas_pipeline_layout,
-            &blit_shader_module,
-            context.config.format,
-            wgpu::BlendState::ALPHA_BLENDING,
-            "blit_canvas_pipeline",
-        );
-
-        /////// Mesh Pass ///////
-        let forward_mesh_pass = MeshPass::new(
-            &context,
-            &mesh_pass_bind_group_layout,
-            MAX_OBJECT_COUNT,
-            MAX_OBJECT_COUNT,
-        );
-
-        //////// Canvas ////////
-        let graphics_renderer = GraphicsRenderer::new(&context);
-        let canvas = GraphicsCanvas::new(&context, &graphics_renderer, SCREEN_RESOLUTION);
-        let screen_canvas_blit_bind_group = create_blit_bind_group(
-            &context,
-            &blit_canvas_bind_group_layout,
-            &canvas.color_view,
-            &linear_sampler,
-            Some("screen_canvas_blit_bind_group"),
-        );
-        let screen_canvas = generator.next();
-        let canvases = HashMap::from([(screen_canvas, canvas)]);
-
         Self {
-            context,
-            generator: Default::default(),
-
-            viewport_renderer,
-            flat_pipeline,
-            flat_material_bind_group_layout,
-
-            blit_canvas_bind_group_layout,
-            blit_canvas_pipeline,
-
-            vertex_allocator,
-            meshes: Default::default(),
-            submeshes: Default::default(),
-            textures: Default::default(),
-            materials: Default::default(),
-
-            cameras: Default::default(),
-            models: Default::default(),
-            model_buffer,
-            objects: Default::default(),
-
-            mesh_pass_bind_group_layout,
-            forward_mesh_pass,
-
-            nearest_sampler,
-            graphics_renderer,
-            canvases,
-            current_canvas: None,
-            screen_canvas,
-            screen_canvas_blit_bind_group,
-
-            viewports: Default::default(),
-
-            statistics: RendererStatistics::default(),
+            context: WGPUContext::new(window),
+            viewport: Viewport::new(ViewportMode::FixedBestFit, (800, 450), (0, 0, 800, 450)),
         }
-    }
-
-    pub fn context(&self) -> &WGPUContext {
-        &self.context
     }
 
     pub fn recreate(&mut self) {
@@ -243,16 +42,23 @@ impl WGPURenderer {
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.context.resize(width, height);
+            self.viewport.set_extent(0, 0, width, height);
         }
     }
 
-    pub fn render<
-        F: FnOnce(&wgpu::Device, &wgpu::Queue, &mut wgpu::CommandEncoder, &wgpu::TextureView),
-    >(
-        &mut self,
-        engine_viewport: Vec4,
-        egui_pass: F,
-    ) -> Result<(), WGPURendererError> {
+    pub fn cursor_position(&self, x: f32, y: f32) -> (f32, f32) {
+        self.viewport.cursor_position((x, y))
+    }
+
+    pub fn set_viewport_mode(&mut self, mode: ViewportMode) {
+        self.viewport.set_mode(mode);
+    }
+
+    pub fn device(&self) -> &wgpu::Device {
+        &self.context.device
+    }
+
+    pub fn render(&mut self) -> Result<(), WGPURendererError> {
         // Acquire next surface texture
         let output = self
             .context
@@ -271,91 +77,37 @@ impl WGPURenderer {
                     label: Some("encoder"),
                 });
 
-        // Update models
-        self.model_buffer.write_buffer(&self.context);
-
-        // Update mesh passes
-        {
-            if self.forward_mesh_pass.out_of_date() {
-                println!("rebuild forward mesh pass");
-                self.forward_mesh_pass.build(&self.objects, &self.submeshes);
-                self.forward_mesh_pass.write_buffers(&self.context);
-            }
-        }
-
-        // Render viewports
-        self.viewport_renderer.render(
-            &self.context,
-            &self.viewports,
-            &self.cameras,
-            &self.materials,
-            &self.submeshes,
-            &self.vertex_allocator,
-            &self.flat_pipeline,
-            &self.forward_mesh_pass,
-            &mut self.statistics,
-            &mut encoder,
-        );
-
-        // Render canvases
-        for canvas in self.canvases.values_mut() {
-            self.graphics_renderer.render_canvas(
-                &self.context,
-                &self.textures,
-                &self.viewports,
-                canvas,
-                &mut encoder,
-            );
-        }
-
-        // Blit screen canvas
+        // Clear screen
         {
             let mut clear_color = [25.0 / 255.0, 27.0 / 255.0, 43.0 / 255.0];
-            if self.context.config.format.describe().srgb {
+            if self.context.config.format.is_srgb() {
                 clear_color = srgb_to_linear(clear_color);
             }
-            let mut blit_canvas_render_pass =
-                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("blit_canvas_render_pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &output_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: clear_color[0] as f64,
-                                g: clear_color[1] as f64,
-                                b: clear_color[2] as f64,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                });
+
+            let mut clear_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("clear_render_pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: clear_color[0] as f64,
+                            g: clear_color[1] as f64,
+                            b: clear_color[2] as f64,
+                            a: 1.0,
+                        }),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
 
             // Setup viewport
-            blit_canvas_render_pass.set_viewport(
-                engine_viewport.x,
-                engine_viewport.y,
-                engine_viewport.z,
-                engine_viewport.w,
-                0.0,
-                1.0,
-            );
-
-            // Blit canvas
-            blit_canvas_render_pass.set_pipeline(&self.blit_canvas_pipeline);
-            blit_canvas_render_pass.set_bind_group(0, &self.screen_canvas_blit_bind_group, &[]);
-            blit_canvas_render_pass.draw(0..3, 0..1);
+            let (x, y, w, h) = self.viewport.extent();
+            clear_render_pass.set_viewport(x as f32, y as f32, w as f32, h as f32, 0.0, 1.0);
         }
-
-        // egui pass
-        egui_pass(
-            &self.context.device,
-            &self.context.queue,
-            &mut encoder,
-            &output_view,
-        );
 
         // Submit queue and present
         self.context.queue.submit(Some(encoder.finish()));
@@ -363,484 +115,163 @@ impl WGPURenderer {
 
         Ok(())
     }
-
-    fn add_object(
-        &mut self,
-        submesh: UID,
-        material: MaterialProviderHandle,
-        model_index: usize,
-    ) -> Result<UID, WGPURendererError> {
-        let uid = self.generator.next();
-        self.objects.insert(
-            uid,
-            Object {
-                submesh,
-                material,
-                model_index,
-                draw_forward_pass: true,
-                draw_shadow_pass: false,
-            },
-        );
-        self.forward_mesh_pass.add(uid)?;
-        Ok(uid)
-    }
-    fn remove_object(&mut self, uid: UID) {
-        let object = self.objects.remove(&uid).unwrap();
-        if object.draw_forward_pass {
-            self.forward_mesh_pass.remove(uid);
-        }
-        if object.draw_shadow_pass {
-            // TODO: remove from pass
-        }
-    }
 }
 
 impl RendererProvider for WGPURenderer {
-    fn on_connect(&mut self) {}
-    fn on_disconnect(&mut self) {}
-
-    /// Global API
-
-    fn next_event(&mut self) -> Option<RendererEvent> {
-        None
-    }
-    fn reset(&mut self) -> Result<(), RendererProviderError> {
-        // Remove all models (and objects)
-        let handles = self.models.keys().copied().collect::<Vec<_>>();
-        for handle in handles {
-            self.scene_model_remove(handle)?;
-        }
-        self.cameras.clear();
-        self.graphics_renderer.reset();
-        self.viewports.clear();
-        // Remove all canvases except the screen canvas
-        let handles = self.canvases.keys().copied().collect::<Vec<_>>();
-        for handle in handles {
-            if handle != self.screen_canvas {
-                self.canvases.remove(&handle);
-            }
-        }
-        // Remove resources
-        self.meshes.clear();
-        self.vertex_allocator.clear();
-        self.submeshes.clear();
-        self.textures.clear();
-        self.materials.clear();
-        Ok(())
-    }
-
-    /// Assets API
-
-    fn mesh_add(&mut self, mesh: &mesh::Mesh) -> Result<MeshProviderHandle, RendererProviderError> {
-        let mut submeshes: Vec<UID> = Default::default();
-        for submesh in mesh.submeshes.iter() {
-            let descriptor = self
-                .vertex_allocator
-                .add(&self.context, &submesh.vertices)
-                .map_err(|_| RendererProviderError::MaxResourcesReached)?;
-            let submesh_uid = self.generator.next();
-            self.submeshes.insert(submesh_uid, descriptor);
-            submeshes.push(submesh_uid);
-        }
-        let handle: MeshProviderHandle = self.generator.next().into();
-        self.meshes.insert(handle, Mesh { submeshes });
-        Ok(handle)
-    }
-    fn mesh_remove(&mut self, handle: MeshProviderHandle) -> Result<(), RendererProviderError> {
+    fn on_connect(&mut self) {
         todo!()
     }
 
-    fn texture_add(
-        &mut self,
-        texture: &texture::Texture,
-    ) -> Result<TextureProviderHandle, RendererProviderError> {
-        let handle: TextureProviderHandle = self.generator.next().into();
-        self.textures.insert(
-            handle,
-            Texture::from_resource(
-                &self.context,
-                texture,
-                wgpu::TextureUsages::TEXTURE_BINDING,
-                None,
-            ),
-        );
-        Ok(handle)
-    }
-    fn texture_remove(
-        &mut self,
-        handle: TextureProviderHandle,
-    ) -> Result<(), RendererProviderError> {
+    fn on_disconnect(&mut self) {
         todo!()
     }
 
-    fn material_add(
-        &mut self,
-        desc: ProviderMaterialInfo,
-    ) -> Result<MaterialProviderHandle, RendererProviderError> {
-        let diffuse = self.textures.get(&desc.diffuse).expect("Texture not found");
-        let handle: MaterialProviderHandle = self.generator.next().into();
-        self.materials.insert(
-            handle,
-            Material {
-                bind_group: create_flat_material_bind_group(
-                    &self.context,
-                    &self.flat_material_bind_group_layout,
-                    &diffuse.view,
-                    desc.name,
-                ),
-            },
-        );
-        Ok(handle)
-    }
-    fn material_remove(
-        &mut self,
-        handle: MaterialProviderHandle,
-    ) -> Result<(), RendererProviderError> {
+    fn next_event(&mut self) -> Option<mini3d_core::renderer::event::RendererEvent> {
         todo!()
     }
 
-    /// Canvas API
-
-    fn screen_canvas_begin(&mut self, clear_color: Color) -> Result<(), RendererProviderError> {
-        self.current_canvas = Some(self.screen_canvas);
-        let canvas = self.canvases.get_mut(&self.screen_canvas).unwrap();
-        canvas.render_pass.begin(clear_color);
-        Ok(())
-    }
-    fn scene_canvas_begin(
-        &mut self,
-        canvas: SceneCanvasProviderHandle,
-        clear_color: Color,
-    ) -> Result<(), RendererProviderError> {
-        self.current_canvas = Some(self.screen_canvas);
-        let canvas = self.canvases.get_mut(&canvas.into()).unwrap();
-        canvas.render_pass.begin(clear_color);
-        Ok(())
-    }
-    fn canvas_end(&mut self) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .unwrap();
-        canvas.render_pass.end();
-        self.current_canvas = None;
-        Ok(())
-    }
-    fn canvas_blit_texture(
-        &mut self,
-        texture: TextureProviderHandle,
-        extent: IRect,
-        tex_extent: IRect,
-        filtering: Color,
-        wrap_mode: TextureWrapMode,
-        alpha_threshold: u8,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas.render_pass.blit_rect(
-            texture,
-            extent,
-            tex_extent,
-            filtering,
-            wrap_mode,
-            alpha_threshold,
-        );
-        Ok(())
-    }
-    fn canvas_blit_viewport(
-        &mut self,
-        handle: ViewportProviderHandle,
-        position: IVec2,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        let viewport = self
-            .viewports
-            .get(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas
-            .render_pass
-            .blit_viewport(handle, viewport.extent, position);
-        Ok(())
-    }
-    fn canvas_fill_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas.render_pass.fill_rect(extent, color);
-        Ok(())
-    }
-    fn canvas_draw_rect(
-        &mut self,
-        extent: IRect,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas.render_pass.draw_rect(extent, color);
-        Ok(())
-    }
-    fn canvas_draw_line(
-        &mut self,
-        x0: IVec2,
-        x1: IVec2,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas.render_pass.draw_line(x0, x1, color);
-        Ok(())
-    }
-    fn canvas_draw_vline(
-        &mut self,
-        x: i32,
-        y0: i32,
-        y1: i32,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas.render_pass.draw_vline(x, y0, y1, color);
-        Ok(())
-    }
-    fn canvas_draw_hline(
-        &mut self,
-        y: i32,
-        x0: i32,
-        x1: i32,
-        color: Color,
-    ) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        canvas.render_pass.draw_hline(y, x0, x1, color);
-        Ok(())
-    }
-    fn canvas_scissor(&mut self, extent: Option<IRect>) -> Result<(), RendererProviderError> {
-        let canvas = self
-            .canvases
-            .get_mut(&self.current_canvas.unwrap())
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        if let Some(extent) = extent {
-            canvas.render_pass.scissor(extent);
-        } else {
-            canvas
-                .render_pass
-                .scissor(IRect::new(0, 0, canvas.extent.width, canvas.extent.height));
-        }
-        Ok(())
-    }
-
-    /// Viewport API
-
-    fn viewport_add(
-        &mut self,
-        resolution: UVec2,
-    ) -> Result<ViewportProviderHandle, RendererProviderError> {
-        let handle: ViewportProviderHandle = self.generator.next().into();
-        self.viewports
-            .insert(handle, Viewport::new(&self.context, resolution));
-        Ok(handle)
-    }
-    fn viewport_remove(
-        &mut self,
-        handle: ViewportProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        self.viewports
-            .remove(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        Ok(())
-    }
-    fn viewport_set_camera(
-        &mut self,
-        handle: ViewportProviderHandle,
-        camera: Option<SceneCameraProviderHandle>,
-    ) -> Result<(), RendererProviderError> {
-        let viewport = self
-            .viewports
-            .get_mut(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        viewport.camera = camera;
-        Ok(())
-    }
-    fn viewport_set_resolution(
-        &mut self,
-        handle: ViewportProviderHandle,
-        resolution: UVec2,
-    ) -> Result<(), RendererProviderError> {
-        let viewport = self
-            .viewports
-            .get_mut(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        viewport.resize(&self.context, resolution);
-        Ok(())
-    }
-
-    /// Scene API
-
-    fn scene_add(
-        &mut self,
-    ) -> Result<mini3d_core::renderer::provider::SceneProviderHandle, RendererProviderError> {
+    fn reset(&mut self) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
         todo!()
     }
-    fn scene_remove(
+
+    fn add_mesh(
         &mut self,
-        handle: mini3d_core::renderer::provider::SceneProviderHandle,
-    ) -> Result<(), RendererProviderError> {
+        mesh: &mini3d_core::renderer::resource::Mesh,
+    ) -> Result<
+        mini3d_core::renderer::provider::RendererProviderHandle,
+        mini3d_core::renderer::provider::RendererProviderError,
+    > {
         todo!()
-    }
-    fn scene_camera_add(&mut self) -> Result<SceneCameraProviderHandle, RendererProviderError> {
-        let handle: SceneCameraProviderHandle = self.generator.next().into();
-        self.cameras.insert(handle, Camera::default());
-        Ok(handle)
-    }
-    fn scene_camera_remove(
-        &mut self,
-        handle: SceneCameraProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        self.cameras
-            .remove(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        Ok(())
-    }
-    fn scene_camera_update(
-        &mut self,
-        handle: SceneCameraProviderHandle,
-        eye: Vec3,
-        forward: Vec3,
-        up: Vec3,
-        fov: f32,
-    ) -> Result<(), RendererProviderError> {
-        let camera = self
-            .cameras
-            .get_mut(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        camera.update(eye, forward, up, fov);
-        Ok(())
     }
 
-    fn scene_model_add(
+    fn remove_mesh(
         &mut self,
-        mesh_handle: MeshProviderHandle,
-    ) -> Result<SceneModelProviderHandle, RendererProviderError> {
-        // Reserve the model index
-        let model_index = self.model_buffer.add();
-        // Generate the handle
-        let handle: SceneModelProviderHandle = self.generator.next().into();
-        // Insert model (empty by default)
-        let mesh = self
-            .meshes
-            .get(&mesh_handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        self.models.insert(
-            handle,
-            Model {
-                mesh: mesh_handle,
-                model_index,
-                objects: vec![None; mesh.submeshes.len()],
-            },
-        );
-        // Return handle
-        Ok(handle)
-    }
-    fn scene_model_remove(
-        &mut self,
-        handle: SceneModelProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        let model = self
-            .models
-            .remove(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        for object in model.objects.iter().flatten() {
-            self.remove_object(*object);
-        }
-        self.model_buffer.remove(model.model_index);
-        Ok(())
-    }
-    fn scene_model_set_material(
-        &mut self,
-        handle: SceneModelProviderHandle,
-        index: usize,
-        material: MaterialProviderHandle,
-    ) -> Result<(), RendererProviderError> {
-        // Check input
-        let model = self
-            .models
-            .get(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        let mesh = self
-            .meshes
-            .get(&model.mesh)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        if index >= model.objects.len() {
-            return Err(RendererProviderError::InvalidMatrialIndex);
-        }
-        // Get model info
-        let submesh = *mesh.submeshes.get(index).unwrap();
-        let model_index = model.model_index;
-        let previous_object = *model.objects.get(index).unwrap();
-        // Remove previous object
-        if let Some(previous_uid) = previous_object {
-            self.remove_object(previous_uid);
-        }
-        // Add object
-        let object_uid = self
-            .add_object(submesh, material, model_index)
-            .map_err(|_| RendererProviderError::MaxResourcesReached)?;
-        *self
-            .models
-            .get_mut(&handle)
-            .unwrap()
-            .objects
-            .get_mut(index)
-            .unwrap() = Some(object_uid);
-        Ok(())
-    }
-    fn scene_model_transfer_matrix(
-        &mut self,
-        handle: SceneModelProviderHandle,
-        mat: Mat4,
-    ) -> Result<(), RendererProviderError> {
-        let model = self
-            .models
-            .get(&handle)
-            .ok_or(RendererProviderError::ResourceNotFound)?;
-        self.model_buffer.set_transform(model.model_index, &mat);
-        Ok(())
-    }
-    fn scene_canvas_add(
-        &mut self,
-        resolution: UVec2,
-    ) -> Result<SceneCanvasProviderHandle, RendererProviderError> {
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
         todo!()
     }
-    fn scene_canvas_remove(
+
+    fn add_texture(
         &mut self,
-        handle: SceneCanvasProviderHandle,
-    ) -> Result<(), RendererProviderError> {
+        texture: &mini3d_core::renderer::resource::Texture,
+    ) -> Result<
+        mini3d_core::renderer::provider::RendererProviderHandle,
+        mini3d_core::renderer::provider::RendererProviderError,
+    > {
         todo!()
     }
-    fn scene_canvas_transfer_matrix(
+
+    fn remove_texture(
         &mut self,
-        handle: SceneCanvasProviderHandle,
-        mat: Mat4,
-    ) -> Result<(), RendererProviderError> {
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn add_material(
+        &mut self,
+        desc: mini3d_core::renderer::provider::ProviderMaterialInfo,
+    ) -> Result<
+        mini3d_core::renderer::provider::RendererProviderHandle,
+        mini3d_core::renderer::provider::RendererProviderError,
+    > {
+        todo!()
+    }
+
+    fn remove_material(
+        &mut self,
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn add_transform(
+        &mut self,
+    ) -> Result<
+        mini3d_core::renderer::provider::RendererProviderHandle,
+        mini3d_core::renderer::provider::RendererProviderError,
+    > {
+        todo!()
+    }
+
+    fn remove_transform(
+        &mut self,
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn update_transform(
+        &mut self,
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+        mat: mini3d_core::math::mat::M4I32F16,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn add_diffuse_pass(
+        &mut self,
+        info: &mini3d_core::renderer::resource::diffuse::DiffusePassInfo,
+    ) -> Result<
+        mini3d_core::renderer::provider::RendererProviderHandle,
+        mini3d_core::renderer::provider::RendererProviderError,
+    > {
+        todo!()
+    }
+
+    fn remove_diffuse_pass(
+        &mut self,
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn submit_diffuse_pass(
+        &mut self,
+        pass: mini3d_core::renderer::provider::RendererProviderHandle,
+        command: &mini3d_core::renderer::resource::diffuse::DiffusePassCommand,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn render_diffuse_pass(
+        &mut self,
+        pass: mini3d_core::renderer::provider::RendererProviderHandle,
+        info: &mini3d_core::renderer::resource::diffuse::DiffusePassRenderInfo,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn add_canvas_pass(
+        &mut self,
+        info: &mini3d_core::renderer::resource::renderpass::canvas::CanvasPassInfo,
+    ) -> Result<
+        mini3d_core::renderer::provider::RendererProviderHandle,
+        mini3d_core::renderer::provider::RendererProviderError,
+    > {
+        todo!()
+    }
+
+    fn remove_canvas_pass(
+        &mut self,
+        handle: mini3d_core::renderer::provider::RendererProviderHandle,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn submit_canvas_pass(
+        &mut self,
+        pass: mini3d_core::renderer::provider::RendererProviderHandle,
+        command: &mini3d_core::renderer::resource::renderpass::canvas::CanvasPassCommand,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
+        todo!()
+    }
+
+    fn render_canvas_pass(
+        &mut self,
+        pass: mini3d_core::renderer::provider::RendererProviderHandle,
+        info: &mini3d_core::renderer::resource::renderpass::canvas::CanvasPassRenderInfo,
+    ) -> Result<(), mini3d_core::renderer::provider::RendererProviderError> {
         todo!()
     }
 }

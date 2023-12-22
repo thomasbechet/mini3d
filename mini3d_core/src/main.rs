@@ -1,8 +1,8 @@
-use mini3d_core::engine::{Engine, EngineConfig};
+use mini3d_core::simulation::{Simulation, SimulationConfig};
 
 fn main() {
-    let mut engine = Engine::new(EngineConfig::default());
+    let mut simulation = Simulation::new(SimulationConfig::default());
     for _ in 0..10 {
-        engine.tick().expect("Instance error");
+        simulation.tick().expect("Instance error");
     }
 }

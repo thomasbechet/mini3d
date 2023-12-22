@@ -1,19 +1,12 @@
-use mini3d_core::{
-    feature::input::axis::InputAxisRange,
-    glam::Vec4,
-    utils::uid::{ToUID, UID},
-};
-use mini3d_wgpu::context::WGPUContext;
+use mini3d_core::utils::uid::{ToUID, UID};
+use mini3d_input::mapper::InputMapper;
+use mini3d_wgpu::renderer::WGPURenderer;
 use winit::{
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
 };
 
-use crate::{
-    mapper::{Axis, Button, InputMapper, InputProfile},
-    window::Window,
-    DisplayMode,
-};
+use crate::{provider::input::WinitInputMapperTypes, window::Window, DisplayMode};
 
 #[derive(PartialEq, Eq)]
 enum Page {
@@ -45,7 +38,6 @@ pub(crate) struct WindowGUI {
     egui_context: egui::Context,
     egui_state: egui_winit::State,
     egui_renderer: egui_wgpu::Renderer,
-    central_viewport: Vec4,
     visible: bool,
     page: Page,
     show_uid: bool,
@@ -65,33 +57,27 @@ pub(crate) struct WindowControl<'a> {
 
 impl WindowGUI {
     pub(crate) fn new(
-        context: &WGPUContext,
+        renderer: &WGPURenderer,
         window: &winit::window::Window,
         event_loop: &EventLoop<()>,
-        mapper: &InputMapper,
+        mapper: &InputMapper<WinitInputMapperTypes>,
     ) -> Self {
         // Create the egui resources
         let egui_context = egui::Context::default();
         let egui_state = egui_winit::State::new(event_loop);
         let egui_renderer =
-            egui_wgpu::Renderer::new(&context.device, context.config.format, None, 1);
+            egui_wgpu::Renderer::new(renderer.device(), renderer.output_color_format(), None, 1);
 
         Self {
             egui_context,
             egui_state,
             egui_renderer,
-            central_viewport: Vec4::new(
-                0.0,
-                0.0,
-                window.inner_size().width as f32,
-                window.inner_size().height as f32,
-            ),
             visible: true,
             page: Page::None,
             show_uid: false,
             show_internal_name: false,
             show_min_max: false,
-            active_profile: mapper.default_profile,
+            active_profile: mapper.default_profile(),
             profile_rename_placeholder: Default::default(),
             record_request: None,
         }
@@ -112,7 +98,7 @@ impl WindowGUI {
     pub(crate) fn handle_event<T>(
         &mut self,
         event: &Event<T>,
-        mapper: &mut InputMapper,
+        mapper: &mut InputMapper<WinitInputMapperTypes>,
         window: &mut Window,
     ) {
         // Handle record request
@@ -120,11 +106,9 @@ impl WindowGUI {
             if let Event::WindowEvent { event, .. } = event {
                 match event {
                     WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(keycode),
-                                state,
-                                ..
+                        event:
+                            KeyEvent {
+                                logical_key, state, ..
                             },
                         ..
                     } => {
@@ -250,7 +234,7 @@ impl WindowGUI {
         &mut self,
         event: &gilrs::EventType,
         id: gilrs::GamepadId,
-        mapper: &mut InputMapper,
+        mapper: &mut InputMapper<WinitInputMapperTypes>,
         window: &mut Window,
     ) {
         if let Some(request) = &self.record_request {
@@ -316,14 +300,10 @@ impl WindowGUI {
         }
     }
 
-    pub(crate) fn central_viewport(&self) -> Vec4 {
-        self.central_viewport
-    }
-
     pub(crate) fn ui(
         &mut self,
         window: &mut Window,
-        mapper: &mut InputMapper,
+        mapper: &mut InputMapper<WinitInputMapperTypes>,
         control: &mut WindowControl,
     ) {
         // Begin a new frame
@@ -399,7 +379,7 @@ impl WindowGUI {
                         });
                         ui.separator();
                         ui.horizontal(|ui| {
-                            for (profile_uid, profile) in &mut mapper.profiles {
+                            for (profile_uid, profile) in &mut mapper.iter_profiles() {
                                 if self.active_profile == *profile_uid {
                                     ui.add(egui::SelectableLabel::new(
                                         true,

@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! define_provider_handle {
     ($name:ident) => {
-        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Debug, Default, Clone, Copy)]
         pub struct $name(u64);
         impl $name {
             pub fn null() -> Self {
