@@ -10,10 +10,10 @@ members = [
     # "mini3d_os",
     "mini3d_stdlog",
     "mini3d_wgpu",
-    "mini3d_win32",
+    # "mini3d_win32",
     "mini3d_winit",
 ]
-default-members = ["mini3d_cli"]
+default-members = ["mini3d_winit"]
 resolver = "2"
 
 [profile.release]

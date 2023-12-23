@@ -7,7 +7,6 @@ use std::{
     time::{Instant, SystemTime},
 };
 
-use gui::{WindowControl, WindowGUI};
 use mini3d_core::{
     platform::{
         event::{AssetImportEntry, ImportAssetEvent, PlatformEvent},
@@ -22,8 +21,7 @@ use mini3d_input::mapper::InputMapper;
 use mini3d_stdlog::logger::stdout::StdoutLogger;
 use mini3d_wgpu::renderer::WGPURenderer;
 use provider::{
-    input::WinitInputProvider, renderer::WinitRendererProvider, storage::WinitStorageProvider,
-    system::WinitSystemProvider,
+    input::WinitInputProvider, storage::WinitStorageProvider, system::WinitSystemProvider,
 };
 // use serde::Serialize;
 use virtual_disk::VirtualDisk;
@@ -36,7 +34,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
 };
 
-pub mod gui;
 pub mod provider;
 pub mod virtual_disk;
 pub mod window;
@@ -48,22 +45,19 @@ enum DisplayMode {
     WindowedUnfocus,
 }
 
-fn set_display_mode(window: &mut Window, gui: &mut WindowGUI, mode: DisplayMode) -> DisplayMode {
+fn set_display_mode(window: &mut Window, mode: DisplayMode) -> DisplayMode {
     match mode {
         DisplayMode::FullscreenFocus => {
             window.set_fullscreen(true);
             window.set_focus(true);
-            gui.set_visible(false);
         }
         DisplayMode::WindowedFocus => {
             window.set_fullscreen(false);
             window.set_focus(true);
-            gui.set_visible(true);
         }
         DisplayMode::WindowedUnfocus => {
             window.set_fullscreen(false);
             window.set_focus(false);
-            gui.set_visible(true);
         }
     }
     mode
@@ -117,20 +111,14 @@ fn main_run() {
     std::env::set_var("RUST_BACKTRACE", "full");
 
     // Window
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
     let mut window = Window::new(&event_loop);
 
     // Input
-    let mapper = Rc::new(RefCell::new(InputMapper::new()));
+    let input = Rc::new(RefCell::new(WinitInputProvider::default()));
 
     // Renderer
-    let renderer = Rc::new(RefCell::new(WGPURenderer::new(window.handle)));
-    let mut gui = WindowGUI::new(
-        renderer.borrow_mut().context(),
-        &window.handle,
-        &event_loop,
-        &mapper.borrow(),
-    );
+    let renderer = Rc::new(RefCell::new(WGPURenderer::new(&window)));
 
     // Disk
     let disk = Rc::new(RefCell::new(VirtualDisk::new()));
@@ -139,7 +127,7 @@ fn main_run() {
     let system_status = Rc::new(RefCell::new(WinitSystemStatus::default()));
 
     let mut instance = Simulation::new(SimulationConfig::default());
-    instance.set_input(WinitInputProvider::new(mapper.clone()));
+    instance.set_input(input.clone());
     instance.set_storage(WinitStorageProvider::new(disk));
     instance.set_platform(WinitSystemProvider::new(system_status.clone()));
     instance.set_renderer(WinitRendererProvider::new(renderer.clone()));
@@ -156,7 +144,7 @@ fn main_run() {
     let mut gilrs = gilrs::Gilrs::new().unwrap();
 
     // Set initial display
-    let mut display_mode = set_display_mode(&mut window, &mut gui, DisplayMode::WindowedUnfocus);
+    let mut display_mode = set_display_mode(&mut window, DisplayMode::WindowedUnfocus);
 
     // Save state
     let mut save_state = false;
@@ -250,47 +238,30 @@ fn main_run() {
                             ..
                         } => {
                             // Unfocus mouse
-                            if state == ElementState::Pressed
-                                && keycode == KeyCode::Escape
-                                && !gui.is_recording()
-                            {
-                                display_mode = set_display_mode(
-                                    &mut window,
-                                    &mut gui,
-                                    DisplayMode::WindowedUnfocus,
-                                );
+                            if state == ElementState::Pressed && keycode == KeyCode::Escape {
+                                display_mode =
+                                    set_display_mode(&mut window, DisplayMode::WindowedUnfocus);
                             }
 
                             // Save/Load state
-                            if state == ElementState::Pressed
-                                && keycode == KeyCode::F5
-                                && !gui.is_recording()
-                            {
+                            if state == ElementState::Pressed && keycode == KeyCode::F5 {
                                 save_state = true;
-                            } else if state == ElementState::Pressed
-                                && keycode == KeyCode::F6
-                                && !gui.is_recording()
-                            {
+                            } else if state == ElementState::Pressed && keycode == KeyCode::F6 {
                                 load_state = true;
                             }
 
                             // Toggle fullscreen
-                            if state == ElementState::Pressed
-                                && keycode == KeyCode::F11
-                                && !gui.is_fullscreen()
-                            {
+                            if state == ElementState::Pressed && keycode == KeyCode::F11 {
                                 match display_mode {
                                     DisplayMode::FullscreenFocus => {
                                         display_mode = set_display_mode(
                                             &mut window,
-                                            &mut gui,
                                             DisplayMode::WindowedFocus,
                                         );
                                     }
                                     _ => {
                                         display_mode = set_display_mode(
                                             &mut window,
-                                            &mut gui,
                                             DisplayMode::FullscreenFocus,
                                         );
                                     }
@@ -299,7 +270,7 @@ fn main_run() {
 
                             // Dispatch keyboard
                             if window.is_focus() {
-                                mapper
+                                input
                                     .borrow_mut()
                                     .dispatch_keyboard(keycode, state == ElementState::Pressed);
                             }
@@ -314,22 +285,18 @@ fn main_run() {
                             if state == ElementState::Pressed
                                 && button == MouseButton::Left
                                 && !window.is_focus()
-                                && !gui.is_fullscreen()
                             {
                                 if last_click.is_none() {
                                     last_click = Some(SystemTime::now());
                                 } else {
-                                    display_mode = set_display_mode(
-                                        &mut window,
-                                        &mut gui,
-                                        DisplayMode::WindowedFocus,
-                                    );
+                                    display_mode =
+                                        set_display_mode(&mut window, DisplayMode::WindowedFocus);
                                 }
                             }
 
                             // Dispatch mouse
                             if window.is_focus() {
-                                mapper
+                                input
                                     .borrow_mut()
                                     .dispatch_mouse_button(button, state == ElementState::Pressed);
                             }
@@ -351,7 +318,7 @@ fn main_run() {
                         }
                         WindowEvent::ReceivedCharacter(c) => {
                             if window.is_focus() {
-                                mapper.borrow_mut().dispatch_text(c.to_string());
+                                input.borrow_mut().dispatch_text(c.to_string());
                             }
                         }
                         WindowEvent::CursorMoved {
@@ -363,7 +330,7 @@ fn main_run() {
                                 let position = renderer
                                     .get_mut()
                                     .cursor_position(position.x as f32, position.y as f32);
-                                mapper.borrow_mut().dispatch_mouse_cursor(position);
+                                input.borrow_mut().dispatch_mouse_cursor(position);
                             }
                         }
                         // WindowEvent::MouseWheel { device_id: _, delta, .. } => {
@@ -524,12 +491,7 @@ fn main_run() {
                 }
 
                 // Invoke WGPU Renderer
-                renderer
-                    .borrow_mut()
-                    .render(|device, queue, encoder, output| {
-                        gui.render(&window.handle, device, queue, encoder, output);
-                    })
-                    .expect("Failed to render");
+                renderer.borrow_mut().render().expect("Failed to render");
 
                 // Check shutdown
                 if !system_status.borrow_mut().running {

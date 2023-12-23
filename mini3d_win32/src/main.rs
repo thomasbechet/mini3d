@@ -1,10 +1,9 @@
+use std::cell::RefCell;
 use std::time::Duration;
-use std::{cell::RefCell, rc::Rc};
 
 use helper::Win32ControlHandle;
 use input::Win32InputProvider;
 use mini3d_core::simulation::{Simulation, SimulationConfig};
-use mini3d_input::mapper::InputMapper;
 use mini3d_wgpu::renderer::WGPURenderer;
 use native_windows_derive as nwd;
 use native_windows_gui as nwg;
@@ -22,18 +21,17 @@ pub struct AppData {
     input_mapper: Win32InputProvider,
     renderer: Option<WGPURenderer>,
     simulation: Option<Simulation>,
-    mouse_grab: bool,
+    mouse_focus: bool,
 }
 
 impl Default for AppData {
     fn default() -> Self {
-        let input_mapper = Win32InputProvider::new(Rc::new(RefCell::new(InputMapper::new())));
         let simulation = Simulation::new(SimulationConfig::default());
         Self {
-            input_mapper,
+            input_mapper: Win32InputProvider::default(),
             renderer: None,
             simulation: Some(simulation),
-            mouse_grab: false,
+            mouse_focus: false,
         }
     }
 }
@@ -44,9 +42,9 @@ pub struct App {
     #[nwg_events(
         OnInit: [App::on_init],
         OnKeyPress: [App::on_key_press(SELF, EVT_DATA)],
+        OnSysKeyPress: [App::on_key_press(SELF, EVT_DATA)],
+        OnKeyEsc: [App::on_key_escape(SELF)],
         OnKeyRelease: [App::on_key_release(SELF, EVT_DATA)],
-        OnMouseMove: [App::on_mouse_move],
-        OnMousePress: [App::on_mouse_press(SELF, EVT)],
         OnWindowClose: [App::on_close],
     )]
     window: nwg::Window,
@@ -55,6 +53,9 @@ pub struct App {
     menu_file: nwg::Menu,
     #[nwg_control(parent: menu_file, text: "Open")]
     menu_open_item: nwg::MenuItem,
+    #[nwg_control(parent: menu_file, text: "Quit")]
+    #[nwg_events(OnMenuItemSelected: [App::on_close])]
+    menu_quit_item: nwg::MenuItem,
 
     #[nwg_control(text: "Configuration")]
     menu_configuration: nwg::Menu,
@@ -67,7 +68,7 @@ pub struct App {
     grid: nwg::GridLayout,
 
     #[nwg_control(parent: Some(&data.window))]
-    #[nwg_events(OnResize: [App::resize_canvas])]
+    #[nwg_events(OnResize: [App::resize_canvas], OnMousePress: [App::on_mouse_press(SELF, EVT)], OnMouseMove: [App::on_mouse_move])]
     #[nwg_layout_item(layout: grid, row: 0, col: 0, margin: [0, 0, 0, 0])]
     canvas: nwg::ExternCanvas,
 
@@ -104,11 +105,11 @@ impl App {
     fn set_cursor_capture(&self, capture: bool) {
         unsafe {
             if capture {
-                nwg::GlobalCursor::set_capture(&self.window.handle);
+                nwg::GlobalCursor::set_capture(&self.canvas.handle);
                 winapi::um::winuser::SetCursor(winapi::um::winuser::WM_NULL as _);
                 let rect = Default::default();
                 winapi::um::winuser::GetWindowRect(
-                    self.window.handle.hwnd().unwrap() as _,
+                    self.canvas.handle.hwnd().unwrap() as _,
                     &rect as *const _ as _,
                 );
                 winapi::um::winuser::ClipCursor(&rect);
@@ -129,8 +130,6 @@ impl App {
         data.renderer = Some(renderer);
         // Start main loop
         self.timer.start();
-        // Capture mouse
-        self.set_cursor_capture(true);
     }
 
     fn animate(&self) {
@@ -147,17 +146,27 @@ impl App {
     }
 
     fn on_mouse_move(&self) {
+        let mut data = self.data.borrow_mut();
         let (x, y) = nwg::GlobalCursor::position();
-        if self.data.borrow().mouse_grab {
-            nwg::GlobalCursor::set_position(x, y);
+        if data.mouse_focus {
+            let (width, height) = self.canvas.size();
+            let (x, y) = self.canvas.position();
+            nwg::GlobalCursor::set_position(x + width as i32 / 2, y + height as i32 / 2);
         }
+        println!("Mouse move: {} {}", x, y);
     }
 
     fn on_mouse_press(&self, event: nwg::Event) {
+        let mut data = self.data.borrow_mut();
+        println!("Mouse event: {:?}", event);
         match event {
             nwg::Event::OnMousePress(event) => match event {
                 nwg::MousePressEvent::MousePressLeftDown => {
                     println!("Left mouse button pressed");
+                    if !data.mouse_focus {
+                        self.set_cursor_capture(true);
+                        data.mouse_focus = true;
+                    }
                 }
                 nwg::MousePressEvent::MousePressRightDown => {
                     println!("Right mouse button pressed");
@@ -174,6 +183,8 @@ impl App {
     }
 
     fn on_key_press(&self, event: &nwg::EventData) {
+        let mut data = self.data.borrow_mut();
+        println!("Key pressed: {}", event.on_key());
         if event.on_key() == nwg::keys::_K {
             println!("F10 pressed");
             unsafe {
@@ -191,6 +202,17 @@ impl App {
             let (width, height) = self.canvas.size();
             println!("resize {} {}", width, height);
             data.renderer.as_mut().unwrap().resize(width, height);
+        }
+    }
+
+    fn on_key_escape(&self) {
+        let mut data = self.data.borrow_mut();
+        if data.mouse_focus {
+            self.set_cursor_capture(false);
+            data.mouse_focus = false;
+        } else {
+            println!("Escape pressed");
+            self.window.close();
         }
     }
 

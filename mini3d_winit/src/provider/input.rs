@@ -4,26 +4,200 @@ use mini3d_core::input::{
     provider::{InputProvider, InputProviderError, InputProviderHandle},
     resource::{InputAction, InputActionHandle, InputAxis, InputAxisHandle},
 };
-use mini3d_input::mapper::{InputMapper, MapperTypes};
+use mini3d_input::mapper::{InputMapper, InputMapperAxis, InputMapperButton};
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Clone, Copy, Serialize, Deserialize)]
-pub(crate) struct WinitInputMapperTypes;
-
-impl MapperTypes for WinitInputMapperTypes {
-    type MouseButton = winit::event::MouseButton;
-    type MouseAxis = winit::event::AxisId;
-    type KeyboardKeyCode = winit::keyboard::KeyCode;
-    type ControllerId = gilrs::GamepadId;
-    type ControllerAxis = gilrs::Axis;
-    type ControllerButton = gilrs::Button;
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) enum MouseAxis {
+    X,
+    Y,
 }
 
-pub(crate) struct WinitInputProvider(Rc<RefCell<InputMapper<WinitInputMapperTypes>>>);
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) enum MouseButton {
+    Left,
+    Right,
+    Middle,
+}
 
-impl WinitInputProvider {
-    pub(crate) fn new(mapper: Rc<RefCell<InputMapper<WinitInputMapperTypes>>>) -> Self {
-        Self(mapper)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) enum Button {
+    Keyboard(u32),
+    Mouse(MouseButton),
+    Controller(gilrs::GamepadId, gilrs::Button),
+}
+
+impl InputMapperButton for Button {}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) enum Axis {
+    Mouse(MouseAxis),
+    Controller(gilrs::GamepadId, gilrs::Axis),
+}
+
+impl InputMapperAxis for Axis {}
+
+pub(crate) struct WinitInputProvider(InputMapper<Button, Axis>);
+
+impl Default for WinitInputProvider {
+    fn default() -> Self {
+        let mut mapper = InputMapper::<Button, Axis>::new();
+        let profile = mapper.default_profile();
+        // mapper.bind_button_to_action(
+        //     profile,
+        //     CommonAction::UP.to_uid(),
+        //     Some(Button::Keyboard(native_windows_gui::keys::_Z)),
+        // );
+        // TODO: add common mapping
+        // mapper.profiles.insert(
+        //     mapper.default_profile,
+        //     InputProfile {
+        //         name: "Default".to_string(),
+        //         active: true,
+        //         actions: vec![
+        //             MapActionInput {
+        //                 name: CommonAction::UP.to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::Z,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: CommonAction::LEFT.to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::Q,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: CommonAction::DOWN.to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::S,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: CommonAction::RIGHT.to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::D,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: CommonAction::CHANGE_CONTROL_MODE.to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::F,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: "switch_mode".to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::C,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: "roll_left".to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::A,
+        //                 }),
+        //             },
+        //             MapActionInput {
+        //                 name: "roll_right".to_string(),
+        //                 handle: None,
+        //                 button: Some(Button::Keyboard {
+        //                     code: VirtualKeyCode::E,
+        //                 }),
+        //             },
+        //         ],
+        //         axis: vec![
+        //             MapAxisInput {
+        //                 name: CommonAxis::CURSOR_X.to_string(),
+        //                 axis: Some((Axis::MousePositionX, 0.0)),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::CURSOR_Y.to_string(),
+        //                 axis: Some((Axis::MousePositionY, 0.0)),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::VIEW_X.to_string(),
+        //                 axis: Some((Axis::MouseMotionX, 0.01)),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::VIEW_Y.to_string(),
+        //                 axis: Some((Axis::MouseMotionY, 0.01)),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::MOVE_FORWARD.to_string(),
+        //                 button: Some((
+        //                     Button::Keyboard {
+        //                         code: VirtualKeyCode::Z,
+        //                     },
+        //                     1.0,
+        //                 )),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::MOVE_BACKWARD.to_string(),
+        //                 button: Some((
+        //                     Button::Keyboard {
+        //                         code: VirtualKeyCode::S,
+        //                     },
+        //                     1.0,
+        //                 )),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::MOVE_LEFT.to_string(),
+        //                 button: Some((
+        //                     Button::Keyboard {
+        //                         code: VirtualKeyCode::Q,
+        //                     },
+        //                     1.0,
+        //                 )),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::MOVE_RIGHT.to_string(),
+        //                 button: Some((
+        //                     Button::Keyboard {
+        //                         code: VirtualKeyCode::D,
+        //                     },
+        //                     1.0,
+        //                 )),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::MOVE_UP.to_string(),
+        //                 button: Some((
+        //                     Button::Keyboard {
+        //                         code: VirtualKeyCode::X,
+        //                     },
+        //                     1.0,
+        //                 )),
+        //                 ..Default::default()
+        //             },
+        //             MapAxisInput {
+        //                 name: CommonAxis::MOVE_DOWN.to_string(),
+        //                 button: Some((
+        //                     Button::Keyboard {
+        //                         code: VirtualKeyCode::W,
+        //                     },
+        //                     1.0,
+        //                 )),
+        //                 ..Default::default()
+        //             },
+        //         ],
+        //     },
+        // );
+        // mapper.load().ok();
+        Self(Rc::new(RefCell::new(mapper)))
     }
 }
 
