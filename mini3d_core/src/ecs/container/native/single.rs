@@ -3,9 +3,10 @@ use core::any::Any;
 use alloc::vec::Vec;
 
 use crate::{
-    ecs::resource::component::{Component, ComponentKey},
     ecs::{
+        component::{Component, ComponentContext, ComponentKey},
         container::{Container, SingleContainer},
+        context::Context,
         entity::{Entity, EntityTable},
         query::QueryTable,
         sparse::PagedVector,
@@ -69,7 +70,7 @@ impl<C: Component> NativeSingleContainer<C> {
         self.data[..self.view_size].iter_mut().map(|(c, _)| c)
     }
 
-    pub(crate) fn add(&mut self, entity: Entity, component: C) {
+    pub(crate) fn add(&mut self, ctx: &mut Context, entity: Entity, mut component: C) {
         // Check existing component
         if let Some(index) = self.indices.get(entity.key()) {
             if self.data[*index].1 == entity {
@@ -78,6 +79,11 @@ impl<C: Component> NativeSingleContainer<C> {
                 return;
             }
         }
+        // Hook added
+        component.on_added(ComponentContext {
+            input: ctx.input,
+            renderer: ctx.renderer,
+        });
         // Append component
         self.data.push((component, entity));
         // Update indices
@@ -109,9 +115,14 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         self.removed.push(entity);
     }
 
-    fn remove(&mut self, entity: Entity) {
+    fn remove(&mut self, ctx: &mut Context, entity: Entity) {
         if let Some(index) = self.indices.get(entity.key()).copied() {
             if self.data[index].1 == entity {
+                // Hook remove
+                self.data[index].0.on_removed(ComponentContext {
+                    input: ctx.input,
+                    renderer: ctx.renderer,
+                });
                 // Swap remove component
                 self.data.swap_remove(index);
                 // Remap swapped entity

@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 
 use mini3d_core::input::{
+    component::{InputAction, InputActionHandle, InputAxis, InputAxisHandle},
     provider::{InputProvider, InputProviderError, InputProviderHandle},
-    resource::{InputAction, InputActionHandle, InputAxis, InputAxisHandle},
 };
 use mini3d_input::mapper::{InputMapper, InputMapperAxis, InputMapperButton};
 use serde::{Deserialize, Serialize};

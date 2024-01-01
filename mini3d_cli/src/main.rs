@@ -1,7 +1,7 @@
 use mini3d_core::{
     ecs::{
-        api::{Context, Resource, Time},
         component::{FreeFlySystem, PropagateTransforms, Transform},
+        context::{Context, Resource, Time},
         entity::Entity,
         error::ResolverError,
         query::Query,

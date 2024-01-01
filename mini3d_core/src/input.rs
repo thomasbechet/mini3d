@@ -1,20 +1,20 @@
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use mini3d_derive::Error;
 
-use crate::resource::{ResourceManager, ResourceTypeHandle};
+use crate::ecs::entity::Entity;
+use crate::ecs::view::native::single::NativeSingleViewMut;
 use crate::serialize::{Decoder, DecoderError};
 use crate::serialize::{Encoder, EncoderError};
-use crate::utils::uid::ToUID;
+use crate::utils::uid::{ToUID, UID};
 
+use self::component::{InputAction, InputAxis, InputAxisRange, InputText};
 use self::event::InputEvent;
-use self::provider::InputProvider;
-use self::resource::{
-    InputAction, InputActionHandle, InputAxis, InputAxisHandle, InputText, InputTextHandle,
-};
+use self::provider::{InputProvider, InputProviderError, InputProviderHandle};
 
+pub mod component;
 pub mod event;
 pub mod provider;
-pub mod resource;
 
 #[derive(Debug, Error)]
 pub enum InputError {
@@ -33,16 +33,18 @@ pub enum InputError {
 }
 
 #[derive(Default)]
-pub(crate) struct InputHandles {
-    pub(crate) action: ResourceTypeHandle,
-    pub(crate) axis: ResourceTypeHandle,
-    pub(crate) text: ResourceTypeHandle,
+pub(crate) struct InputViews {
+    pub(crate) action: NativeSingleViewMut<InputAction>,
+    pub(crate) axis: NativeSingleViewMut<InputAxis>,
+    pub(crate) text: NativeSingleViewMut<InputText>,
 }
 
 #[derive(Default)]
 pub struct InputManager {
     provider: Box<dyn InputProvider>,
-    pub(crate) handles: InputHandles,
+    pub(crate) views: InputViews,
+    pub(crate) active_actions: Vec<(UID, Entity)>,
+    pub(crate) active_axis: Vec<(UID, Entity)>,
 }
 
 impl InputManager {
@@ -53,28 +55,30 @@ impl InputManager {
     }
 
     /// Reset action states and mouse motion
-    pub(crate) fn prepare_dispatch(&mut self, resources: &mut ResourceManager) {
+    pub(crate) fn prepare_dispatch(&mut self) {
         // Save the previous action state
-        for action in resources.iter_native_values_mut::<InputAction>(self.handles.action) {
+        for action in self.views.action.iter_mut() {
             action.state.was_pressed = action.state.pressed;
         }
         // Reset text for current frame
-        for text in resources.iter_native_values_mut::<InputText>(self.handles.text) {
+        for text in self.views.text.iter_mut() {
             text.state.value.clear();
         }
     }
 
     /// Process input events
-    pub(crate) fn dispatch_events(&mut self, resource: &mut ResourceManager) {
+    pub(crate) fn dispatch_events(&mut self) {
         while let Some(event) = self.provider.next_event() {
             match event {
                 InputEvent::Action(event) => {
-                    let action = resource.native_mut_unchecked::<InputAction>(event.handle);
-                    action.state.pressed = event.pressed;
+                    if let Some(action) = self.views.action.get_mut(event.action) {
+                        action.state.pressed = event.pressed;
+                    }
                 }
                 InputEvent::Axis(event) => {
-                    let axis = resource.native_mut_unchecked::<InputAxis>(event.handle);
-                    axis.set_value(event.value);
+                    if let Some(axis) = self.views.axis.get_mut(event.axis) {
+                        axis.set_value(event.value);
+                    }
                 }
                 InputEvent::Text(event) => {
                     todo!()
@@ -91,78 +95,60 @@ impl InputManager {
         Ok(())
     }
 
-    pub(crate) fn on_action_added(
+    pub(crate) fn add_action(
         &mut self,
-        handle: InputActionHandle,
-        resources: &mut ResourceManager,
-    ) {
-        let action = resources.native_unchecked::<InputAction>(handle);
-        let name = resources.info(handle).unwrap().name;
-        let provider_handle = self
-            .provider
-            .add_action(name, &action, handle)
-            .expect("Input provider failed to add action");
-        resources
-            .native_mut_unchecked::<InputAction>(handle)
-            .state
-            .handle = provider_handle;
+        name: &str,
+        entity: Entity,
+    ) -> Result<InputProviderHandle, InputProviderError> {
+        let uid = name.to_uid();
+        if self.active_actions.contains(&uid) {
+            return Err(InputProviderError::DuplicatedAction);
+        }
+        let handle = self.provider.add_action(name, entity.raw())?;
+        self.active_actions.push(uid);
+        Ok(handle)
     }
 
-    pub(crate) fn on_axis_added(
+    pub(crate) fn remove_action(
         &mut self,
-        handle: InputAxisHandle,
-        resources: &mut ResourceManager,
-    ) {
-        let axis = resources.native_unchecked::<InputAxis>(handle);
-        let name = resources.info(handle).unwrap().name;
-        self.provider
-            .add_axis(name, axis, handle)
-            .expect("Input provider failed to add axis");
-        resources
-            .native_mut_unchecked::<InputAxis>(handle)
-            .state
-            .handle = axis.state.handle;
+        name: &str,
+        handle: InputProviderHandle,
+    ) -> Result<(), InputProviderError> {
+        let uid = name.to_uid();
+        if !self.active_actions.find(|(x, _)| *x == uid) {
+            return Err(InputProviderError::ActionNotFound);
+        }
+        self.provider.remove_action(handle)?;
+        self.active_actions.retain(|&(x, _)| x != uid);
+        Ok(())
     }
 
-    pub(crate) fn on_action_removed(
+    pub(crate) fn add_axis(
         &mut self,
-        handle: InputActionHandle,
-        resources: &ResourceManager,
-    ) {
-        let action = resources.native_unchecked::<InputAction>(handle);
-        self.provider
-            .remove_action(action.state.handle)
-            .expect("Input provider failed to remove action");
+        name: &str,
+        entity: Entity,
+        range: &InputAxisRange,
+    ) -> Result<InputProviderHandle, InputProviderError> {
+        let uid = name.to_uid();
+        if self.active_axis.iter().find(|(x, _)| *x == uid) {
+            return Err(InputProviderError::DuplicatedAxis);
+        }
+        let handle = self.provider.add_axis(name, range, entity.raw())?;
+        self.active_axis.push(uid);
+        Ok(handle)
     }
 
-    pub(crate) fn on_axis_removed(&mut self, handle: InputAxisHandle, resources: &ResourceManager) {
-        let axis = resources.native_unchecked::<InputAxis>(handle);
-        self.provider
-            .remove_axis(axis.state.handle)
-            .expect("Input provider failed to remove axis");
-    }
-
-    pub(crate) fn find_action(
-        &self,
-        key: impl ToUID,
-        resource: &ResourceManager,
-    ) -> Option<InputActionHandle> {
-        resource.find_typed(key, self.handles.action)
-    }
-
-    pub(crate) fn find_axis(
-        &self,
-        key: impl ToUID,
-        resource: &ResourceManager,
-    ) -> Option<InputAxisHandle> {
-        resource.find_typed(key, self.handles.axis)
-    }
-
-    pub(crate) fn find_text(
-        &self,
-        key: impl ToUID,
-        resource: &ResourceManager,
-    ) -> Option<InputTextHandle> {
-        resource.find_typed(key, self.handles.text)
+    pub(crate) fn remove_axis(
+        &mut self,
+        name: &str,
+        handle: InputProviderHandle,
+    ) -> Result<(), InputProviderError> {
+        let uid = name.to_uid();
+        if !self.active_axis.contains(&uid) {
+            return Err(InputProviderError::AxisNotFound);
+        }
+        self.provider.remove_axis(handle)?;
+        self.active_axis.retain(|&(x, _)| x != uid);
+        Ok(())
     }
 }

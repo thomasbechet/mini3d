@@ -4,6 +4,8 @@ use mini3d_derive::Error;
 pub enum ECSError {
     #[error("Container borrow mut")]
     ContainerBorrowMut,
+    #[error("Duplicated component type")]
+    DuplicatedComponentType,
 }
 
 #[derive(Debug, Error)]

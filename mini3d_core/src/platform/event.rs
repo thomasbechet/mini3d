@@ -2,13 +2,12 @@ use mini3d_derive::Serialize;
 
 use crate::{
     renderer::resource::{Font, Material, Mesh, Model, Texture},
-    resource::handle::MAX_RESOURCE_NAME_LEN,
-    script::resource::Script,
+    script::component::Script,
     utils::string::AsciiArray,
 };
 
 pub struct AssetImportEntry<T> {
-    pub name: AsciiArray<MAX_RESOURCE_NAME_LEN>,
+    pub name: AsciiArray<32>,
     pub data: T,
 }
 

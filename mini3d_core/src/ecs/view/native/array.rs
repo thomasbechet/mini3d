@@ -1,8 +1,7 @@
 use crate::{
-    ecs::resource::component::Component,
     ecs::{
-        container::native::array::NativeArrayContainer, entity::Entity, error::ResolverError,
-        system::SystemResolver,
+        component::Component, container::native::array::NativeArrayContainer, entity::Entity,
+        error::ResolverError, system::SystemResolver,
     },
     utils::uid::ToUID,
 };
@@ -24,18 +23,18 @@ impl<C: Component> NativeArrayViewRef<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.read(component)?;
-        unsafe {
-            self.container = (*resolver
+        self.container = unsafe {
+            *resolver
                 .containers
                 .entries
                 .get(key)
                 .unwrap()
                 .container
-                .get())
-            .as_any()
-            .downcast_ref::<NativeArrayContainer<C>>()
-            .unwrap();
+                .get()
         }
+        .as_any()
+        .downcast_ref::<NativeArrayContainer<C>>()
+        .unwrap();
         Ok(())
     }
 

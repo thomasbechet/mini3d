@@ -1,25 +1,23 @@
 use alloc::string::String;
 use mini3d_derive::Serialize;
 
-use crate::math::fixed::I32F16;
-
-use super::resource::{InputActionHandle, InputAxisHandle, InputTextHandle};
+use crate::{ecs::entity::Entity, math::fixed::I32F16};
 
 #[derive(Serialize)]
 pub struct InputActionEvent {
-    pub handle: InputActionHandle,
+    pub action: Entity,
     pub pressed: bool,
 }
 
 #[derive(Serialize)]
 pub struct InputAxisEvent {
-    pub handle: InputAxisHandle,
+    pub axis: Entity,
     pub value: I32F16,
 }
 
 #[derive(Serialize)]
 pub struct InputTextEvent {
-    pub handle: InputTextHandle,
+    pub text: Entity,
     pub value: String,
 }
 

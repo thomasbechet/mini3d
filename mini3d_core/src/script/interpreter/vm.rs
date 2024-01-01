@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::script::resource::Program;
+use crate::script::component::Program;
 
 use super::opcode::Opcode;
 

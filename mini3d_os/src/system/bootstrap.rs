@@ -1,6 +1,6 @@
 use mini3d_core::{
     ecs::{
-        api::{
+        context::{
             context::Context,
             ecs::ECS,
             input::Input,

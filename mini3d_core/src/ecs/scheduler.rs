@@ -2,9 +2,7 @@ use alloc::{collections::VecDeque, vec::Vec};
 use mini3d_derive::fixed;
 
 use crate::{
-    ecs::resource::system::{SystemStage, SystemStageHandle},
     math::fixed::U32F16,
-    resource::ResourceManager,
     slot_map_key,
     utils::slotmap::{Key, SlotMap},
 };
@@ -18,6 +16,7 @@ pub enum Invocation {
 }
 
 slot_map_key!(NodeKey);
+slot_map_key!(SystemStageKey);
 
 #[derive(Clone, Copy)]
 pub(crate) struct SystemPipelineNode {
@@ -27,13 +26,13 @@ pub(crate) struct SystemPipelineNode {
 }
 
 struct PeriodicStage {
-    stage: SystemStageHandle,
+    stage: SystemStageKey,
     period: U32F16,
     accumulator: U32F16,
 }
 
 struct StageEntry {
-    handle: SystemStageHandle,
+    handle: SystemStageKey,
     first_node: NodeKey,
 }
 
@@ -48,15 +47,15 @@ pub(crate) struct Scheduler {
     // Periodic invocations
     periodic_stages: Vec<PeriodicStage>,
     // Runtime next frame stage
-    next_frame_stages: VecDeque<SystemStageHandle>,
+    next_frame_stages: VecDeque<SystemStageKey>,
     // Runtime stages
-    frame_stages: VecDeque<SystemStageHandle>,
+    frame_stages: VecDeque<SystemStageKey>,
     // Runtime active node
     next_node: NodeKey,
 }
 
 impl Scheduler {
-    pub(crate) fn rebuild(&mut self, table: &SystemTable, resource: &ResourceManager) {
+    pub(crate) fn rebuild(&mut self, table: &SystemTable) {
         // Reset baked resources
         self.stages.clear();
         self.nodes.clear();

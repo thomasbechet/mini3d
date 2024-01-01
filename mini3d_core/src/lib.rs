@@ -12,7 +12,6 @@ pub mod platform;
 pub mod recorder;
 pub mod reflection;
 pub mod renderer;
-pub mod resource;
 pub mod script;
 pub mod serialize;
 pub mod simulation;

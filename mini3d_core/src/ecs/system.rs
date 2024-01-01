@@ -1,21 +1,16 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    resource::{ResourceManager, ResourceTypeHandle},
-    script::resource::Program,
-    utils::uid::ToUID,
+    script::component::Program,
+    utils::{
+        string::AsciiArray,
+        uid::{ToUID, UID},
+    },
 };
 
 use super::{
-    api::Context,
-    container::ContainerTable,
-    entity::EntityTable,
-    error::ResolverError,
-    query::QueryTable,
-    resource::{
-        ComponentKey, ComponentType, ComponentTypeHandle, System, SystemHandle, SystemKind,
-        SystemSet, SystemSetHandle, SystemStageHandle,
-    },
+    component::ComponentKey, container::ContainerTable, context::Context, entity::EntityTable,
+    error::ResolverError, query::QueryTable,
 };
 
 pub trait ExclusiveSystem: 'static + Default + Clone {
@@ -33,7 +28,6 @@ pub trait ParallelSystem: 'static + Default + Clone {
 }
 
 pub struct SystemResolver<'a> {
-    pub(crate) component_type: ResourceTypeHandle,
     pub(crate) reads: Vec<ComponentKey>,
     pub(crate) writes: &'a mut Vec<ComponentKey>,
     pub(crate) all: &'a mut Vec<ComponentKey>,
@@ -42,17 +36,13 @@ pub struct SystemResolver<'a> {
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) queries: &'a mut QueryTable,
     pub(crate) containers: &'a mut ContainerTable,
-    pub(crate) resources: &'a mut ResourceManager,
 }
 
 impl<'a> SystemResolver<'a> {
     fn find(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
-        let handle = ComponentTypeHandle(
-            self.resources
-                .find_typed(component, self.component_type)
-                .ok_or(ResolverError::ComponentNotFound)?,
-        );
-        Ok(self.containers.preallocate(handle, self.resources))
+        self.containers
+            .find(component)
+            .ok_or(ResolverError::ComponentNotFound)
     }
 
     pub(crate) fn read(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
@@ -133,9 +123,9 @@ pub(crate) enum SystemInstance {
 }
 
 pub(crate) struct SystemInstanceEntry {
-    pub(crate) set: SystemSetHandle,
-    pub(crate) stage: SystemStageHandle,
-    pub(crate) system: SystemHandle,
+    pub(crate) name: AsciiArray<32>,
+    pub(crate) set: SystemSetKey,
+    pub(crate) stage: SystemStageKey,
     pub(crate) instance: SystemInstance,
     pub(crate) writes: Vec<ComponentKey>,
 }
@@ -146,11 +136,8 @@ impl SystemInstanceEntry {
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
-        resources: &mut ResourceManager,
-        component_type: ResourceTypeHandle,
     ) -> Result<(), ResolverError> {
         let mut resolver = SystemResolver {
-            component_type,
             reads: Vec::new(),
             writes: &mut self.writes,
             all: &mut Default::default(),
@@ -159,7 +146,6 @@ impl SystemInstanceEntry {
             entities,
             queries,
             containers,
-            resources,
         };
         match self.instance {
             SystemInstance::Exclusive(ref mut instance) => {
@@ -179,13 +165,22 @@ pub(crate) struct SystemTable {
 }
 
 impl SystemTable {
+    pub(crate) fn find_system_set(&self, uid: UID) -> Option<SystemSetKey> {
+        self.sets.iter().find_map(|(key, e)| {
+            if e.name.to_uid() == uid {
+                Some(key)
+            } else {
+                None
+            }
+        })
+    }
+
     pub(crate) fn insert_system_set(
         &mut self,
         set: SystemSetHandle,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
-        resource: &mut ResourceManager,
     ) -> Result<(), ResolverError> {
         // Check already existing system set
         if self.instances.iter().any(|instance| instance.set == set) {

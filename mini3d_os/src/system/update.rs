@@ -1,6 +1,6 @@
 use mini3d_core::{
     ecs::{
-        api::{context::Context, ecs::ECS, input::Input, renderer::Renderer},
+        context::{context::Context, ecs::ECS, input::Input, renderer::Renderer},
         instance::ExclusiveResolver,
         query::Query,
     },

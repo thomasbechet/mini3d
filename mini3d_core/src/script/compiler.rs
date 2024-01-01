@@ -1,16 +1,16 @@
 use alloc::vec::Vec;
 
-use crate::{ecs::api::Context, utils::uid::ToUID};
+use crate::{ecs::context::Context, utils::uid::ToUID};
 
 use super::{
     backend::compiler::BackendCompiler,
+    component::Script,
     frontend::{
         error::CompileError, node::compiler::NodeCompiler, source::compiler::SourceCompiler,
     },
     interface::InterfaceTable,
     mir::MIRTable,
     module::{Module, ModuleId, ModuleTable},
-    resource::Script,
 };
 
 #[derive(Default)]

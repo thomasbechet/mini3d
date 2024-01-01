@@ -4,13 +4,12 @@ use mini3d_derive::Error;
 use crate::{define_provider_handle, math::mat::M4I32F16};
 
 use super::{
-    event::RendererEvent,
-    resource::{
+    component::{
         diffuse::{DiffusePassCommand, DiffusePassInfo, DiffusePassRenderInfo},
-        mesh::Mesh,
         renderpass::canvas::{CanvasPassCommand, CanvasPassInfo, CanvasPassRenderInfo},
-        texture::Texture,
+        MeshData, TextureData,
     },
+    event::RendererEvent,
 };
 
 #[derive(Debug, Error)]
@@ -40,12 +39,15 @@ pub trait RendererProvider {
 
     /// Resource API
 
-    fn add_mesh(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn add_mesh(
+        &mut self,
+        data: &MeshData,
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
     fn remove_mesh(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError>;
 
     fn add_texture(
         &mut self,
-        texture: &Texture,
+        data: &TextureData,
     ) -> Result<RendererProviderHandle, RendererProviderError>;
     fn remove_texture(
         &mut self,
@@ -130,7 +132,10 @@ impl RendererProvider for PassiveRendererProvider {
 
     /// Resource API
 
-    fn add_mesh(&mut self, mesh: &Mesh) -> Result<RendererProviderHandle, RendererProviderError> {
+    fn add_mesh(
+        &mut self,
+        data: &MeshData,
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }
     fn remove_mesh(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError> {
@@ -139,7 +144,7 @@ impl RendererProvider for PassiveRendererProvider {
 
     fn add_texture(
         &mut self,
-        texture: &Texture,
+        data: &TextureData,
     ) -> Result<RendererProviderHandle, RendererProviderError> {
         Ok(0.into())
     }

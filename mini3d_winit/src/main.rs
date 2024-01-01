@@ -12,7 +12,7 @@ use mini3d_core::{
         event::{AssetImportEntry, ImportAssetEvent, PlatformEvent},
         provider::PlatformProvider,
     },
-    script::resource::Script,
+    script::component::Script,
     serialize::SliceDecoder,
     simulation::{Simulation, SimulationConfig},
 };

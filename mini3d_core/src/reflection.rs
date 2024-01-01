@@ -78,5 +78,7 @@ pub trait ReadWriteProperty: ReadProperty + WriteProperty {}
 
 #[allow(unused)]
 pub trait Reflect: ReadProperty + WriteProperty {
-    const PROPERTIES: &'static [Property];
+    fn properties() -> &'static [Property] {
+        &[]
+    }
 }

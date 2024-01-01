@@ -3,7 +3,7 @@ use crate::math::{
     vec::{V2, V2I32},
 };
 
-use super::resource::font::Font;
+use super::component::Font;
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer

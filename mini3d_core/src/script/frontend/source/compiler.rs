@@ -1,9 +1,9 @@
 use crate::script::{
     compiler::CompilationUnit,
+    component::Script,
     frontend::error::CompileError,
     mir::mir::MIR,
     module::{ModuleId, ModuleTable},
-    resource::Script,
 };
 
 use super::{

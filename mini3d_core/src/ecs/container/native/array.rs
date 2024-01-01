@@ -3,8 +3,8 @@ use core::any::Any;
 use alloc::vec::Vec;
 
 use crate::{
-    ecs::resource::component::{Component, ComponentKey},
     ecs::{
+        component::{Component, ComponentKey},
         container::{ArrayContainer, Container},
         entity::{Entity, EntityTable},
         query::QueryTable,

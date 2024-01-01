@@ -7,27 +7,26 @@ use crate::{
     math::fixed::{FixedPoint, U32F16},
     platform::PlatformManager,
     renderer::RendererManager,
-    resource::{ResourceManager, ResourceTypeHandle},
 };
 
 use self::{
-    api::{time::TimeAPI, Context},
+    component::{ComponentType, System, SystemSet, SystemStage},
     container::ContainerTable,
+    context::{time::TimeAPI, Context},
     entity::{Entity, EntityEntry, EntityTable},
     query::QueryTable,
-    resource::{SystemSetHandle, SystemStageHandle},
-    scheduler::Scheduler,
+    scheduler::{Scheduler, SystemStageKey},
     system::{SystemInstance, SystemTable},
+    view::native::single::NativeSingleViewMut,
 };
 
-pub mod api;
 pub mod archetype;
 pub mod component;
 pub mod container;
+pub mod context;
 pub mod entity;
 pub mod error;
 pub mod query;
-pub mod resource;
 pub mod scheduler;
 pub mod sparse;
 pub mod system;
@@ -40,24 +39,24 @@ pub enum ECSError {
 }
 
 pub enum ECSCommand {
-    AddSystemSet(SystemSetHandle),
-    RemoveSystemSet(SystemSetHandle),
+    AddSystemSet(Entity),
+    RemoveSystemSet(Entity),
     SetTargetTPS(u16),
 }
 
 #[derive(Default)]
-pub(crate) struct ECSHandles {
-    pub(crate) component: ResourceTypeHandle,
-    pub(crate) system: ResourceTypeHandle,
-    pub(crate) system_stage: ResourceTypeHandle,
-    pub(crate) system_set: ResourceTypeHandle,
-    pub(crate) start_stage: SystemStageHandle,
-    pub(crate) tick_stage: SystemStageHandle,
+pub(crate) struct ECSViews {
+    pub(crate) component: NativeSingleViewMut<ComponentType>,
+    pub(crate) system: NativeSingleViewMut<System>,
+    pub(crate) system_stage: NativeSingleViewMut<SystemStage>,
+    pub(crate) system_set: NativeSingleViewMut<SystemSet>,
+    pub(crate) start_stage: SystemStageKey,
+    pub(crate) tick_stage: SystemStageKey,
 }
 
 #[derive(Default)]
 pub(crate) struct ECSManager {
-    pub(crate) handles: ECSHandles,
+    pub(crate) views: ECSViews,
     pub(crate) containers: ContainerTable,
     pub(crate) entities: EntityTable,
     pub(crate) queries: QueryTable,
@@ -71,7 +70,6 @@ pub(crate) struct ECSManager {
 }
 
 pub(crate) struct ECSUpdateContext<'a> {
-    pub(crate) resource: &'a mut ResourceManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) renderer: &'a mut RendererManager,
     pub(crate) platform: &'a mut PlatformManager,
@@ -79,7 +77,7 @@ pub(crate) struct ECSUpdateContext<'a> {
 }
 
 impl ECSManager {
-    pub(crate) fn flush_commands(&mut self, resource: &mut ResourceManager) {
+    pub(crate) fn flush_commands(&mut self) {
         for command in self.commands.drain(..).collect::<Vec<_>>() {
             match command {
                 ECSCommand::AddSystemSet(set) => {
@@ -89,10 +87,9 @@ impl ECSManager {
                             &mut self.entities,
                             &mut self.queries,
                             &mut self.containers,
-                            resource,
                         )
                         .expect("Failed to insert system set");
-                    self.scheduler.rebuild(&self.systems, resource);
+                    self.scheduler.rebuild(&self.systems);
                 }
                 ECSCommand::RemoveSystemSet(set) => todo!(),
                 ECSCommand::SetTargetTPS(tps) => {
@@ -150,7 +147,7 @@ impl ECSManager {
 
         // Begin frame
         self.scheduler
-            .invoke_frame_stages(delta_time, self.handles.tick_stage);
+            .invoke_frame_stages(delta_time, self.views.tick_stage);
 
         // Run stages
         // TODO: protect against infinite loops
@@ -176,7 +173,6 @@ impl ECSManager {
                             entity_created: &mut self.entity_created,
                             entity_destroyed: &mut self.entity_destroyed,
                             scheduler: &mut self.scheduler,
-                            resource: context.resource,
                             input: context.input,
                             renderer: context.renderer,
                             platform: context.platform,
@@ -186,7 +182,7 @@ impl ECSManager {
                                 frame: self.frame_index,
                                 target_tps: self.target_tps,
                             },
-                            ecs_types: &self.handles,
+                            ecs_types: &self.views,
                             commands: &mut self.commands,
                         };
                         // TODO: catch unwind
@@ -198,7 +194,6 @@ impl ECSManager {
                             entity_created: &mut self.entity_created,
                             entity_destroyed: &mut self.entity_destroyed,
                             scheduler: &mut self.scheduler,
-                            resource: context.resource,
                             input: context.input,
                             renderer: context.renderer,
                             platform: context.platform,
@@ -208,7 +203,7 @@ impl ECSManager {
                                 frame: self.frame_index,
                                 target_tps: self.target_tps,
                             },
-                            ecs_types: &self.handles,
+                            ecs_types: &self.views,
                             commands: &mut self.commands,
                         };
                         // TODO: catch unwind

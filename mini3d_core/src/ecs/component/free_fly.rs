@@ -2,16 +2,16 @@ use mini3d_derive::{fixed, Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::{Context, Input, Time},
+        context::{Context, Time},
+        entity::Entity,
         error::ResolverError,
         query::Query,
         system::{ParallelSystem, SystemResolver},
-        view::native::single::NativeSingleViewMut,
+        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
-    expect,
-    input::resource::{action::InputActionHandle, axis::InputAxisHandle},
+    input::component::{InputAction, InputAxis},
     math::{
-        fixed::{FixedPoint, TrigFixedPoint, I32F16, U32F16},
+        fixed::{I32F16, U32F16},
         quat::Q,
         vec::V3,
     },
@@ -20,24 +20,25 @@ use crate::{
 use super::transform::Transform;
 
 #[derive(Default, Component, Reflect, Clone, Serialize)]
+#[component(storage = "single")]
 pub struct FreeFly {
     // Control if free fly is active
     pub active: bool,
 
     // Inputs
-    pub switch_mode: InputActionHandle,
-    pub roll_left: InputActionHandle,
-    pub roll_right: InputActionHandle,
-    pub view_x: InputAxisHandle,
-    pub view_y: InputAxisHandle,
-    pub move_forward: InputAxisHandle,
-    pub move_backward: InputAxisHandle,
-    pub move_up: InputAxisHandle,
-    pub move_down: InputAxisHandle,
-    pub move_left: InputAxisHandle,
-    pub move_right: InputAxisHandle,
-    pub move_fast: InputActionHandle,
-    pub move_slow: InputActionHandle,
+    pub switch_mode: Entity,
+    pub roll_left: Entity,
+    pub roll_right: Entity,
+    pub view_x: Entity,
+    pub view_y: Entity,
+    pub move_forward: Entity,
+    pub move_backward: Entity,
+    pub move_up: Entity,
+    pub move_down: Entity,
+    pub move_left: Entity,
+    pub move_right: Entity,
+    pub move_fast: Entity,
+    pub move_slow: Entity,
 
     // View data
     pub free_mode: bool,
@@ -58,6 +59,8 @@ impl FreeFly {
 pub struct FreeFlySystem {
     free_fly: NativeSingleViewMut<FreeFly>,
     transform: NativeSingleViewMut<Transform>,
+    input_action: NativeSingleViewRef<InputAction>,
+    input_axis: NativeSingleViewRef<InputAxis>,
     query: Query,
 }
 
@@ -69,6 +72,8 @@ impl ParallelSystem for FreeFlySystem {
     fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         self.free_fly.resolve(resolver, FreeFly::NAME)?;
         self.transform.resolve(resolver, Transform::NAME)?;
+        self.input_action.resolve(resolver, InputAction::NAME)?;
+        self.input_axis.resolve(resolver, InputAction::NAME)?;
         self.query
             .resolve(resolver)
             .all(&[FreeFly::NAME, Transform::NAME])?;
@@ -85,38 +90,32 @@ impl ParallelSystem for FreeFlySystem {
                 continue;
             }
 
-            // Update view mod
-            if expect!(ctx, Input::action(ctx, free_fly.switch_mode)).is_just_pressed() {
+            // Update view mode
+            if self.input_action[free_fly.switch_mode].is_just_pressed() {
                 free_fly.free_mode = !free_fly.free_mode;
             }
 
             // Compute camera translation
             let mut direction = V3::ZERO;
-            direction +=
-                transform.forward() * expect!(ctx, Input::axis(ctx, free_fly.move_forward)).value;
-            direction +=
-                transform.backward() * expect!(ctx, Input::axis(ctx, free_fly.move_backward)).value;
-            direction +=
-                transform.left() * expect!(ctx, Input::axis(ctx, free_fly.move_left)).value;
-            direction +=
-                transform.right() * expect!(ctx, Input::axis(ctx, free_fly.move_right)).value;
+            direction += transform.forward() * self.input_axis[free_fly.move_forward].value();
+            direction += transform.backward() * self.input_axis[free_fly.move_backward].value();
+            direction += transform.left() * self.input_axis[free_fly.move_left].value();
+            direction += transform.right() * self.input_axis[free_fly.move_right].value();
             if free_fly.free_mode {
-                direction +=
-                    transform.up() * expect!(ctx, Input::axis(ctx, free_fly.move_up)).value;
-                direction +=
-                    transform.down() * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
+                direction += transform.up() * self.input_axis[free_fly.move_up].value();
+                direction += transform.down() * self.input_axis[free_fly.move_down].value();
             } else {
-                direction += V3::Y * expect!(ctx, Input::axis(ctx, free_fly.move_up)).value;
-                direction += V3::NEG_Y * expect!(ctx, Input::axis(ctx, free_fly.move_down)).value;
+                direction += V3::Y * self.input_axis[free_fly.move_up].value();
+                direction += V3::NEG_Y * self.input_axis[free_fly.move_down].value();
             }
             let direction_length = direction.length();
             direction = direction.normalize_or_zero();
 
             // Camera speed
             let mut speed = FreeFly::NORMAL_SPEED;
-            if expect!(ctx, Input::action(ctx, free_fly.move_fast)).is_pressed() {
+            if self.input_action[free_fly.move_fast].is_pressed() {
                 speed = FreeFly::FAST_SPEED;
-            } else if expect!(ctx, Input::action(ctx, free_fly.move_slow)).is_pressed() {
+            } else if self.input_action[free_fly.move_slow].is_pressed() {
                 speed = FreeFly::SLOW_SPEED;
             }
 
@@ -125,8 +124,8 @@ impl ParallelSystem for FreeFlySystem {
                 direction * direction_length * I32F16::cast(Time::delta(ctx) * speed);
 
             // Apply rotation
-            let motion_x = expect!(ctx, Input::axis(ctx, free_fly.view_x)).value;
-            let motion_y = expect!(ctx, Input::axis(ctx, free_fly.view_y)).value;
+            let motion_x = self.input_axis[free_fly.view_x].value();
+            let motion_y = self.input_axis[free_fly.view_y].value();
             if free_fly.free_mode {
                 if motion_x != fixed!(0) {
                     transform.rotation *= Q::from_axis_angle(
@@ -142,13 +141,13 @@ impl ParallelSystem for FreeFlySystem {
                             * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)),
                     );
                 }
-                if expect!(ctx, Input::action(ctx, free_fly.roll_left)).is_pressed() {
+                if self.input_action[free_fly.roll_left].is_pressed() {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Z,
                         -I32F16::cast(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)),
                     );
                 }
-                if expect!(ctx, Input::action(ctx, free_fly.roll_right)).is_pressed() {
+                if self.input_action[free_fly.roll_right].is_pressed() {
                     transform.rotation *= Q::from_axis_angle(
                         V3::Z,
                         I32F16::cast(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)),

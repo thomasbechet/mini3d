@@ -2,10 +2,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::{collections::HashMap, fs::File};
 
-use mini3d_core::input::provider::{InputProviderError, InputProviderHandle};
-use mini3d_core::input::resource::{
+use mini3d_core::input::component::{
     self, InputActionHandle, InputAxis, InputAxisHandle, InputAxisRange,
 };
+use mini3d_core::input::provider::{InputProviderError, InputProviderHandle};
 use mini3d_core::math::fixed::I32F16;
 use mini3d_core::utils::uid::ToUID;
 use mini3d_core::{
@@ -410,7 +410,7 @@ impl<B: InputMapperButton, A: InputMapperAxis> InputProvider for InputMapper<B, 
     fn add_action(
         &mut self,
         name: &str,
-        action: &resource::InputAction,
+        action: &component::InputAction,
         handle: InputActionHandle,
     ) -> Result<InputProviderHandle, InputProviderError> {
         for profile in self.profiles.values_mut() {

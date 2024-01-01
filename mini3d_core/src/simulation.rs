@@ -3,9 +3,8 @@ use mini3d_derive::{fixed, Error};
 
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
-use crate::ecs::api::time::TimeAPI;
-use crate::ecs::api::Context;
-use crate::ecs::resource::{ComponentStorage, ComponentType, System, SystemStage};
+use crate::ecs::context::time::TimeAPI;
+use crate::ecs::context::Context;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{self, ECSManager, ECSUpdateContext};
 use crate::input::provider::InputProvider;
@@ -17,8 +16,6 @@ use crate::platform::provider::PlatformProvider;
 use crate::platform::PlatformManager;
 use crate::renderer::provider::RendererProvider;
 use crate::renderer::{self, RendererManager};
-use crate::resource::ResourceManager;
-use crate::resource::ResourceType;
 use crate::script;
 use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError};
 
@@ -56,7 +53,6 @@ impl SimulationConfig {
 
 pub struct Simulation {
     pub(crate) ecs: ECSManager,
-    pub(crate) resource: ResourceManager,
     pub(crate) storage: DiskManager,
     pub(crate) input: InputManager,
     pub(crate) renderer: RendererManager,
@@ -82,14 +78,14 @@ impl Simulation {
             };
         }
 
-        self.ecs.handles.component = define_resource!(ecs::resource::ComponentType);
-        self.ecs.handles.system = define_resource!(ecs::resource::System);
-        self.ecs.handles.system_set = define_resource!(ecs::resource::SystemSet);
-        self.ecs.handles.system_stage = define_resource!(ecs::resource::SystemStage);
+        self.ecs.views.component = define_resource!(ecs::resource::ComponentType);
+        self.ecs.views.system = define_resource!(ecs::resource::System);
+        self.ecs.views.system_set = define_resource!(ecs::resource::SystemSet);
+        self.ecs.views.system_stage = define_resource!(ecs::resource::SystemStage);
 
-        self.input.handles.action = define_resource!(input::resource::InputAction);
-        self.input.handles.axis = define_resource!(input::resource::InputAxis);
-        self.input.handles.text = define_resource!(input::resource::InputText);
+        self.input.views.action = define_resource!(input::component::InputAction);
+        self.input.views.axis = define_resource!(input::component::InputAxis);
+        self.input.views.text = define_resource!(input::component::InputText);
 
         self.renderer.handles.font = define_resource!(renderer::resource::Font);
         self.renderer.handles.material = define_resource!(renderer::resource::Material);
@@ -98,9 +94,9 @@ impl Simulation {
         self.renderer.handles.model = define_resource!(renderer::resource::Model);
         self.renderer.handles.transform = define_resource!(renderer::resource::RenderTransform);
 
-        define_resource!(script::resource::structure::StructDefinition);
-        define_resource!(script::resource::script::Script);
-        define_resource!(script::resource::program::Program);
+        define_resource!(script::component::structure::StructDefinition);
+        define_resource!(script::component::script::Script);
+        define_resource!(script::component::program::Program);
     }
 
     fn define_component_types(&mut self, config: &SimulationConfig) {
@@ -159,20 +155,20 @@ impl Simulation {
             define_component!(renderer::resource::Canvas, ComponentStorage::Single);
         }
 
-        self.ecs.handles.start_stage = self
+        self.ecs.views.start_stage = self
             .resource
             .create(
                 Some(SystemStage::START),
-                self.ecs.handles.system_stage,
+                self.ecs.views.system_stage,
                 SystemStage::default(),
             )
             .unwrap()
             .into();
-        self.ecs.handles.tick_stage = self
+        self.ecs.views.tick_stage = self
             .resource
             .create(
                 Some(SystemStage::TICK),
-                self.ecs.handles.system_stage,
+                self.ecs.views.system_stage,
                 SystemStage::default(),
             )
             .unwrap()
@@ -183,7 +179,7 @@ impl Simulation {
         self.ecs.target_tps = config.target_tps;
         self.ecs
             .scheduler
-            .invoke(self.ecs.handles.start_stage, Invocation::Immediate);
+            .invoke(self.ecs.views.start_stage, Invocation::Immediate);
     }
 
     fn run_bootstrap(&mut self, config: &SimulationConfig) {
@@ -203,7 +199,7 @@ impl Simulation {
                     frame: 0,
                     target_tps: self.ecs.target_tps,
                 },
-                ecs_types: &self.ecs.handles,
+                ecs_types: &self.ecs.views,
                 commands: &mut self.ecs.commands,
             });
             self.ecs.flush_commands(&mut self.resource);

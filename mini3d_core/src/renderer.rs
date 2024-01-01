@@ -1,16 +1,20 @@
+use crate::ecs::component::ComponentError;
+use crate::ecs::entity::Entity;
+use crate::ecs::view::native::single::NativeSingleViewMut;
 use crate::math::fixed::{FixedPoint, I32F16};
 use crate::math::vec::{V2, V2U32};
-use crate::resource::ResourceTypeHandle;
 use crate::serialize::{Decoder, DecoderError};
 use crate::{
     math::rect::IRect,
     serialize::{Encoder, EncoderError},
 };
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use mini3d_derive::Serialize;
 
+use self::component::{Font, Material, MaterialData, Mesh, MeshData, RenderTransform, Texture};
 use self::event::RendererEvent;
-use self::resource::{Font, FontHandle, Mesh, MeshHandle, Texture, TextureHandle};
+use self::provider::{ProviderMaterialInfo, RendererProviderHandle};
 use self::{color::Color, provider::RendererProvider};
 
 pub mod color;
@@ -19,7 +23,6 @@ pub mod event;
 pub mod graphics;
 pub mod provider;
 pub mod rasterizer;
-pub mod resource;
 
 // 3:2 aspect ratio
 // pub const SCREEN_WIDTH: u32 = 480;
@@ -66,15 +69,12 @@ pub struct RendererFeatures {
 }
 
 #[derive(Default)]
-pub(crate) struct RendererHandles {
-    pub(crate) texture: ResourceTypeHandle,
-    pub(crate) material: ResourceTypeHandle,
-    pub(crate) mesh: ResourceTypeHandle,
-    pub(crate) font: ResourceTypeHandle,
-    pub(crate) graph: ResourceTypeHandle,
-    pub(crate) model: ResourceTypeHandle,
-    pub(crate) transform: ResourceTypeHandle,
-    pub(crate) renderpass: ResourceTypeHandle,
+pub(crate) struct RendererViews {
+    pub(crate) texture: NativeSingleViewMut<Texture>,
+    pub(crate) material: NativeSingleViewMut<Material>,
+    pub(crate) mesh: NativeSingleViewMut<Mesh>,
+    pub(crate) font: NativeSingleViewMut<Font>,
+    pub(crate) transform: NativeSingleViewMut<RenderTransform>,
 }
 
 #[derive(Default)]
@@ -83,7 +83,11 @@ pub struct RendererManager {
     statistics: RendererStatistics,
     features: RendererFeatures,
     clear_color: Color,
-    pub(crate) handles: RendererHandles,
+    textures: Vec<(Entity, RendererProviderHandle)>,
+    meshes: Vec<(Entity, RendererProviderHandle)>,
+    materials: Vec<(Entity, RendererProviderHandle)>,
+    transforms: Vec<(Entity, RendererProviderHandle)>,
+    pub(crate) handles: RendererViews,
 }
 
 impl RendererManager {
@@ -122,11 +126,110 @@ impl RendererManager {
         self.features
     }
 
-    pub(crate) fn on_texture_added_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {}
-    pub(crate) fn on_texture_removed_hook(&mut self, texture: &mut Texture, handle: TextureHandle) {
+    pub(crate) fn add_transform(
+        &mut self,
+        entity: Entity,
+    ) -> Result<RendererProviderHandle, ComponentError> {
+        // Add transform to provider
+        let handle = self
+            .provider
+            .add_transform()
+            .map_err(ComponentError::ProviderError)?;
+        // Register transform
+        self.transforms.push((entity, handle));
+        Ok(handle)
     }
-    pub(crate) fn on_mesh_added_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}
-    pub(crate) fn on_mesh_removed_hook(&mut self, mesh: &mut Mesh, handle: MeshHandle) {}
-    pub(crate) fn on_font_added_hook(&mut self, font: &mut Font, handle: FontHandle) {}
-    pub(crate) fn on_font_removed_hook(&mut self, font: &mut Font, handle: FontHandle) {}
+
+    pub(crate) fn remove_transform(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), ComponentError> {
+        // Remove transform from provider
+        self.provider
+            .remove_transform(handle)
+            .map_err(ComponentError::ProviderError)?;
+        // Unregister transform
+        self.transforms.retain(|(_, h)| *h != handle);
+        Ok(())
+    }
+
+    pub(crate) fn add_texture(
+        &mut self,
+        entity: Entity,
+        data: &Texture,
+    ) -> Result<RendererProviderHandle, ComponentError> {
+        // Add texture to provider
+        let handle = self
+            .provider
+            .add_texture(data)
+            .map_err(ComponentError::ProviderError)?;
+        // Register texture
+        self.textures.push((entity, handle));
+        Ok(handle)
+    }
+
+    pub(crate) fn remove_texure(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), ComponentError> {
+        // Remove texture from provider
+        self.provider
+            .remove_texture(handle)
+            .map_err(ComponentError::ProviderError)?;
+        // Unregister texture
+        self.textures.retain(|(_, h)| *h != handle);
+        Ok(())
+    }
+
+    pub(crate) fn add_mesh(
+        &mut self,
+        entity: Entity,
+        data: &MeshData,
+    ) -> Result<RendererProviderHandle, ComponentError> {
+        // Add mesh to provider
+        let handle = self
+            .provider
+            .add_mesh(data)
+            .map_err(ComponentError::ProviderError)?;
+        // Register mesh
+        self.meshes.push((entity, handle));
+        Ok(handle)
+    }
+
+    pub(crate) fn add_material(
+        &mut self,
+        entity: Entity,
+        data: &MaterialData,
+    ) -> Result<RendererProviderHandle, ComponentError> {
+        // Resolve resources
+        let diffuse = self
+            .textures
+            .iter()
+            .find(|(e, _)| *e == data.tex0)
+            .map(|(_, h)| *h)
+            .ok_or(ComponentError::UnresolvedReference)?;
+        // Add material to provider
+        let handle = self
+            .provider
+            .add_material(ProviderMaterialInfo {
+                diffuse: RendererProviderHandle::null(),
+            })
+            .map_err(ComponentError::ProviderError)?;
+        // Register material
+        self.materials.push((entity, handle));
+        Ok(handle)
+    }
+
+    pub(crate) fn remove_material(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), ComponentError> {
+        // Remove material from provider
+        self.provider
+            .remove_material(handle)
+            .map_err(ComponentError::ProviderError)?;
+        // Unregister material
+        self.materials.retain(|(_, h)| *h != handle);
+        Ok(())
+    }
 }

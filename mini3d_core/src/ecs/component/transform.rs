@@ -3,7 +3,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        api::Context,
+        context::Context,
         entity::Entity,
         error::ResolverError,
         query::Query,

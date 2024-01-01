@@ -3,12 +3,12 @@ use core::ops::{Index, IndexMut, Range};
 use alloc::vec::Vec;
 
 use crate::{
-    ecs::resource::component::ComponentKey,
     slot_map_key,
     utils::slotmap::{Key, SlotMap},
 };
 
 use super::{
+    component::ComponentKey,
     entity::Entity,
     query::{query_archetype_match, QueryTable},
 };

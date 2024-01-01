@@ -1,9 +1,10 @@
 use core::ops::{Index, IndexMut};
 
 use crate::{
-    ecs::resource::component::Component,
     ecs::{
+        component::Component,
         container::{native::single::NativeSingleContainer, Container},
+        context::Context,
         entity::Entity,
         error::ResolverError,
         system::SystemResolver,
@@ -44,23 +45,24 @@ impl<C: Component> NativeSingleViewRef<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.read(component)?;
-        unsafe {
-            self.container = (*resolver
+
+        self.container = unsafe {
+            *resolver
                 .containers
                 .entries
                 .get(key)
                 .unwrap()
                 .container
-                .get())
-            .as_any()
-            .downcast_ref::<NativeSingleContainer<C>>()
-            .unwrap();
+                .get()
         }
+        .as_any()
+        .downcast_ref::<NativeSingleContainer<C>>()
+        .unwrap();
         Ok(())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &C> {
-        unsafe { &*self.container }.iter()
+        self.container.borrow().iter()
     }
 }
 
@@ -130,11 +132,11 @@ impl<C: Component> NativeSingleViewMut<C> {
         unsafe { &mut *self.container }.iter_mut()
     }
 
-    pub fn add(&mut self, entity: Entity, component: C) {
-        unsafe { &mut *self.container }.add(entity, component);
+    pub fn add(&mut self, ctx: &mut Context, entity: Entity, component: C) {
+        unsafe { &mut *self.container }.add(ctx, entity, component);
     }
 
-    pub fn remove(&mut self, entity: Entity) {
+    pub fn remove(&mut self, ctx: &mut Context, entity: Entity) {
         unsafe { &mut *self.container }.remove(entity)
     }
 }

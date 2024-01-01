@@ -2,14 +2,13 @@ use core::cell::UnsafeCell;
 
 use alloc::vec::Vec;
 
-use crate::{
-    ecs::resource::component::ComponentKey,
-    serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize},
-};
+use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 use super::{
     archetype::{ArchetypeKey, ArchetypeTable},
+    component::ComponentKey,
     container::ContainerTable,
+    context::Context,
     query::QueryTable,
     sparse::PagedVector,
 };
@@ -37,11 +36,27 @@ impl Entity {
         Self(0)
     }
 
+    pub fn raw(&self) -> u32 {
+        self.0
+    }
+
     // pub fn resolve(&mut self, resolver: &EntityResolver) {
     //     if let Some(handle) = resolver.map.get(&self.0) {
     //         self.0 = *handle;
     //     }
     // }
+
+    /// Immediatlly effective
+    pub fn create(ctx: &mut Context) -> Entity {
+        let entity = ctx.entities.generate_entity();
+        ctx.entity_created.push(entity);
+        entity
+    }
+
+    /// Effective only at the end of system
+    pub fn destroy(ctx: &mut Context, entity: Entity) {
+        ctx.entity_destroyed.push(entity);
+    }
 }
 
 impl Default for Entity {
@@ -100,7 +115,7 @@ impl EntityTable {
             .components(info.archetype)
             .iter()
             .for_each(|component| {
-                containers.remove(entity, *component);
+                containers.remove_component(entity, *component);
             });
         // Remove the entity from the pool
         let archetype = &mut self.archetypes.get_mut()[info.archetype];

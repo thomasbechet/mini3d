@@ -3,7 +3,6 @@ use core::{cell::UnsafeCell, ops::Range};
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    resource::{ResourceManager, ResourceTypeHandle},
     slot_map_key,
     utils::{
         slotmap::SlotMap,
@@ -13,10 +12,10 @@ use crate::{
 
 use super::{
     archetype::{ArchetypeEntry, ArchetypeKey, ArchetypeTable},
+    component::ComponentKey,
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
-    resource::{ComponentKey, ComponentTypeHandle},
     system::SystemResolver,
 };
 
@@ -43,14 +42,12 @@ impl Query {
         resolver.not.clear();
         QueryBuilder {
             query: &mut self.query,
-            component_type: resolver.component_type,
             all: resolver.all,
             any: resolver.any,
             not: resolver.not,
             entities: resolver.entities,
             queries: resolver.queries,
             containers: resolver.containers,
-            resources: resolver.resources,
         }
     }
 
@@ -199,24 +196,19 @@ impl QueryTable {
 
 pub struct QueryBuilder<'a> {
     pub(crate) query: &'a mut *const QueryEntry,
-    pub(crate) component_type: ResourceTypeHandle,
     pub(crate) all: &'a mut Vec<ComponentKey>,
     pub(crate) any: &'a mut Vec<ComponentKey>,
     pub(crate) not: &'a mut Vec<ComponentKey>,
     pub(crate) entities: &'a mut EntityTable,
     pub(crate) containers: &'a mut ContainerTable,
     pub(crate) queries: &'a mut QueryTable,
-    pub(crate) resources: &'a mut ResourceManager,
 }
 
 impl<'a> QueryBuilder<'a> {
     fn find_component(&mut self, component: UID) -> Result<ComponentKey, ResolverError> {
-        let handle = ComponentTypeHandle(
-            self.resources
-                .find_typed(component, self.component_type)
-                .ok_or(ResolverError::ComponentNotFound)?,
-        );
-        Ok(self.containers.preallocate(handle, self.resources))
+        self.containers
+            .find(component)
+            .ok_or(ResolverError::ComponentNotFound)
     }
 
     pub fn all(mut self, components: &[impl ToUID]) -> Result<Self, ResolverError> {

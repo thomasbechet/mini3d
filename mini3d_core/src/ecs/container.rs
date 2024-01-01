@@ -3,21 +3,24 @@ use core::{any::Any, cell::UnsafeCell};
 use alloc::boxed::Box;
 
 use crate::{
-    ecs::resource::component::{ComponentKey, ComponentType, ComponentTypeHandle},
     math::{
         mat::M4I32F16,
         quat::QI32F16,
         vec::{V2I32, V2I32F16, V3I32, V3I32F16, V4I32, V4I32F16},
     },
     reflection::PropertyId,
-    resource::ResourceManager,
     serialize::{Decoder, DecoderError, Encoder, EncoderError},
-    utils::{slotmap::SlotMap, uid::UID},
+    utils::{
+        slotmap::SlotMap,
+        uid::{ToUID, UID},
+    },
 };
 
 use super::{
+    component::{ComponentKey, ComponentType},
     entity::{Entity, EntityTable},
     query::QueryTable,
+    ECSError,
 };
 
 pub mod native;
@@ -79,7 +82,7 @@ pub(crate) trait ArrayContainer {}
 
 pub(crate) struct ContainerEntry {
     pub(crate) container: UnsafeCell<Box<dyn Container>>,
-    component_type: ComponentTypeHandle,
+    component_type: ComponentType,
 }
 
 #[derive(Default)]
@@ -88,35 +91,31 @@ pub(crate) struct ContainerTable {
 }
 
 impl ContainerTable {
-    pub(crate) fn preallocate(
-        &mut self,
-        component: ComponentTypeHandle,
-        resource: &mut ResourceManager,
-    ) -> ComponentKey {
-        // Find existing container
-        let key = self.entries.iter().find_map(|(key, e)| {
-            if e.component_type == component {
+    pub(crate) fn find(&self, uid: UID) -> Option<ComponentKey> {
+        self.entries.iter().find_map(|(key, e)| {
+            if e.component_type.name.to_uid() == uid {
                 Some(key)
             } else {
                 None
             }
-        });
-        if let Some(key) = key {
-            return key;
-        }
-        // Create new container
-        let ty = resource
-            .native::<ComponentType>(component)
-            .expect("Component type not found while preallocating");
-        let entry = ContainerEntry {
-            container: UnsafeCell::new(ty.create_container()),
-            component_type: component,
-        };
-        resource.increment_ref(component.0).unwrap();
-        self.entries.add(entry)
+        })
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity, component: ComponentKey) {
+    pub(crate) fn add_container(&mut self, ty: ComponentType) -> Result<ComponentKey, ECSError> {
+        if self.find(&ty.name).is_some() {
+            return Err(ECSError::DuplicatedComponentType);
+        }
+        self.entries.insert(ContainerEntry {
+            container: ty.create_container(),
+            component_type: ty,
+        })
+    }
+
+    pub(crate) fn remove_container(&mut self, component: ComponentKey) {
+        self.entries.remove(component);
+    }
+
+    pub(crate) fn remove_component(&mut self, entity: Entity, component: ComponentKey) {
         self.entries
             .get_mut(component)
             .expect("Component container not found while removing entity")

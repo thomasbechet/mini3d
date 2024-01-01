@@ -1,11 +1,6 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
-use syn::{
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    Attribute, Expr, FieldsUnnamed, Generics, Ident, ImplGenerics, Index, Token, Type,
-    TypeGenerics, Variant, Visibility, WhereClause,
-};
+use quote::quote;
+use syn::{Attribute, FieldsUnnamed, Generics, Ident, Visibility};
 use syn::{Data, DataEnum, DataStruct, DeriveInput, Error, Fields, FieldsNamed, Result};
 
 pub(crate) fn derive(input: &DeriveInput) -> Result<TokenStream> {
@@ -52,9 +47,7 @@ fn derive_struct(
     Ok(quote! {
         impl #impl_generics mini3d_core::reflection::ReadProperty for #ident #ty_generics #where_clause {}
         impl #impl_generics mini3d_core::reflection::WriteProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {
-            const PROPERTIES: &'static [mini3d_core::reflection::Property] = &[];
-        }
+        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {}
     })
 }
 
@@ -69,9 +62,7 @@ fn derive_tuple(
     Ok(quote! {
         impl #impl_generics mini3d_core::reflection::ReadProperty for #ident #ty_generics #where_clause {}
         impl #impl_generics mini3d_core::reflection::WriteProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {
-            const PROPERTIES: &'static [mini3d_core::reflection::Property] = &[];
-        }
+        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {}
     })
 }
 
@@ -86,8 +77,6 @@ fn derive_enum(
     Ok(quote! {
         impl #impl_generics mini3d_core::reflection::ReadProperty for #ident #ty_generics #where_clause {}
         impl #impl_generics mini3d_core::reflection::WriteProperty for #ident #ty_generics #where_clause {}
-        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {
-            const PROPERTIES: &'static [mini3d_core::reflection::Property] = &[];
-        }
+        impl #impl_generics mini3d_core::reflection::Reflect for #ident #ty_generics #where_clause {}
     })
 }
