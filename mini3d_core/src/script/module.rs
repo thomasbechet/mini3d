@@ -1,6 +1,9 @@
 use alloc::vec::Vec;
 
-use crate::utils::uid::{ToUID, UID};
+use crate::{
+    ecs::entity::Entity,
+    utils::uid::{ToUID, UID},
+};
 
 use super::{interface::InterfaceId, mir::primitive::PrimitiveType};
 
@@ -9,7 +12,7 @@ pub struct ModuleId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Module {
-    Source(ScriptHandle),
+    Source(Entity),
     Node,
     Interface(InterfaceId),
     Builtin,

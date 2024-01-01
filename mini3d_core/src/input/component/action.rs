@@ -2,7 +2,7 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError},
+        component::{Component, ComponentContext, ComponentError, ComponentStorage},
         context::Context,
         entity::Entity,
     },
@@ -51,6 +51,8 @@ impl InputAction {
 }
 
 impl Component for InputAction {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+
     fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         self.handle = ctx.input.add_action(self.name.as_str(), entity)?;
         Ok(())

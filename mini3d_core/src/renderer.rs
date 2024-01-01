@@ -12,7 +12,9 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use mini3d_derive::Serialize;
 
-use self::component::{Font, Material, MaterialData, Mesh, MeshData, RenderTransform, Texture};
+use self::component::{
+    Font, Material, MaterialData, Mesh, MeshData, RenderTransform, Texture, TextureData,
+};
 use self::event::RendererEvent;
 use self::provider::{ProviderMaterialInfo, RendererProviderHandle};
 use self::{color::Color, provider::RendererProvider};
@@ -134,7 +136,7 @@ impl RendererManager {
         let handle = self
             .provider
             .add_transform()
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Register transform
         self.transforms.push((entity, handle));
         Ok(handle)
@@ -147,7 +149,7 @@ impl RendererManager {
         // Remove transform from provider
         self.provider
             .remove_transform(handle)
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Unregister transform
         self.transforms.retain(|(_, h)| *h != handle);
         Ok(())
@@ -156,13 +158,13 @@ impl RendererManager {
     pub(crate) fn add_texture(
         &mut self,
         entity: Entity,
-        data: &Texture,
+        data: &TextureData,
     ) -> Result<RendererProviderHandle, ComponentError> {
         // Add texture to provider
         let handle = self
             .provider
             .add_texture(data)
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Register texture
         self.textures.push((entity, handle));
         Ok(handle)
@@ -175,7 +177,7 @@ impl RendererManager {
         // Remove texture from provider
         self.provider
             .remove_texture(handle)
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Unregister texture
         self.textures.retain(|(_, h)| *h != handle);
         Ok(())
@@ -190,7 +192,7 @@ impl RendererManager {
         let handle = self
             .provider
             .add_mesh(data)
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Register mesh
         self.meshes.push((entity, handle));
         Ok(handle)
@@ -214,7 +216,7 @@ impl RendererManager {
             .add_material(ProviderMaterialInfo {
                 diffuse: RendererProviderHandle::null(),
             })
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Register material
         self.materials.push((entity, handle));
         Ok(handle)
@@ -227,7 +229,7 @@ impl RendererManager {
         // Remove material from provider
         self.provider
             .remove_material(handle)
-            .map_err(ComponentError::ProviderError)?;
+            .map_err(|_| ComponentError::ProviderError)?;
         // Unregister material
         self.materials.retain(|(_, h)| *h != handle);
         Ok(())

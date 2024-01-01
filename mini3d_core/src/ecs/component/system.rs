@@ -17,7 +17,7 @@ use crate::{
     utils::string::AsciiArray,
 };
 
-use super::Component;
+use super::{Component, ComponentStorage};
 
 pub(crate) trait SystemReflection {
     fn create_instance(&self) -> SystemInstance;
@@ -148,7 +148,9 @@ impl SystemStage {
     }
 }
 
-impl Component for SystemStage {}
+impl Component for SystemStage {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+}
 
 #[derive(Default, Serialize, Reflect)]
 pub struct SystemOrder {}
@@ -193,6 +195,7 @@ impl SystemSet {
 }
 
 impl Component for SystemSet {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
     fn resolve_entities(
         &mut self,
         resolver: &mut super::EntityResolver,

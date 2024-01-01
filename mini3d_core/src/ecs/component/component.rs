@@ -3,7 +3,7 @@ use mini3d_derive::{Error, Reflect, Serialize};
 
 use crate::{
     ecs::{
-        container::{Container, ContainerTable},
+        container::{native::single::NativeSingleContainer, Container, ContainerTable},
         context::Context,
         entity::Entity,
     },
@@ -41,6 +41,7 @@ pub enum ComponentError {
 }
 
 pub trait Component: 'static + Default + Reflect + Serialize {
+    const STORAGE: ComponentStorage;
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
     }
@@ -63,13 +64,16 @@ struct NativeComponentFactory<C: Component>(core::marker::PhantomData<C>);
 
 impl<C: Component> ComponentFactory for NativeComponentFactory<C> {
     fn create_container(&self) -> Box<dyn Container> {
-        Box::new(C::Container::default())
+        match C::STORAGE {
+            ComponentStorage::Single => Box::new(NativeSingleContainer::<C>::with_capacity(128)),
+            _ => unimplemented!(),
+        }
     }
 }
 
 #[derive(Serialize, Reflect, Default)]
 pub(crate) enum ComponentKind {
-    Native(#[serialize(skip)] Box<dyn Component>),
+    Native(#[serialize(skip)] Box<dyn ComponentFactory>),
     Dynamic {
         typedef: Entity,
         storage: ComponentStorage,
@@ -109,15 +113,17 @@ impl ComponentType {
 
     pub fn native<C: Component>(name: &str, enable: bool) -> Self {
         Self {
-            name: AsciiArray::from_str(name),
-            kind: ComponentKind::Native(NativeComponentFactory(core::marker::PhantomData)),
+            name: AsciiArray::from(name),
+            kind: ComponentKind::Native(Box::new(NativeComponentFactory::<C>(
+                core::marker::PhantomData,
+            ))),
             enable_default: enable,
         }
     }
 
     pub fn dynamic(name: &str, storage: ComponentStorage, typedef: Entity, enable: bool) -> Self {
         Self {
-            name: AsciiArray::from_str(name),
+            name: AsciiArray::from(name),
             kind: ComponentKind::Dynamic { typedef, storage },
             enable_default: enable,
         }
@@ -135,4 +141,6 @@ impl ComponentType {
     pub fn disable(ctx: &mut Context, ty: Entity) {}
 }
 
-impl Component for ComponentType {}
+impl Component for ComponentType {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+}

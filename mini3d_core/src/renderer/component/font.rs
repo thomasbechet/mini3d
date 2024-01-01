@@ -1,6 +1,6 @@
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError},
+        component::{Component, ComponentContext, ComponentError, ComponentStorage},
         entity::Entity,
     },
     math::{
@@ -55,11 +55,11 @@ impl Font {
 }
 
 impl Component for Font {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
     fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         self.handle = ctx.renderer.add_font(entity, self)?;
         Ok(())
     }
-
     fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         ctx.renderer.remove_font(self.handle)
     }

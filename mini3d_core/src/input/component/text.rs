@@ -2,7 +2,9 @@ use alloc::string::String;
 use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
-    ecs::component::Component, input::provider::InputProviderHandle, utils::string::AsciiArray,
+    ecs::component::{Component, ComponentStorage},
+    input::provider::InputProviderHandle,
+    utils::string::AsciiArray,
 };
 
 #[derive(Clone, Serialize, Reflect, Default)]
@@ -30,4 +32,6 @@ impl InputText {
     }
 }
 
-impl Component for InputText {}
+impl Component for InputText {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+}

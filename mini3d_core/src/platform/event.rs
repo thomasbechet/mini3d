@@ -1,7 +1,7 @@
 use mini3d_derive::Serialize;
 
 use crate::{
-    renderer::resource::{Font, Material, Mesh, Model, Texture},
+    renderer::component::{MaterialData, MeshData, TextureData},
     script::component::Script,
     utils::string::AsciiArray,
 };
@@ -13,11 +13,11 @@ pub struct AssetImportEntry<T> {
 
 pub enum ImportAssetEvent {
     Font(AssetImportEntry<Font>),
-    Material(AssetImportEntry<Material>),
-    Mesh(AssetImportEntry<Mesh>),
+    Material(AssetImportEntry<MaterialData>),
+    Mesh(AssetImportEntry<MeshData>),
     Model(AssetImportEntry<Model>),
     Script(AssetImportEntry<Script>),
-    Texture(AssetImportEntry<Texture>),
+    Texture(AssetImportEntry<TextureData>),
 }
 
 #[derive(Serialize)]

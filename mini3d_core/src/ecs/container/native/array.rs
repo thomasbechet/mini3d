@@ -6,6 +6,7 @@ use crate::{
     ecs::{
         component::{Component, ComponentKey},
         container::{ArrayContainer, Container},
+        context::Context,
         entity::{Entity, EntityTable},
         query::QueryTable,
         sparse::PagedVector,
@@ -114,7 +115,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
         self.removed.push(entity);
     }
 
-    fn remove(&mut self, entity: Entity) {
+    fn remove(&mut self, ctx: &mut Context, entity: Entity) {
         let index = *self.indices.get(entity.key()).expect("Entity not found");
         let chunk_index = self.entries[index].chunk_index;
         // Swap remove chunk
@@ -137,6 +138,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
 
     fn flush_added_removed(
         &mut self,
+        ctx: &mut Context,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         component: ComponentKey,
@@ -151,7 +153,7 @@ impl<C: Component> Container for NativeArrayContainer<C> {
             // Move entity
             entities.move_removed_entity(queries, entity, component);
             // Remove component
-            self.remove(entity);
+            self.remove(ctx, entity);
         }
     }
 

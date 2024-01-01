@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use mini3d_derive::Error;
 
+use crate::ecs::component::ComponentError;
 use crate::ecs::entity::Entity;
 use crate::ecs::view::native::single::NativeSingleViewMut;
 use crate::serialize::{Decoder, DecoderError};
@@ -10,7 +11,7 @@ use crate::utils::uid::{ToUID, UID};
 
 use self::component::{InputAction, InputAxis, InputAxisRange, InputText};
 use self::event::InputEvent;
-use self::provider::{InputProvider, InputProviderError, InputProviderHandle};
+use self::provider::{InputProvider, InputProviderHandle};
 
 pub mod component;
 pub mod event;
@@ -99,13 +100,16 @@ impl InputManager {
         &mut self,
         name: &str,
         entity: Entity,
-    ) -> Result<InputProviderHandle, InputProviderError> {
+    ) -> Result<InputProviderHandle, ComponentError> {
         let uid = name.to_uid();
-        if self.active_actions.contains(&uid) {
-            return Err(InputProviderError::DuplicatedAction);
+        if self.active_actions.iter().any(|(x, _)| *x == uid) {
+            return Err(ComponentError::DuplicatedEntry);
         }
-        let handle = self.provider.add_action(name, entity.raw())?;
-        self.active_actions.push(uid);
+        let handle = self
+            .provider
+            .add_action(name, entity.raw())
+            .map_err(|_| ComponentError::ProviderError)?;
+        self.active_actions.push((uid, entity));
         Ok(handle)
     }
 
@@ -113,12 +117,14 @@ impl InputManager {
         &mut self,
         name: &str,
         handle: InputProviderHandle,
-    ) -> Result<(), InputProviderError> {
+    ) -> Result<(), ComponentError> {
         let uid = name.to_uid();
-        if !self.active_actions.find(|(x, _)| *x == uid) {
-            return Err(InputProviderError::ActionNotFound);
+        if !self.active_actions.iter().any(|(x, _)| *x == uid) {
+            return Err(ComponentError::UnresolvedReference);
         }
-        self.provider.remove_action(handle)?;
+        self.provider
+            .remove_action(handle)
+            .map_err(|_| ComponentError::ProviderError)?;
         self.active_actions.retain(|&(x, _)| x != uid);
         Ok(())
     }
@@ -128,13 +134,16 @@ impl InputManager {
         name: &str,
         entity: Entity,
         range: &InputAxisRange,
-    ) -> Result<InputProviderHandle, InputProviderError> {
+    ) -> Result<InputProviderHandle, ComponentError> {
         let uid = name.to_uid();
-        if self.active_axis.iter().find(|(x, _)| *x == uid) {
-            return Err(InputProviderError::DuplicatedAxis);
+        if self.active_axis.iter().any(|(x, _)| *x == uid) {
+            return Err(ComponentError::DuplicatedEntry);
         }
-        let handle = self.provider.add_axis(name, range, entity.raw())?;
-        self.active_axis.push(uid);
+        let handle = self
+            .provider
+            .add_axis(name, range, entity.raw())
+            .map_err(|_| ComponentError::ProviderError)?;
+        self.active_axis.push((uid, entity));
         Ok(handle)
     }
 
@@ -142,12 +151,14 @@ impl InputManager {
         &mut self,
         name: &str,
         handle: InputProviderHandle,
-    ) -> Result<(), InputProviderError> {
+    ) -> Result<(), ComponentError> {
         let uid = name.to_uid();
-        if !self.active_axis.contains(&uid) {
-            return Err(InputProviderError::AxisNotFound);
+        if !self.active_axis.iter().any(|(x, _)| *x == uid) {
+            return Err(ComponentError::UnresolvedReference);
         }
-        self.provider.remove_axis(handle)?;
+        self.provider
+            .remove_axis(handle)
+            .map_err(|_| ComponentError::ProviderError)?;
         self.active_axis.retain(|&(x, _)| x != uid);
         Ok(())
     }

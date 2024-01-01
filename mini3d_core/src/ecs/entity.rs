@@ -104,7 +104,12 @@ impl EntityTable {
         entity
     }
 
-    pub(crate) fn remove(&mut self, entity: Entity, containers: &mut ContainerTable) {
+    pub(crate) fn remove(
+        &mut self,
+        ctx: &mut Context,
+        entity: Entity,
+        containers: &mut ContainerTable,
+    ) {
         let info = self.entries.get_mut(entity.key()).unwrap();
         // We can safely destroy the entity
         self.free_entities
@@ -115,7 +120,7 @@ impl EntityTable {
             .components(info.archetype)
             .iter()
             .for_each(|component| {
-                containers.remove_component(entity, *component);
+                containers.remove_component(ctx, entity, *component);
             });
         // Remove the entity from the pool
         let archetype = &mut self.archetypes.get_mut()[info.archetype];

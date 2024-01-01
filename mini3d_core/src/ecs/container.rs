@@ -18,6 +18,7 @@ use crate::{
 
 use super::{
     component::{ComponentKey, ComponentType},
+    context::Context,
     entity::{Entity, EntityTable},
     query::QueryTable,
     ECSError,
@@ -33,9 +34,10 @@ pub(crate) trait Container {
     fn serialize(&self, encoder: &mut dyn Encoder) -> Result<(), EncoderError>;
     fn deserialize(&mut self, decoder: &mut dyn Decoder) -> Result<(), DecoderError>;
     fn mark_removed(&mut self, entity: Entity);
-    fn remove(&mut self, entity: Entity);
+    fn remove(&mut self, ctx: &mut Context, entity: Entity);
     fn flush_added_removed(
         &mut self,
+        ctx: &mut Context,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         id: ComponentKey,
@@ -102,25 +104,30 @@ impl ContainerTable {
     }
 
     pub(crate) fn add_container(&mut self, ty: ComponentType) -> Result<ComponentKey, ECSError> {
-        if self.find(&ty.name).is_some() {
+        if self.find(ty.name.to_uid()).is_some() {
             return Err(ECSError::DuplicatedComponentType);
         }
-        self.entries.insert(ContainerEntry {
-            container: ty.create_container(),
+        Ok(self.entries.add(ContainerEntry {
+            container: UnsafeCell::new(ty.create_container()),
             component_type: ty,
-        })
+        }))
     }
 
     pub(crate) fn remove_container(&mut self, component: ComponentKey) {
         self.entries.remove(component);
     }
 
-    pub(crate) fn remove_component(&mut self, entity: Entity, component: ComponentKey) {
+    pub(crate) fn remove_component(
+        &mut self,
+        ctx: &mut Context,
+        entity: Entity,
+        component: ComponentKey,
+    ) {
         self.entries
             .get_mut(component)
             .expect("Component container not found while removing entity")
             .container
             .get_mut()
-            .remove(entity);
+            .remove(ctx, entity);
     }
 }

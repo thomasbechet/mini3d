@@ -3,6 +3,7 @@ use mini3d_derive::{fixed, Error};
 
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
+use crate::ecs::component::ComponentType;
 use crate::ecs::context::time::TimeAPI;
 use crate::ecs::context::Context;
 use crate::ecs::scheduler::Invocation;
@@ -135,6 +136,8 @@ impl Simulation {
                     .unwrap()
             };
         }
+
+        self.ecs.containers.add_container(ComponentType::native(<$component>::NAME, true))
 
         define_component!(ecs::component::FreeFly, ComponentStorage::Single);
         define_component!(ecs::component::Rotator, ComponentStorage::Single);

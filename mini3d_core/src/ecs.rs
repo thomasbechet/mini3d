@@ -36,6 +36,8 @@ pub mod view;
 pub enum ECSError {
     #[error("progress")]
     Progress,
+    #[error("duplicated component type")]
+    DuplicatedComponentType,
 }
 
 pub enum ECSCommand {

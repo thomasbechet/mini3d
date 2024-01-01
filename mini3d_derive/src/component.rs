@@ -119,6 +119,21 @@ impl ComponentMeta {
         }
     }
 
+    fn storage_quote(&self) -> TokenStream {
+        match self.storage {
+            ComponentStorage::Single => {
+                quote! { mini3d_core::ecs::component::ComponentStorage::Single }
+            }
+            ComponentStorage::Array(size) => {
+                quote! { mini3d_core::ecs::component::ComponentStorage::Array(#size) }
+            }
+            ComponentStorage::List => {
+                quote! { mini3d_core::ecs::component::ComponentStorage::List }
+            }
+            ComponentStorage::Tag => quote! { mini3d_core::ecs::component::ComponentStorage::Tag },
+        }
+    }
+
     fn merge(&mut self, attribute: ComponentAttribute) -> Result<()> {
         match attribute {
             ComponentAttribute::Name(name) => {
@@ -192,10 +207,13 @@ fn derive_struct(
         }
     }
 
+    let storage = meta.storage_quote();
     let name = meta.name;
 
     let q = quote! {
-        impl mini3d_core::ecs::component::Component for #ident #ty_generics #where_clause {}
+        impl mini3d_core::ecs::component::Component for #ident #ty_generics #where_clause {
+            const STORAGE: mini3d_core::ecs::component::ComponentStorage = #storage;
+        }
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #name;
@@ -220,10 +238,13 @@ pub(crate) fn derive_tuple(
         }
     }
 
+    let storage = meta.storage_quote();
     let name = meta.name;
 
     let q = quote! {
-        impl mini3d_core::ecs::component::Component for #ident #ty_generics #where_clause {}
+        impl mini3d_core::ecs::component::Component for #ident #ty_generics #where_clause {
+            const STORAGE: mini3d_core::ecs::component::ComponentStorage = #storage;
+        }
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #name;
@@ -248,11 +269,13 @@ fn derive_enum(
         }
     }
 
+    let storage = meta.storage_quote();
     let name = meta.name;
-    // let script_name = meta.script_name;
 
     let q = quote! {
-        impl mini3d_core::ecs::component::Component for #ident #ty_generics #where_clause {}
+        impl mini3d_core::ecs::component::Component for #ident #ty_generics #where_clause {
+            const STORAGE: mini3d_core::ecs::component::ComponentStorage = #storage;
+        }
 
         impl #ident #ty_generics #where_clause {
             pub const NAME: &'static str = #name;

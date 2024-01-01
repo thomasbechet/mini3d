@@ -80,10 +80,13 @@ impl<C: Component> NativeSingleContainer<C> {
             }
         }
         // Hook added
-        component.on_added(ComponentContext {
-            input: ctx.input,
-            renderer: ctx.renderer,
-        });
+        component.on_added(
+            entity,
+            ComponentContext {
+                input: ctx.input,
+                renderer: ctx.renderer,
+            },
+        );
         // Append component
         self.data.push((component, entity));
         // Update indices
@@ -119,10 +122,13 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         if let Some(index) = self.indices.get(entity.key()).copied() {
             if self.data[index].1 == entity {
                 // Hook remove
-                self.data[index].0.on_removed(ComponentContext {
-                    input: ctx.input,
-                    renderer: ctx.renderer,
-                });
+                self.data[index].0.on_removed(
+                    entity,
+                    ComponentContext {
+                        input: ctx.input,
+                        renderer: ctx.renderer,
+                    },
+                );
                 // Swap remove component
                 self.data.swap_remove(index);
                 // Remap swapped entity
@@ -136,6 +142,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
 
     fn flush_added_removed(
         &mut self,
+        ctx: &mut Context,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         component: ComponentKey,
@@ -150,7 +157,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
             // Move entity
             entities.move_removed_entity(queries, entity, component);
             // Remove component
-            self.remove(entity);
+            self.remove(ctx, entity);
         }
     }
 

@@ -3,10 +3,7 @@ use mini3d_derive::Error;
 
 use crate::define_provider_handle;
 
-use super::{
-    component::{action::InputAction, axis::InputAxis, InputAxisRange},
-    event::InputEvent,
-};
+use super::{component::InputAxisRange, event::InputEvent};
 
 #[derive(Debug, Error)]
 pub enum InputProviderError {
@@ -52,7 +49,6 @@ impl InputProvider for PassiveInputProvider {
     fn add_action(
         &mut self,
         _name: &str,
-        _action: &InputAction,
         _id: u32,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
@@ -60,7 +56,7 @@ impl InputProvider for PassiveInputProvider {
     fn add_axis(
         &mut self,
         _name: &str,
-        _axis: &InputAxis,
+        _range: &InputAxisRange,
         _id: u32,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())

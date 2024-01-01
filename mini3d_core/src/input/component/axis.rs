@@ -2,7 +2,7 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError},
+        component::{Component, ComponentContext, ComponentError, ComponentStorage},
         entity::Entity,
     },
     input::provider::InputProviderHandle,
@@ -70,6 +70,8 @@ impl InputAxis {
 }
 
 impl Component for InputAxis {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+
     fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         self.handle = ctx
             .input

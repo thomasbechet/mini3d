@@ -45,7 +45,6 @@ impl<C: Component> NativeSingleViewRef<C> {
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.read(component)?;
-
         self.container = unsafe {
             *resolver
                 .containers
@@ -62,7 +61,7 @@ impl<C: Component> NativeSingleViewRef<C> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &C> {
-        self.container.borrow().iter()
+        unsafe { &*self.container }.iter()
     }
 }
 
@@ -137,7 +136,7 @@ impl<C: Component> NativeSingleViewMut<C> {
     }
 
     pub fn remove(&mut self, ctx: &mut Context, entity: Entity) {
-        unsafe { &mut *self.container }.remove(entity)
+        unsafe { &mut *self.container }.remove(ctx, entity)
     }
 }
 

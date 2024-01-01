@@ -11,7 +11,7 @@ use crate::{
     },
     input::component::{InputAction, InputAxis},
     math::{
-        fixed::{I32F16, U32F16},
+        fixed::{FixedPoint, TrigFixedPoint, I32F16, U32F16},
         quat::Q,
         vec::V3,
     },

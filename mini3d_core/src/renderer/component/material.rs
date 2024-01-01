@@ -2,13 +2,17 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError, EntityResolver},
+        component::{
+            Component, ComponentContext, ComponentError, ComponentStorage, EntityResolver,
+        },
         context::Context,
         entity::Entity,
     },
     math::vec::V2I32F16,
     renderer::provider::RendererProviderHandle,
 };
+
+use super::Texture;
 
 #[derive(Default, Reflect, Serialize, Clone)]
 pub(crate) enum MaterialType {
@@ -38,12 +42,13 @@ pub struct Material {
 impl Material {
     pub const NAME: &'static str = "material";
 
-    pub fn set_texture0(&mut self, ctx: &mut Context, texture: Entity) {
+    pub fn set_texture0(&mut self, ctx: &mut Context, texture: &Texture) {
         self.tex0 = texture;
     }
 }
 
 impl Component for Material {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
     }
