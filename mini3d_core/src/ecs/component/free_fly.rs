@@ -68,6 +68,17 @@ impl FreeFlySystem {
     pub const NAME: &'static str = "SYS_FreeFly";
 }
 
+fn freefly_system(
+    ctx: &Context,
+    free_fly: &mut NativeSingleView<FreeFly>,
+    transform: &mut NativeSingleView<Transform>,
+    input_action: &mut NativeSingleView<InputAction>,
+    input_axis: &mut NativeSingleView<InputAxis>,
+    query: &Query,
+) -> Result<(), ResolverError> {
+    Ok(())
+}
+
 impl ParallelSystem for FreeFlySystem {
     fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         self.free_fly.resolve(resolver, FreeFly::NAME)?;
@@ -80,7 +91,7 @@ impl ParallelSystem for FreeFlySystem {
         Ok(())
     }
 
-    fn run(mut self, ctx: &Context) {
+    fn run(&mut self, ctx: &Context) {
         for e in self.query.iter() {
             let transform = &mut self.transform[e];
             let free_fly = &mut self.free_fly[e];

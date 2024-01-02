@@ -7,7 +7,7 @@ use crate::{
     utils::slotmap::{Key, SlotMap},
 };
 
-use super::system::SystemTable;
+use super::{component::SystemStage, system::SystemTable};
 
 pub enum Invocation {
     Immediate,
@@ -130,11 +130,7 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn invoke_frame_stages(
-        &mut self,
-        delta_time: U32F16,
-        update_stage: SystemStageHandle,
-    ) {
+    pub(crate) fn invoke_frame_stages(&mut self, delta_time: U32F16, update_stage: SystemStageKey) {
         // Collect previous frame stages
         self.frame_stages.clear();
         for stage in self.next_frame_stages.drain(..) {
@@ -176,7 +172,7 @@ impl Scheduler {
         Some(node)
     }
 
-    pub(crate) fn invoke(&mut self, stage: SystemStageHandle, invocation: Invocation) {
+    pub(crate) fn invoke(&mut self, stage: SystemStageKey, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);

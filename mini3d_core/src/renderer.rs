@@ -155,6 +155,21 @@ impl RendererManager {
         Ok(())
     }
 
+    pub(crate) fn add_font(
+        &mut self,
+        entity: Entity,
+        data: &Font,
+    ) -> Result<RendererProviderHandle, ComponentError> {
+        // Add font to provider
+        let handle = self
+            .provider
+            .add_font(data)
+            .map_err(|_| ComponentError::ProviderError)?;
+        // Register font
+        self.fonts.push((entity, handle));
+        Ok(handle)
+    }
+
     pub(crate) fn add_texture(
         &mut self,
         entity: Entity,

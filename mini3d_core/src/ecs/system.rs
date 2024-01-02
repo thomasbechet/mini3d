@@ -17,14 +17,14 @@ pub trait ExclusiveSystem: 'static + Default + Clone {
     fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         Ok(())
     }
-    fn run(self, _ctx: &mut Context) {}
+    fn run(&mut self, _ctx: &mut Context) {}
 }
 
 pub trait ParallelSystem: 'static + Default + Clone {
     fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
         Ok(())
     }
-    fn run(self, _ctx: &Context) {}
+    fn run(&mut self, _ctx: &Context) {}
 }
 
 pub struct SystemResolver<'a> {
@@ -46,22 +46,22 @@ impl<'a> SystemResolver<'a> {
     }
 
     pub(crate) fn read(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
-        let id = self.find(component)?;
-        if !self.reads.contains(&id) && !self.writes.contains(&id) {
-            self.reads.push(id);
+        let key = self.find(component)?;
+        if !self.reads.contains(&key) && !self.writes.contains(&key) {
+            self.reads.push(key);
         }
-        Ok(id)
+        Ok(key)
     }
 
     pub(crate) fn write(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
-        let id = self.find(component)?;
-        if self.reads.contains(&id) {
-            self.reads.retain(|&x| x != id);
+        let key = self.find(component)?;
+        if self.reads.contains(&key) {
+            self.reads.retain(|&x| x != key);
         }
-        if !self.writes.contains(&id) {
-            self.writes.push(id);
+        if !self.writes.contains(&key) {
+            self.writes.push(key);
         }
-        Ok(id)
+        Ok(key)
     }
 }
 

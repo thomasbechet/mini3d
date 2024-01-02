@@ -43,7 +43,7 @@ impl ParallelSystem for RotatorSystem {
         Ok(())
     }
 
-    fn run(mut self, ctx: &Context) {
+    fn run(&mut self, ctx: &Context) {
         for e in self.query.iter() {
             self.transform[e].rotation *= Q::from_axis_angle(
                 V3::Y,

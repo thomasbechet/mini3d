@@ -6,18 +6,19 @@ use crate::{
         context::Context,
         entity::Entity,
         error::ResolverError,
-        scheduler::Invocation,
+        scheduler::{Invocation, SystemStageKey},
         system::{
             AnyNativeExclusiveSystemInstance, AnyNativeParallelSystemInstance, ExclusiveSystem,
             ExclusiveSystemInstance, ParallelSystem, ParallelSystemInstance, SystemInstance,
             SystemResolver,
         },
+        view::native::single::NativeSingleViewMut,
     },
     math::fixed::U32F16,
-    utils::string::AsciiArray,
+    utils::{slotmap::Key, string::AsciiArray},
 };
 
-use super::{Component, ComponentStorage};
+use super::{Component, ComponentContext, ComponentError, ComponentStorage, EntityResolver};
 
 pub(crate) trait SystemReflection {
     fn create_instance(&self) -> SystemInstance;
@@ -60,7 +61,7 @@ impl<S: ParallelSystem> SystemReflection for NativeParallelSystemReflection<S> {
             fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
                 self.system.setup(resolver)
             }
-            fn run(&self, ctx: &Context) {
+            fn run(&mut self, ctx: &Context) {
                 S::run(self.system.clone(), ctx);
             }
         }
@@ -119,17 +120,17 @@ impl System {
             kind: SystemKind::Script,
         }
     }
-
-    pub fn enable(ctx: &mut Context, set: Entity) {}
-
-    pub fn disable(ctx: &mut Context, set: Entity) {}
 }
 
-impl Component for System {}
+impl Component for System {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+}
 
 #[derive(Default, Clone, Reflect, Serialize)]
 pub struct SystemStage {
     pub(crate) periodic: Option<U32F16>,
+    #[serialize(skip)]
+    pub(crate) key: SystemStageKey,
 }
 
 impl SystemStage {
@@ -140,16 +141,19 @@ impl SystemStage {
     pub fn periodic(periodic: U32F16) -> Self {
         Self {
             periodic: Some(periodic),
+            key: SystemStageKey::null(),
         }
     }
 
-    pub fn invoke(ctx: &mut Context, stage: Entity, invocation: Invocation) {
-        ctx.scheduler.invoke(stage, invocation)
+    pub fn invoke(&self, ctx: &mut Context, invocation: Invocation) {
+        ctx.scheduler.invoke(self.key, invocation)
     }
 }
 
 impl Component for SystemStage {
     const STORAGE: ComponentStorage = ComponentStorage::Single;
+    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {}
+    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {}
 }
 
 #[derive(Default, Serialize, Reflect)]
@@ -164,22 +168,26 @@ pub struct SystemSetEntry {
 }
 
 #[derive(Default, Reflect, Serialize)]
-pub struct SystemSet(pub(crate) Vec<SystemSetEntry>);
+pub struct SystemSet {
+    pub(crate) entries: Vec<SystemSetEntry>,
+    #[serialize(skip)]
+    pub(crate) key: SystemSetKey,
+}
 
 impl SystemSet {
     pub const NAME: &'static str = "system_set";
 
     pub fn new() -> Self {
-        Self(Vec::new())
+        Default::default()
     }
 
     pub fn with(mut self, name: &str, system: Entity, stage: Entity, order: SystemOrder) -> Self {
-        if let Some(entry) = self.0.iter_mut().find(|e| e.name.as_str() == name) {
+        if let Some(entry) = self.entries.iter_mut().find(|e| e.name.as_str() == name) {
             entry.system = system;
             entry.stage = stage;
             entry.order = order;
         } else {
-            self.0.push(SystemSetEntry {
+            self.entries.push(SystemSetEntry {
                 name: AsciiArray::from(name),
                 system,
                 stage,
@@ -196,24 +204,62 @@ impl SystemSet {
 
 impl Component for SystemSet {
     const STORAGE: ComponentStorage = ComponentStorage::Single;
-    fn resolve_entities(
-        &mut self,
-        resolver: &mut super::EntityResolver,
-    ) -> Result<(), super::ComponentError> {
+    fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_added(
-        &mut self,
-        entity: Entity,
-        ctx: super::ComponentContext,
-    ) -> Result<(), super::ComponentError> {
+    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_removed(
-        &mut self,
-        entity: Entity,
-        ctx: super::ComponentContext,
-    ) -> Result<(), super::ComponentError> {
+    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         Ok(())
     }
 }
+
+trait SystemParam {}
+
+impl<C: Component> SystemParam for NativeSingleViewMut<C> {}
+
+trait MySystem {
+    fn run(&mut self, ctx: &mut Context);
+}
+
+trait IntoSystem<Params> {
+    type System: MySystem;
+    fn into_system(self) -> Self::System;
+}
+
+struct FunctionSystem<F, Params: SystemParam> {
+    system: F,
+    _phantom: core::marker::PhantomData<Params>,
+}
+
+impl<F, Params: SystemParam + 'static> IntoSystem<Params> for F
+where
+    F: SystemParamFunction<Params> + 'static,
+{
+    type System = FunctionSystem<F, Params>;
+    fn into_system(self) -> Self::System {
+        FunctionSystem {
+            system: self,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+
+trait SystemParamFunction<Params: SystemParam>: 'static {
+    fn run(&mut self, ctx: &mut Context);
+}
+
+impl<F, Params: SystemParam> MySystem for FunctionSystem<F, Params>
+where
+    F: SystemParamFunction<Params> + 'static,
+{
+    fn run(&mut self, ctx: &mut Context) {
+        SystemParamFunction::run(&mut self.system, ctx)
+    }
+}
+
+impl SystemParam for () {}
+impl<A: SystemParam> SystemParam for (A,) {}
+impl<A: SystemParam, B: SystemParam> SystemParam for (A, B) {}
+impl<A: SystemParam, B: SystemParam, C: SystemParam> SystemParam for (A, B, C) {}
