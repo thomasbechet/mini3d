@@ -1,33 +1,25 @@
 use alloc::{boxed::Box, vec::Vec};
 
 use crate::{
-    script::component::Program,
+    slot_map_key,
     utils::{
-        string::AsciiArray,
+        slotmap::SlotMap,
         uid::{ToUID, UID},
     },
 };
 
 use super::{
-    component::ComponentKey, container::ContainerTable, context::Context, entity::EntityTable,
-    error::ResolverError, query::QueryTable,
+    component::{ComponentError, ComponentKey, NativeExclusiveSystem, NativeParallelSystem},
+    container::ContainerTable,
+    entity::{Entity, EntityTable},
+    error::ResolverError,
+    query::QueryTable,
+    scheduler::SystemStageKey,
 };
 
-pub trait ExclusiveSystem: 'static + Default + Clone {
-    fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-        Ok(())
-    }
-    fn run(&mut self, _ctx: &mut Context) {}
-}
+slot_map_key!(SystemKey);
 
-pub trait ParallelSystem: 'static + Default + Clone {
-    fn setup(&mut self, _resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-        Ok(())
-    }
-    fn run(&mut self, _ctx: &Context) {}
-}
-
-pub struct SystemResolver<'a> {
+pub struct Resolver<'a> {
     pub(crate) reads: Vec<ComponentKey>,
     pub(crate) writes: &'a mut Vec<ComponentKey>,
     pub(crate) all: &'a mut Vec<ComponentKey>,
@@ -38,7 +30,7 @@ pub struct SystemResolver<'a> {
     pub(crate) containers: &'a mut ContainerTable,
 }
 
-impl<'a> SystemResolver<'a> {
+impl<'a> Resolver<'a> {
     fn find(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
         self.containers
             .find(component)
@@ -65,79 +57,25 @@ impl<'a> SystemResolver<'a> {
     }
 }
 
-pub(crate) trait AnyNativeExclusiveSystemInstance {
-    fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError>;
-    fn run(&self, ctx: &mut Context);
-}
-
-pub(crate) trait AnyNativeParallelSystemInstance {
-    fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError>;
-    fn run(&self, ctx: &Context);
-}
-
-pub(crate) enum ExclusiveSystemInstance {
-    Native(Box<dyn AnyNativeExclusiveSystemInstance>),
-    Program(Program),
-}
-
-impl ExclusiveSystemInstance {
-    pub(crate) fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-        match self {
-            Self::Native(instance) => instance.resolve(resolver),
-            Self::Program(_) => Ok(()),
-        }
-    }
-
-    pub(crate) fn run(&self, ctx: &mut Context) {
-        match self {
-            Self::Native(instance) => instance.run(ctx),
-            Self::Program(instance) => {}
-        }
-    }
-}
-
-pub(crate) enum ParallelSystemInstance {
-    Native(Box<dyn AnyNativeParallelSystemInstance>),
-    Program(Program),
-}
-
-impl ParallelSystemInstance {
-    pub(crate) fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-        match self {
-            Self::Native(instance) => instance.resolve(resolver),
-            Self::Program(_) => Ok(()),
-        }
-    }
-
-    pub(crate) fn run(&self, ctx: &Context) {
-        match self {
-            Self::Native(instance) => instance.run(ctx),
-            Self::Program(instance) => {}
-        }
-    }
-}
-
 pub(crate) enum SystemInstance {
-    Exclusive(ExclusiveSystemInstance),
-    Parallel(ParallelSystemInstance),
+    NativeExclusive(Box<dyn NativeExclusiveSystem>),
+    NativeParallel(Box<dyn NativeParallelSystem>),
+    Script,
 }
 
-pub(crate) struct SystemInstanceEntry {
-    pub(crate) name: AsciiArray<32>,
-    pub(crate) set: SystemSetKey,
-    pub(crate) stage: SystemStageKey,
+pub(crate) struct CompiledSystemEntry {
     pub(crate) instance: SystemInstance,
-    pub(crate) writes: Vec<ComponentKey>,
+    pub(crate) entity: Entity,
 }
 
-impl SystemInstanceEntry {
+impl CompiledSystemEntry {
     pub(crate) fn setup(
         &mut self,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
     ) -> Result<(), ResolverError> {
-        let mut resolver = SystemResolver {
+        let mut resolver = Resolver {
             reads: Vec::new(),
             writes: &mut self.writes,
             all: &mut Default::default(),
@@ -161,18 +99,24 @@ impl SystemInstanceEntry {
 
 #[derive(Default)]
 pub(crate) struct SystemTable {
-    pub(crate) instances: Vec<SystemInstanceEntry>,
+    pub(crate) systems: SlotMap<SystemKey, CompiledSystemEntry>,
 }
 
 impl SystemTable {
-    pub(crate) fn find_system_set(&self, uid: UID) -> Option<SystemSetKey> {
-        self.sets.iter().find_map(|(key, e)| {
-            if e.name.to_uid() == uid {
-                Some(key)
-            } else {
-                None
-            }
-        })
+    pub(crate) fn add_system(
+        &mut self,
+        name: &str,
+        entity: Entity,
+    ) -> Result<SystemKey, ComponentError> {
+        let uid = name.to_uid();
+        if self.systems.iter().any(|(x, _)| *x == uid) {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        Ok(SystemKey::null())
+    }
+
+    pub(crate) fn remove_system(&mut self, key: SystemKey) -> Result<(), ComponentError> {
+        unimplemented!()
     }
 
     pub(crate) fn insert_system_set(
@@ -183,7 +127,7 @@ impl SystemTable {
         containers: &mut ContainerTable,
     ) -> Result<(), ResolverError> {
         // Check already existing system set
-        if self.instances.iter().any(|instance| instance.set == set) {
+        if self.systems.iter().any(|instance| instance.set == set) {
             return Ok(());
         }
         // Acquire resource
@@ -195,8 +139,7 @@ impl SystemTable {
             match &system.kind {
                 SystemKind::Native(reflection) => {
                     let instance = reflection.create_instance();
-                    self.instances.push(SystemInstanceEntry {
-                        set,
+                    self.systems.push(CompiledSystemEntry {
                         system: entry.system,
                         stage: entry.stage,
                         instance,
@@ -210,13 +153,13 @@ impl SystemTable {
         }
         // Setup instances
         let component_type = resource.find_type(ComponentType::NAME).unwrap();
-        for entry in self.instances.iter_mut() {
+        for entry in self.systems.iter_mut() {
             entry.setup(entities, queries, containers, resource, component_type)?;
         }
         Ok(())
     }
 
     pub(crate) fn remove_system_set(&mut self, set: SystemSetHandle) {
-        self.instances.retain(|instance| instance.set != set);
+        self.systems.retain(|instance| instance.set != set);
     }
 }

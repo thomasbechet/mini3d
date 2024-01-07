@@ -16,7 +16,7 @@ use super::{
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
-    system::SystemResolver,
+    system::Resolver,
 };
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -35,7 +35,7 @@ impl Default for Query {
 }
 
 impl Query {
-    pub fn resolve<'a>(&'a mut self, resolver: &'a mut SystemResolver) -> QueryBuilder<'a> {
+    pub fn resolve<'a>(&'a mut self, resolver: &'a mut Resolver) -> QueryBuilder<'a> {
         self.archetypes = resolver.entities.archetypes.get();
         resolver.all.clear();
         resolver.any.clear();

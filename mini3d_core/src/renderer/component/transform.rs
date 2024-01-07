@@ -2,7 +2,7 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError},
+        component::{Component, ComponentContext, ComponentError, ComponentStorage},
         context::Context,
         entity::Entity,
     },
@@ -28,6 +28,8 @@ impl RenderTransform {
 }
 
 impl Component for RenderTransform {
+    const STORAGE: ComponentStorage = ComponentStorage::List;
+
     fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
         self.handle = ctx.renderer.add_transform(entity)?;
         Ok(())

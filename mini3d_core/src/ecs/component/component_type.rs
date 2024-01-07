@@ -109,11 +109,11 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    pub const NAME: &'static str = "RTY_ComponentType";
+    pub const NAME: &'static str = "component_type";
 
-    pub fn native<C: Component>(name: &str, enable: bool) -> Self {
+    pub fn native<C: Component>(enable: bool) -> Self {
         Self {
-            name: AsciiArray::from(name),
+            name: AsciiArray::from(C::NAME),
             kind: ComponentKind::Native(Box::new(NativeComponentFactory::<C>(
                 core::marker::PhantomData,
             ))),

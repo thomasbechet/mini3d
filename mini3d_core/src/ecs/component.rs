@@ -1,4 +1,4 @@
-pub mod component;
+pub mod component_type;
 pub mod free_fly;
 pub mod hierarchy;
 pub mod local_to_world;
@@ -6,13 +6,15 @@ pub mod prefab;
 pub mod system;
 // pub mod profiler;
 pub mod rotator;
+pub mod system_stage;
 pub mod transform;
 
-pub use component::*;
+pub use component_type::*;
 pub use free_fly::*;
 pub use hierarchy::*;
 pub use local_to_world::*;
 pub use system::*;
 // pub use profiler::*;
 pub use rotator::*;
+pub use system_stage::*;
 pub use transform::*;

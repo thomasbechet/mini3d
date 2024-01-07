@@ -7,7 +7,7 @@ use crate::{
         context::Context,
         entity::Entity,
         error::ResolverError,
-        system::SystemResolver,
+        system::Resolver,
     },
     utils::uid::ToUID,
 };
@@ -41,7 +41,7 @@ impl<C: Component> Clone for NativeSingleViewRef<C> {
 impl<C: Component> NativeSingleViewRef<C> {
     pub fn resolve(
         &mut self,
-        resolver: &mut SystemResolver,
+        resolver: &mut Resolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.read(component)?;
@@ -104,7 +104,7 @@ impl<C: Component> Clone for NativeSingleViewMut<C> {
 impl<C: Component> NativeSingleViewMut<C> {
     pub fn resolve(
         &mut self,
-        resolver: &mut SystemResolver,
+        resolver: &mut Resolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.write(component)?;

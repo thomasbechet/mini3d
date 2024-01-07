@@ -3,9 +3,7 @@ use mini3d_derive::{Component, Reflect, Serialize};
 use crate::{
     ecs::{
         context::{Context, Time},
-        error::ResolverError,
         query::Query,
-        system::{ParallelSystem, SystemResolver},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     math::{
@@ -15,40 +13,33 @@ use crate::{
     },
 };
 
-use super::transform::Transform;
+use super::{transform::Transform, SystemConfig, SystemParam};
 
 #[derive(Default, Component, Serialize, Reflect, Clone)]
 pub struct Rotator {
     pub speed: I32F16,
 }
 
-#[derive(Default, Clone)]
-pub struct RotatorSystem {
-    transform: NativeSingleViewMut<Transform>,
-    rotator: NativeSingleViewRef<Rotator>,
+pub const ROTATOR_SYSTEM_CONFIG: SystemConfig = SystemConfig::new(&[
+    SystemParam::ViewMut(Transform::NAME),
+    SystemParam::ViewRef(Rotator::NAME),
+    SystemParam::Query {
+        all: &[Transform::NAME, Rotator::NAME],
+        any: &[],
+        not: &[],
+    },
+]);
+
+fn rotator_system(
+    ctx: &Context,
+    mut v_transform: NativeSingleViewMut<Transform>,
+    v_rotator: NativeSingleViewRef<Rotator>,
     query: Query,
-}
-
-impl RotatorSystem {
-    pub const NAME: &'static str = "SYS_Rotator";
-}
-
-impl ParallelSystem for RotatorSystem {
-    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-        self.transform.resolve(resolver, Transform::NAME)?;
-        self.rotator.resolve(resolver, Rotator::NAME)?;
-        self.query
-            .resolve(resolver)
-            .all(&[Transform::NAME, Rotator::NAME])?;
-        Ok(())
-    }
-
-    fn run(&mut self, ctx: &Context) {
-        for e in self.query.iter() {
-            self.transform[e].rotation *= Q::from_axis_angle(
-                V3::Y,
-                I32F16::cast(Time::delta(ctx)) * self.rotator[e].speed.to_radians(),
-            );
-        }
+) {
+    for e in query.iter() {
+        v_transform[e].rotation *= Q::from_axis_angle(
+            V3::Y,
+            I32F16::cast(Time::delta(ctx)) * v_rotator[e].speed.to_radians(),
+        );
     }
 }

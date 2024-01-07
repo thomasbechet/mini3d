@@ -4,9 +4,7 @@ use crate::{
     ecs::{
         context::{Context, Time},
         entity::Entity,
-        error::ResolverError,
         query::Query,
-        system::{ParallelSystem, SystemResolver},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     input::component::{InputAction, InputAxis},
@@ -17,7 +15,7 @@ use crate::{
     },
 };
 
-use super::transform::Transform;
+use super::{transform::Transform, SystemConfig, SystemParam};
 
 #[derive(Default, Component, Reflect, Clone, Serialize)]
 #[component(storage = "single")]
@@ -55,136 +53,118 @@ impl FreeFly {
     pub const ZOOM_SPEED: U32F16 = U32F16::from_int(10);
 }
 
-#[derive(Default, Clone)]
-pub struct FreeFlySystem {
-    free_fly: NativeSingleViewMut<FreeFly>,
-    transform: NativeSingleViewMut<Transform>,
-    input_action: NativeSingleViewRef<InputAction>,
-    input_axis: NativeSingleViewRef<InputAxis>,
-    query: Query,
-}
-
-impl FreeFlySystem {
-    pub const NAME: &'static str = "SYS_FreeFly";
-}
+pub const FREE_FLY_SYSTEM_CONFIG: SystemConfig = SystemConfig::new(&[
+    SystemParam::ViewMut(FreeFly::NAME),
+    SystemParam::ViewMut(Transform::NAME),
+    SystemParam::ViewRef(InputAction::NAME),
+    SystemParam::ViewRef(InputAxis::NAME),
+    SystemParam::Query {
+        all: &[FreeFly::NAME, Transform::NAME],
+        any: &[],
+        not: &[],
+    },
+]);
 
 fn freefly_system(
     ctx: &Context,
-    free_fly: &mut NativeSingleView<FreeFly>,
-    transform: &mut NativeSingleView<Transform>,
-    input_action: &mut NativeSingleView<InputAction>,
-    input_axis: &mut NativeSingleView<InputAxis>,
-    query: &Query,
-) -> Result<(), ResolverError> {
-    Ok(())
-}
+    mut v_free_fly: NativeSingleViewMut<FreeFly>,
+    mut v_transform: NativeSingleViewMut<Transform>,
+    v_input_action: NativeSingleViewRef<InputAction>,
+    v_input_axis: NativeSingleViewRef<InputAxis>,
+    query: Query,
+) {
+    for e in query.iter() {
+        let transform = &mut v_transform[e];
+        let free_fly = &mut v_free_fly[e];
 
-impl ParallelSystem for FreeFlySystem {
-    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
-        self.free_fly.resolve(resolver, FreeFly::NAME)?;
-        self.transform.resolve(resolver, Transform::NAME)?;
-        self.input_action.resolve(resolver, InputAction::NAME)?;
-        self.input_axis.resolve(resolver, InputAction::NAME)?;
-        self.query
-            .resolve(resolver)
-            .all(&[FreeFly::NAME, Transform::NAME])?;
-        Ok(())
-    }
+        // Check active
+        if !free_fly.active {
+            continue;
+        }
 
-    fn run(&mut self, ctx: &Context) {
-        for e in self.query.iter() {
-            let transform = &mut self.transform[e];
-            let free_fly = &mut self.free_fly[e];
+        // Update view mode
+        if v_input_action[free_fly.switch_mode].is_just_pressed() {
+            free_fly.free_mode = !free_fly.free_mode;
+        }
 
-            // Check active
-            if !free_fly.active {
-                continue;
+        // Compute camera translation
+        let mut direction = V3::ZERO;
+        direction += transform.forward() * v_input_axis[free_fly.move_forward].value();
+        direction += transform.backward() * v_input_axis[free_fly.move_backward].value();
+        direction += transform.left() * v_input_axis[free_fly.move_left].value();
+        direction += transform.right() * v_input_axis[free_fly.move_right].value();
+        if free_fly.free_mode {
+            direction += transform.up() * v_input_axis[free_fly.move_up].value();
+            direction += transform.down() * v_input_axis[free_fly.move_down].value();
+        } else {
+            direction += V3::Y * v_input_axis[free_fly.move_up].value();
+            direction += V3::NEG_Y * v_input_axis[free_fly.move_down].value();
+        }
+        let direction_length = direction.length();
+        direction = direction.normalize_or_zero();
+
+        // Camera speed
+        let mut speed = FreeFly::NORMAL_SPEED;
+        if v_input_action[free_fly.move_fast].is_pressed() {
+            speed = FreeFly::FAST_SPEED;
+        } else if v_input_action[free_fly.move_slow].is_pressed() {
+            speed = FreeFly::SLOW_SPEED;
+        }
+
+        // Apply transformation
+        transform.translation +=
+            direction * direction_length * I32F16::cast(Time::delta(ctx) * speed);
+
+        // Apply rotation
+        let motion_x = v_input_axis[free_fly.view_x].value();
+        let motion_y = v_input_axis[free_fly.view_y].value();
+        if free_fly.free_mode {
+            if motion_x != fixed!(0) {
+                transform.rotation *= Q::from_axis_angle(
+                    V3::Y,
+                    -motion_x.to_radians()
+                        * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)),
+                );
+            }
+            if motion_y != fixed!(0) {
+                transform.rotation *= Q::from_axis_angle(
+                    V3::X,
+                    motion_y.to_radians()
+                        * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)),
+                );
+            }
+            if v_input_action[free_fly.roll_left].is_pressed() {
+                transform.rotation *= Q::from_axis_angle(
+                    V3::Z,
+                    -I32F16::cast(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)),
+                );
+            }
+            if v_input_action[free_fly.roll_right].is_pressed() {
+                transform.rotation *= Q::from_axis_angle(
+                    V3::Z,
+                    I32F16::cast(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)),
+                );
+            }
+        } else {
+            if motion_x != fixed!(0) {
+                free_fly.yaw +=
+                    motion_x * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx));
+            }
+            if motion_y != fixed!(0) {
+                free_fly.pitch +=
+                    motion_y * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx));
             }
 
-            // Update view mode
-            if self.input_action[free_fly.switch_mode].is_just_pressed() {
-                free_fly.free_mode = !free_fly.free_mode;
-            }
+            if free_fly.pitch < fixed!(-90.0) {
+                free_fly.pitch = fixed!(-90.0)
+            };
+            if free_fly.pitch > fixed!(90.0) {
+                free_fly.pitch = fixed!(90.0)
+            };
 
-            // Compute camera translation
-            let mut direction = V3::ZERO;
-            direction += transform.forward() * self.input_axis[free_fly.move_forward].value();
-            direction += transform.backward() * self.input_axis[free_fly.move_backward].value();
-            direction += transform.left() * self.input_axis[free_fly.move_left].value();
-            direction += transform.right() * self.input_axis[free_fly.move_right].value();
-            if free_fly.free_mode {
-                direction += transform.up() * self.input_axis[free_fly.move_up].value();
-                direction += transform.down() * self.input_axis[free_fly.move_down].value();
-            } else {
-                direction += V3::Y * self.input_axis[free_fly.move_up].value();
-                direction += V3::NEG_Y * self.input_axis[free_fly.move_down].value();
-            }
-            let direction_length = direction.length();
-            direction = direction.normalize_or_zero();
-
-            // Camera speed
-            let mut speed = FreeFly::NORMAL_SPEED;
-            if self.input_action[free_fly.move_fast].is_pressed() {
-                speed = FreeFly::FAST_SPEED;
-            } else if self.input_action[free_fly.move_slow].is_pressed() {
-                speed = FreeFly::SLOW_SPEED;
-            }
-
-            // Apply transformation
-            transform.translation +=
-                direction * direction_length * I32F16::cast(Time::delta(ctx) * speed);
-
-            // Apply rotation
-            let motion_x = self.input_axis[free_fly.view_x].value();
-            let motion_y = self.input_axis[free_fly.view_y].value();
-            if free_fly.free_mode {
-                if motion_x != fixed!(0) {
-                    transform.rotation *= Q::from_axis_angle(
-                        V3::Y,
-                        -motion_x.to_radians()
-                            * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)),
-                    );
-                }
-                if motion_y != fixed!(0) {
-                    transform.rotation *= Q::from_axis_angle(
-                        V3::X,
-                        motion_y.to_radians()
-                            * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx)),
-                    );
-                }
-                if self.input_action[free_fly.roll_left].is_pressed() {
-                    transform.rotation *= Q::from_axis_angle(
-                        V3::Z,
-                        -I32F16::cast(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)),
-                    );
-                }
-                if self.input_action[free_fly.roll_right].is_pressed() {
-                    transform.rotation *= Q::from_axis_angle(
-                        V3::Z,
-                        I32F16::cast(FreeFly::ROLL_SPEED.to_radians() * Time::delta(ctx)),
-                    );
-                }
-            } else {
-                if motion_x != fixed!(0) {
-                    free_fly.yaw +=
-                        motion_x * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx));
-                }
-                if motion_y != fixed!(0) {
-                    free_fly.pitch +=
-                        motion_y * I32F16::cast(FreeFly::ROTATION_SENSIBILITY * Time::delta(ctx));
-                }
-
-                if free_fly.pitch < fixed!(-90.0) {
-                    free_fly.pitch = fixed!(-90.0)
-                };
-                if free_fly.pitch > fixed!(90.0) {
-                    free_fly.pitch = fixed!(90.0)
-                };
-
-                let mut rotation = Q::from_axis_angle(V3::Y, -free_fly.yaw.to_radians());
-                rotation *= Q::from_axis_angle(V3::X, free_fly.pitch.to_radians());
-                transform.rotation = rotation;
-            }
+            let mut rotation = Q::from_axis_angle(V3::Y, -free_fly.yaw.to_radians());
+            rotation *= Q::from_axis_angle(V3::X, free_fly.pitch.to_radians());
+            transform.rotation = rotation;
         }
     }
 }

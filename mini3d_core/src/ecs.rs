@@ -10,13 +10,13 @@ use crate::{
 };
 
 use self::{
-    component::{ComponentType, System, SystemSet, SystemStage},
+    component::{ComponentType, System, SystemStage},
     container::ContainerTable,
     context::{time::TimeAPI, Context},
     entity::{Entity, EntityEntry, EntityTable},
     query::QueryTable,
     scheduler::{Scheduler, SystemStageKey},
-    system::{SystemInstance, SystemTable},
+    system::SystemTable,
     view::native::single::NativeSingleViewMut,
 };
 
@@ -41,8 +41,8 @@ pub enum ECSError {
 }
 
 pub enum ECSCommand {
-    AddSystemSet(Entity),
-    RemoveSystemSet(Entity),
+    AddSystem(Entity),
+    RemoveSystem(Entity),
     SetTargetTPS(u16),
 }
 
@@ -51,7 +51,6 @@ pub(crate) struct ECSViews {
     pub(crate) component: NativeSingleViewMut<ComponentType>,
     pub(crate) system: NativeSingleViewMut<System>,
     pub(crate) system_stage: NativeSingleViewMut<SystemStage>,
-    pub(crate) system_set: NativeSingleViewMut<SystemSet>,
     pub(crate) start_stage: SystemStageKey,
     pub(crate) tick_stage: SystemStageKey,
 }
@@ -103,7 +102,7 @@ impl ECSManager {
 
     pub(crate) fn flush_changes(&mut self, instance: usize) {
         // Flush structural changes
-        let writes = &self.systems.instances[instance].writes;
+        let writes = &self.systems.systems[instance].writes;
         {
             // Added entities
             for entity in self.entity_created.drain(..) {
@@ -133,7 +132,7 @@ impl ECSManager {
             }
             // Destroyed entities
             for entity in self.entity_destroyed.drain(..) {
-                self.entities.remove(entity, &mut self.containers);
+                self.entities.remove(ctx, entity, &mut self.containers);
             }
             // Update view sizes
             for write in writes.iter().copied() {
@@ -165,7 +164,7 @@ impl ECSManager {
             if node.count == 1 {
                 // Find instance
                 let instance_index = self.scheduler.instance_indices[node.first];
-                let instance = &self.systems.instances[instance_index];
+                let instance = &self.systems.systems[instance_index];
 
                 // Run the system
                 match &instance.instance {

@@ -31,15 +31,10 @@ struct PeriodicStage {
     accumulator: U32F16,
 }
 
-struct StageEntry {
-    handle: SystemStageKey,
-    first_node: NodeKey,
-}
-
 #[derive(Default)]
 pub(crate) struct Scheduler {
     // Mapping between stage and first node
-    stages: Vec<StageEntry>,
+    stage_to_first_node: Vec<(SystemStageKey, NodeKey)>,
     // Baked nodes
     nodes: SlotMap<NodeKey, SystemPipelineNode>,
     // Instances
@@ -57,15 +52,15 @@ pub(crate) struct Scheduler {
 impl Scheduler {
     pub(crate) fn rebuild(&mut self, table: &SystemTable) {
         // Reset baked resources
-        self.stages.clear();
+        self.stage_to_first_node.clear();
         self.nodes.clear();
         self.instance_indices.clear();
         self.next_node = NodeKey::null();
 
         // Collect stages
         let mut stages = Vec::new();
-        for instance in table.instances.iter() {
-            if !stages.iter().any(|stage| *stage == instance.stage) {
+        for instance in table.systems.iter() {
+            if !stages.iter().any(|(stage, node)| *stage == instance.stage) {
                 stages.push(instance.stage);
                 let stage = resource.native::<SystemStage>(instance.stage).unwrap();
                 if let Some(periodic) = stage.periodic {
@@ -80,7 +75,7 @@ impl Scheduler {
         for (stage_index, stage) in stages.iter().enumerate() {
             // Collect instance indices in stage
             let indices = table
-                .instances
+                .systems
                 .iter()
                 .enumerate()
                 .filter_map(
@@ -97,7 +92,7 @@ impl Scheduler {
             // TODO:
             // Create stage entry
             // let stage = resources.get::<SystemStage>(*stage).unwrap();
-            self.stages.push(StageEntry {
+            self.stage_to_first_node.push(StageEntry {
                 handle: *stage,
                 first_node: Default::default(),
             });
@@ -121,7 +116,7 @@ impl Scheduler {
                     self.nodes[previous_node].next = node;
                 } else {
                     // Update stage first node
-                    self.stages[stage_index].first_node = node;
+                    self.stage_to_first_node[stage_index].first_node = node;
                 }
 
                 // Next previous node
@@ -130,7 +125,7 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn invoke_frame_stages(&mut self, delta_time: U32F16, update_stage: SystemStageKey) {
+    pub(crate) fn invoke_frame_stages(&mut self, delta_time: U32F16, tick_stage: SystemStageKey) {
         // Collect previous frame stages
         self.frame_stages.clear();
         for stage in self.next_frame_stages.drain(..) {
@@ -149,7 +144,7 @@ impl Scheduler {
         }
 
         // Append update stage
-        self.frame_stages.push_back(update_stage);
+        self.frame_stages.push_back(tick_stage);
     }
 
     pub(crate) fn next_node(&mut self) -> Option<SystemPipelineNode> {
@@ -158,8 +153,12 @@ impl Scheduler {
             // Find next stage
             if let Some(stage) = self.frame_stages.pop_front() {
                 // If the stage exists, find first node
-                if let Some(index) = self.stages.iter().position(|e| e.handle == stage) {
-                    self.next_node = self.stages[index].first_node;
+                if let Some(index) = self
+                    .stage_to_first_node
+                    .iter()
+                    .position(|e| e.handle == stage)
+                {
+                    self.next_node = self.stage_to_first_node[index].first_node;
                 }
             } else {
                 // No more stages

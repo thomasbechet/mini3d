@@ -1,7 +1,7 @@
 use crate::{
     ecs::{
         component::Component, container::native::array::NativeArrayContainer, entity::Entity,
-        error::ResolverError, system::SystemResolver,
+        error::ResolverError, system::Resolver,
     },
     utils::uid::ToUID,
 };
@@ -19,7 +19,7 @@ pub struct NativeArrayViewRef<C: Component> {
 impl<C: Component> NativeArrayViewRef<C> {
     pub fn resolve(
         &mut self,
-        resolver: &mut SystemResolver,
+        resolver: &mut Resolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.read(component)?;
@@ -58,7 +58,7 @@ pub struct NativeArrayViewMut<C: Component> {
 impl<C: Component> NativeArrayViewMut<C> {
     pub fn resolve(
         &mut self,
-        resolver: &mut SystemResolver,
+        resolver: &mut Resolver,
         component: impl ToUID,
     ) -> Result<(), ResolverError> {
         let key = resolver.write(component)?;

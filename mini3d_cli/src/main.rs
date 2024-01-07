@@ -6,7 +6,7 @@ use mini3d_core::{
         error::ResolverError,
         query::Query,
         resource::{System, SystemOrder, SystemSet, SystemStage},
-        system::{ExclusiveSystem, SystemResolver},
+        system::{NativeExclusiveSystemInstance, Resolver},
         view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
     },
     info,
@@ -20,8 +20,8 @@ struct SpawnSystem {
     transform: NativeSingleViewMut<Transform>,
 }
 
-impl ExclusiveSystem for SpawnSystem {
-    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+impl NativeExclusiveSystemInstance for SpawnSystem {
+    fn setup(&mut self, resolver: &mut Resolver) -> Result<(), ResolverError> {
         self.transform.resolve(resolver, Transform::NAME)?;
         println!("RESOLVED");
         Ok(())
@@ -50,8 +50,8 @@ struct TestSystem {
     query: Query,
 }
 
-impl ExclusiveSystem for TestSystem {
-    fn setup(&mut self, resolver: &mut SystemResolver) -> Result<(), ResolverError> {
+impl NativeExclusiveSystemInstance for TestSystem {
+    fn setup(&mut self, resolver: &mut Resolver) -> Result<(), ResolverError> {
         self.transform.resolve(resolver, Transform::NAME)?;
         self.query.resolve(resolver).all(&[Transform::NAME])?;
         Ok(())
