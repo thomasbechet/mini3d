@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentKey},
+        component::{Component, ComponentKey},
         container::{Container, SingleContainer},
         context::Context,
         entity::{Entity, EntityTable},
@@ -80,13 +80,7 @@ impl<C: Component> NativeSingleContainer<C> {
             }
         }
         // Hook added
-        component.on_added(
-            entity,
-            ComponentContext {
-                input: ctx.input,
-                renderer: ctx.renderer,
-            },
-        );
+        component.on_added(entity, ctx);
         // Append component
         self.data.push((component, entity));
         // Update indices
@@ -122,13 +116,7 @@ impl<C: Component> Container for NativeSingleContainer<C> {
         if let Some(index) = self.indices.get(entity.key()).copied() {
             if self.data[index].1 == entity {
                 // Hook remove
-                self.data[index].0.on_removed(
-                    entity,
-                    ComponentContext {
-                        input: ctx.input,
-                        renderer: ctx.renderer,
-                    },
-                );
+                self.data[index].0.on_removed(entity, ctx);
                 // Swap remove component
                 self.data.swap_remove(index);
                 // Remap swapped entity

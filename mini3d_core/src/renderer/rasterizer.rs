@@ -60,17 +60,18 @@ pub fn print(plot: &mut impl Plotable, p: V2I32, text: &str, font: &Font) {
     for (ic, c) in text.chars().enumerate() {
         if let Some(glyph) = font.char_location(c) {
             // TODO: optimize me
-            for b in 0..(font.glyph_size.x as usize * font.glyph_size.y as usize) {
-                let bit_offset =
-                    (glyph * (font.glyph_size.x as usize * font.glyph_size.y as usize)) + b;
-                let byte = font.data[bit_offset / 8];
+            for b in 0..(font.data.glyph_size.x as usize * font.data.glyph_size.y as usize) {
+                let bit_offset = (glyph
+                    * (font.data.glyph_size.x as usize * font.data.glyph_size.y as usize))
+                    + b;
+                let byte = font.data.bytes[bit_offset / 8];
                 let bit_set = byte & (1 << (7 - (b % 8))) != 0;
 
                 if bit_set {
                     let px = p.x
-                        + font.glyph_size.x as i32 * ic as i32
-                        + (b as i32 % font.glyph_size.x as i32);
-                    let py = p.y + (b as i32 / font.glyph_size.x as i32);
+                        + font.data.glyph_size.x as i32 * ic as i32
+                        + (b as i32 % font.data.glyph_size.x as i32);
+                    let py = p.y + (b as i32 / font.data.glyph_size.x as i32);
                     plot.plot(V2::new(px, py));
                 }
             }

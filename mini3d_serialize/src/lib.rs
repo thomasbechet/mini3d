@@ -1,12 +1,13 @@
+#![no_std]
+
+extern crate alloc;
+
 use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
 use mini3d_derive::Error;
 
-use crate::math::{
-    fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint, TrigFixedPoint},
-    mat::M4,
-    quat::Q,
-    vec::{V2, V3, V4},
-};
+pub mod version;
+
+pub use version::*;
 
 #[derive(Debug, Error)]
 pub enum EncoderError {
@@ -321,7 +322,7 @@ impl Serialize for u64 {
         decoder: &mut impl Decoder,
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        Ok(decoder.read_u64()?)
+        decoder.read_u64()
     }
 }
 
@@ -533,115 +534,5 @@ impl<T: Serialize> Serialize for Box<T> {
         header: &Self::Header,
     ) -> Result<Self, DecoderError> {
         Ok(Box::new(T::deserialize(decoder, header)?))
-    }
-}
-
-impl<T: FixedPoint + Serialize> Serialize for V2<T> {
-    type Header = T::Header;
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.x.serialize(encoder)?;
-        self.y.serialize(encoder)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = T::deserialize(decoder, header)?;
-        let y = T::deserialize(decoder, header)?;
-        Ok(V2::new(x, y))
-    }
-}
-
-impl<T: FixedPoint + Serialize> Serialize for V3<T> {
-    type Header = T::Header;
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.x.serialize(encoder)?;
-        self.y.serialize(encoder)?;
-        self.z.serialize(encoder)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = T::deserialize(decoder, header)?;
-        let y = T::deserialize(decoder, header)?;
-        let z = T::deserialize(decoder, header)?;
-        Ok(V3::new(x, y, z))
-    }
-}
-
-impl<T: FixedPoint + Serialize> Serialize for V4<T> {
-    type Header = T::Header;
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.x.serialize(encoder)?;
-        self.y.serialize(encoder)?;
-        self.z.serialize(encoder)?;
-        self.w.serialize(encoder)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = T::deserialize(decoder, header)?;
-        let y = T::deserialize(decoder, header)?;
-        let z = T::deserialize(decoder, header)?;
-        let w = T::deserialize(decoder, header)?;
-        Ok(V4::new(x, y, z, w))
-    }
-}
-
-impl<T: FixedPoint + RealFixedPoint + SignedFixedPoint + TrigFixedPoint + Serialize> Serialize
-    for Q<T>
-{
-    type Header = T::Header;
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        self.x.serialize(encoder)?;
-        self.y.serialize(encoder)?;
-        self.z.serialize(encoder)?;
-        self.w.serialize(encoder)?;
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let x = T::deserialize(decoder, header)?;
-        let y = T::deserialize(decoder, header)?;
-        let z = T::deserialize(decoder, header)?;
-        let w = T::deserialize(decoder, header)?;
-        Ok(Q::new(x, y, z, w))
-    }
-}
-
-impl<T: FixedPoint + Serialize> Serialize for M4<T> {
-    type Header = T::Header;
-
-    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
-        for x in self.to_cols_array() {
-            x.serialize(encoder)?;
-        }
-        Ok(())
-    }
-
-    fn deserialize(
-        decoder: &mut impl Decoder,
-        header: &Self::Header,
-    ) -> Result<Self, DecoderError> {
-        let mut array = [T::default(); 16];
-        for x in &mut array {
-            *x = T::deserialize(decoder, header)?;
-        }
-        Ok(M4::from_cols_array(&array))
     }
 }

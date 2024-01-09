@@ -2,7 +2,8 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError, ComponentStorage},
+        component::{Component, ComponentError, ComponentStorage},
+        context::Context,
         entity::Entity,
     },
     input::provider::InputProviderHandle,
@@ -72,14 +73,14 @@ impl InputAxis {
 impl Component for InputAxis {
     const STORAGE: ComponentStorage = ComponentStorage::Single;
 
-    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         self.handle = ctx
             .input
             .add_axis(self.name.as_str(), entity, &self.range)?;
         Ok(())
     }
 
-    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         ctx.input.remove_axis(&self.name, self.handle)?;
         Ok(())
     }

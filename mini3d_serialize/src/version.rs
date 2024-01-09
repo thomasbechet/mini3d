@@ -1,23 +1,24 @@
-use crate::serialize::{Serialize, Encoder, Decoder, DecoderError, EncoderError};
+use crate::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Version(u32);
 
 impl Serialize for Version {
-
     type Header = ();
 
     fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
         encoder.write_u32(self.0)
     }
 
-    fn deserialize(decoder: &mut impl Decoder, _header: &Self::Header) -> Result<Self, DecoderError> {
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
         decoder.read_u32().map(Self)
     }
 }
 
 impl Version {
-
     pub fn new(major: u8, minor: u8, patch: u8) -> Self {
         Self((major as u32) << 16 | (minor as u32) << 8 | patch as u32)
     }

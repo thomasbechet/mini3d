@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use mini3d_derive::Serialize;
 
 use self::component::{
-    Font, Material, MaterialData, Mesh, MeshData, RenderTransform, Texture, TextureData,
+    Font, FontData, Material, MaterialData, Mesh, MeshData, RenderTransform, Texture, TextureData,
 };
 use self::event::RendererEvent;
 use self::provider::{ProviderMaterialInfo, RendererProviderHandle};
@@ -88,6 +88,7 @@ pub struct RendererManager {
     textures: Vec<(Entity, RendererProviderHandle)>,
     meshes: Vec<(Entity, RendererProviderHandle)>,
     materials: Vec<(Entity, RendererProviderHandle)>,
+    fonts: Vec<(Entity, RendererProviderHandle)>,
     transforms: Vec<(Entity, RendererProviderHandle)>,
     pub(crate) handles: RendererViews,
 }
@@ -158,7 +159,7 @@ impl RendererManager {
     pub(crate) fn add_font(
         &mut self,
         entity: Entity,
-        data: &Font,
+        data: &FontData,
     ) -> Result<RendererProviderHandle, ComponentError> {
         // Add font to provider
         let handle = self
@@ -168,6 +169,19 @@ impl RendererManager {
         // Register font
         self.fonts.push((entity, handle));
         Ok(handle)
+    }
+
+    pub(crate) fn remove_font(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), ComponentError> {
+        // Remove font from provider
+        self.provider
+            .remove_font(handle)
+            .map_err(|_| ComponentError::ProviderError)?;
+        // Unregister font
+        self.fonts.retain(|(_, h)| *h != handle);
+        Ok(())
     }
 
     pub(crate) fn add_texture(
@@ -185,7 +199,7 @@ impl RendererManager {
         Ok(handle)
     }
 
-    pub(crate) fn remove_texure(
+    pub(crate) fn remove_texture(
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), ComponentError> {
@@ -211,6 +225,19 @@ impl RendererManager {
         // Register mesh
         self.meshes.push((entity, handle));
         Ok(handle)
+    }
+
+    pub(crate) fn remove_mesh(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), ComponentError> {
+        // Remove mesh from provider
+        self.provider
+            .remove_mesh(handle)
+            .map_err(|_| ComponentError::ProviderError)?;
+        // Unregister mesh
+        self.meshes.retain(|(_, h)| *h != handle);
+        Ok(())
     }
 
     pub(crate) fn add_material(

@@ -3,7 +3,8 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError},
+        component::{Component, ComponentError, ComponentStorage},
+        context::Context,
         entity::Entity,
     },
     math::vec::{V2I32F16, V3I32F16, V4I32F16},
@@ -39,12 +40,13 @@ pub struct Mesh {
 impl Mesh {}
 
 impl Component for Mesh {
-    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
-        self.handle = ctx.renderer.add_material(entity, &self.data)?;
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
+    fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
+        self.handle = ctx.renderer.add_mesh(entity, &self.data)?;
         Ok(())
     }
-    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
-        ctx.renderer.remove_material(self.handle)?;
+    fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
+        ctx.renderer.remove_mesh(self.handle)?;
         Ok(())
     }
 }

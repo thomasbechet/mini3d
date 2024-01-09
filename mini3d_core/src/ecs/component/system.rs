@@ -7,11 +7,12 @@ use crate::{
         entity::Entity,
         error::ResolverError,
         system::{SystemInstance, SystemKey},
+        ECSCommand,
     },
     utils::{slotmap::Key, string::AsciiArray},
 };
 
-use super::{Component, ComponentContext, ComponentError, ComponentKey, ComponentStorage};
+use super::{Component, ComponentError, ComponentKey, ComponentStorage};
 
 pub trait NativeSystemParam: Default + Clone + 'static {}
 
@@ -35,9 +36,14 @@ pub trait NativeParallelSystem {
     fn run(&mut self, ctx: &Context);
 }
 
-struct NativeFunctionSystem<Params, F> {
+struct NativeExclusiveFunctionSystem<Params, F> {
     function: F,
-    params: Params,
+    _marker: core::marker::PhantomData<Params>,
+}
+
+struct NativeParallelFunctionSystem<Params, F> {
+    function: F,
+    _marker: core::marker::PhantomData<Params>,
 }
 
 macro_rules! impl_system {
@@ -46,39 +52,77 @@ macro_rules! impl_system {
             $($params:ident),+
         )?
     ) => {
-        #[allow(non_snake_case, unused)]
         impl<
             F: Fn(
                 &mut Context,
                 $($($params),+)?
             )
             $(,$($params: NativeSystemParam),+)?
-        > NativeExclusiveSystem for NativeFunctionSystem<($( $($params,)+ )?), F> {
-            fn run(&mut self, ctx: &mut Context) {
-                let ($($($params,)+)?) = &mut self.params;
-                (self.function)(ctx, $( $(($params.clone()),)+ )?);
-            }
-            fn resolve(&mut self, config: &SystemConfig) {
-                let ($($($params,)+)?) = &mut self.params;
-                (self.resolve)(resolver, $( $(($params),)+ )?);
+        > NativeSystem for NativeExclusiveFunctionSystem<($( $($params,)+ )?), F> {
+            fn create_instance(&self) -> SystemInstance {
+                struct Instance<Params: Default + 'static, F> {
+                    function: F,
+                    params: Params,
+                }
+                #[allow(non_snake_case, unused)]
+                impl<
+                    F: Fn(
+                        &mut Context,
+                        $($($params),+)?
+                    )
+                    $(,$($params: NativeSystemParam),+)?
+                > NativeExclusiveSystem for Instance<($( $($params,)+ )?), F> {
+                    fn run(&mut self, ctx: &mut Context) {
+                        let ($($($params,)+)?) = &mut self.params;
+                        (self.function)(ctx, $( $(($params.clone()),)+ )?);
+                    }
+                    fn resolve(&mut self, config: &SystemConfig) -> Result<(), ResolverError> {
+                        // let ($($($params,)+)?) = &mut self.params;
+                        // (self.resolve)(config, $( $(($params),)+ )?)
+                        Ok(())
+                    }
+                }
+                SystemInstance::NativeExclusive(Box::new(Instance {
+                    function: self.function,
+                    params: Default::default(),
+                }))
             }
         }
 
-        #[allow(non_snake_case, unused)]
         impl<
             F: Fn(
-                &mut Context,
+                &Context,
                 $($($params),+)?
             )
             $(,$($params: NativeSystemParam),+)?
-        > NativeParallelSystem for NativeFunctionSystem<($( $($params,)+ )?), F> {
-            fn run(&mut self, ctx: &Context) {
-                let ($($($params,)+)?) = &mut self.params;
-                (self.function)(ctx, $( $(($params.clone()),)+ )?);
-            }
-            fn resolve(&mut self, config: &SystemConfig) {
-                let ($($($params,)+)?) = &mut self.params;
-                (self.resolve)(resolver, $( $(($params),)+ )?);
+        > NativeSystem for NativeParallelFunctionSystem<($( $($params,)+ )?), F> {
+            fn create_instance(&self) -> SystemInstance {
+                struct Instance<Params: Default + 'static, F> {
+                    function: F,
+                    params: Params,
+                }
+                #[allow(non_snake_case, unused)]
+                impl<
+                    F: Fn(
+                        &Context,
+                        $($($params),+)?
+                    )
+                    $(,$($params: NativeSystemParam),+)?
+                > NativeParallelSystem for Instance<($( $($params,)+ )?), F> {
+                    fn run(&mut self, ctx: &Context) {
+                        let ($($($params,)+)?) = &mut self.params;
+                        (self.function)(ctx, $( $(($params.clone()),)+ )?);
+                    }
+                    fn resolve(&mut self, config: &SystemConfig) -> Result<(), ResolverError> {
+                        // let ($($($params,)+)?) = &mut self.params;
+                        // (self.resolve)(config, $( $(($params),)+ )?)
+                        Ok(())
+                    }
+                }
+                SystemInstance::NativeParallel(Box::new(Instance {
+                    function: self.function,
+                    params: Default::default(),
+                }))
             }
         }
     }
@@ -95,12 +139,12 @@ impl_system!(T1, T2, T3, T4, T5, T6, T7);
 impl_system!(T1, T2, T3, T4, T5, T6, T7, T8);
 
 trait IntoNativeExclusiveSystem<Params> {
-    type System: NativeExclusiveSystem + 'static;
+    type System: NativeSystem + 'static;
     fn into_system(self) -> Self::System;
 }
 
 trait IntoNativeParallelSystem<Params> {
-    type System: NativeParallelSystem + 'static;
+    type System: NativeSystem + 'static;
     fn into_system(self) -> Self::System;
 }
 
@@ -111,23 +155,23 @@ macro_rules! impl_into_system {
         ),+)?
     ) => {
         impl<F: Fn(&mut Context, $($($params),+)?) + 'static $(, $($params: NativeSystemParam),+ )?> IntoNativeExclusiveSystem<( $($($params,)+)? )> for F {
-            type System = NativeFunctionSystem<( $($($params,)+)? ), F>;
+            type System = NativeExclusiveFunctionSystem<( $($($params,)+)? ), F>;
 
             fn into_system(self) -> Self::System {
-                NativeFunctionSystem {
+                NativeExclusiveFunctionSystem {
                     function: self,
-                    params: Default::default(),
+                    _marker: Default::default(),
                 }
             }
         }
 
         impl<F: Fn(&Context, $($($params),+)?) + 'static $(, $($params: NativeSystemParam),+ )?> IntoNativeParallelSystem<( $($($params,)+)? )> for F {
-            type System = NativeFunctionSystem<( $($($params,)+)? ), F>;
+            type System = NativeParallelFunctionSystem<( $($($params,)+)? ), F>;
 
             fn into_system(self) -> Self::System {
-                NativeFunctionSystem {
+                NativeParallelFunctionSystem {
                     function: self,
-                    params: Default::default(),
+                    _marker: Default::default(),
                 }
             }
         }
@@ -163,6 +207,7 @@ enum SystemParamEntry {
     QueryNot(u16),
 }
 
+#[derive(Default)]
 pub struct SystemConfig {
     params: Vec<SystemParamEntry>,
 }
@@ -192,6 +237,8 @@ pub struct SystemOrder {}
 pub struct System {
     pub(crate) name: AsciiArray<32>,
     pub(crate) kind: SystemKind,
+    pub(crate) stage: Entity,
+    #[serialize(skip)]
     pub(crate) config: SystemConfig,
     pub(crate) order: SystemOrder,
     #[serialize(skip)]
@@ -204,12 +251,14 @@ impl System {
     pub fn native_exclusive<Params>(
         name: &str,
         system: impl IntoNativeExclusiveSystem<Params>,
+        stage: Entity,
         config: SystemConfig,
         order: SystemOrder,
     ) -> Self {
         Self {
             name: AsciiArray::from(name),
-            kind: SystemKind::Native(NativeSystem::Exclusive(Box::new(system.into_system()))),
+            kind: SystemKind::Native(Box::new(system.into_system())),
+            stage,
             config,
             order,
             key: SystemKey::null(),
@@ -219,12 +268,14 @@ impl System {
     pub fn native_parallel<Params>(
         name: &str,
         system: impl IntoNativeParallelSystem<Params>,
+        stage: Entity,
         config: SystemConfig,
         order: SystemOrder,
     ) -> Self {
         Self {
             name: AsciiArray::from(name),
-            kind: SystemKind::Native(NativeSystem::Parallel(Box::new(system.into_system()))),
+            kind: SystemKind::Native(Box::new(system.into_system())),
+            stage,
             config,
             order,
             key: SystemKey::null(),
@@ -235,6 +286,7 @@ impl System {
         Self {
             name: AsciiArray::from(name),
             kind: SystemKind::Script,
+            stage: Default::default(),
             config: Default::default(),
             order: Default::default(),
             key: SystemKey::null(),
@@ -247,10 +299,13 @@ impl System {
 impl Component for System {
     const STORAGE: ComponentStorage = ComponentStorage::Single;
 
-    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
-        self.key = ctx.systems.add_system(self.name.as_str(), entity)?;
+    fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
+        ctx.ecs.commands.push(ECSCommand::AddSystem(entity));
         Ok(())
     }
 
-    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {}
+    fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
+        ctx.ecs.commands.push(ECSCommand::RemoveSystem(entity));
+        Ok(())
+    }
 }

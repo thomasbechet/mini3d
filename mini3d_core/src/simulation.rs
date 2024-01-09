@@ -4,7 +4,7 @@ use mini3d_derive::{fixed, Error};
 use crate::disk::provider::DiskProvider;
 use crate::disk::DiskManager;
 use crate::ecs::component::ComponentType;
-use crate::ecs::context::time::TimeAPI;
+use crate::ecs::context::time::TimeContext;
 use crate::ecs::context::Context;
 use crate::ecs::scheduler::Invocation;
 use crate::ecs::{self, ECSManager, ECSUpdateContext};
@@ -197,7 +197,7 @@ impl Simulation {
                 renderer: &mut self.renderer,
                 platform: &mut self.platform,
                 logger: &mut self.logger,
-                time: TimeAPI {
+                time: TimeContext {
                     delta: fixed!(0),
                     frame: 0,
                     target_tps: self.ecs.target_tps,

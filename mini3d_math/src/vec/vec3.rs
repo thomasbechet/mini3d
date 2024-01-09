@@ -3,7 +3,9 @@ use core::{
     ops::{Add, AddAssign, Div, Mul, Sub},
 };
 
-use crate::math::fixed::{FixedPoint, FixedPointError, RealFixedPoint, SignedFixedPoint};
+use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+
+use crate::fixed::{FixedPoint, FixedPointError, RealFixedPoint, SignedFixedPoint};
 
 use super::{V2, V4};
 
@@ -205,13 +207,34 @@ impl<T: FixedPoint + Display> Display for V3<T> {
     }
 }
 
+impl<T: FixedPoint + Serialize> Serialize for V3<T> {
+    type Header = T::Header;
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.x.serialize(encoder)?;
+        self.y.serialize(encoder)?;
+        self.z.serialize(encoder)?;
+        Ok(())
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        let x = T::deserialize(decoder, header)?;
+        let y = T::deserialize(decoder, header)?;
+        let z = T::deserialize(decoder, header)?;
+        Ok(V3::new(x, y, z))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::println;
 
     use mini3d_derive::fixed;
 
-    use crate::math::{fixed::I32F24, vec::V3I32F24};
+    use crate::{fixed::I32F24, vec::V3I32F24};
 
     #[test]
     fn test_vec3() {

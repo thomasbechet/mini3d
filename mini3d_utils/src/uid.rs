@@ -2,7 +2,7 @@ use core::{fmt::Display, iter::Sum};
 
 use alloc::string::String;
 
-use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 /// Fast FNV1A hash algorithm taken from https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 

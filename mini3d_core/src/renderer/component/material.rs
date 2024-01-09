@@ -2,9 +2,7 @@ use mini3d_derive::{Reflect, Serialize};
 
 use crate::{
     ecs::{
-        component::{
-            Component, ComponentContext, ComponentError, ComponentStorage, EntityResolver,
-        },
+        component::{Component, ComponentError, ComponentStorage, EntityResolver},
         context::Context,
         entity::Entity,
     },
@@ -42,9 +40,7 @@ pub struct Material {
 impl Material {
     pub const NAME: &'static str = "material";
 
-    pub fn set_texture0(&mut self, ctx: &mut Context, texture: &Texture) {
-        self.tex0 = texture;
-    }
+    pub fn set_texture0(&mut self, ctx: &mut Context, texture: &Texture) {}
 }
 
 impl Component for Material {
@@ -52,11 +48,11 @@ impl Component for Material {
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         self.handle = ctx.renderer.add_material(entity, &self.data)?;
         Ok(())
     }
-    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         ctx.renderer.remove_material(self.handle)
     }
 }

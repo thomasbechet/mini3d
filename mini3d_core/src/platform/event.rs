@@ -15,7 +15,7 @@ pub enum ImportAssetEvent {
     Font(AssetImportEntry<FontData>),
     Material(AssetImportEntry<MaterialData>),
     Mesh(AssetImportEntry<MeshData>),
-    Model(AssetImportEntry<Model>),
+    // Model(AssetImportEntry<Model>),
     Script(AssetImportEntry<Script>),
     Texture(AssetImportEntry<TextureData>),
 }

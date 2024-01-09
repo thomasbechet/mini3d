@@ -1,6 +1,8 @@
 use core::{fmt::Display, ops::Mul};
 
-use crate::math::{
+use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+
+use crate::{
     fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint, TrigFixedPoint},
     quat::Q,
     vec::{V3, V4},
@@ -403,13 +405,35 @@ impl<T: FixedPoint + Display> Display for M4<T> {
     }
 }
 
+impl<T: FixedPoint + Serialize> Serialize for M4<T> {
+    type Header = T::Header;
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        for x in self.to_cols_array() {
+            x.serialize(encoder)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        let mut array = [T::default(); 16];
+        for x in &mut array {
+            *x = T::deserialize(decoder, header)?;
+        }
+        Ok(M4::from_cols_array(&array))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::println;
 
     use mini3d_derive::fixed;
 
-    use crate::math::fixed::I32F16;
+    use crate::fixed::I32F16;
 
     use super::*;
 

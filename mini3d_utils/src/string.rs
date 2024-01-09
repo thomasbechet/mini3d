@@ -6,7 +6,7 @@ use core::{
 use alloc::string::{String, ToString};
 use mini3d_derive::Error;
 
-use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 use super::uid::{ToUID, UID};
 

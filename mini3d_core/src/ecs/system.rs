@@ -3,18 +3,21 @@ use alloc::{boxed::Box, vec::Vec};
 use crate::{
     slot_map_key,
     utils::{
-        slotmap::SlotMap,
+        slotmap::{Key, SlotMap},
         uid::{ToUID, UID},
     },
 };
 
 use super::{
-    component::{ComponentError, ComponentKey, NativeExclusiveSystem, NativeParallelSystem},
+    component::{
+        ComponentError, ComponentKey, NativeExclusiveSystem, NativeParallelSystem, System,
+        SystemConfig, SystemKind,
+    },
     container::ContainerTable,
     entity::{Entity, EntityTable},
     error::ResolverError,
     query::QueryTable,
-    scheduler::SystemStageKey,
+    view::native::single::NativeSingleViewMut,
 };
 
 slot_map_key!(SystemKey);
@@ -33,7 +36,7 @@ pub struct Resolver<'a> {
 impl<'a> Resolver<'a> {
     fn find(&mut self, component: impl ToUID) -> Result<ComponentKey, ResolverError> {
         self.containers
-            .find(component)
+            .find(component.to_uid())
             .ok_or(ResolverError::ComponentNotFound)
     }
 
@@ -63,14 +66,10 @@ pub(crate) enum SystemInstance {
     Script,
 }
 
-pub(crate) struct CompiledSystemEntry {
-    pub(crate) instance: SystemInstance,
-    pub(crate) entity: Entity,
-}
-
-impl CompiledSystemEntry {
-    pub(crate) fn setup(
+impl SystemInstance {
+    pub(crate) fn resolve(
         &mut self,
+        config: &SystemConfig,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
@@ -85,13 +84,14 @@ impl CompiledSystemEntry {
             queries,
             containers,
         };
-        match self.instance {
-            SystemInstance::Exclusive(ref mut instance) => {
-                instance.resolve(&mut resolver)?;
+        match self {
+            SystemInstance::NativeExclusive(instance) => {
+                instance.resolve(config)?;
             }
-            SystemInstance::Parallel(ref mut instance) => {
-                instance.resolve(&mut resolver)?;
+            SystemInstance::NativeParallel(instance) => {
+                instance.resolve(config)?;
             }
+            _ => {}
         }
         Ok(())
     }
@@ -99,67 +99,37 @@ impl CompiledSystemEntry {
 
 #[derive(Default)]
 pub(crate) struct SystemTable {
-    pub(crate) systems: SlotMap<SystemKey, CompiledSystemEntry>,
+    pub(crate) instances: SlotMap<SystemKey, SystemInstance>,
+    pub(crate) systems: Vec<(UID, Entity)>,
 }
 
 impl SystemTable {
     pub(crate) fn add_system(
         &mut self,
-        name: &str,
+        system: &mut System,
         entity: Entity,
-    ) -> Result<SystemKey, ComponentError> {
-        let uid = name.to_uid();
-        if self.systems.iter().any(|(x, _)| *x == uid) {
-            return Err(ComponentError::DuplicatedEntry);
-        }
-        Ok(SystemKey::null())
-    }
-
-    pub(crate) fn remove_system(&mut self, key: SystemKey) -> Result<(), ComponentError> {
-        unimplemented!()
-    }
-
-    pub(crate) fn insert_system_set(
-        &mut self,
-        set: SystemSetHandle,
         entities: &mut EntityTable,
         queries: &mut QueryTable,
         containers: &mut ContainerTable,
-    ) -> Result<(), ResolverError> {
-        // Check already existing system set
-        if self.systems.iter().any(|instance| instance.set == set) {
-            return Ok(());
+    ) -> Result<(), ComponentError> {
+        let uid = system.name.to_uid();
+        if self.systems.iter().any(|(key, _)| *key == uid) {
+            return Err(ComponentError::DuplicatedEntry);
         }
-        // Acquire resource
-        resource.increment_ref(set).unwrap();
-        let system_set = resource.native::<SystemSet>(set).unwrap();
-        // Add instances
-        for entry in system_set.0.iter() {
-            let system = resource.native::<System>(entry.system).unwrap();
-            match &system.kind {
-                SystemKind::Native(reflection) => {
-                    let instance = reflection.create_instance();
-                    self.systems.push(CompiledSystemEntry {
-                        system: entry.system,
-                        stage: entry.stage,
-                        instance,
-                        writes: Vec::new(),
-                    });
-                }
-                SystemKind::Script(script) => {
-                    todo!()
-                }
-            }
-        }
-        // Setup instances
-        let component_type = resource.find_type(ComponentType::NAME).unwrap();
-        for entry in self.systems.iter_mut() {
-            entry.setup(entities, queries, containers, resource, component_type)?;
-        }
+        let mut instance = match system.kind {
+            SystemKind::Native(system) => system.create_instance(),
+            _ => unimplemented!(),
+        };
+        instance.resolve(&system.config, entities, queries, containers)?;
+        system.key = self.instances.add(instance);
         Ok(())
     }
 
-    pub(crate) fn remove_system_set(&mut self, set: SystemSetHandle) {
-        self.systems.retain(|instance| instance.set != set);
+    pub(crate) fn remove_system(
+        &mut self,
+        system: &mut System,
+        entity: Entity,
+    ) -> Result<(), ComponentError> {
+        unimplemented!()
     }
 }

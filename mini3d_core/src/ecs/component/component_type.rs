@@ -7,9 +7,7 @@ use crate::{
         context::Context,
         entity::Entity,
     },
-    input::InputManager,
     reflection::Reflect,
-    renderer::RendererManager,
     serialize::Serialize,
     slot_map_key,
     utils::string::AsciiArray,
@@ -25,12 +23,7 @@ impl EntityResolver {
     }
 }
 
-pub struct ComponentContext<'a> {
-    pub input: &'a mut InputManager,
-    pub renderer: &'a mut RendererManager,
-}
-
-#[derive(Error)]
+#[derive(Error, Debug)]
 pub enum ComponentError {
     #[error("Component did not match unicity constraint")]
     DuplicatedEntry,
@@ -45,10 +38,10 @@ pub trait Component: 'static + Default + Reflect + Serialize {
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         Ok(())
     }
 }
@@ -111,9 +104,9 @@ pub struct ComponentType {
 impl ComponentType {
     pub const NAME: &'static str = "component_type";
 
-    pub fn native<C: Component>(enable: bool) -> Self {
+    pub fn native<C: Component>(name: &str, enable: bool) -> Self {
         Self {
-            name: AsciiArray::from(C::NAME),
+            name: AsciiArray::from(name),
             kind: ComponentKind::Native(Box::new(NativeComponentFactory::<C>(
                 core::marker::PhantomData,
             ))),

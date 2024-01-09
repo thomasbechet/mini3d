@@ -434,15 +434,15 @@ fn generate_header(
         .collect::<Vec<_>>();
     Ok(quote! {
         #vis struct #header_type_ident #impl_generics #where_clause {
-            #vis version: mini3d_core::utils::version::Version,
-            #(#header_field_ident: <#field_types as mini3d_core::serialize::Serialize>::Header),*
+            #vis version: mini3d_serialize::Version,
+            #(#header_field_ident: <#field_types as mini3d_serialize::Serialize>::Header),*
         }
 
         impl #impl_generics #header_type_ident #ty_generics #where_clause {
             #vis fn new() -> Self {
                 Self {
-                    version: mini3d_core::utils::version::Version::new(#major, #minor, #patch),
-                    #(#header_field_ident: <#field_types as mini3d_core::serialize::Serialize>::Header::default()),*
+                    version: mini3d_serialize::Version::new(#major, #minor, #patch),
+                    #(#header_field_ident: <#field_types as mini3d_serialize::Serialize>::Header::default()),*
                 }
             }
         }
@@ -453,24 +453,24 @@ fn generate_header(
             }
         }
 
-        impl #impl_generics mini3d_core::serialize::Serialize for #header_type_ident #ty_generics #where_clause {
+        impl #impl_generics mini3d_serialize::Serialize for #header_type_ident #ty_generics #where_clause {
 
             type Header = ();
 
-            fn serialize(&self, encoder: &mut impl mini3d_core::serialize::Encoder) -> Result<(), mini3d_core::serialize::EncoderError> {
+            fn serialize(&self, encoder: &mut impl mini3d_serialize::Encoder) -> Result<(), mini3d_serialize::EncoderError> {
                 encoder.write_u32(self.version.into())?;
                 #(self.#header_field_ident.serialize(encoder)?;)*
                 Ok(())
             }
 
-            fn deserialize(decoder: &mut impl mini3d_core::serialize::Decoder, _header: &Self::Header) -> Result<Self, mini3d_core::serialize::DecoderError> {
-                let version: mini3d_core::utils::version::Version = decoder.read_u32()?.into();
-                if version != mini3d_core::utils::version::Version::core() {
-                    return Err(mini3d_core::serialize::DecoderError::Unsupported);
+            fn deserialize(decoder: &mut impl mini3d_serialize::Decoder, _header: &Self::Header) -> Result<Self, mini3d_serialize::DecoderError> {
+                let version: mini3d_serialize::Version = decoder.read_u32()?.into();
+                if version != mini3d_serialize::Version::core() {
+                    return Err(mini3d_serialize::DecoderError::Unsupported);
                 }
                 Ok(Self {
-                    version: mini3d_core::utils::version::Version::core(),
-                    #(#header_field_ident: <#field_types as mini3d_core::serialize::Serialize>::Header::deserialize(decoder, &<<#field_types as mini3d_core::serialize::Serialize>::Header as mini3d_core::serialize::Serialize>::Header::default())?,)*
+                    version: mini3d_serialize::Version::core(),
+                    #(#header_field_ident: <#field_types as mini3d_serialize::Serialize>::Header::deserialize(decoder, &<<#field_types as mini3d_serialize::Serialize>::Header as mini3d_serialize::Serialize>::Header::default())?,)*
                 })
             }
         }
@@ -550,14 +550,14 @@ fn generate_struct_field_deserialize(entry: &StructFieldEntry) -> Result<TokenSt
         }
     } else if let Some((major, minor, patch)) = entry.attributes.since {
         quote! {
-            if header.version >= mini3d_core::utils::version::Version::new(#major, #minor, #patch) {
-                <#field_type as mini3d_core::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
+            if header.version >= mini3d_serialize::Version::new(#major, #minor, #patch) {
+                <#field_type as mini3d_serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
             } else {
                 <#field_type as core::default::Default>::default()
             }
         }
     } else {
-        quote! { <#field_type as mini3d_core::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
+        quote! { <#field_type as mini3d_serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
     })
 }
 
@@ -572,14 +572,14 @@ fn generate_tuple_field_deserialize(entry: &TupleFieldEntry) -> Result<TokenStre
         }
     } else if let Some((major, minor, patch)) = entry.attributes.since {
         quote! {
-            if header.version >= mini3d_core::utils::version::Version::new(#major, #minor, #patch) {
-                <#field_type as mini3d_core::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
+            if header.version >= mini3d_serialize::Version::new(#major, #minor, #patch) {
+                <#field_type as mini3d_serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)?
             } else {
                 <#field_type as core::default::Default>::default()
             }
         }
     } else {
-        quote! { <#field_type as mini3d_core::serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
+        quote! { <#field_type as mini3d_serialize::Serialize>::deserialize(decoder, &header.#field_ident_header)? }
     })
 }
 
@@ -643,16 +643,16 @@ pub(crate) fn derive_struct(
 
         #header
 
-        impl #impl_generics mini3d_core::serialize::Serialize for #ident #ty_generics #where_clause {
+        impl #impl_generics mini3d_serialize::Serialize for #ident #ty_generics #where_clause {
 
             type Header = #header_ident #ty_generics;
 
-            fn serialize(&self, encoder: &mut impl mini3d_core::serialize::Encoder) -> Result<(), mini3d_core::serialize::EncoderError> {
+            fn serialize(&self, encoder: &mut impl mini3d_serialize::Encoder) -> Result<(), mini3d_serialize::EncoderError> {
                 #(self.#field_not_skipped.serialize(encoder)?;)*
                 Ok(())
             }
 
-            fn deserialize(decoder: &mut impl mini3d_core::serialize::Decoder, header: &Self::Header) -> Result<Self, mini3d_core::serialize::DecoderError> {
+            fn deserialize(decoder: &mut impl mini3d_serialize::Decoder, header: &Self::Header) -> Result<Self, mini3d_serialize::DecoderError> {
                 #(let #field_idents = #field_deserialize;)*
                 Ok(Self {
                     #(#field_idents),*
@@ -704,16 +704,16 @@ pub(crate) fn derive_tuple(
 
         #header
 
-        impl #impl_generics mini3d_core::serialize::Serialize for #ident #ty_generics #where_clause {
+        impl #impl_generics mini3d_serialize::Serialize for #ident #ty_generics #where_clause {
 
             type Header = #header_ident #ty_generics;
 
-            fn serialize(&self, encoder: &mut impl mini3d_core::serialize::Encoder) -> Result<(), mini3d_core::serialize::EncoderError> {
+            fn serialize(&self, encoder: &mut impl mini3d_serialize::Encoder) -> Result<(), mini3d_serialize::EncoderError> {
                 #(self.#field_not_skipped.serialize(encoder)?;)*
                 Ok(())
             }
 
-            fn deserialize(decoder: &mut impl mini3d_core::serialize::Decoder, header: &Self::Header) -> Result<Self, mini3d_core::serialize::DecoderError> {
+            fn deserialize(decoder: &mut impl mini3d_serialize::Decoder, header: &Self::Header) -> Result<Self, mini3d_serialize::DecoderError> {
                 Ok(Self(
                     #(#field_deserialize),*
                 ))
@@ -919,14 +919,14 @@ pub(crate) fn derive_enum(
         .collect::<Vec<_>>();
     let header = quote! {
         #vis struct #header_ident #impl_generics #where_clause {
-            version: mini3d_core::utils::version::Version,
+            version: mini3d_serialize::Version,
             #(#variant_header_fields: #header_types),*
         }
 
         impl #impl_generics #header_ident #ty_generics #where_clause {
             fn new() -> Self {
                 Self {
-                    version: mini3d_core::utils::version::Version::new(#major, #minor, #patch),
+                    version: mini3d_serialize::Version::new(#major, #minor, #patch),
                     #(#variant_header_fields: #header_types::default()),*
                 }
             }
@@ -938,24 +938,24 @@ pub(crate) fn derive_enum(
             }
         }
 
-        impl #impl_generics mini3d_core::serialize::Serialize for #header_ident #ty_generics #where_clause {
+        impl #impl_generics mini3d_serialize::Serialize for #header_ident #ty_generics #where_clause {
 
             type Header = ();
 
-            fn serialize(&self, encoder: &mut impl mini3d_core::serialize::Encoder) -> Result<(), mini3d_core::serialize::EncoderError> {
+            fn serialize(&self, encoder: &mut impl mini3d_serialize::Encoder) -> Result<(), mini3d_serialize::EncoderError> {
                 encoder.write_u32(self.version.into())?;
                 #(self.#variant_header_fields.serialize(encoder)?;)*
                 Ok(())
             }
 
-            fn deserialize(decoder: &mut impl mini3d_core::serialize::Decoder, _header: &Self::Header) -> Result<Self, mini3d_core::serialize::DecoderError> {
-                let version: mini3d_core::utils::version::Version = decoder.read_u32()?.into();
-                if version != mini3d_core::utils::version::Version::core() {
-                    return Err(mini3d_core::serialize::DecoderError::Unsupported);
+            fn deserialize(decoder: &mut impl mini3d_serialize::Decoder, _header: &Self::Header) -> Result<Self, mini3d_serialize::DecoderError> {
+                let version: mini3d_serialize::Version = decoder.read_u32()?.into();
+                if version != mini3d_serialize::Version::core() {
+                    return Err(mini3d_serialize::DecoderError::Unsupported);
                 }
                 Ok(Self {
-                    version: mini3d_core::utils::version::Version::core(),
-                    #(#variant_header_fields: <#header_types as mini3d_core::serialize::Serialize>::deserialize(decoder, &<#header_types as mini3d_core::serialize::Serialize>::Header::default())?,)*
+                    version: mini3d_serialize::Version::core(),
+                    #(#variant_header_fields: <#header_types as mini3d_serialize::Serialize>::deserialize(decoder, &<#header_types as mini3d_serialize::Serialize>::Header::default())?,)*
                 })
             }
         }
@@ -966,22 +966,22 @@ pub(crate) fn derive_enum(
         #(#variant_header_structs)*
         #header
 
-        impl #impl_generics mini3d_core::serialize::Serialize for #ident #ty_generics #where_clause {
+        impl #impl_generics mini3d_serialize::Serialize for #ident #ty_generics #where_clause {
 
             type Header = #header_ident #ty_generics;
 
-            fn serialize(&self, encoder: &mut impl mini3d_core::serialize::Encoder) -> Result<(), mini3d_core::serialize::EncoderError> {
+            fn serialize(&self, encoder: &mut impl mini3d_serialize::Encoder) -> Result<(), mini3d_serialize::EncoderError> {
                 match self {
                     #(#variant_match_serialize,)*
                 }
                 Ok(())
             }
 
-            fn deserialize(decoder: &mut impl mini3d_core::serialize::Decoder, header: &Self::Header) -> Result<Self, mini3d_core::serialize::DecoderError> {
+            fn deserialize(decoder: &mut impl mini3d_serialize::Decoder, header: &Self::Header) -> Result<Self, mini3d_serialize::DecoderError> {
                 let hash = decoder.read_u32()?;
                 match hash {
                     #(#variant_match_deserialize,)*
-                    _ => Err(mini3d_core::serialize::DecoderError::CorruptedData),
+                    _ => Err(mini3d_serialize::DecoderError::CorruptedData),
                 }
             }
         }

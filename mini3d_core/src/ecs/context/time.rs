@@ -2,7 +2,7 @@ use crate::{ecs::ECSCommand, math::fixed::U32F16};
 
 use super::Context;
 
-pub(crate) struct TimeAPI {
+pub(crate) struct TimeContext {
     pub(crate) delta: U32F16,
     pub(crate) frame: u64,
     pub(crate) target_tps: u16,
@@ -24,6 +24,6 @@ impl Time {
     }
 
     pub fn set_target_tps(ctx: &mut Context, tps: u16) {
-        ctx.commands.push(ECSCommand::SetTargetTPS(tps));
+        ctx.ecs.commands.push(ECSCommand::SetTargetTPS(tps));
     }
 }

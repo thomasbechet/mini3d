@@ -551,7 +551,7 @@ impl<K: Key, V> SparseSecondaryMap<K, V> {
                         let last_index = self.data.len() as u32 - 1;
                         let last_id_index = self.data[last_index as usize].key.index().unwrap();
                         self.data.swap(index, last_index as usize);
-                        self.indices[last_id_index as usize] = meta;
+                        self.indices[last_id_index] = meta;
                     }
                     return self.data.pop().map(|e| e.value);
                 }

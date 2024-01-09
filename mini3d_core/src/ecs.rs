@@ -12,11 +12,11 @@ use crate::{
 use self::{
     component::{ComponentType, System, SystemStage},
     container::ContainerTable,
-    context::{time::TimeAPI, Context},
+    context::{time::TimeContext, Context},
     entity::{Entity, EntityEntry, EntityTable},
     query::QueryTable,
     scheduler::{Scheduler, SystemStageKey},
-    system::SystemTable,
+    system::{SystemKey, SystemTable},
     view::native::single::NativeSingleViewMut,
 };
 
@@ -79,30 +79,38 @@ pub(crate) struct ECSUpdateContext<'a> {
 
 impl ECSManager {
     pub(crate) fn flush_commands(&mut self) {
+        let mut rebuild_scheduler = false;
         for command in self.commands.drain(..).collect::<Vec<_>>() {
             match command {
-                ECSCommand::AddSystemSet(set) => {
-                    self.systems
-                        .insert_system_set(
-                            set,
-                            &mut self.entities,
-                            &mut self.queries,
-                            &mut self.containers,
-                        )
-                        .expect("Failed to insert system set");
-                    self.scheduler.rebuild(&self.systems);
+                ECSCommand::AddSystem(entity) => {
+                    if let Some(system) = self.views.system.get_mut(entity) {
+                        self.systems
+                            .add_system(system, entity)
+                            .expect("Failed to add system");
+                        rebuild_scheduler = true;
+                    }
                 }
-                ECSCommand::RemoveSystemSet(set) => todo!(),
+                ECSCommand::RemoveSystem(entity) => {
+                    if let Some(system) = self.views.system.get_mut(entity) {
+                        self.systems
+                            .remove_system(system, entity)
+                            .expect("Failed to remove system");
+                        rebuild_scheduler = true;
+                    }
+                }
                 ECSCommand::SetTargetTPS(tps) => {
                     self.target_tps = tps;
                 }
             }
         }
+        if rebuild_scheduler {
+            self.scheduler.rebuild(&self.systems);
+        }
     }
 
-    pub(crate) fn flush_changes(&mut self, instance: usize) {
+    pub(crate) fn flush_changes(&mut self, key: SystemKey) {
         // Flush structural changes
-        let writes = &self.systems.systems[instance].writes;
+        let writes = &self.systems.instances[key].writes;
         {
             // Added entities
             for entity in self.entity_created.drain(..) {
@@ -164,7 +172,7 @@ impl ECSManager {
             if node.count == 1 {
                 // Find instance
                 let instance_index = self.scheduler.instance_indices[node.first];
-                let instance = &self.systems.systems[instance_index];
+                let instance = &self.systems.instances[instance_index];
 
                 // Run the system
                 match &instance.instance {
@@ -178,7 +186,7 @@ impl ECSManager {
                             renderer: context.renderer,
                             platform: context.platform,
                             logger: context.logger,
-                            time: TimeAPI {
+                            time: TimeContext {
                                 delta: delta_time,
                                 frame: self.frame_index,
                                 target_tps: self.target_tps,
@@ -199,7 +207,7 @@ impl ECSManager {
                             renderer: context.renderer,
                             platform: context.platform,
                             logger: context.logger,
-                            time: TimeAPI {
+                            time: TimeContext {
                                 delta: delta_time,
                                 frame: self.frame_index,
                                 target_tps: self.target_tps,

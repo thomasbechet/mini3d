@@ -3,6 +3,8 @@ use core::{
     ops::{Mul, MulAssign},
 };
 
+use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+
 use super::{
     fixed::{FixedPoint, RealFixedPoint, SignedFixedPoint, TrigFixedPoint, I32F16},
     mat::M4,
@@ -131,13 +133,38 @@ impl<T: FixedPoint + Display> Display for Q<T> {
     }
 }
 
+impl<T: FixedPoint + RealFixedPoint + SignedFixedPoint + TrigFixedPoint + Serialize> Serialize
+    for Q<T>
+{
+    type Header = T::Header;
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        self.x.serialize(encoder)?;
+        self.y.serialize(encoder)?;
+        self.z.serialize(encoder)?;
+        self.w.serialize(encoder)?;
+        Ok(())
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        let x = T::deserialize(decoder, header)?;
+        let y = T::deserialize(decoder, header)?;
+        let z = T::deserialize(decoder, header)?;
+        let w = T::deserialize(decoder, header)?;
+        Ok(Q::new(x, y, z, w))
+    }
+}
+
 pub type QI32F16 = Q<I32F16>;
 
 #[cfg(test)]
 mod test {
     use std::println;
 
-    use crate::math::fixed::I32F16;
+    use crate::fixed::I32F16;
 
     use super::*;
 

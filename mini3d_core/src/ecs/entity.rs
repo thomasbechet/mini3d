@@ -48,14 +48,14 @@ impl Entity {
 
     /// Immediatlly effective
     pub fn create(ctx: &mut Context) -> Entity {
-        let entity = ctx.entities.generate_entity();
-        ctx.entity_created.push(entity);
+        let entity = ctx.ecs.entities.generate_entity();
+        ctx.ecs.entity_created.push(entity);
         entity
     }
 
     /// Effective only at the end of system
     pub fn destroy(ctx: &mut Context, entity: Entity) {
-        ctx.entity_destroyed.push(entity);
+        ctx.ecs.entity_destroyed.push(entity);
     }
 }
 

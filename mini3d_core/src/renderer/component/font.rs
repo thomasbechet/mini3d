@@ -1,6 +1,7 @@
 use crate::{
     ecs::{
-        component::{Component, ComponentContext, ComponentError, ComponentStorage},
+        component::{Component, ComponentError, ComponentStorage},
+        context::Context,
         entity::Entity,
     },
     math::{
@@ -63,11 +64,11 @@ impl Font {
 
 impl Component for Font {
     const STORAGE: ComponentStorage = ComponentStorage::Single;
-    fn on_added(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
-        self.handle = ctx.renderer.add_font(entity, self)?;
+    fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
+        self.handle = ctx.renderer.add_font(entity, &self.data)?;
         Ok(())
     }
-    fn on_removed(&mut self, entity: Entity, ctx: ComponentContext) -> Result<(), ComponentError> {
+    fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         ctx.renderer.remove_font(self.handle)
     }
 }
@@ -91,7 +92,7 @@ impl FontAtlas {
         };
 
         let mut extents = vec![IRect::default(); Font::MAX_CHARS];
-        let mut extent = IRect::new(0, 0, font.glyph_size.x, height as u32);
+        let mut extent = IRect::new(0, 0, font.data.glyph_size.x, height as u32);
         for (c, location) in Font::CHARS
             .chars()
             .map(|c| (c, font.data.char_to_location[c as usize]))

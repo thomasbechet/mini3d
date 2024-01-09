@@ -4,8 +4,7 @@ use core::{
 };
 
 use mini3d_derive::Error;
-
-use crate::serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
+use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError, Serialize};
 
 const fn parse_lit_dec(float: &str) -> Option<(bool, u64, u64, u8)> {
     let mut signed = false;

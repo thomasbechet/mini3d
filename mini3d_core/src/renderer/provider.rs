@@ -7,7 +7,7 @@ use super::{
     component::{
         diffuse::{DiffusePassCommand, DiffusePassInfo, DiffusePassRenderInfo},
         renderpass::canvas::{CanvasPassCommand, CanvasPassInfo, CanvasPassRenderInfo},
-        MeshData, TextureData,
+        FontData, MeshData, TextureData,
     },
     event::RendererEvent,
 };
@@ -53,6 +53,12 @@ pub trait RendererProvider {
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError>;
+
+    fn add_font(
+        &mut self,
+        data: &FontData,
+    ) -> Result<RendererProviderHandle, RendererProviderError>;
+    fn remove_font(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError>;
 
     fn add_material(
         &mut self,
@@ -152,6 +158,16 @@ impl RendererProvider for PassiveRendererProvider {
         &mut self,
         handle: RendererProviderHandle,
     ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
+
+    fn add_font(
+        &mut self,
+        data: &FontData,
+    ) -> Result<RendererProviderHandle, RendererProviderError> {
+        Ok(0.into())
+    }
+    fn remove_font(&mut self, handle: RendererProviderHandle) -> Result<(), RendererProviderError> {
         Ok(())
     }
 
