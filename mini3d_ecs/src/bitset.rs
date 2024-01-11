@@ -94,9 +94,9 @@ impl Bitset {
             bitset: self,
             l0mask: 1,
             l1: 0,
-            l1mask: 1,
+            l1mask: 0,
             l2: 0,
-            l2mask: 1,
+            l2mask: 0,
             index: 0,
         }
     }
@@ -117,34 +117,45 @@ impl<'a> Iterator for BitsetIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if self.l0mask == 0 {
-                return None;
+            // Check l2 mask
+            if self.l2mask != 0 && (self.bitset.l2[self.l2 as usize].0 & self.l2mask) != 0 {
+                let index = self.index;
+                self.l2mask <<= 1;
+                self.index += 1;
+                return Some(index);
             }
 
-            // L0 iteration
-            if self.l1mask == 0 {
-                self.l0mask <<= 1;
-                self.l1 += 1;
-                if (self.bitset.l0.0 & self.l0mask) != 0 {
-                    self.l1mask = 1;
-                }
-            }
-
-            // L1 iteration
-            if self.l2mask == 0 {
-                self.l1mask <<= 1;
-                self.l2 += 1;
-                if (self.bitset.l1[self.l1 as usize].0 & self.l1mask) != 0 {
+            // Check l1 mask
+            if self.l1mask != 0 {
+                if (self.bitset.l1[self.l1 as usize].0 & self.l1mask) == 0 {
+                    self.l1mask <<= 1;
+                    self.l2 += 1;
+                    self.index += Block::BITS;
+                    if self.l2 >= self.bitset.l2.len() as u32 {
+                        return None;
+                    }
+                } else {
                     self.l2mask = 1;
                 }
+                continue;
             }
 
-            // L2 iteration
-            self.l2mask <<= 1;
-            self.index += 1;
-            if (self.bitset.l2[self.l2 as usize].0 & self.l2mask) != 0 {
-                return Some(self.index);
+            // Check l0 mask
+            if self.l0mask != 0 {
+                if (self.bitset.l0.0 & self.l0mask) == 0 {
+                    self.l0mask <<= 1;
+                    self.l1 += 1;
+                    self.index += Block::BITS * Block::BITS;
+                    if self.l1 >= self.bitset.l1.len() as u32 {
+                        return None;
+                    }
+                } else {
+                    self.l1mask = 1;
+                }
+                continue;
             }
+
+            return None;
         }
     }
 }
