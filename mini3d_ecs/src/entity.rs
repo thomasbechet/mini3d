@@ -1,4 +1,7 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+use alloc::vec::Vec;
+use mini3d_derive::Serialize;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Entity(pub(crate) u32);
 
 pub(crate) type EntityVersion = u8;
@@ -24,12 +27,6 @@ impl Entity {
     pub fn raw(&self) -> u32 {
         self.0
     }
-
-    // pub fn resolve(&mut self, resolver: &EntityResolver) {
-    //     if let Some(handle) = resolver.map.get(&self.0) {
-    //         self.0 = *handle;
-    //     }
-    // }
 }
 
 impl Default for Entity {
@@ -38,4 +35,7 @@ impl Default for Entity {
     }
 }
 
-pub(crate) struct EntityTable {}
+#[derive(Default)]
+pub(crate) struct EntityTable {
+    free_entities: Vec<Entity>,
+}

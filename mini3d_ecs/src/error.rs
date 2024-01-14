@@ -22,4 +22,14 @@ pub enum ComponentError {
     UnresolvedReference,
     #[error("Component provider error")]
     ProviderError,
+    #[error("Component not found")]
+    EntryNotFound,
+}
+
+#[derive(Error, Debug)]
+pub enum SystemError {
+    #[error("System error")]
+    RunError,
+    #[error("System config error")]
+    ConfigError,
 }

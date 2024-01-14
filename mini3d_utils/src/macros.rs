@@ -35,15 +35,15 @@ macro_rules! define_provider_handle {
 macro_rules! slot_map_key {
     ($name:ident) => {
         #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-        pub struct $name($crate::utils::slotmap::DefaultKey);
+        pub struct $name($crate::slotmap::DefaultKey);
 
-        impl $crate::utils::slotmap::Key for $name {
+        impl $crate::slotmap::Key for $name {
             fn new(index: usize) -> Self {
-                Self($crate::utils::slotmap::DefaultKey::new(index))
+                Self($crate::slotmap::DefaultKey::new(index))
             }
 
             fn null() -> Self {
-                Self($crate::utils::slotmap::DefaultKey::null())
+                Self($crate::slotmap::DefaultKey::null())
             }
 
             fn update(&mut self, index: usize) {
