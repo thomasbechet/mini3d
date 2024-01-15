@@ -1,11 +1,7 @@
 use core::cell::RefCell;
 
-use alloc::{boxed::Box, rc::Rc};
-use mini3d_utils::{
-    slot_map_key,
-    slotmap::SlotMap,
-    uid::{ToUID, UID},
-};
+use alloc::{boxed::Box, rc::Rc, sync::Arc};
+use mini3d_utils::{slot_map_key, slotmap::SlotMap};
 
 use crate::{
     component::system::SystemKind,
@@ -14,34 +10,39 @@ use crate::{
     entity::Entity,
     error::{ComponentError, SystemError},
     scheduler::NodeKey,
+    world::World,
 };
 
-pub trait ExclusiveSystem {
+pub trait ExclusiveSystem: 'static {
     fn configure(&mut self) -> Result<(), SystemError>;
     fn run(&mut self, ctx: &mut Context) -> Result<(), SystemError>;
 }
 
-pub trait ParallelSystem {
+pub trait ParallelSystem: 'static {
     fn configure(&mut self) -> Result<(), SystemError>;
     fn run(&mut self, ctx: &Context) -> Result<(), SystemError>;
 }
 
+pub trait GlobalSystem: 'static {
+    fn run(&mut self, ctx: &mut Context, world: &mut World) -> Result<(), SystemError>;
+}
+
 pub(crate) enum SystemInstance {
     Exclusive(Rc<RefCell<Box<dyn ExclusiveSystem>>>),
-    Parallel(Rc<RefCell<Box<dyn ParallelSystem>>>),
+    Parallel(Arc<RefCell<Box<dyn ParallelSystem>>>),
+    Global(Rc<RefCell<Box<dyn GlobalSystem>>>),
 }
 
 slot_map_key!(SystemKey);
 slot_map_key!(SystemStageKey);
 
 pub(crate) struct SystemEntry {
-    pub(crate) uid: UID,
+    pub(crate) entity: Entity,
     pub(crate) instance: SystemInstance,
     pub(crate) stage: SystemStageKey,
 }
 
 pub(crate) struct SystemStageEntry {
-    pub(crate) uid: UID,
     pub(crate) entity: Entity,
     pub(crate) first_node: NodeKey,
 }
@@ -62,8 +63,7 @@ impl SystemTable {
         let system = container
             .get_mut(entity)
             .ok_or(ComponentError::EntryNotFound)?;
-        let uid = system.name.to_uid();
-        if self.systems.iter().any(|(_, entry)| entry.uid == uid) {
+        if self.systems.iter().any(|(_, entry)| entry.entity == entity) {
             return Err(ComponentError::DuplicatedEntry);
         }
         let stage = self
@@ -77,19 +77,25 @@ impl SystemTable {
                 }
             })
             .ok_or(ComponentError::UnresolvedReference)?;
-        match system.kind {
-            SystemKind::NativeExclusive(ref mut system) => {}
-            SystemKind::NativeParallel(ref mut system) => {}
-            SystemKind::Script => {}
-        }
-        Ok(self.systems.add(SystemEntry {
+        let instance = match system.kind {
+            SystemKind::NativeExclusive(ref mut system) => {
+                SystemInstance::Exclusive(system.clone())
+            }
+            SystemKind::NativeParallel(ref mut system) => SystemInstance::Parallel(system.clone()),
+            SystemKind::NativeGlobal(ref mut system) => SystemInstance::Global(system.clone()),
+            SystemKind::Script => {
+                return Err(ComponentError::UnresolvedReference);
+            }
+        };
+        let key = self.systems.add(SystemEntry {
+            entity,
             instance,
             stage,
-            uid,
-        }))
+        });
+        Ok(())
     }
 
-    pub(crate) fn disable_system(&mut self, key: SystemKey) {
+    pub(crate) fn disable_system(&mut self, entity: Entity, containers: &mut ContainerTable) {
         unimplemented!()
     }
 
@@ -102,19 +108,17 @@ impl SystemTable {
         let stage = container
             .get_mut(entity)
             .ok_or(ComponentError::EntryNotFound)?;
-        let uid = stage.name.to_uid();
-        if self.stages.iter().any(|(_, entry)| entry.uid == uid) {
+        if self.stages.iter().any(|(_, entry)| entry.entity == entity) {
             return Err(ComponentError::DuplicatedEntry);
         }
         stage.key = self.stages.add(SystemStageEntry {
-            uid,
             entity,
             first_node: Default::default(),
         });
         Ok(())
     }
 
-    pub(crate) fn disable_system_stage(&mut self, entity: Entity) {
+    pub(crate) fn disable_system_stage(&mut self, entity: Entity, containers: &mut ContainerTable) {
         unimplemented!()
     }
 }

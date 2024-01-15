@@ -4,14 +4,11 @@ use alloc::boxed::Box;
 use mini3d_utils::{
     slot_map_key,
     slotmap::{Key, SlotMap},
-    uid::{ToUID, UID},
 };
 
 use crate::{
     bitset::Bitset,
-    component::{
-        component_type::ComponentType, system::System, system_stage::SystemStage, Component,
-    },
+    component::{component_type::ComponentType, system::System, system_stage::SystemStage},
     context::Context,
     entity::Entity,
     error::ComponentError,
@@ -34,7 +31,7 @@ slot_map_key!(ContainerKey);
 
 pub(crate) struct ContainerEntry {
     pub(crate) container: ContainerWrapper,
-    pub(crate) uid: UID,
+    pub(crate) entity: Entity,
 }
 
 pub(crate) struct ContainerTable {
@@ -86,12 +83,11 @@ impl ContainerTable {
         let component = self
             .get_component_type(entity)
             .ok_or(ComponentError::EntryNotFound)?;
-        let uid = component.name.to_uid();
-        if self.entries.iter().any(|(_, entry)| entry.uid == uid) {
+        if self.entries.iter().any(|(_, entry)| entry.entity == entity) {
             return Err(ComponentError::DuplicatedEntry);
         }
         let container = component.create_container();
-        let key = self.entries.add(ContainerEntry { container, uid });
+        let key = self.entries.add(ContainerEntry { container, entity });
         self.get_component_type(entity).unwrap().key = key;
         Ok(key)
     }
@@ -131,7 +127,7 @@ impl Default for ContainerTable {
             container: Box::new(UnsafeCell::new(
                 NativeSingleContainer::<ComponentType>::with_capacity(128),
             )),
-            uid: ComponentType::UID,
+            entity: Entity::null(),
         });
 
         table

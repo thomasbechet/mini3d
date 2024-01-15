@@ -1,10 +1,13 @@
 use core::cell::RefCell;
 
-use crate::error::SystemError;
+use crate::system::GlobalSystem;
 use crate::view::SystemView;
+use crate::{error::SystemError, world::World};
 use alloc::boxed::Box;
+use alloc::rc::Rc;
+use alloc::sync::Arc;
 use mini3d_derive::Serialize;
-use mini3d_utils::{slotmap::Key, string::AsciiArray};
+use mini3d_utils::slotmap::Key;
 
 use crate::{
     context::{Command, Context},
@@ -25,6 +28,20 @@ pub struct NativeParallelSystem<Params, F> {
     params: Params,
 }
 
+pub struct NativeGlobalSystem<F> {
+    function: F,
+}
+
+impl<F> GlobalSystem for NativeGlobalSystem<F>
+where
+    F: Fn(&mut Context, &mut World) + 'static,
+{
+    fn run(&mut self, ctx: &mut Context, world: &mut World) -> Result<(), SystemError> {
+        (self.function)(ctx, world);
+        Ok(())
+    }
+}
+
 macro_rules! impl_system {
     (
         $(
@@ -37,7 +54,7 @@ macro_rules! impl_system {
             F: Fn(
                 &mut Context,
                 $($($params),+)?
-            )
+            ) + 'static
             $(,$($params: SystemView),+)?
         > ExclusiveSystem for NativeExclusiveSystem<($( $($params,)+ )?), F> {
             fn configure(&mut self) -> Result<(), SystemError> {
@@ -57,7 +74,7 @@ macro_rules! impl_system {
             F: Fn(
                 &Context,
                 $($($params),+)?
-            )
+            ) + 'static
             $(,$($params: SystemView),+)?
         > ParallelSystem for NativeParallelSystem<($( $($params,)+ )?), F> {
             fn configure(&mut self) -> Result<(), SystemError> {
@@ -139,8 +156,9 @@ pub struct SystemOrder {}
 
 #[derive(Default, Serialize)]
 pub(crate) enum SystemKind {
-    NativeExclusive(#[serialize(skip)] RefCell<Box<dyn ExclusiveSystem>>),
-    NativeParallel(#[serialize(skip)] RefCell<Box<dyn ParallelSystem>>),
+    NativeExclusive(#[serialize(skip)] Rc<RefCell<Box<dyn ExclusiveSystem>>>),
+    NativeParallel(#[serialize(skip)] Arc<RefCell<Box<dyn ParallelSystem>>>),
+    NativeGlobal(#[serialize(skip)] Rc<RefCell<Box<dyn GlobalSystem>>>),
     #[default]
     Script,
 }
@@ -157,9 +175,14 @@ impl Default for Box<dyn ParallelSystem> {
     }
 }
 
+impl Default for Box<dyn GlobalSystem> {
+    fn default() -> Self {
+        panic!("Invalid deserialization for native global system")
+    }
+}
+
 #[derive(Default, Serialize)]
 pub struct System {
-    pub(crate) name: AsciiArray<32>,
     pub(crate) kind: SystemKind,
     pub(crate) stage: Entity,
     pub(crate) order: SystemOrder,
@@ -169,15 +192,17 @@ pub struct System {
 }
 
 impl System {
+    pub const IDENT: &'static str = "system";
+
     pub fn native_exclusive<Params>(
-        name: &str,
-        system: impl IntoNativeExclusiveSystem<Params>,
+        function: impl IntoNativeExclusiveSystem<Params>,
         stage: Entity,
         order: SystemOrder,
     ) -> Self {
         Self {
-            name: AsciiArray::from(name),
-            kind: SystemKind::NativeExclusive(RefCell::new(Box::new(system.into_system()))),
+            kind: SystemKind::NativeExclusive(Rc::new(RefCell::new(Box::new(
+                function.into_system(),
+            )))),
             stage,
             order,
             auto_enable: false,
@@ -186,14 +211,30 @@ impl System {
     }
 
     pub fn native_parallel<Params>(
-        name: &str,
-        system: impl IntoNativeParallelSystem<Params>,
+        function: impl IntoNativeParallelSystem<Params>,
         stage: Entity,
         order: SystemOrder,
     ) -> Self {
         Self {
-            name: AsciiArray::from(name),
-            kind: SystemKind::NativeParallel(RefCell::new(Box::new(system.into_system()))),
+            kind: SystemKind::NativeParallel(Arc::new(RefCell::new(Box::new(
+                function.into_system(),
+            )))),
+            stage,
+            order,
+            auto_enable: false,
+            key: SystemKey::null(),
+        }
+    }
+
+    pub fn native_global(
+        function: fn(&mut Context, &mut World),
+        stage: Entity,
+        order: SystemOrder,
+    ) -> Self {
+        Self {
+            kind: SystemKind::NativeGlobal(Rc::new(RefCell::new(Box::new(NativeGlobalSystem {
+                function,
+            })))),
             stage,
             order,
             auto_enable: false,
@@ -207,7 +248,6 @@ impl System {
 }
 
 impl Component for System {
-    const NAME: &'static str = "system";
     const STORAGE: ComponentStorage = ComponentStorage::Single;
 
     fn resolve_entities(&mut self, _: &mut EntityResolver) -> Result<(), ComponentError> {

@@ -2,7 +2,7 @@ use core::cell::UnsafeCell;
 
 use alloc::boxed::Box;
 use mini3d_derive::Serialize;
-use mini3d_utils::{slotmap::Key, string::AsciiArray};
+use mini3d_utils::slotmap::Key;
 
 use crate::{
     container::{native::NativeSingleContainer, ContainerKey, ContainerWrapper},
@@ -51,7 +51,6 @@ pub(crate) enum ComponentKind {
 
 #[derive(Default, Serialize)]
 pub struct ComponentType {
-    pub(crate) name: AsciiArray<32>,
     pub(crate) kind: ComponentKind,
     pub(crate) auto_enable: bool,
     #[serialize(skip)]
@@ -59,9 +58,10 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    pub fn native<C: Component>(name: &str, auto_enable: bool) -> Self {
+    pub const NAME: &'static str = "component_type";
+
+    pub fn native<C: Component>(auto_enable: bool) -> Self {
         Self {
-            name: AsciiArray::from(name),
             kind: ComponentKind::Native(Box::new(NativeComponentFactory::<C>(
                 core::marker::PhantomData,
             ))),
@@ -70,14 +70,8 @@ impl ComponentType {
         }
     }
 
-    pub fn dynamic(
-        name: &str,
-        storage: ComponentStorage,
-        typedef: Entity,
-        auto_enable: bool,
-    ) -> Self {
+    pub fn dynamic(storage: ComponentStorage, typedef: Entity, auto_enable: bool) -> Self {
         Self {
-            name: AsciiArray::from(name),
             kind: ComponentKind::Dynamic { storage },
             auto_enable,
             key: Default::default(),
@@ -98,7 +92,6 @@ impl ComponentType {
 
 impl Component for ComponentType {
     const STORAGE: ComponentStorage = ComponentStorage::Single;
-    const NAME: &'static str = "component_type";
 
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())

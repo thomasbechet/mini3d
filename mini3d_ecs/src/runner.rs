@@ -1,7 +1,10 @@
 use alloc::vec::Vec;
 
 use crate::{
-    context::SystemCommand, entity::EntityTable, scheduler::Scheduler, system::SystemTable,
+    context::SystemCommand,
+    entity::EntityTable,
+    scheduler::Scheduler,
+    system::{SystemInstance, SystemTable},
 };
 
 #[derive(Default)]
@@ -15,6 +18,7 @@ impl Runner {
         scheduler: &mut Scheduler,
         systems: &mut SystemTable,
         entities: &mut EntityTable,
+        containers: &mut ContainerTable,
     ) {
         // Run stages
         // TODO: protect against infinite loops
@@ -29,57 +33,48 @@ impl Runner {
             // Execute node
             if node.count == 1 {
                 // Find instance
-                let instance_index = scheduler.instance_indices[node.first];
-                let instance = &systems.instances[instance_index];
+                let system_key = scheduler.system_keys[node.first as usize];
+                let instance = &systems.systems[system_key].instance;
 
                 // Run the system
-                match &instance.instance {
+                match &instance {
                     SystemInstance::Exclusive(instance) => {
-                        let ctx = &mut Context {
-                            entities: &mut self.entities,
-                            entity_created: &mut self.entity_created,
-                            entity_destroyed: &mut self.entity_destroyed,
-                            scheduler: &mut self.scheduler,
-                            input: context.input,
-                            renderer: context.renderer,
-                            platform: context.platform,
-                            logger: context.logger,
-                            time: TimeContext {
-                                delta: delta_time,
-                                frame: self.frame_index,
-                                target_tps: self.target_tps,
-                            },
-                            ecs_types: &self.views,
-                            commands: &mut self.commands,
-                        };
-                        // TODO: catch unwind
-                        instance.run(ctx);
+                        instance.borrow_mut().run();
                     }
                     SystemInstance::Parallel(instance) => {
-                        let ctx = &Context {
-                            entities: &mut self.entities,
-                            entity_created: &mut self.entity_created,
-                            entity_destroyed: &mut self.entity_destroyed,
-                            scheduler: &mut self.scheduler,
-                            input: context.input,
-                            renderer: context.renderer,
-                            platform: context.platform,
-                            logger: context.logger,
-                            time: TimeContext {
-                                delta: delta_time,
-                                frame: self.frame_index,
-                                target_tps: self.target_tps,
-                            },
-                            ecs_types: &self.views,
-                            commands: &mut self.commands,
-                        };
-                        // TODO: catch unwind
-                        instance.run(ctx);
+                        instance.borrow_mut().run();
+                    }
+                    SystemInstance::Global(instance) => {
+                        instance.borrow_mut().run();
                     }
                 }
 
-                // Flush structural changes
-                self.flush_changes(instance_index);
+                // Process commands
+                for command in self.commands.drain(..) {
+                    match command {
+                        SystemCommand::EnableSystem(entity) => {
+                            systems.enable_system(entity, containers);
+                        }
+                        SystemCommand::DisableSystem(entity) => {
+                            systems.disable_system(entity, containers);
+                        }
+                        SystemCommand::EnableSystemStage(entity) => {
+                            systems.enable_system_stage(entity, containers);
+                        }
+                        SystemCommand::DisableSystemStage(entity) => {
+                            systems.disable_system_stage(entity, containers);
+                        }
+                        SystemCommand::Despawn(entity) => {
+                            entities.despawn(entity, containers);
+                        }
+                        SystemCommand::EnableComponentType(entity) => {
+                            containers.enable_component_type(entity);
+                        }
+                        SystemCommand::DisableComponentType(entity) => {
+                            containers.disable_component_type(entity);
+                        }
+                    }
+                }
             } else {
                 // TODO: use thread pool
             }

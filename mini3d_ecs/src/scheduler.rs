@@ -24,7 +24,7 @@ pub(crate) struct Scheduler {
     // Baked nodes
     nodes: SlotMap<NodeKey, PipelineNode>,
     // Instances
-    system_keys: Vec<SystemKey>,
+    pub(crate) system_keys: Vec<SystemKey>,
     // Runtime next frame stage
     next_frame_stages: VecDeque<SystemStageKey>,
     // Runtime stages

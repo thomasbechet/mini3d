@@ -1,10 +1,10 @@
 use mini3d_derive::Serialize;
 use mini3d_serialize::Serialize;
-use mini3d_utils::uid::UID;
 
 use crate::{context::Context, entity::Entity, error::ComponentError};
 
 pub mod component_type;
+pub mod identifier;
 pub mod system;
 pub mod system_stage;
 
@@ -28,8 +28,6 @@ impl EntityResolver {
 
 pub trait Component: 'static + Default + Serialize {
     const STORAGE: ComponentStorage;
-    const NAME: &'static str;
-    const UID: UID = UID::new(Self::NAME);
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
     }

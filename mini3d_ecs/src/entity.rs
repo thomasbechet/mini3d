@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 use mini3d_derive::Serialize;
 
+use crate::container::ContainerTable;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Entity(pub(crate) u32);
 
@@ -38,4 +40,12 @@ impl Default for Entity {
 #[derive(Default)]
 pub(crate) struct EntityTable {
     free_entities: Vec<Entity>,
+}
+
+impl EntityTable {
+    pub(crate) fn despawn(&mut self, entity: Entity, containers: &mut ContainerTable) {
+        self.free_entities.push(entity);
+        // TODO: remove entity from containers
+        // TODO: handle batch despawn
+    }
 }
