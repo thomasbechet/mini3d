@@ -80,23 +80,19 @@ impl ContainerTable {
         &mut self,
         entity: Entity,
     ) -> Result<ContainerKey, ComponentError> {
-        let component = self
-            .get_component_type(entity)
-            .ok_or(ComponentError::EntryNotFound)?;
         if self.entries.iter().any(|(_, entry)| entry.entity == entity) {
             return Err(ComponentError::DuplicatedEntry);
         }
+        let component = self
+            .get_component_type(entity)
+            .ok_or(ComponentError::EntryNotFound)?;
         let container = component.create_container();
         let key = self.entries.add(ContainerEntry { container, entity });
         self.get_component_type(entity).unwrap().key = key;
         Ok(key)
     }
 
-    pub(crate) fn disable_component_type(
-        &mut self,
-        ctx: &mut Context,
-        key: ContainerKey,
-    ) -> Result<(), ComponentError> {
+    pub(crate) fn disable_component_type(&mut self, entity: Entity) -> Result<(), ComponentError> {
         unimplemented!()
     }
 

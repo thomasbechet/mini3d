@@ -1,6 +1,7 @@
 use core::cell::RefCell;
 
 use crate::system::GlobalSystem;
+use crate::system::SystemResolver;
 use crate::view::SystemView;
 use crate::{error::SystemError, world::World};
 use alloc::boxed::Box;
@@ -57,9 +58,9 @@ macro_rules! impl_system {
             ) + 'static
             $(,$($params: SystemView),+)?
         > ExclusiveSystem for NativeExclusiveSystem<($( $($params,)+ )?), F> {
-            fn configure(&mut self) -> Result<(), SystemError> {
-                // let ($($($params,)+)?) = &mut self.params;
-                // (self.resolve)(config, $( $(($params),)+ )?)
+            fn resolve(&mut self, mut resolver: SystemResolver) -> Result<(), SystemError> {
+                let ($($($params,)+)?) = &mut self.params;
+                $($($params.resolve(resolver.next()?);)+)?
                 Ok(())
             }
             fn run(&mut self, ctx: &mut Context) -> Result<(), SystemError> {
@@ -77,9 +78,9 @@ macro_rules! impl_system {
             ) + 'static
             $(,$($params: SystemView),+)?
         > ParallelSystem for NativeParallelSystem<($( $($params,)+ )?), F> {
-            fn configure(&mut self) -> Result<(), SystemError> {
-                // let ($($($params,)+)?) = &mut self.params;
-                // (self.resolve)(config, $( $(($params),)+ )?)
+            fn resolve(&mut self, mut resolver: SystemResolver) -> Result<(), SystemError> {
+                let ($($($params,)+)?) = &mut self.params;
+                $($($params.resolve(resolver.next()?);)+)?
                 Ok(())
             }
             fn run(&mut self, ctx: &Context) -> Result<(), SystemError> {
@@ -156,8 +157,16 @@ pub struct SystemOrder {}
 
 #[derive(Default, Serialize)]
 pub(crate) enum SystemKind {
-    NativeExclusive(#[serialize(skip)] Rc<RefCell<Box<dyn ExclusiveSystem>>>),
-    NativeParallel(#[serialize(skip)] Arc<RefCell<Box<dyn ParallelSystem>>>),
+    NativeExclusive {
+        #[serialize(skip)]
+        system: Rc<RefCell<Box<dyn ExclusiveSystem>>>,
+        views: [Entity; 8],
+    },
+    NativeParallel {
+        #[serialize(skip)]
+        system: Arc<RefCell<Box<dyn ParallelSystem>>>,
+        views: [Entity; 8],
+    },
     NativeGlobal(#[serialize(skip)] Rc<RefCell<Box<dyn GlobalSystem>>>),
     #[default]
     Script,
@@ -198,11 +207,22 @@ impl System {
         function: impl IntoNativeExclusiveSystem<Params>,
         stage: Entity,
         order: SystemOrder,
+        views: &[Entity],
     ) -> Self {
         Self {
-            kind: SystemKind::NativeExclusive(Rc::new(RefCell::new(Box::new(
-                function.into_system(),
-            )))),
+            kind: SystemKind::NativeExclusive {
+                system: Rc::new(RefCell::new(Box::new(function.into_system()))),
+                views: [
+                    views.get(0).copied().unwrap_or_default(),
+                    views.get(1).copied().unwrap_or_default(),
+                    views.get(2).copied().unwrap_or_default(),
+                    views.get(3).copied().unwrap_or_default(),
+                    views.get(4).copied().unwrap_or_default(),
+                    views.get(5).copied().unwrap_or_default(),
+                    views.get(6).copied().unwrap_or_default(),
+                    views.get(7).copied().unwrap_or_default(),
+                ],
+            },
             stage,
             order,
             auto_enable: false,
@@ -214,11 +234,22 @@ impl System {
         function: impl IntoNativeParallelSystem<Params>,
         stage: Entity,
         order: SystemOrder,
+        views: &[Entity],
     ) -> Self {
         Self {
-            kind: SystemKind::NativeParallel(Arc::new(RefCell::new(Box::new(
-                function.into_system(),
-            )))),
+            kind: SystemKind::NativeParallel {
+                system: Arc::new(RefCell::new(Box::new(function.into_system()))),
+                views: [
+                    views.get(0).copied().unwrap_or_default(),
+                    views.get(1).copied().unwrap_or_default(),
+                    views.get(2).copied().unwrap_or_default(),
+                    views.get(3).copied().unwrap_or_default(),
+                    views.get(4).copied().unwrap_or_default(),
+                    views.get(5).copied().unwrap_or_default(),
+                    views.get(6).copied().unwrap_or_default(),
+                    views.get(7).copied().unwrap_or_default(),
+                ],
+            },
             stage,
             order,
             auto_enable: false,

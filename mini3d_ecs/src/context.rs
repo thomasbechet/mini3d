@@ -15,8 +15,8 @@ pub(crate) enum SystemCommand {
 }
 
 pub struct Context<'a> {
-    user: &'a mut dyn Any,
-    commands: &'a mut Vec<SystemCommand>,
+    pub(crate) user: &'a mut dyn Any,
+    pub(crate) commands: &'a mut Vec<SystemCommand>,
 }
 
 impl<'a> Context<'a> {

@@ -1,10 +1,14 @@
+use core::any::Any;
+
 use alloc::vec::Vec;
 
 use crate::{
-    context::SystemCommand,
+    container::ContainerTable,
+    context::{Context, SystemCommand},
     entity::EntityTable,
     scheduler::Scheduler,
     system::{SystemInstance, SystemTable},
+    world::World,
 };
 
 #[derive(Default)]
@@ -19,6 +23,7 @@ impl Runner {
         systems: &mut SystemTable,
         entities: &mut EntityTable,
         containers: &mut ContainerTable,
+        user: &mut dyn Any,
     ) {
         // Run stages
         // TODO: protect against infinite loops
@@ -36,16 +41,22 @@ impl Runner {
                 let system_key = scheduler.system_keys[node.first as usize];
                 let instance = &systems.systems[system_key].instance;
 
+                let mut ctx = Context {
+                    commands: &mut self.commands,
+                    user,
+                };
+
                 // Run the system
                 match &instance {
                     SystemInstance::Exclusive(instance) => {
-                        instance.borrow_mut().run();
+                        instance.borrow_mut().run(&mut ctx);
                     }
                     SystemInstance::Parallel(instance) => {
-                        instance.borrow_mut().run();
+                        instance.borrow_mut().run(&ctx);
                     }
                     SystemInstance::Global(instance) => {
-                        instance.borrow_mut().run();
+                        let mut world = World { entities };
+                        instance.borrow_mut().run(&mut ctx, &mut world);
                     }
                 }
 

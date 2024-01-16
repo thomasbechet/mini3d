@@ -5,7 +5,7 @@ use mini3d_utils::{slot_map_key, slotmap::SlotMap};
 
 use crate::{
     component::system::SystemKind,
-    container::ContainerTable,
+    container::{ContainerEntry, ContainerTable},
     context::Context,
     entity::Entity,
     error::{ComponentError, SystemError},
@@ -13,13 +13,42 @@ use crate::{
     world::World,
 };
 
+pub struct SystemResolver<'a> {
+    containers: &'a mut ContainerTable,
+    views: &'a [Entity],
+    index: u8,
+}
+
+impl<'a> SystemResolver<'a> {
+    pub(crate) fn next(&'_ mut self) -> Result<&'_ ContainerEntry, SystemError> {
+        if self.index >= self.views.len() as u8 {
+            return Err(SystemError::ConfigError);
+        }
+        let entity = self.views[self.index as usize];
+        self.index += 1;
+        let container = self
+            .containers
+            .entries
+            .iter()
+            .find_map(|(_, entry)| {
+                if entry.entity == entity {
+                    Some(entry)
+                } else {
+                    None
+                }
+            })
+            .ok_or(SystemError::ConfigError)?;
+        Ok(container)
+    }
+}
+
 pub trait ExclusiveSystem: 'static {
-    fn configure(&mut self) -> Result<(), SystemError>;
+    fn resolve(&mut self, resolver: SystemResolver) -> Result<(), SystemError>;
     fn run(&mut self, ctx: &mut Context) -> Result<(), SystemError>;
 }
 
 pub trait ParallelSystem: 'static {
-    fn configure(&mut self) -> Result<(), SystemError>;
+    fn resolve(&mut self, resolver: SystemResolver) -> Result<(), SystemError>;
     fn run(&mut self, ctx: &Context) -> Result<(), SystemError>;
 }
 
@@ -78,10 +107,12 @@ impl SystemTable {
             })
             .ok_or(ComponentError::UnresolvedReference)?;
         let instance = match system.kind {
-            SystemKind::NativeExclusive(ref mut system) => {
+            SystemKind::NativeExclusive { ref mut system, .. } => {
                 SystemInstance::Exclusive(system.clone())
             }
-            SystemKind::NativeParallel(ref mut system) => SystemInstance::Parallel(system.clone()),
+            SystemKind::NativeParallel { ref mut system, .. } => {
+                SystemInstance::Parallel(system.clone())
+            }
             SystemKind::NativeGlobal(ref mut system) => SystemInstance::Global(system.clone()),
             SystemKind::Script => {
                 return Err(ComponentError::UnresolvedReference);
