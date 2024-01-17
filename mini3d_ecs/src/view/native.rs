@@ -1,8 +1,9 @@
 use crate::{
     component::Component,
     container::{native::NativeSingleContainer, ContainerEntry},
+    context::Context,
     entity::Entity,
-    error::SystemError,
+    error::{ComponentError, SystemError},
 };
 
 use super::SystemView;
@@ -21,9 +22,7 @@ impl<C: Component> Default for NativeSingleMut<C> {
 
 impl<C: Component> Clone for NativeSingleMut<C> {
     fn clone(&self) -> Self {
-        Self {
-            ptr: self.ptr.clone(),
-        }
+        Self { ptr: self.ptr }
     }
 }
 
@@ -44,6 +43,20 @@ impl<C: Component> SystemView for NativeSingleMut<C> {
 }
 
 impl<C: Component> NativeSingleMut<C> {
+    pub fn add(
+        &mut self,
+        ctx: &mut Context,
+        entity: Entity,
+        component: C,
+    ) -> Result<&mut C, ComponentError> {
+        if let Some(data) = unsafe { (*self.ptr).add(entity, component) } {
+            data.on_added(entity, ctx)?;
+            Ok(data)
+        } else {
+            Err(ComponentError::DuplicatedEntry)
+        }
+    }
+
     pub fn get(&self, entity: Entity) -> Option<&C> {
         unsafe { (*self.ptr).get(entity) }
     }
@@ -67,9 +80,7 @@ impl<C: Component> Default for NativeSingleRef<C> {
 
 impl<C: Component> Clone for NativeSingleRef<C> {
     fn clone(&self) -> Self {
-        Self {
-            ptr: self.ptr.clone(),
-        }
+        Self { ptr: self.ptr }
     }
 }
 

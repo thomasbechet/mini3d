@@ -6,7 +6,7 @@ use mini3d_utils::slotmap::Key;
 
 use crate::{
     container::{native::NativeSingleContainer, ContainerKey, ContainerWrapper},
-    context::{Command, Context},
+    context::Context,
     entity::Entity,
     error::ComponentError,
 };
@@ -99,14 +99,14 @@ impl Component for ComponentType {
 
     fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         if self.auto_enable {
-            Command::enable_component_type(ctx, entity);
+            Self::enable(ctx, entity);
         }
         Ok(())
     }
 
     fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         if !self.key.is_null() {
-            Command::disable_component_type(ctx, entity);
+            Self::disable(ctx, entity);
         }
         Ok(())
     }

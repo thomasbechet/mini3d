@@ -1,5 +1,13 @@
 #![no_std]
 
+use core::any::Any;
+
+use component::{
+    component_type::ComponentType,
+    identifier::Identifier,
+    system::System,
+    system_stage::{self, SystemStage},
+};
 use container::ContainerTable;
 use entity::EntityTable;
 use runner::Runner;
@@ -41,10 +49,45 @@ impl ECS {
             systems: SystemTable::default(),
             runner: Runner::default(),
         };
+
+        // Register base ECS component types
+        {
+            let entity = ecs.entities.spawn();
+            ecs.containers
+                .component_type_container()
+                .add(entity, ComponentType::native::<System>(true));
+            ecs.containers.enable_component_type(entity).unwrap();
+        }
+        {
+            let entity = ecs.entities.spawn();
+            ecs.containers
+                .component_type_container()
+                .add(entity, ComponentType::native::<SystemStage>(true));
+            ecs.containers.enable_component_type(entity).unwrap();
+        }
+        {
+            let entity = ecs.entities.spawn();
+            ecs.containers
+                .component_type_container()
+                .add(entity, ComponentType::native::<Identifier>(true));
+            ecs.containers.enable_component_type(entity).unwrap();
+        }
+
+        // Rebuild scheduler
+        ecs.scheduler.rebuild(&mut ecs.systems);
+
         ecs
     }
 
-    pub fn update(&mut self) {}
+    pub fn update(&mut self, user: &mut dyn Any) {
+        self.runner.run(
+            &mut self.scheduler,
+            &mut self.systems,
+            &mut self.entities,
+            &mut self.containers,
+            user,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -54,6 +97,6 @@ mod test {
     #[test]
     fn test() {
         let mut ecs = ECS::new();
-        ecs.update();
+        ecs.update(&mut ());
     }
 }

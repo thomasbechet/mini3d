@@ -1,7 +1,7 @@
-use crate::{entity::EntityTable, view::SystemView};
+use crate::{container::ContainerTable, view::SystemView};
 
 pub struct World<'a> {
-    pub(crate) entities: &'a mut EntityTable,
+    pub(crate) containers: &'a mut ContainerTable,
 }
 
 impl<'a> World<'a> {

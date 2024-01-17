@@ -1,6 +1,8 @@
 use mini3d_derive::Serialize;
 use mini3d_utils::string::AsciiArray;
 
+use super::{Component, ComponentStorage};
+
 #[derive(Default, Serialize)]
 pub struct Identifier {
     pub(crate) name: AsciiArray<32>,
@@ -14,4 +16,8 @@ impl Identifier {
             name: AsciiArray::from(name),
         }
     }
+}
+
+impl Component for Identifier {
+    const STORAGE: ComponentStorage = ComponentStorage::Single;
 }

@@ -23,7 +23,7 @@ impl Entity {
     }
 
     pub fn null() -> Self {
-        Self(0)
+        Self(!0)
     }
 
     pub fn raw(&self) -> u32 {
@@ -40,12 +40,26 @@ impl Default for Entity {
 #[derive(Default)]
 pub(crate) struct EntityTable {
     free_entities: Vec<Entity>,
+    next_index: EntityIndex, // Default index is 0
 }
 
 impl EntityTable {
+    pub(crate) fn spawn(&mut self) -> Entity {
+        if let Some(entity) = self.free_entities.pop() {
+            entity
+        } else {
+            let index = self.next_index;
+            self.next_index += 1;
+            Entity::new(index, 0)
+        }
+    }
+
     pub(crate) fn despawn(&mut self, entity: Entity, containers: &mut ContainerTable) {
-        self.free_entities.push(entity);
-        // TODO: remove entity from containers
-        // TODO: handle batch despawn
+        // TODO: use sorted free entities to improve performance
+        if self.free_entities.iter().all(|e| *e != entity) {
+            self.free_entities.push(entity);
+            // TODO: remove entity from containers
+            // TODO: handle batch despawn
+        }
     }
 }

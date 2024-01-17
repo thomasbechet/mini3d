@@ -2,7 +2,11 @@ use core::any::Any;
 
 use alloc::vec::Vec;
 
-use crate::{entity::Entity, scheduler::Invocation};
+use crate::{
+    component::{component_type::ComponentType, system::System, system_stage::SystemStage},
+    entity::{Entity, EntityTable},
+    scheduler::Invocation,
+};
 
 pub(crate) enum SystemCommand {
     Despawn(Entity),
@@ -17,6 +21,7 @@ pub(crate) enum SystemCommand {
 pub struct Context<'a> {
     pub(crate) user: &'a mut dyn Any,
     pub(crate) commands: &'a mut Vec<SystemCommand>,
+    pub(crate) entities: &'a mut EntityTable,
 }
 
 impl<'a> Context<'a> {
@@ -35,46 +40,46 @@ impl<'a> Context<'a> {
     pub unsafe fn user_unchecked<UserContext: 'static>(&self) -> &UserContext {
         self.user::<UserContext>().unwrap()
     }
-
-    pub fn spawn(&mut self) -> Entity {
-        Entity::null()
-    }
-
-    pub fn dump_entity(&mut self, entity: Entity, path: &str) {}
 }
 
-pub struct Command;
-
-impl Command {
-    pub fn load(ctx: &mut Context) {}
+impl Entity {
+    pub fn spawn(ctx: &mut Context) -> Self {
+        ctx.entities.spawn()
+    }
 
     pub fn despawn(ctx: &mut Context, entity: Entity) {
         ctx.commands.push(SystemCommand::Despawn(entity));
     }
+}
 
-    pub fn enable_component_type(ctx: &mut Context, entity: Entity) {
+impl ComponentType {
+    pub fn enable(ctx: &mut Context, entity: Entity) {
         ctx.commands
             .push(SystemCommand::EnableComponentType(entity));
     }
 
-    pub fn disable_component_type(ctx: &mut Context, entity: Entity) {
+    pub fn disable(ctx: &mut Context, entity: Entity) {
         ctx.commands
             .push(SystemCommand::DisableComponentType(entity));
     }
+}
 
-    pub fn enable_system(ctx: &mut Context, system: Entity) {
+impl System {
+    pub fn enable(ctx: &mut Context, system: Entity) {
         ctx.commands.push(SystemCommand::EnableSystem(system));
     }
 
-    pub fn disable_system(ctx: &mut Context, system: Entity) {
+    pub fn disable(ctx: &mut Context, system: Entity) {
         ctx.commands.push(SystemCommand::DisableSystem(system));
     }
+}
 
-    pub fn enable_system_stage(ctx: &mut Context, stage: Entity) {
+impl SystemStage {
+    pub fn enable(ctx: &mut Context, stage: Entity) {
         ctx.commands.push(SystemCommand::EnableSystemStage(stage));
     }
 
-    pub fn disable_system_stage(ctx: &mut Context, stage: Entity) {
+    pub fn disable(ctx: &mut Context, stage: Entity) {
         ctx.commands.push(SystemCommand::DisableSystemStage(stage));
     }
 

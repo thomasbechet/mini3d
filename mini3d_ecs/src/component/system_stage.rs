@@ -1,13 +1,7 @@
 use mini3d_derive::Serialize;
 use mini3d_utils::slotmap::Key;
 
-use crate::{
-    context::{Command, Context},
-    entity::Entity,
-    error::ComponentError,
-    scheduler::Invocation,
-    system::SystemStageKey,
-};
+use crate::{context::Context, entity::Entity, error::ComponentError, system::SystemStageKey};
 
 use super::{Component, ComponentStorage};
 
@@ -30,8 +24,6 @@ impl SystemStage {
         }
     }
 
-    pub fn invoke(ctx: &mut Context, stage: Entity, invocation: Invocation) {}
-
     pub fn is_enable(&self) -> bool {
         !self.key.is_null()
     }
@@ -42,14 +34,14 @@ impl Component for SystemStage {
 
     fn on_added(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         if self.auto_enable {
-            Command::enable_system_stage(ctx, entity);
+            Self::enable(ctx, entity);
         }
         Ok(())
     }
 
     fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         if !self.key.is_null() {
-            Command::disable_system_stage(ctx, entity);
+            Self::disable(ctx, entity);
         }
         Ok(())
     }

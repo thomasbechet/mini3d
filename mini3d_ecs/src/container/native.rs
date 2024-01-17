@@ -21,22 +21,32 @@ impl<C: Component> NativeSingleContainer<C> {
         }
     }
 
-    pub(crate) fn add(
-        &mut self,
-        ctx: &mut Context,
-        entity: Entity,
-        mut component: C,
-    ) -> Result<(), ComponentError> {
+    pub(crate) fn add(&mut self, entity: Entity, component: C) -> Option<&mut C> {
+        let index = entity.index();
+        if index >= self.data.len() as u16 {
+            self.data
+                .resize_with(index as usize + 1, || (Entity::null(), C::default()));
+        }
+        let (e, data) = &mut self.data[index as usize];
+        if *e == Entity::null() {
+            *e = entity;
+            *data = component;
+            self.bitset.set(index, true);
+            return Some(data);
+        }
+        None
+    }
+
+    pub(crate) fn remove(&mut self, entity: Entity) -> Option<&mut C> {
         let index = entity.index();
         if let Some((e, data)) = self.data.get_mut(index as usize) {
-            if *e == Entity::null() {
-                component.on_added(entity, ctx)?;
-                *e = entity;
-                *data = component;
-                self.bitset.set(index, true);
+            if *e == entity {
+                *e = Entity::null();
+                self.bitset.set(index, false);
+                return Some(data);
             }
         }
-        Ok(())
+        None
     }
 
     pub(crate) fn get(&self, entity: Entity) -> Option<&C> {
@@ -66,13 +76,8 @@ impl<C: Component> Container for NativeSingleContainer<C> {
     }
 
     fn remove(&mut self, ctx: &mut Context, entity: Entity) -> Result<(), ComponentError> {
-        let index = entity.index();
-        if let Some((e, data)) = self.data.get_mut(index as usize) {
-            if *e == entity {
-                data.on_removed(entity, ctx)?;
-                *e = Entity::null();
-                self.bitset.set(index, false);
-            }
+        if let Some(data) = self.remove(entity) {
+            data.on_removed(entity, ctx)?;
         }
         Ok(())
     }

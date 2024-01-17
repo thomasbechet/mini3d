@@ -25,6 +25,9 @@ impl Runner {
         containers: &mut ContainerTable,
         user: &mut dyn Any,
     ) {
+        // Invoke tick stage
+        // scheduler.invoke(stage, invocation)
+
         // Run stages
         // TODO: protect against infinite loops
         loop {
@@ -44,6 +47,7 @@ impl Runner {
                 let mut ctx = Context {
                     commands: &mut self.commands,
                     user,
+                    entities,
                 };
 
                 // Run the system
@@ -55,36 +59,48 @@ impl Runner {
                         instance.borrow_mut().run(&ctx);
                     }
                     SystemInstance::Global(instance) => {
-                        let mut world = World { entities };
+                        let mut world = World { containers };
                         instance.borrow_mut().run(&mut ctx, &mut world);
                     }
                 }
 
                 // Process commands
+                let mut rebuild_scheduler = false;
                 for command in self.commands.drain(..) {
                     match command {
                         SystemCommand::EnableSystem(entity) => {
                             systems.enable_system(entity, containers);
+                            rebuild_scheduler = true;
                         }
                         SystemCommand::DisableSystem(entity) => {
                             systems.disable_system(entity, containers);
+                            rebuild_scheduler = true;
                         }
                         SystemCommand::EnableSystemStage(entity) => {
                             systems.enable_system_stage(entity, containers);
+                            rebuild_scheduler = true;
                         }
                         SystemCommand::DisableSystemStage(entity) => {
                             systems.disable_system_stage(entity, containers);
+                            rebuild_scheduler = true;
                         }
                         SystemCommand::Despawn(entity) => {
                             entities.despawn(entity, containers);
                         }
                         SystemCommand::EnableComponentType(entity) => {
                             containers.enable_component_type(entity);
+                            rebuild_scheduler = true;
                         }
                         SystemCommand::DisableComponentType(entity) => {
                             containers.disable_component_type(entity);
+                            rebuild_scheduler = true;
                         }
                     }
+                }
+
+                // Rebuild scheduler
+                if rebuild_scheduler {
+                    scheduler.rebuild(systems);
                 }
             } else {
                 // TODO: use thread pool

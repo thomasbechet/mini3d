@@ -54,6 +54,17 @@ impl ContainerTable {
             .get_mut(entity)
     }
 
+    pub(crate) fn component_type_container(&mut self) -> &mut NativeSingleContainer<ComponentType> {
+        self.entries
+            .get_mut(self.component_type_key)
+            .unwrap()
+            .container
+            .get_mut()
+            .as_any_mut()
+            .downcast_mut::<NativeSingleContainer<ComponentType>>()
+            .unwrap()
+    }
+
     pub(crate) fn system_container(&mut self) -> &mut NativeSingleContainer<System> {
         self.entries
             .get_mut(self.system_key)
