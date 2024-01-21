@@ -41,6 +41,11 @@ impl Default for Entity {
 pub(crate) struct EntityTable {
     free_entities: Vec<Entity>,
     next_index: EntityIndex, // Default index is 0
+    pub(crate) bootstrap_stage: Entity,
+    pub(crate) tick_stage: Entity,
+    pub(crate) system_type: Entity,
+    pub(crate) system_stage_type: Entity,
+    pub(crate) identifier_type: Entity,
 }
 
 impl EntityTable {

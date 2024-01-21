@@ -6,7 +6,7 @@ use crate::{
     error::{ComponentError, SystemError},
 };
 
-use super::SystemView;
+use super::{SystemView, ViewEntityPicker};
 
 pub struct NativeSingleMut<C: Component> {
     pub(crate) ptr: *mut NativeSingleContainer<C>,

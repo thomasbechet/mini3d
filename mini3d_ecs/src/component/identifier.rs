@@ -9,8 +9,6 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub const IDENT: &'static str = "identifier";
-
     pub fn new(name: &str) -> Self {
         Self {
             name: AsciiArray::from(name),
@@ -19,5 +17,6 @@ impl Identifier {
 }
 
 impl Component for Identifier {
+    const NAME: &'static str = "identifier";
     const STORAGE: ComponentStorage = ComponentStorage::Single;
 }

@@ -3,12 +3,16 @@ use core::any::Any;
 use alloc::vec::Vec;
 
 use crate::{
+    component::{
+        component_type::{disable_component_type, enable_component_type},
+        system::{disable_system, enable_system},
+        system_stage::{disable_system_stage, enable_system_stage},
+    },
     container::ContainerTable,
     context::{Context, SystemCommand},
     entity::EntityTable,
+    instance::{Instance, InstanceTable},
     scheduler::Scheduler,
-    system::{SystemInstance, SystemTable},
-    world::World,
 };
 
 #[derive(Default)]
@@ -20,19 +24,19 @@ impl Runner {
     pub(crate) fn run(
         &mut self,
         scheduler: &mut Scheduler,
-        systems: &mut SystemTable,
+        instances: &mut InstanceTable,
         entities: &mut EntityTable,
         containers: &mut ContainerTable,
         user: &mut dyn Any,
     ) {
-        // Invoke tick stage
-        // scheduler.invoke(stage, invocation)
+        // Prepare frame stages
+        scheduler.prepare_next_frame_stages(entities.tick_stage);
 
         // Run stages
         // TODO: protect against infinite loops
         loop {
             // Acquire next node
-            let node = scheduler.next_node(systems);
+            let node = scheduler.next_node(containers);
             if node.is_none() {
                 break;
             }
@@ -41,8 +45,8 @@ impl Runner {
             // Execute node
             if node.count == 1 {
                 // Find instance
-                let system_key = scheduler.system_keys[node.first as usize];
-                let instance = &systems.systems[system_key].instance;
+                let index = scheduler.instance_indices[node.first as usize];
+                let instance = &instances.entries[index.0 as usize];
 
                 let mut ctx = Context {
                     commands: &mut self.commands,
@@ -52,15 +56,11 @@ impl Runner {
 
                 // Run the system
                 match &instance {
-                    SystemInstance::Exclusive(instance) => {
+                    Instance::Exclusive(instance) => {
                         instance.borrow_mut().run(&mut ctx);
                     }
-                    SystemInstance::Parallel(instance) => {
+                    Instance::Parallel(instance) => {
                         instance.borrow_mut().run(&ctx);
-                    }
-                    SystemInstance::Global(instance) => {
-                        let mut world = World { containers };
-                        instance.borrow_mut().run(&mut ctx, &mut world);
                     }
                 }
 
@@ -69,38 +69,39 @@ impl Runner {
                 for command in self.commands.drain(..) {
                     match command {
                         SystemCommand::EnableSystem(entity) => {
-                            systems.enable_system(entity, containers);
+                            enable_system(entity, instances, containers);
                             rebuild_scheduler = true;
                         }
                         SystemCommand::DisableSystem(entity) => {
-                            systems.disable_system(entity, containers);
+                            disable_system(entity, instances, containers);
                             rebuild_scheduler = true;
                         }
                         SystemCommand::EnableSystemStage(entity) => {
-                            systems.enable_system_stage(entity, containers);
+                            enable_system_stage(entity, containers);
                             rebuild_scheduler = true;
                         }
                         SystemCommand::DisableSystemStage(entity) => {
-                            systems.disable_system_stage(entity, containers);
+                            disable_system_stage(entity, containers);
                             rebuild_scheduler = true;
                         }
                         SystemCommand::Despawn(entity) => {
                             entities.despawn(entity, containers);
                         }
                         SystemCommand::EnableComponentType(entity) => {
-                            containers.enable_component_type(entity);
+                            enable_component_type(entity, containers);
                             rebuild_scheduler = true;
                         }
                         SystemCommand::DisableComponentType(entity) => {
-                            containers.disable_component_type(entity);
+                            disable_component_type(entity, containers);
                             rebuild_scheduler = true;
                         }
+                        SystemCommand::ReflectEntity(src, dst) => {}
                     }
                 }
 
                 // Rebuild scheduler
                 if rebuild_scheduler {
-                    scheduler.rebuild(systems);
+                    scheduler.rebuild(containers);
                 }
             } else {
                 // TODO: use thread pool

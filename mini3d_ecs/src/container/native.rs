@@ -60,6 +60,26 @@ impl<C: Component> NativeSingleContainer<C> {
             .get_mut(entity.index() as usize)
             .and_then(|(e, data)| if *e == entity { Some(data) } else { None })
     }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (Entity, &C)> {
+        self.data.iter().filter_map(|(e, data)| {
+            if *e != Entity::null() {
+                Some((*e, data))
+            } else {
+                None
+            }
+        })
+    }
+
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (Entity, &mut C)> {
+        self.data.iter_mut().filter_map(|(e, data)| {
+            if *e != Entity::null() {
+                Some((*e, data))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl<C: Component> Container for NativeSingleContainer<C> {

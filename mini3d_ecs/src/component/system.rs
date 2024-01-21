@@ -1,20 +1,22 @@
 use core::cell::RefCell;
 
-use crate::system::GlobalSystem;
-use crate::system::SystemResolver;
+use crate::container::ContainerTable;
+use crate::error::SystemError;
+use crate::instance::Instance;
+use crate::instance::InstanceIndex;
+use crate::instance::InstanceTable;
+use crate::instance::SystemResolver;
 use crate::view::SystemView;
-use crate::{error::SystemError, world::World};
 use alloc::boxed::Box;
 use alloc::rc::Rc;
 use alloc::sync::Arc;
 use mini3d_derive::Serialize;
-use mini3d_utils::slotmap::Key;
 
 use crate::{
     context::Context,
     entity::Entity,
     error::ComponentError,
-    system::{ExclusiveSystem, ParallelSystem, SystemKey},
+    instance::{ExclusiveSystem, ParallelSystem},
 };
 
 use super::{Component, ComponentStorage, EntityResolver};
@@ -27,20 +29,6 @@ pub struct NativeExclusiveSystem<Params, F> {
 pub struct NativeParallelSystem<Params, F> {
     function: F,
     params: Params,
-}
-
-pub struct NativeGlobalSystem<F> {
-    function: F,
-}
-
-impl<F> GlobalSystem for NativeGlobalSystem<F>
-where
-    F: Fn(&mut Context, &mut World) + 'static,
-{
-    fn run(&mut self, ctx: &mut Context, world: &mut World) -> Result<(), SystemError> {
-        (self.function)(ctx, world);
-        Ok(())
-    }
 }
 
 macro_rules! impl_system {
@@ -167,7 +155,6 @@ pub(crate) enum SystemKind {
         system: Arc<RefCell<Box<dyn ParallelSystem>>>,
         views: [Entity; 8],
     },
-    NativeGlobal(#[serialize(skip)] Rc<RefCell<Box<dyn GlobalSystem>>>),
     #[default]
     Script,
 }
@@ -184,101 +171,77 @@ impl Default for Box<dyn ParallelSystem> {
     }
 }
 
-impl Default for Box<dyn GlobalSystem> {
-    fn default() -> Self {
-        panic!("Invalid deserialization for native global system")
-    }
-}
-
 #[derive(Default, Serialize)]
 pub struct System {
     pub(crate) kind: SystemKind,
     pub(crate) stage: Entity,
     pub(crate) order: SystemOrder,
     pub(crate) auto_enable: bool,
-    #[serialize(skip)]
-    pub(crate) key: SystemKey,
+    pub(crate) instance: Option<InstanceIndex>,
 }
 
 impl System {
-    pub const IDENT: &'static str = "system";
-
-    pub fn native_exclusive<Params>(
+    pub fn exclusive<Params>(
         function: impl IntoNativeExclusiveSystem<Params>,
         stage: Entity,
         order: SystemOrder,
-        views: &[Entity],
+        dynamic_views: &[Entity],
     ) -> Self {
         Self {
             kind: SystemKind::NativeExclusive {
                 system: Rc::new(RefCell::new(Box::new(function.into_system()))),
                 views: [
-                    views.get(0).copied().unwrap_or_default(),
-                    views.get(1).copied().unwrap_or_default(),
-                    views.get(2).copied().unwrap_or_default(),
-                    views.get(3).copied().unwrap_or_default(),
-                    views.get(4).copied().unwrap_or_default(),
-                    views.get(5).copied().unwrap_or_default(),
-                    views.get(6).copied().unwrap_or_default(),
-                    views.get(7).copied().unwrap_or_default(),
+                    dynamic_views.get(0).copied().unwrap_or_default(),
+                    dynamic_views.get(1).copied().unwrap_or_default(),
+                    dynamic_views.get(2).copied().unwrap_or_default(),
+                    dynamic_views.get(3).copied().unwrap_or_default(),
+                    dynamic_views.get(4).copied().unwrap_or_default(),
+                    dynamic_views.get(5).copied().unwrap_or_default(),
+                    dynamic_views.get(6).copied().unwrap_or_default(),
+                    dynamic_views.get(7).copied().unwrap_or_default(),
                 ],
             },
             stage,
             order,
             auto_enable: false,
-            key: SystemKey::null(),
+            instance: None,
         }
     }
 
-    pub fn native_parallel<Params>(
+    pub fn parallel<Params>(
         function: impl IntoNativeParallelSystem<Params>,
         stage: Entity,
         order: SystemOrder,
-        views: &[Entity],
+        dynamic_views: &[Entity],
     ) -> Self {
         Self {
             kind: SystemKind::NativeParallel {
                 system: Arc::new(RefCell::new(Box::new(function.into_system()))),
                 views: [
-                    views.get(0).copied().unwrap_or_default(),
-                    views.get(1).copied().unwrap_or_default(),
-                    views.get(2).copied().unwrap_or_default(),
-                    views.get(3).copied().unwrap_or_default(),
-                    views.get(4).copied().unwrap_or_default(),
-                    views.get(5).copied().unwrap_or_default(),
-                    views.get(6).copied().unwrap_or_default(),
-                    views.get(7).copied().unwrap_or_default(),
+                    dynamic_views.get(0).copied().unwrap_or_default(),
+                    dynamic_views.get(1).copied().unwrap_or_default(),
+                    dynamic_views.get(2).copied().unwrap_or_default(),
+                    dynamic_views.get(3).copied().unwrap_or_default(),
+                    dynamic_views.get(4).copied().unwrap_or_default(),
+                    dynamic_views.get(5).copied().unwrap_or_default(),
+                    dynamic_views.get(6).copied().unwrap_or_default(),
+                    dynamic_views.get(7).copied().unwrap_or_default(),
                 ],
             },
             stage,
             order,
             auto_enable: false,
-            key: SystemKey::null(),
+            instance: None,
         }
     }
 
-    pub fn native_global(
-        function: fn(&mut Context, &mut World),
-        stage: Entity,
-        order: SystemOrder,
-    ) -> Self {
-        Self {
-            kind: SystemKind::NativeGlobal(Rc::new(RefCell::new(Box::new(NativeGlobalSystem {
-                function,
-            })))),
-            stage,
-            order,
-            auto_enable: false,
-            key: SystemKey::null(),
-        }
-    }
-
-    pub fn is_enable(&self) -> bool {
-        !self.key.is_null()
+    pub fn is_active(&self) -> bool {
+        self.instance.is_some()
     }
 }
 
 impl Component for System {
+    const NAME: &'static str = "system";
     const STORAGE: ComponentStorage = ComponentStorage::Single;
 
     fn resolve_entities(&mut self, _: &mut EntityResolver) -> Result<(), ComponentError> {
@@ -293,9 +256,38 @@ impl Component for System {
     }
 
     fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
-        if !self.key.is_null() {
+        if self.is_active() {
             Self::disable(ctx, entity);
         }
         Ok(())
     }
+}
+
+pub(crate) fn enable_system(
+    entity: Entity,
+    instances: &mut InstanceTable,
+    containers: &mut ContainerTable,
+) -> Result<(), ComponentError> {
+    let systems = containers.systems();
+    let system = systems
+        .get_mut(entity)
+        .ok_or(ComponentError::EntryNotFound)?;
+    let instance = match system.kind {
+        SystemKind::NativeExclusive { ref mut system, .. } => Instance::Exclusive(system.clone()),
+        SystemKind::NativeParallel { ref mut system, .. } => Instance::Parallel(system.clone()),
+        SystemKind::Script => {
+            return Err(ComponentError::UnresolvedReference);
+        }
+    };
+    instances.entries.push(instance);
+    system.instance = Some(InstanceIndex(instances.entries.len() as u16 - 1));
+    Ok(())
+}
+
+pub(crate) fn disable_system(
+    entity: Entity,
+    instances: &mut InstanceTable,
+    containers: &mut ContainerTable,
+) {
+    unimplemented!()
 }

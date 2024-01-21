@@ -2,13 +2,17 @@ use core::cell::UnsafeCell;
 
 use alloc::boxed::Box;
 use mini3d_derive::Serialize;
-use mini3d_utils::slotmap::Key;
+use mini3d_utils::{slotmap::Key, string::AsciiArray};
 
 use crate::{
-    container::{native::NativeSingleContainer, ContainerKey, ContainerWrapper},
+    container::{
+        native::NativeSingleContainer, ContainerEntry, ContainerKey, ContainerTable,
+        ContainerWrapper,
+    },
     context::Context,
     entity::Entity,
     error::ComponentError,
+    view::NativeSingleRef,
 };
 
 use super::{Component, ComponentStorage, EntityResolver};
@@ -51,6 +55,7 @@ pub(crate) enum ComponentKind {
 
 #[derive(Default, Serialize)]
 pub struct ComponentType {
+    pub(crate) name: AsciiArray<32>,
     pub(crate) kind: ComponentKind,
     pub(crate) auto_enable: bool,
     #[serialize(skip)]
@@ -58,10 +63,9 @@ pub struct ComponentType {
 }
 
 impl ComponentType {
-    pub const NAME: &'static str = "component_type";
-
     pub fn native<C: Component>(auto_enable: bool) -> Self {
         Self {
+            name: AsciiArray::from(C::NAME),
             kind: ComponentKind::Native(Box::new(NativeComponentFactory::<C>(
                 core::marker::PhantomData,
             ))),
@@ -70,8 +74,14 @@ impl ComponentType {
         }
     }
 
-    pub fn dynamic(storage: ComponentStorage, typedef: Entity, auto_enable: bool) -> Self {
+    pub fn dynamic(
+        name: &str,
+        storage: ComponentStorage,
+        typedef: Entity,
+        auto_enable: bool,
+    ) -> Self {
         Self {
+            name: AsciiArray::from(name),
             kind: ComponentKind::Dynamic { storage },
             auto_enable,
             key: Default::default(),
@@ -85,12 +95,13 @@ impl ComponentType {
         }
     }
 
-    pub fn is_enable(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         !self.key.is_null()
     }
 }
 
 impl Component for ComponentType {
+    const NAME: &'static str = "component_type";
     const STORAGE: ComponentStorage = ComponentStorage::Single;
 
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
@@ -105,9 +116,37 @@ impl Component for ComponentType {
     }
 
     fn on_removed(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
-        if !self.key.is_null() {
+        if self.is_active() {
             Self::disable(ctx, entity);
         }
         Ok(())
     }
+}
+
+pub(crate) fn enable_component_type(
+    entity: Entity,
+    containers: &mut ContainerTable,
+) -> Result<ContainerKey, ComponentError> {
+    let component = containers
+        .component_type(entity)
+        .ok_or(ComponentError::EntryNotFound)?;
+    // Check duplicated entry
+    if containers
+        .component_types()
+        .iter()
+        .any(|(_, cty)| cty.name == component.name)
+    {
+        return Err(ComponentError::DuplicatedEntry);
+    }
+    let container = component.create_container();
+    let key = containers.entries.add(ContainerEntry { container, entity });
+    containers.component_type(entity).unwrap().key = key;
+    Ok(key)
+}
+
+pub(crate) fn disable_component_type(
+    entity: Entity,
+    containers: &mut ContainerTable,
+) -> Result<(), ComponentError> {
+    unimplemented!()
 }

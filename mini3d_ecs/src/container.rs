@@ -8,7 +8,10 @@ use mini3d_utils::{
 
 use crate::{
     bitset::Bitset,
-    component::{component_type::ComponentType, system::System, system_stage::SystemStage},
+    component::{
+        component_type::ComponentType, identifier::Identifier, system::System,
+        system_stage::SystemStage,
+    },
     context::Context,
     entity::Entity,
     error::ComponentError,
@@ -36,13 +39,14 @@ pub(crate) struct ContainerEntry {
 
 pub(crate) struct ContainerTable {
     pub(crate) entries: SlotMap<ContainerKey, ContainerEntry>,
-    component_type_key: ContainerKey,
-    system_key: ContainerKey,
-    system_stage_key: ContainerKey,
+    pub(crate) component_type_key: ContainerKey,
+    pub(crate) system_key: ContainerKey,
+    pub(crate) system_stage_key: ContainerKey,
+    pub(crate) identifier_key: ContainerKey,
 }
 
 impl ContainerTable {
-    fn get_component_type(&mut self, entity: Entity) -> Option<&mut ComponentType> {
+    pub(crate) fn component_type(&mut self, entity: Entity) -> Option<&mut ComponentType> {
         self.entries
             .get_mut(self.component_type_key)
             .unwrap()
@@ -54,57 +58,63 @@ impl ContainerTable {
             .get_mut(entity)
     }
 
-    pub(crate) fn component_type_container(&mut self) -> &mut NativeSingleContainer<ComponentType> {
-        self.entries
-            .get_mut(self.component_type_key)
+    pub(crate) fn find_container_key(&self, ty: Entity) -> Option<ContainerKey> {
+        self.component_types().get(ty).map(|ty| ty.key)
+    }
+
+    pub(crate) fn find_component_type_by_name(&self, name: &str) -> Option<Entity> {
+        self.component_types()
+            .iter()
+            .find(|(e, cty)| cty.name == name)
+            .map(|(e, _)| e)
+    }
+
+    pub(crate) fn component_types_mut(&mut self) -> &mut NativeSingleContainer<ComponentType> {
+        self.get_mut(self.component_type_key)
             .unwrap()
-            .container
-            .get_mut()
             .as_any_mut()
             .downcast_mut::<NativeSingleContainer<ComponentType>>()
             .unwrap()
     }
 
-    pub(crate) fn system_container(&mut self) -> &mut NativeSingleContainer<System> {
-        self.entries
-            .get_mut(self.system_key)
+    pub(crate) fn component_types(&self) -> &NativeSingleContainer<ComponentType> {
+        self.get(self.component_type_key)
             .unwrap()
-            .container
-            .get_mut()
+            .as_any()
+            .downcast_ref::<NativeSingleContainer<ComponentType>>()
+            .unwrap()
+    }
+
+    pub(crate) fn systems(&mut self) -> &mut NativeSingleContainer<System> {
+        self.get_mut(self.system_key)
+            .unwrap()
             .as_any_mut()
             .downcast_mut::<NativeSingleContainer<System>>()
             .unwrap()
     }
 
-    pub(crate) fn system_stage_container(&mut self) -> &mut NativeSingleContainer<SystemStage> {
-        self.entries
-            .get_mut(self.system_stage_key)
+    pub(crate) fn system_stages(&mut self) -> &mut NativeSingleContainer<SystemStage> {
+        self.get_mut(self.system_stage_key)
             .unwrap()
-            .container
-            .get_mut()
             .as_any_mut()
             .downcast_mut::<NativeSingleContainer<SystemStage>>()
             .unwrap()
     }
 
-    pub(crate) fn enable_component_type(
-        &mut self,
-        entity: Entity,
-    ) -> Result<ContainerKey, ComponentError> {
-        if self.entries.iter().any(|(_, entry)| entry.entity == entity) {
-            return Err(ComponentError::DuplicatedEntry);
-        }
-        let component = self
-            .get_component_type(entity)
-            .ok_or(ComponentError::EntryNotFound)?;
-        let container = component.create_container();
-        let key = self.entries.add(ContainerEntry { container, entity });
-        self.get_component_type(entity).unwrap().key = key;
-        Ok(key)
+    pub(crate) fn identifiers_mut(&mut self) -> &mut NativeSingleContainer<Identifier> {
+        self.get_mut(self.identifier_key)
+            .unwrap()
+            .as_any_mut()
+            .downcast_mut::<NativeSingleContainer<Identifier>>()
+            .unwrap()
     }
 
-    pub(crate) fn disable_component_type(&mut self, entity: Entity) -> Result<(), ComponentError> {
-        unimplemented!()
+    pub(crate) fn identifiers(&self) -> &NativeSingleContainer<Identifier> {
+        self.get(self.identifier_key)
+            .unwrap()
+            .as_any()
+            .downcast_ref::<NativeSingleContainer<Identifier>>()
+            .unwrap()
     }
 
     pub(crate) fn get(&self, key: ContainerKey) -> Option<&dyn Container> {
@@ -125,8 +135,9 @@ impl Default for ContainerTable {
         let mut table = Self {
             entries: SlotMap::with_key(),
             component_type_key: ContainerKey::null(),
-            system_key: ContainerKey::null(),
-            system_stage_key: ContainerKey::null(),
+            system_key: Default::default(),
+            system_stage_key: Default::default(),
+            identifier_key: Default::default(),
         };
 
         // Register component type container

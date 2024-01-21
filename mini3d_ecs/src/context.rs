@@ -16,6 +16,7 @@ pub(crate) enum SystemCommand {
     DisableSystem(Entity),
     EnableSystemStage(Entity),
     DisableSystemStage(Entity),
+    ReflectEntity(Entity, Entity),
 }
 
 pub struct Context<'a> {
@@ -75,6 +76,14 @@ impl System {
 }
 
 impl SystemStage {
+    pub fn tick(ctx: &Context) -> Entity {
+        ctx.entities.tick_stage
+    }
+
+    pub fn bootstrap(ctx: &Context) -> Entity {
+        ctx.entities.bootstrap_stage
+    }
+
     pub fn enable(ctx: &mut Context, stage: Entity) {
         ctx.commands.push(SystemCommand::EnableSystemStage(stage));
     }

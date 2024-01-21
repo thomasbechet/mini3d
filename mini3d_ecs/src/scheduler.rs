@@ -1,5 +1,6 @@
-use crate::context::SystemCommand;
-use crate::system::{SystemKey, SystemStageKey, SystemTable};
+use crate::container::ContainerTable;
+use crate::entity::Entity;
+use crate::instance::InstanceIndex;
 use alloc::{collections::VecDeque, vec::Vec};
 use mini3d_utils::slotmap::Key;
 use mini3d_utils::{slot_map_key, slotmap::SlotMap};
@@ -14,8 +15,8 @@ slot_map_key!(NodeKey);
 
 #[derive(Clone, Copy)]
 pub(crate) struct PipelineNode {
-    pub(crate) first: u16,
-    pub(crate) count: u16,
+    pub(crate) first: u16, // Offset in instance indices
+    pub(crate) count: u16, // Number of instances
     pub(crate) next: NodeKey,
 }
 
@@ -24,41 +25,42 @@ pub(crate) struct Scheduler {
     // Baked nodes
     nodes: SlotMap<NodeKey, PipelineNode>,
     // Instances
-    pub(crate) system_keys: Vec<SystemKey>,
+    pub(crate) instance_indices: Vec<InstanceIndex>,
     // Runtime next frame stage
-    next_frame_stages: VecDeque<SystemStageKey>,
+    next_frame_stages: VecDeque<Entity>,
     // Runtime stages
-    frame_stages: VecDeque<SystemStageKey>,
+    frame_stages: VecDeque<Entity>,
     // Runtime active node
     next_node: NodeKey,
-    // System command buffer
-    commands: Vec<SystemCommand>,
 }
 
 impl Scheduler {
-    pub(crate) fn rebuild(&mut self, table: &mut SystemTable) {
+    pub(crate) fn rebuild(&mut self, containers: &mut ContainerTable) {
         // Reset baked resources
         self.nodes.clear();
-        self.system_keys.clear();
+        self.instance_indices.clear();
         self.next_node = NodeKey::null();
 
         // Reset stage entry nodes
-        for stage in table.stages.values_mut() {
+        let stages = containers.system_stages();
+        for (_, stage) in stages.iter_mut() {
             stage.first_node = NodeKey::null();
         }
 
         // Collect stages
-        for (stage_key, stage) in table.stages.iter_mut() {
-            // Collect systems in stage
-            let system_keys = table
-                .systems
+        let stages = stages.iter().map(|(e, _)| e).collect::<Vec<_>>();
+        for stage in stages {
+            // Collect instance indices in stage
+            let systems = containers.systems();
+            let instance_indices = systems
                 .iter()
-                .filter_map(|(key, e)| {
-                    if e.stage == stage_key {
-                        Some(key)
-                    } else {
-                        None
+                .filter_map(|(_, data)| {
+                    if data.stage == stage {
+                        if let Some(instance) = data.instance {
+                            return Some(instance);
+                        }
                     }
+                    None
                 })
                 .collect::<Vec<_>>();
             // Sort instances based on system order
@@ -67,15 +69,15 @@ impl Scheduler {
             // let stage = resources.get::<SystemStage>(*stage).unwrap();
             // Build nodes
             let mut previous_node = None;
-            for system_key in system_keys {
+            for instance_index in instance_indices {
                 // TODO: detect parallel nodes
 
                 // Insert instance
-                self.system_keys.push(system_key);
+                self.instance_indices.push(instance_index);
 
                 // Create exclusive node
                 let node = self.nodes.add(PipelineNode {
-                    first: self.system_keys.len() as u16 - 1,
+                    first: self.instance_indices.len() as u16 - 1,
                     count: 1,
                     next: Default::default(),
                 });
@@ -85,7 +87,11 @@ impl Scheduler {
                     self.nodes[previous_node].next = node;
                 } else {
                     // Update stage first node
-                    stage.first_node = node;
+                    containers
+                        .system_stages()
+                        .get_mut(stage)
+                        .unwrap()
+                        .first_node = node;
                 }
 
                 // Next previous node
@@ -94,13 +100,17 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn next_node(&mut self, table: &SystemTable) -> Option<PipelineNode> {
+    pub(crate) fn next_node(&mut self, containers: &mut ContainerTable) -> Option<PipelineNode> {
         // Detect end of current stage
         while self.next_node.is_null() {
             // Find next stage
             if let Some(stage) = self.frame_stages.pop_front() {
                 // If the stage exists, find first node
-                self.next_node = table.stages[stage].first_node;
+                let stages = containers.system_stages();
+                // if let Some(stage) = stages.get(stage) {
+                // self.next_node = stage.first_node;
+                // }
+                self.next_node = stages.get(stage).unwrap().first_node;
             } else {
                 // No more stages
                 return None;
@@ -112,7 +122,17 @@ impl Scheduler {
         Some(node)
     }
 
-    pub(crate) fn invoke(&mut self, stage: SystemStageKey, invocation: Invocation) {
+    pub(crate) fn prepare_next_frame_stages(&mut self, tick_stage: Entity) {
+        // Collect previous frame stages
+        self.frame_stages.clear();
+        for stage in self.next_frame_stages.drain(..) {
+            self.frame_stages.push_back(stage);
+        }
+        // Append tick stage
+        self.frame_stages.push_back(tick_stage);
+    }
+
+    pub(crate) fn invoke(&mut self, stage: Entity, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);

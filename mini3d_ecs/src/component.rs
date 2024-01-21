@@ -27,6 +27,7 @@ impl EntityResolver {
 }
 
 pub trait Component: 'static + Default + Serialize {
+    const NAME: &'static str;
     const STORAGE: ComponentStorage;
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         Ok(())
