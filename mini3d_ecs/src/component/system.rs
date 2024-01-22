@@ -46,9 +46,9 @@ macro_rules! impl_system {
             ) + 'static
             $(,$($params: SystemView),+)?
         > ExclusiveSystem for NativeExclusiveSystem<($( $($params,)+ )?), F> {
-            fn resolve(&mut self, mut resolver: SystemResolver) -> Result<(), SystemError> {
+            fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError> {
                 let ($($($params,)+)?) = &mut self.params;
-                $($($params.resolve(resolver.next()?);)+)?
+                $($($params.resolve(resolver)?;)+)?
                 Ok(())
             }
             fn run(&mut self, ctx: &mut Context) -> Result<(), SystemError> {
@@ -66,9 +66,9 @@ macro_rules! impl_system {
             ) + 'static
             $(,$($params: SystemView),+)?
         > ParallelSystem for NativeParallelSystem<($( $($params,)+ )?), F> {
-            fn resolve(&mut self, mut resolver: SystemResolver) -> Result<(), SystemError> {
+            fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError> {
                 let ($($($params,)+)?) = &mut self.params;
-                $($($params.resolve(resolver.next()?);)+)?
+                $($($params.resolve(resolver)?;)+)?
                 Ok(())
             }
             fn run(&mut self, ctx: &Context) -> Result<(), SystemError> {
@@ -281,6 +281,14 @@ pub(crate) fn enable_system(
     };
     instances.entries.push(instance);
     system.instance = Some(InstanceIndex(instances.entries.len() as u16 - 1));
+    // Resolve system, TODO: handle views and proper initialization
+    instances.entries[system.instance.unwrap().0 as usize]
+        .resolve(&mut SystemResolver {
+            containers,
+            views: &[],
+            index: 0,
+        })
+        .map_err(|_| ComponentError::UnresolvedReference)?;
     Ok(())
 }
 

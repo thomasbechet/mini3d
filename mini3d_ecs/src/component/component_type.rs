@@ -12,7 +12,6 @@ use crate::{
     context::Context,
     entity::Entity,
     error::ComponentError,
-    view::NativeSingleRef,
 };
 
 use super::{Component, ComponentStorage, EntityResolver};
@@ -134,13 +133,13 @@ pub(crate) fn enable_component_type(
     if containers
         .component_types()
         .iter()
-        .any(|(_, cty)| cty.name == component.name)
+        .any(|(_, cty)| cty.name == component.name && !cty.key.is_null())
     {
         return Err(ComponentError::DuplicatedEntry);
     }
     let container = component.create_container();
     let key = containers.entries.add(ContainerEntry { container, entity });
-    containers.component_type(entity).unwrap().key = key;
+    containers.component_type_mut(entity).unwrap().key = key;
     Ok(key)
 }
 

@@ -1,12 +1,15 @@
+use std::println;
+
 use crate::{
     component::Component,
-    container::{native::NativeSingleContainer, ContainerEntry},
+    container::native::NativeSingleContainer,
     context::Context,
     entity::Entity,
     error::{ComponentError, SystemError},
+    instance::SystemResolver,
 };
 
-use super::{SystemView, ViewEntityPicker};
+use super::SystemView;
 
 pub struct NativeSingleMut<C: Component> {
     pub(crate) ptr: *mut NativeSingleContainer<C>,
@@ -27,9 +30,11 @@ impl<C: Component> Clone for NativeSingleMut<C> {
 }
 
 impl<C: Component> SystemView for NativeSingleMut<C> {
-    fn resolve(&mut self, container: &ContainerEntry) -> Result<(), SystemError> {
+    fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError> {
+        println!("Resolving {}", C::NAME);
         self.ptr = unsafe {
-            container
+            resolver
+                .find_named(C::NAME)?
                 .container
                 .get()
                 .as_mut()
@@ -64,6 +69,14 @@ impl<C: Component> NativeSingleMut<C> {
     pub fn get_mut(&mut self, entity: Entity) -> Option<&mut C> {
         unsafe { (*self.ptr).get_mut(entity) }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Entity, &C)> {
+        unsafe { (*self.ptr).iter() }
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Entity, &mut C)> {
+        unsafe { (*self.ptr).iter_mut() }
+    }
 }
 
 pub struct NativeSingleRef<C: Component> {
@@ -85,12 +98,13 @@ impl<C: Component> Clone for NativeSingleRef<C> {
 }
 
 impl<C: Component> SystemView for NativeSingleRef<C> {
-    fn resolve(&mut self, container: &ContainerEntry) -> Result<(), SystemError> {
+    fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError> {
         self.ptr = unsafe {
-            container
+            resolver
+                .find_named(C::NAME)?
                 .container
                 .get()
-                .as_ref()
+                .as_mut()
                 .unwrap()
                 .as_any()
                 .downcast_ref::<NativeSingleContainer<C>>()
@@ -103,5 +117,9 @@ impl<C: Component> SystemView for NativeSingleRef<C> {
 impl<C: Component> NativeSingleRef<C> {
     pub fn get(&self, entity: Entity) -> Option<&C> {
         unsafe { (*self.ptr).get(entity) }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Entity, &C)> {
+        unsafe { (*self.ptr).iter() }
     }
 }

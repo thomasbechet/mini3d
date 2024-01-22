@@ -9,8 +9,11 @@ use mini3d_utils::{
 use crate::{
     bitset::Bitset,
     component::{
-        component_type::ComponentType, identifier::Identifier, system::System,
+        component_type::{ComponentKind, ComponentType},
+        identifier::Identifier,
+        system::System,
         system_stage::SystemStage,
+        Component,
     },
     context::Context,
     entity::Entity,
@@ -46,12 +49,18 @@ pub(crate) struct ContainerTable {
 }
 
 impl ContainerTable {
-    pub(crate) fn component_type(&mut self, entity: Entity) -> Option<&mut ComponentType> {
-        self.entries
-            .get_mut(self.component_type_key)
+    pub(crate) fn component_type(&self, entity: Entity) -> Option<&ComponentType> {
+        self.get(self.component_type_key)
             .unwrap()
-            .container
-            .get_mut()
+            .as_any()
+            .downcast_ref::<NativeSingleContainer<ComponentType>>()
+            .unwrap()
+            .get(entity)
+    }
+
+    pub(crate) fn component_type_mut(&mut self, entity: Entity) -> Option<&mut ComponentType> {
+        self.get_mut(self.component_type_key)
+            .unwrap()
             .as_any_mut()
             .downcast_mut::<NativeSingleContainer<ComponentType>>()
             .unwrap()
@@ -63,9 +72,12 @@ impl ContainerTable {
     }
 
     pub(crate) fn find_component_type_by_name(&self, name: &str) -> Option<Entity> {
+        for (entity, ty) in self.component_types().iter() {
+            println!("{} == {}", ty.name, name);
+        }
         self.component_types()
             .iter()
-            .find(|(e, cty)| cty.name == name)
+            .find(|(_, cty)| cty.name == name)
             .map(|(e, _)| e)
     }
 
@@ -128,10 +140,8 @@ impl ContainerTable {
             .get_mut(key)
             .map(|entry| unsafe { &mut *entry.container.get() })
     }
-}
 
-impl Default for ContainerTable {
-    fn default() -> Self {
+    pub(crate) fn new(component_type_entity: Entity) -> Self {
         let mut table = Self {
             entries: SlotMap::with_key(),
             component_type_key: ContainerKey::null(),
@@ -147,6 +157,18 @@ impl Default for ContainerTable {
             )),
             entity: Entity::null(),
         });
+
+        // Add component type entity
+        let component_type_key = table.component_type_key;
+        table.component_types_mut().add(
+            component_type_entity,
+            ComponentType {
+                name: ComponentType::NAME.into(),
+                kind: ComponentKind::Tag, // TODO: find better type...
+                auto_enable: false,
+                key: component_type_key,
+            },
+        );
 
         table
     }
