@@ -1,4 +1,4 @@
-// #![no_std]
+#![no_std]
 
 use core::any::Any;
 
@@ -45,7 +45,7 @@ impl ECS {
         let mut containers = ContainerTable::new(entities.spawn());
         let mut scheduler = Scheduler::default();
         let mut instances = InstanceTable::default();
-        let mut runner = Runner::default();
+        let runner = Runner::default();
 
         // Register base ECS component types
 
@@ -148,17 +148,45 @@ impl ECS {
 mod test {
     use std::println;
 
-    use crate::view::NativeSingleMut;
+    use mini3d_derive::{Component, Serialize};
+
+    use crate::{entity::Entity, view::NativeSingleMut};
 
     use self::context::Context;
 
     use super::*;
 
-    fn bootstrap(ctx: &mut Context, cty: NativeSingleMut<ComponentType>) {
+    use crate as mini3d_ecs;
+
+    #[derive(Component, Serialize, Default)]
+    struct MyComponent {
+        value: u32,
+    }
+
+    fn hello(ctx: &mut Context) {
+        println!("hello there !");
+    }
+
+    fn bootstrap(
+        ctx: &mut Context,
+        mut cty: NativeSingleMut<ComponentType>,
+        mut systems: NativeSingleMut<System>,
+    ) {
         println!("bootstrap");
         for (e, v) in cty.iter() {
-            println!("{:?}: {}", e, v.name);
+            println!("{:?}: {} {}", e, v.name, v.is_active());
         }
+        let e = Entity::spawn(ctx);
+        cty.add(ctx, e, ComponentType::native::<MyComponent>(true))
+            .unwrap();
+        systems
+            .add(
+                ctx,
+                e,
+                System::exclusive(hello, SystemStage::tick(ctx), SystemOrder::default(), &[]),
+            )
+            .unwrap();
+        System::enable(ctx, e);
     }
 
     #[test]

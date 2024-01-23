@@ -18,23 +18,11 @@ pub struct SystemResolver<'a> {
 
 impl<'a> SystemResolver<'a> {
     pub(crate) fn find_named(&mut self, name: &str) -> Result<&'_ ContainerEntry, SystemError> {
-        let entity = self
+        let key = self
             .containers
-            .find_component_type_by_name(name)
+            .find_container_key_by_name(name)
             .ok_or(SystemError::ConfigError)?;
-        let container = self
-            .containers
-            .entries
-            .iter()
-            .find_map(|(_, entry)| {
-                if entry.entity == entity {
-                    Some(entry)
-                } else {
-                    None
-                }
-            })
-            .ok_or(SystemError::ConfigError)?;
-        Ok(container)
+        Ok(&self.containers.entries[key])
     }
 
     pub(crate) fn next_dynamic(&'_ mut self) -> Result<&'_ ContainerEntry, SystemError> {

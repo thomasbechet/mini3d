@@ -1,5 +1,3 @@
-use std::println;
-
 use crate::{
     component::Component,
     container::native::NativeSingleContainer,
@@ -31,7 +29,6 @@ impl<C: Component> Clone for NativeSingleMut<C> {
 
 impl<C: Component> SystemView for NativeSingleMut<C> {
     fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError> {
-        println!("Resolving {}", C::NAME);
         self.ptr = unsafe {
             resolver
                 .find_named(C::NAME)?

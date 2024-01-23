@@ -67,18 +67,11 @@ impl ContainerTable {
             .get_mut(entity)
     }
 
-    pub(crate) fn find_container_key(&self, ty: Entity) -> Option<ContainerKey> {
-        self.component_types().get(ty).map(|ty| ty.key)
-    }
-
-    pub(crate) fn find_component_type_by_name(&self, name: &str) -> Option<Entity> {
-        for (entity, ty) in self.component_types().iter() {
-            println!("{} == {}", ty.name, name);
-        }
+    pub(crate) fn find_container_key_by_name(&self, name: &str) -> Option<ContainerKey> {
         self.component_types()
             .iter()
             .find(|(_, cty)| cty.name == name)
-            .map(|(e, _)| e)
+            .map(|(_, cty)| cty.key)
     }
 
     pub(crate) fn component_types_mut(&mut self) -> &mut NativeSingleContainer<ComponentType> {
