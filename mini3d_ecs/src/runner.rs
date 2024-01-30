@@ -9,9 +9,10 @@ use crate::{
         system_stage::{disable_system_stage, enable_system_stage},
     },
     container::ContainerTable,
-    context::{Context, SystemCommand},
+    context::Context,
     entity::EntityTable,
     instance::{Instance, InstanceTable},
+    registry::Registry,
     scheduler::Scheduler,
 };
 
@@ -27,6 +28,7 @@ impl Runner {
         instances: &mut InstanceTable,
         entities: &mut EntityTable,
         containers: &mut ContainerTable,
+        registry: &mut Registry,
         user: &mut dyn Any,
     ) {
         // Prepare frame stages
@@ -57,10 +59,10 @@ impl Runner {
                 // Run the system
                 match &instance {
                     Instance::Exclusive(instance) => {
-                        instance.borrow_mut().run(&mut ctx);
+                        instance.borrow_mut().run(&mut ctx, registry);
                     }
                     Instance::Parallel(instance) => {
-                        instance.borrow_mut().run(&ctx);
+                        instance.borrow_mut().run(&ctx, registry);
                     }
                 }
 

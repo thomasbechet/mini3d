@@ -1,6 +1,6 @@
 use crate::{
     component::Component,
-    container::native::NativeSingleContainer,
+    container::native_single::NativeSingleContainer,
     context::Context,
     entity::Entity,
     error::{ComponentError, SystemError},

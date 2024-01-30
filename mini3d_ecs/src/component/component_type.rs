@@ -6,7 +6,7 @@ use mini3d_utils::{slotmap::Key, string::AsciiArray};
 
 use crate::{
     container::{
-        native::NativeSingleContainer, ContainerEntry, ContainerKey, ContainerTable,
+        native_single::NativeSingleContainer, ContainerEntry, ContainerKey, ContainerTable,
         ContainerWrapper,
     },
     context::Context,

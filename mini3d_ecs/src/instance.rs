@@ -8,6 +8,7 @@ use crate::{
     context::Context,
     entity::Entity,
     error::SystemError,
+    registry::Registry,
 };
 
 pub struct SystemResolver<'a> {
@@ -49,12 +50,12 @@ impl<'a> SystemResolver<'a> {
 
 pub trait ExclusiveSystem: 'static {
     fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError>;
-    fn run(&mut self, ctx: &mut Context) -> Result<(), SystemError>;
+    fn run(&mut self, ctx: &mut Context, reg: &mut Registry) -> Result<(), SystemError>;
 }
 
 pub trait ParallelSystem: 'static {
     fn resolve(&mut self, resolver: &mut SystemResolver) -> Result<(), SystemError>;
-    fn run(&mut self, ctx: &Context) -> Result<(), SystemError>;
+    fn run(&mut self, ctx: &Context, reg: &Registry) -> Result<(), SystemError>;
 }
 
 pub(crate) enum Instance {

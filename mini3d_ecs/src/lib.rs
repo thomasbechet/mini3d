@@ -11,6 +11,7 @@ use component::{
 use container::ContainerTable;
 use entity::EntityTable;
 use instance::InstanceTable;
+use registry::Registry;
 use runner::Runner;
 use scheduler::{Invocation, Scheduler};
 
@@ -27,6 +28,7 @@ pub mod entity;
 pub mod error;
 pub mod instance;
 pub mod query;
+pub mod registry;
 pub mod runner;
 pub mod scheduler;
 pub mod view;
@@ -36,6 +38,7 @@ pub struct ECS {
     containers: ContainerTable,
     scheduler: Scheduler,
     instances: InstanceTable,
+    registry: Registry,
     runner: Runner,
 }
 
@@ -45,6 +48,7 @@ impl ECS {
         let mut containers = ContainerTable::new(entities.spawn());
         let mut scheduler = Scheduler::default();
         let mut instances = InstanceTable::default();
+        let mut registry = Default::default();
         let runner = Runner::default();
 
         // Register base ECS component types
@@ -129,6 +133,7 @@ impl ECS {
             containers,
             scheduler,
             instances,
+            registry,
             runner,
         }
     }
@@ -139,6 +144,7 @@ impl ECS {
             &mut self.instances,
             &mut self.entities,
             &mut self.containers,
+            &mut self.registry,
             user,
         );
     }
@@ -163,12 +169,13 @@ mod test {
         value: u32,
     }
 
-    fn hello(ctx: &mut Context) {
+    fn hello(ctx: &mut Context, reg: &mut Registry) {
         println!("hello there !");
     }
 
     fn bootstrap(
         ctx: &mut Context,
+        reg: &mut Registry,
         mut cty: NativeSingleMut<ComponentType>,
         mut systems: NativeSingleMut<System>,
     ) {

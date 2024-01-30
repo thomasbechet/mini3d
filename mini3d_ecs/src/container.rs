@@ -7,7 +7,6 @@ use mini3d_utils::{
 };
 
 use crate::{
-    bitset::Bitset,
     component::{
         component_type::{ComponentKind, ComponentType},
         identifier::Identifier,
@@ -20,14 +19,14 @@ use crate::{
     error::ComponentError,
 };
 
-use self::native::NativeSingleContainer;
+use self::native_single::NativeSingleContainer;
 
-pub mod native;
+pub mod native_array;
+pub mod native_single;
 
 pub(crate) trait Container {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn bitset(&self) -> &Bitset;
     fn remove(&mut self, ctx: &mut Context, entity: Entity) -> Result<(), ComponentError>;
 }
 

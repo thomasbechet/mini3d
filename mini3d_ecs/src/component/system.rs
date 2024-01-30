@@ -6,6 +6,7 @@ use crate::instance::Instance;
 use crate::instance::InstanceIndex;
 use crate::instance::InstanceTable;
 use crate::instance::SystemResolver;
+use crate::registry::Registry;
 use crate::view::SystemView;
 use alloc::boxed::Box;
 use alloc::rc::Rc;
@@ -42,6 +43,7 @@ macro_rules! impl_system {
         impl<
             F: Fn(
                 &mut Context,
+                &mut Registry,
                 $($($params),+)?
             ) + 'static
             $(,$($params: SystemView),+)?
@@ -51,9 +53,9 @@ macro_rules! impl_system {
                 $($($params.resolve(resolver)?;)+)?
                 Ok(())
             }
-            fn run(&mut self, ctx: &mut Context) -> Result<(), SystemError> {
+            fn run(&mut self, ctx: &mut Context, reg: &mut Registry) -> Result<(), SystemError> {
                 let ($($($params,)+)?) = &mut self.params;
-                (self.function)(ctx, $( $(($params.clone()),)+ )?);
+                (self.function)(ctx, reg, $( $(($params.clone()),)+ )?);
                 Ok(())
             }
         }
@@ -62,6 +64,7 @@ macro_rules! impl_system {
         impl<
             F: Fn(
                 &Context,
+                &Registry,
                 $($($params),+)?
             ) + 'static
             $(,$($params: SystemView),+)?
@@ -71,9 +74,9 @@ macro_rules! impl_system {
                 $($($params.resolve(resolver)?;)+)?
                 Ok(())
             }
-            fn run(&mut self, ctx: &Context) -> Result<(), SystemError> {
+            fn run(&mut self, ctx: &Context, reg: &Registry) -> Result<(), SystemError> {
                 let ($($($params,)+)?) = &mut self.params;
-                (self.function)(ctx, $( $(($params.clone()),)+ )?);
+                (self.function)(ctx, reg, $( $(($params.clone()),)+ )?);
                 Ok(())
             }
         }
@@ -106,7 +109,7 @@ macro_rules! impl_into_system {
             $params:ident
         ),+)?
     ) => {
-        impl<F: Fn(&mut Context, $($($params),+)?) + 'static $(, $($params: SystemView + 'static),+ )?> IntoNativeExclusiveSystem<( $($($params,)+)? )> for F {
+        impl<F: Fn(&mut Context, &mut Registry, $($($params),+)?) + 'static $(, $($params: SystemView + 'static),+ )?> IntoNativeExclusiveSystem<( $($($params,)+)? )> for F {
             type System = NativeExclusiveSystem<( $($($params,)+)? ), F>;
 
             fn into_system(self) -> Self::System {
@@ -117,7 +120,7 @@ macro_rules! impl_into_system {
             }
         }
 
-        impl<F: Fn(&Context, $($($params),+)?) + 'static $(, $($params: SystemView + 'static),+ )?> IntoNativeParallelSystem<( $($($params,)+)? )> for F {
+        impl<F: Fn(&Context, &Registry, $($($params),+)?) + 'static $(, $($params: SystemView + 'static),+ )?> IntoNativeParallelSystem<( $($($params,)+)? )> for F {
             type System = NativeParallelSystem<( $($($params,)+)? ), F>;
 
             fn into_system(self) -> Self::System {

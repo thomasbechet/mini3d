@@ -2,22 +2,18 @@ use core::any::Any;
 
 use alloc::vec::Vec;
 
-use crate::{
-    bitset::Bitset, component::Component, context::Context, entity::Entity, error::ComponentError,
-};
+use crate::{component::Component, context::Context, entity::Entity, error::ComponentError};
 
 use super::Container;
 
 pub(crate) struct NativeSingleContainer<C: Component> {
     data: Vec<(Entity, C)>,
-    bitset: Bitset,
 }
 
 impl<C: Component> NativeSingleContainer<C> {
     pub(crate) fn with_capacity(capacity: u16) -> Self {
         Self {
             data: Vec::with_capacity(capacity as usize),
-            bitset: Bitset::with_capacity(capacity),
         }
     }
 
@@ -89,10 +85,6 @@ impl<C: Component> Container for NativeSingleContainer<C> {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn bitset(&self) -> &Bitset {
-        &self.bitset
     }
 
     fn remove(&mut self, ctx: &mut Context, entity: Entity) -> Result<(), ComponentError> {
