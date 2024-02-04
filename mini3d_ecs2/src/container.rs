@@ -16,7 +16,7 @@ use crate::{
     error::ComponentError,
 };
 
-use self::linear::LinearContainer;
+pub use self::linear::LinearContainer;
 
 pub mod linear;
 pub mod sparse;
@@ -28,12 +28,12 @@ pub trait Container {
         &mut self,
         entity: Entity,
         user: &mut dyn Any,
-    ) -> Result<Option<fn(&mut ECS, Entity) -> Result<(), ComponentError>>, ComponentError>;
+    ) -> Result<Option<ComponentPostCallback>, ComponentError>;
     fn remove(
         &mut self,
         entity: Entity,
         user: &mut dyn Any,
-    ) -> Result<Option<fn(&mut ECS, Entity) -> Result<(), ComponentError>>, ComponentError>;
+    ) -> Result<Option<ComponentPostCallback>, ComponentError>;
 }
 
 pub trait SingleContainer<C: SingleComponent>: Default + Container {

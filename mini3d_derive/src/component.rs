@@ -134,6 +134,23 @@ impl ComponentMeta {
         }
     }
 
+    fn container_quote(&self, ident: &Ident) -> TokenStream {
+        match self.storage {
+            ComponentStorage::Single => {
+                quote! { mini3d_ecs2::container::LinearContainer<#ident> }
+            }
+            ComponentStorage::Array(size) => {
+                quote! { mini3d_ecs2::container::linear::LinearContainer<#ident> }
+            }
+            ComponentStorage::List => {
+                quote! { mini3d_ecs2::container::linear::LinearContainer<#ident> }
+            }
+            ComponentStorage::Tag => {
+                quote! { mini3d_ecs2::container::linear::LinearContainer<#ident> }
+            }
+        }
+    }
+
     fn merge(&mut self, attribute: ComponentAttribute) -> Result<()> {
         match attribute {
             ComponentAttribute::Name(name) => {
@@ -207,13 +224,17 @@ fn derive_struct(
         }
     }
 
-    let storage = meta.storage_quote();
+    // let storage = meta.storage_quote();
+    let container = meta.container_quote(ident);
     let name = meta.name;
 
     let q = quote! {
-        impl mini3d_ecs::component::Component for #ident #ty_generics #where_clause {
-            const NAME: &'static str = #name;
-            const STORAGE: mini3d_ecs::component::ComponentStorage = #storage;
+        impl mini3d_ecs2::component::SingleComponent for MyComponent {
+            type Container = #container;
+        }
+
+        impl mini3d_ecs2::component::NamedComponent for MyComponent {
+            const IDENT: &'static str = #name;
         }
     };
     Ok(q)

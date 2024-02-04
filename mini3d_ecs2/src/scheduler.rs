@@ -4,7 +4,7 @@ use crate::component::system::{System, SystemKind};
 use crate::component::{NamedComponent, RegisterComponent};
 use crate::container::{ComponentId, ContainerTable, SingleContainer};
 use crate::ecs::ECS;
-use crate::entity::{Entity, EntityTable};
+use crate::entity::Entity;
 use alloc::{collections::VecDeque, vec::Vec};
 use mini3d_utils::slotmap::Key;
 use mini3d_utils::{slot_map_key, slotmap::SlotMap};

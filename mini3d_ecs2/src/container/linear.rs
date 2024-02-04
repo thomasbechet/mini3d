@@ -59,8 +59,8 @@ impl<C: SingleComponent> Container for LinearContainer<C> {
 
     fn add(
         &mut self,
-        entity: Entity,
-        user: &mut dyn Any,
+        _entity: Entity,
+        _user: &mut dyn Any,
     ) -> Result<Option<ComponentPostCallback>, ComponentError> {
         Ok(Some(C::on_post_added))
     }
@@ -70,7 +70,8 @@ impl<C: SingleComponent> Container for LinearContainer<C> {
         entity: Entity,
         user: &mut dyn Any,
     ) -> Result<Option<ComponentPostCallback>, ComponentError> {
-        Ok(None)
+        SingleContainer::remove(self, entity, user)?;
+        Ok(Some(C::on_post_removed))
     }
 }
 

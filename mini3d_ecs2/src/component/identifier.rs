@@ -5,12 +5,11 @@ use mini3d_utils::string::AsciiArray;
 
 use crate::{
     container::{linear::LinearContainer, Container, SingleContainer},
-    ecs::ECS,
     entity::Entity,
     error::ComponentError,
 };
 
-use super::{NamedComponent, SingleComponent};
+use super::{ComponentPostCallback, NamedComponent, SingleComponent};
 
 #[derive(Default, Serialize)]
 pub struct Identifier {
@@ -56,9 +55,9 @@ impl Container for IdentifierContainer {
 
     fn add(
         &mut self,
-        entity: Entity,
-        user: &mut dyn Any,
-    ) -> Result<Option<fn(&mut ECS, Entity) -> Result<(), ComponentError>>, ComponentError> {
+        _entity: Entity,
+        _user: &mut dyn Any,
+    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
         todo!()
     }
 
@@ -66,7 +65,8 @@ impl Container for IdentifierContainer {
         &mut self,
         entity: Entity,
         user: &mut dyn Any,
-    ) -> Result<Option<fn(&mut ECS, Entity) -> Result<(), ComponentError>>, ComponentError> {
+    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
+        SingleContainer::remove(self, entity, user)?;
         Ok(Some(Identifier::on_post_removed))
     }
 }

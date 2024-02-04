@@ -6,6 +6,7 @@ use crate::{container::SingleContainer, ecs::ECS, entity::Entity, error::Compone
 
 use self::{component::Component, identifier::Identifier};
 
+#[allow(clippy::module_inception)]
 pub mod component;
 pub mod identifier;
 pub mod stage;
@@ -15,7 +16,7 @@ pub struct EntityResolver;
 
 impl EntityResolver {
     pub(crate) fn resolve(&mut self, entity: Entity) -> Entity {
-        Default::default()
+        entity
     }
 }
 
@@ -25,7 +26,8 @@ pub trait NamedComponent {
 
 pub trait SingleComponent: 'static + Default + Serialize {
     type Container: SingleContainer<Self>;
-    fn resolve_entities(&mut self, _resolver: &mut EntityResolver) -> Result<(), ComponentError> {
+    fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
+        resolver.resolve(Default::default());
         Ok(())
     }
     fn on_added(&mut self, _entity: Entity, _user: &mut dyn Any) -> Result<(), ComponentError> {

@@ -151,6 +151,11 @@ enum Level {
     L2,
 }
 
+enum QueryFilter {
+    All,
+    Any,
+}
+
 pub(crate) struct BitsetIter<'a> {
     bitset: &'a Bitset,
     iter0: BlockIter,

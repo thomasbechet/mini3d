@@ -88,30 +88,20 @@ impl ECSInstance {
 mod test {
     use std::println;
 
-    use mini3d_derive::Serialize;
+    use mini3d_derive::{Component, Serialize};
 
     use crate::{
-        component::{
-            identifier::Identifier, stage::Stage, system::System, NamedComponent,
-            RegisterComponent, SingleComponent,
-        },
-        container::linear::LinearContainer,
+        component::{identifier::Identifier, stage::Stage, system::System, RegisterComponent},
         ecs::ECS,
         scheduler::Invocation,
         ECSInstance,
     };
 
-    #[derive(Default, Serialize)]
+    use crate as mini3d_ecs2;
+
+    #[derive(Default, Serialize, Component)]
     struct MyComponent {
         value: u32,
-    }
-
-    impl SingleComponent for MyComponent {
-        type Container = LinearContainer<Self>;
-    }
-
-    impl NamedComponent for MyComponent {
-        const IDENT: &'static str = "my_component";
     }
 
     fn system1(ecs: &mut ECS) {
