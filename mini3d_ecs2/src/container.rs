@@ -118,7 +118,7 @@ impl ContainerTable {
         ecs.containers.entries[component_id]
             .bitset
             .set(component_e.index() as BitIndex, true);
-        ecs.containers.entries[ecs.containers.identifier_id]
+        ecs.containers.entries[component_id]
             .bitset
             .set(identifier_e.index() as BitIndex, true);
 

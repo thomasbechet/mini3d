@@ -81,4 +81,8 @@ impl EntityTable {
             .iter()
             .map(move |index| Entity::new(index, self.versions[index as usize]))
     }
+
+    pub(crate) fn version(&self, index: EntityIndex) -> EntityVersion {
+        self.versions[index as usize]
+    }
 }

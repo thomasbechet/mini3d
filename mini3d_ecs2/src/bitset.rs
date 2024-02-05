@@ -9,11 +9,6 @@ impl Block {
     pub(crate) const BITS: u16 = 32;
 
     #[inline]
-    fn mask(mask: u32) -> Self {
-        Self(mask)
-    }
-
-    #[inline]
     fn empty() -> Self {
         Self(0)
     }
@@ -110,8 +105,12 @@ impl Bitset {
     pub(crate) fn iter(&self) -> BitsetIter {
         BitsetIter {
             blocks: &self.blocks,
-            iter: BlockIter::new(self.blocks[0].0),
+            iter: BitsetMaskIter::new(self.blocks[0].0),
         }
+    }
+
+    pub(crate) fn mask(&self, index: usize) -> u32 {
+        self.blocks[index].0
     }
 }
 
@@ -121,20 +120,20 @@ enum Level {
     L2,
 }
 
-enum IterAnswer {
-    Request(usize),
+pub(crate) enum IterAnswer {
+    NewMask(usize),
     Some(BitIndex),
-    End,
+    None,
 }
 
-struct BlockIter {
+pub(crate) struct BitsetMaskIter {
     masks: (u32, u32, u32),
     indices: (u8, u8, u8),
     level: Level,
 }
 
-impl BlockIter {
-    fn new(mask0: u32) -> Self {
+impl BitsetMaskIter {
+    pub(crate) fn new(mask0: u32) -> Self {
         Self {
             masks: (mask0, 0, 0),
             indices: (0, 0, 0),
@@ -142,24 +141,24 @@ impl BlockIter {
         }
     }
 
-    fn set_block(&mut self, block: Block) {
+    pub(crate) fn set_mask(&mut self, mask: u32) {
         match self.level {
             Level::L0 => {
-                self.masks.0 = block.0;
+                self.masks.0 = mask;
                 self.indices.0 = 0;
             }
             Level::L1 => {
-                self.masks.1 = block.0;
+                self.masks.1 = mask;
                 self.indices.1 = 0;
             }
             Level::L2 => {
-                self.masks.2 = block.0;
+                self.masks.2 = mask;
                 self.indices.2 = 0;
             }
         }
     }
 
-    fn next(&mut self) -> IterAnswer {
+    pub(crate) fn next(&mut self) -> IterAnswer {
         loop {
             match self.level {
                 Level::L0 => {
@@ -170,10 +169,10 @@ impl BlockIter {
                         self.indices.0 += 1;
                         if set != 0 {
                             self.level = Level::L1;
-                            return IterAnswer::Request(Bitset::L0_BLOCK_COUNT + index as usize);
+                            return IterAnswer::NewMask(Bitset::L0_BLOCK_COUNT + index as usize);
                         }
                     }
-                    return IterAnswer::End;
+                    return IterAnswer::None;
                 }
                 Level::L1 => {
                     while self.masks.1 != 0 {
@@ -183,7 +182,7 @@ impl BlockIter {
                         self.indices.1 += 1;
                         if set != 0 {
                             self.level = Level::L2;
-                            return IterAnswer::Request(Bitset::L0L1_BLOCK_COUNT + index as usize);
+                            return IterAnswer::NewMask(Bitset::L0L1_BLOCK_COUNT + index as usize);
                         }
                     }
                     self.level = Level::L0;
@@ -210,7 +209,7 @@ impl BlockIter {
 
 pub(crate) struct BitsetIter<'a> {
     blocks: &'a [Block],
-    iter: BlockIter,
+    iter: BitsetMaskIter,
 }
 
 impl<'a> Iterator for BitsetIter<'a> {
@@ -219,13 +218,13 @@ impl<'a> Iterator for BitsetIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                IterAnswer::Request(index) => {
-                    self.iter.set_block(self.blocks[index]);
+                IterAnswer::NewMask(index) => {
+                    self.iter.set_mask(self.blocks[index].0);
                 }
                 IterAnswer::Some(index) => {
                     return Some(index);
                 }
-                IterAnswer::End => {
+                IterAnswer::None => {
                     return None;
                 }
             }
@@ -237,7 +236,7 @@ pub(crate) struct BitsetQuery<'a> {
     all: &'a [Bitset],
     any: &'a [Bitset],
     not: &'a [Bitset],
-    iter: BlockIter,
+    iter: BitsetMaskIter,
 }
 
 impl<'a> BitsetQuery<'a> {
@@ -246,7 +245,7 @@ impl<'a> BitsetQuery<'a> {
             all,
             any,
             not,
-            iter: BlockIter::new(all[0].blocks[0].0),
+            iter: BitsetMaskIter::new(all[0].blocks[0].0),
         }
     }
 }
@@ -257,7 +256,7 @@ impl<'a> Iterator for BitsetQuery<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                IterAnswer::Request(index) => {
+                IterAnswer::NewMask(index) => {
                     let mut mask = self.all[0].blocks[index].0;
                     for b in self.all.iter().skip(1) {
                         mask &= b.blocks[index].0;
@@ -265,7 +264,7 @@ impl<'a> Iterator for BitsetQuery<'a> {
                     for b in self.any.iter() {
                         mask |= b.blocks[index].0;
                     }
-                    self.iter.set_block(Block::mask(mask));
+                    self.iter.set_mask(mask);
                 }
                 IterAnswer::Some(index) => {
                     for not in self.not {
@@ -275,7 +274,7 @@ impl<'a> Iterator for BitsetQuery<'a> {
                     }
                     return Some(index);
                 }
-                IterAnswer::End => {
+                IterAnswer::None => {
                     return None;
                 }
             }

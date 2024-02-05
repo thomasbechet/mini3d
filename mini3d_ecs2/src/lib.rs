@@ -91,8 +91,12 @@ mod test {
     use mini3d_derive::{Component, Serialize};
 
     use crate::{
-        component::{identifier::Identifier, stage::Stage, system::System, RegisterComponent},
+        component::{
+            component::Component, identifier::Identifier, stage::Stage, system::System,
+            NamedComponent, RegisterComponent,
+        },
         ecs::ECS,
+        query::Query,
         scheduler::Invocation,
         ECSInstance,
     };
@@ -142,6 +146,15 @@ mod test {
             } else {
                 println!("[{}] ---", e);
             }
+        }
+
+        let q = Query::default().all(&[
+            ecs.find_component_id(Component::IDENT).unwrap(),
+            ecs.find_component_id(Identifier::IDENT).unwrap(),
+            ecs.find_component_id(MyComponent::IDENT).unwrap(),
+        ]);
+        for e in q.entities(ecs) {
+            println!("components: {}", e);
         }
     }
 
