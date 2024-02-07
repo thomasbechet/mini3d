@@ -1,7 +1,4 @@
-use alloc::vec::Vec;
 use mini3d_derive::Serialize;
-
-use crate::container::ContainerTable;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Entity(pub(crate) u32);
@@ -11,7 +8,7 @@ pub(crate) type EntityIndex = u16;
 
 impl Entity {
     pub(crate) fn new(index: EntityIndex, version: EntityVersion) -> Self {
-        Self(index as u32 | ((version as u32) << 24))
+        Self(index as u32 | ((version as u32) << 16))
     }
 
     pub(crate) fn index(&self) -> EntityIndex {
@@ -19,7 +16,7 @@ impl Entity {
     }
 
     pub(crate) fn version(&self) -> EntityVersion {
-        (self.0 >> 24) as EntityVersion
+        (self.0 >> 16) as EntityVersion
     }
 
     pub fn null() -> Self {
@@ -37,34 +34,8 @@ impl Default for Entity {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct EntityTable {
-    free_entities: Vec<Entity>,
-    next_index: EntityIndex, // Default index is 0
-    pub(crate) bootstrap_stage: Entity,
-    pub(crate) tick_stage: Entity,
-    pub(crate) system_type: Entity,
-    pub(crate) system_stage_type: Entity,
-    pub(crate) identifier_type: Entity,
-}
-
-impl EntityTable {
-    pub(crate) fn spawn(&mut self) -> Entity {
-        if let Some(entity) = self.free_entities.pop() {
-            entity
-        } else {
-            let index = self.next_index;
-            self.next_index += 1;
-            Entity::new(index, 0)
-        }
-    }
-
-    pub(crate) fn despawn(&mut self, entity: Entity, containers: &mut ContainerTable) {
-        // TODO: use sorted free entities to improve performance
-        if self.free_entities.iter().all(|e| *e != entity) {
-            self.free_entities.push(entity);
-            // TODO: remove entity from containers
-            // TODO: handle batch despawn
-        }
+impl core::fmt::Display for Entity {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:06X}", self.0)
     }
 }

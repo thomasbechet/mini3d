@@ -1,167 +1,285 @@
-use core::{any::Any, cell::UnsafeCell};
+use core::any::Any;
 
 use alloc::boxed::Box;
-use mini3d_utils::{
-    slot_map_key,
-    slotmap::{Key, SlotMap},
-};
+use mini3d_derive::Serialize;
+use mini3d_utils::{slot_map_key, slotmap::SlotMap};
 
 use crate::{
     component::{
-        component_type::{ComponentKind, ComponentType},
-        identifier::Identifier,
-        system::System,
-        system_stage::SystemStage,
-        Component,
+        component::{Component, ComponentStorage},
+        identifier::{Identifier, IdentifierContainer},
+        ComponentPostCallback, NamedComponent, NativeComponent,
     },
-    context::Context,
+    ecs::ECS,
     entity::Entity,
     error::ComponentError,
 };
 
-use self::native_single::NativeSingleContainer;
+pub use self::linear::LinearContainer;
 
-pub mod native_array;
-pub mod native_single;
+pub mod linear;
+pub mod sparse;
 
-pub(crate) trait Container {
+pub trait Container {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn remove(&mut self, ctx: &mut Context, entity: Entity) -> Result<(), ComponentError>;
+    fn add(
+        &mut self,
+        entity: Entity,
+        user: &mut dyn Any,
+    ) -> Result<Option<ComponentPostCallback>, ComponentError>;
+    fn remove(
+        &mut self,
+        entity: Entity,
+        user: &mut dyn Any,
+    ) -> Result<Option<ComponentPostCallback>, ComponentError>;
 }
 
-pub(crate) type ContainerWrapper = Box<UnsafeCell<dyn Container>>;
+pub trait NativeContainer<C: NativeComponent>: Default + Container {
+    fn get(&self, entity: Entity) -> Option<&C>;
+    fn get_mut(&mut self, entity: Entity) -> Option<&mut C>;
+    fn add(
+        &mut self,
+        entity: Entity,
+        component: C,
+        user: &mut dyn Any,
+    ) -> Result<&mut C, ComponentError>;
+    fn remove(&mut self, entity: Entity, user: &mut dyn Any) -> Result<(), ComponentError>;
+}
 
-slot_map_key!(ContainerKey);
+slot_map_key!(ComponentId);
+
+#[derive(Default, Serialize, PartialEq, Eq)]
+pub(crate) enum ComponentKind {
+    Native,
+    Dynamic,
+    Raw,
+    #[default]
+    Tag,
+}
 
 pub(crate) struct ContainerEntry {
-    pub(crate) container: ContainerWrapper,
+    pub(crate) container: Box<dyn Container>,
     pub(crate) entity: Entity,
 }
 
+#[derive(Default)]
 pub(crate) struct ContainerTable {
-    pub(crate) entries: SlotMap<ContainerKey, ContainerEntry>,
-    pub(crate) component_type_key: ContainerKey,
-    pub(crate) system_key: ContainerKey,
-    pub(crate) system_stage_key: ContainerKey,
-    pub(crate) identifier_key: ContainerKey,
+    pub(crate) entries: SlotMap<ComponentId, ContainerEntry>,
+    pub(crate) component_id: ComponentId,
+    pub(crate) identifier_id: ComponentId,
+}
+
+macro_rules! get_many_mutn {
+    ($ident:ident, $($ids:ident),*) => {
+        #[allow(non_snake_case, unused)]
+        #[allow(clippy::too_many_arguments)]
+        pub(crate) fn $ident<$($ids: NativeComponent),*>(
+            &mut self,
+            $($ids: ComponentId),*,
+        ) -> Result<($(&mut $ids::Container),*), ComponentError> {
+            let mut containers = self
+                .entries
+                .get_many_mut([$($ids),*])
+                .ok_or(ComponentError::EntryNotFound)?
+                .into_iter();
+            Ok((
+                $(containers
+                    .next()
+                    .unwrap()
+                    .container
+                    .as_any_mut()
+                    .downcast_mut::<$ids::Container>()
+                    .unwrap(),
+                )*
+            ))
+        }
+    }
 }
 
 impl ContainerTable {
-    pub(crate) fn component_type(&self, entity: Entity) -> Option<&ComponentType> {
-        self.get(self.component_type_key)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<NativeSingleContainer<ComponentType>>()
-            .unwrap()
-            .get(entity)
-    }
-
-    pub(crate) fn component_type_mut(&mut self, entity: Entity) -> Option<&mut ComponentType> {
-        self.get_mut(self.component_type_key)
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<ComponentType>>()
-            .unwrap()
-            .get_mut(entity)
-    }
-
-    pub(crate) fn find_container_key_by_name(&self, name: &str) -> Option<ContainerKey> {
-        self.component_types()
-            .iter()
-            .find(|(_, cty)| cty.name == name)
-            .map(|(_, cty)| cty.key)
-    }
-
-    pub(crate) fn component_types_mut(&mut self) -> &mut NativeSingleContainer<ComponentType> {
-        self.get_mut(self.component_type_key)
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<ComponentType>>()
-            .unwrap()
-    }
-
-    pub(crate) fn component_types(&self) -> &NativeSingleContainer<ComponentType> {
-        self.get(self.component_type_key)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<NativeSingleContainer<ComponentType>>()
-            .unwrap()
-    }
-
-    pub(crate) fn systems(&mut self) -> &mut NativeSingleContainer<System> {
-        self.get_mut(self.system_key)
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<System>>()
-            .unwrap()
-    }
-
-    pub(crate) fn system_stages(&mut self) -> &mut NativeSingleContainer<SystemStage> {
-        self.get_mut(self.system_stage_key)
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<SystemStage>>()
-            .unwrap()
-    }
-
-    pub(crate) fn identifiers_mut(&mut self) -> &mut NativeSingleContainer<Identifier> {
-        self.get_mut(self.identifier_key)
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<NativeSingleContainer<Identifier>>()
-            .unwrap()
-    }
-
-    pub(crate) fn identifiers(&self) -> &NativeSingleContainer<Identifier> {
-        self.get(self.identifier_key)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<NativeSingleContainer<Identifier>>()
-            .unwrap()
-    }
-
-    pub(crate) fn get(&self, key: ContainerKey) -> Option<&dyn Container> {
-        self.entries
-            .get(key)
-            .map(|entry| unsafe { &*entry.container.get() })
-    }
-
-    pub(crate) fn get_mut(&mut self, key: ContainerKey) -> Option<&mut dyn Container> {
-        self.entries
-            .get_mut(key)
-            .map(|entry| unsafe { &mut *entry.container.get() })
-    }
-
-    pub(crate) fn new(component_type_entity: Entity) -> Self {
-        let mut table = Self {
-            entries: SlotMap::with_key(),
-            component_type_key: ContainerKey::null(),
-            system_key: Default::default(),
-            system_stage_key: Default::default(),
-            identifier_key: Default::default(),
-        };
-
-        // Register component type container
-        table.component_type_key = table.entries.add(ContainerEntry {
-            container: Box::new(UnsafeCell::new(
-                NativeSingleContainer::<ComponentType>::with_capacity(128),
-            )),
-            entity: Entity::null(),
+    pub(crate) fn setup(ecs: &mut ECS) {
+        // Insert containers
+        let component_e = ecs.registry.create();
+        ecs.containers.component_id = ecs.containers.entries.add(ContainerEntry {
+            container: Box::<LinearContainer<Component>>::default(),
+            entity: component_e,
+        });
+        let identifier_e = ecs.registry.create();
+        ecs.containers.identifier_id = ecs.containers.entries.add(ContainerEntry {
+            container: Box::<IdentifierContainer>::default(),
+            entity: identifier_e,
         });
 
-        // Add component type entity
-        let component_type_key = table.component_type_key;
-        table.component_types_mut().add(
-            component_type_entity,
-            ComponentType {
-                name: ComponentType::NAME.into(),
-                kind: ComponentKind::Tag, // TODO: find better type...
-                auto_enable: false,
-                key: component_type_key,
+        // Add manually components
+        let component_id = ecs.containers.component_id;
+        let identifier_id = ecs.containers.identifier_id;
+        let component_container = ecs
+            .containers
+            .get_mut::<Component>(ecs.containers.component_id)
+            .unwrap();
+        NativeContainer::add(
+            component_container,
+            component_e,
+            Component {
+                storage: ComponentStorage::Single,
+                id: (component_id, None),
             },
-        );
+            &mut (),
+        )
+        .unwrap();
+        NativeContainer::add(
+            component_container,
+            identifier_e,
+            Component {
+                storage: ComponentStorage::Single,
+                id: (identifier_id, None),
+            },
+            &mut (),
+        )
+        .unwrap();
+        ecs.registry.add_bitset(component_id);
+        ecs.registry.add_bitset(identifier_id);
+        ecs.registry.set(component_e, component_id);
+        ecs.registry.set(identifier_e, component_id);
 
-        table
+        // Add manually identifiers
+        let identifier_container = ecs
+            .containers
+            .get_mut::<Identifier>(ecs.containers.identifier_id)
+            .unwrap();
+        NativeContainer::add(
+            identifier_container,
+            component_e,
+            Identifier::new(Component::IDENT),
+            &mut (),
+        )
+        .unwrap();
+        NativeContainer::add(
+            identifier_container,
+            identifier_e,
+            Identifier::new(Identifier::IDENT),
+            &mut (),
+        )
+        .unwrap();
+        ecs.registry.set(component_e, identifier_id);
+        ecs.registry.set(identifier_e, identifier_id);
     }
+
+    pub(crate) fn add_container(
+        &mut self,
+        entity: Entity,
+        container: Box<dyn Container>,
+    ) -> Result<ComponentId, ComponentError> {
+        Ok(self.entries.add(ContainerEntry { container, entity }))
+    }
+
+    pub(crate) fn remove_container(
+        &mut self,
+        entity: Entity,
+    ) -> Result<ComponentId, ComponentError> {
+        let id = self.entries.iter().find_map(|(id, entry)| {
+            if entry.entity == entity {
+                Some(id)
+            } else {
+                None
+            }
+        });
+        if let Some(id) = id {
+            self.entries.remove(id);
+            Ok(id)
+        } else {
+            Err(ComponentError::EntryNotFound)
+        }
+    }
+
+    pub(crate) fn component_id(&self, e: Entity) -> ComponentId {
+        self.entries[self.component_id]
+            .container
+            .as_any()
+            .downcast_ref::<LinearContainer<Component>>()
+            .unwrap()
+            .get(e)
+            .unwrap()
+            .id
+            .0
+    }
+
+    pub(crate) fn find(&self, ident: &str) -> Option<Entity> {
+        self.entries[self.identifier_id]
+            .container
+            .as_any()
+            .downcast_ref::<IdentifierContainer>()
+            .unwrap()
+            .find(ident)
+    }
+
+    pub fn add<C: NativeComponent>(
+        &mut self,
+        e: Entity,
+        id: ComponentId,
+        c: C,
+        user: &mut dyn Any,
+    ) -> Result<(), ComponentError> {
+        let container = self.get_mut::<C>(id)?;
+        NativeContainer::add(container, e, c, user)?;
+        Ok(())
+    }
+
+    pub fn remove(
+        &mut self,
+        e: Entity,
+        id: ComponentId,
+        user: &mut dyn Any,
+    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
+        let container = self.get_any_mut(id)?;
+        let post_removed = container.remove(e, user)?;
+        Ok(post_removed)
+    }
+
+    pub(crate) fn get<C: NativeComponent>(
+        &self,
+        id: ComponentId,
+    ) -> Result<&<C as NativeComponent>::Container, ComponentError> {
+        if let Some(entry) = self.entries.get(id) {
+            return entry
+                .container
+                .as_any()
+                .downcast_ref::<<C as NativeComponent>::Container>()
+                .ok_or(ComponentError::InvalidContainerType);
+        }
+        Err(ComponentError::EntryNotFound)
+    }
+
+    pub(crate) fn get_mut<C: NativeComponent>(
+        &mut self,
+        id: ComponentId,
+    ) -> Result<&mut <C as NativeComponent>::Container, ComponentError> {
+        if let Some(entry) = self.entries.get_mut(id) {
+            return entry
+                .container
+                .as_any_mut()
+                .downcast_mut::<<C as NativeComponent>::Container>()
+                .ok_or(ComponentError::InvalidContainerType);
+        }
+        Err(ComponentError::EntryNotFound)
+    }
+
+    pub(crate) fn get_any_mut(
+        &mut self,
+        id: ComponentId,
+    ) -> Result<&mut dyn Container, ComponentError> {
+        if let Some(entry) = self.entries.get_mut(id) {
+            return Ok(entry.container.as_mut());
+        }
+        Err(ComponentError::EntryNotFound)
+    }
+
+    get_many_mutn!(get_many_mut2, C0, C1);
+    get_many_mutn!(get_many_mut3, C0, C1, C2);
+    get_many_mutn!(get_many_mut4, C0, C1, C2, C3);
+    get_many_mutn!(get_many_mut5, C0, C1, C2, C3, C4);
+    get_many_mutn!(get_many_mut6, C0, C1, C2, C3, C4, C5);
+    get_many_mutn!(get_many_mut7, C0, C1, C2, C3, C4, C5, C6);
+    get_many_mutn!(get_many_mut8, C0, C1, C2, C3, C4, C5, C6, C7);
 }

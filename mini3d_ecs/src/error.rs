@@ -16,6 +16,8 @@ pub enum ResolverError {
 
 #[derive(Error, Debug)]
 pub enum ComponentError {
+    #[error("Invalid container type")]
+    InvalidContainerType,
     #[error("Component did not match unicity constraint")]
     DuplicatedEntry,
     #[error("Component reference not found")]
@@ -32,4 +34,6 @@ pub enum SystemError {
     RunError,
     #[error("System config error")]
     ConfigError,
+    #[error("Duplicated entry")]
+    DuplicatedEntry,
 }
