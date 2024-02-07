@@ -2,7 +2,7 @@ use crate::component::identifier::Identifier;
 use crate::component::stage::Stage;
 use crate::component::system::{System, SystemKind};
 use crate::component::{NamedComponent, RegisterComponent};
-use crate::container::{ComponentId, ContainerTable, SingleContainer};
+use crate::container::{ComponentId, ContainerTable, NativeContainer};
 use crate::ecs::ECS;
 use crate::entity::Entity;
 use alloc::{collections::VecDeque, vec::Vec};

@@ -4,7 +4,7 @@ use core::any::Any;
 
 use container::ContainerTable;
 use ecs::ECS;
-use entity::EntityTable;
+use registry::Registry;
 use scheduler::Scheduler;
 
 #[cfg(test)]
@@ -19,11 +19,12 @@ pub mod ecs;
 pub mod entity;
 pub mod error;
 pub mod query;
+pub mod registry;
 pub mod scheduler;
 
 pub struct ECSInstance {
     containers: ContainerTable,
-    entities: EntityTable,
+    registry: Registry,
     scheduler: Scheduler,
 }
 
@@ -31,13 +32,13 @@ impl ECSInstance {
     pub fn new(bootstrap: fn(&mut ECS), user: &mut dyn Any) -> Self {
         let mut instance = Self {
             containers: Default::default(),
-            entities: Default::default(),
+            registry: Default::default(),
             scheduler: Default::default(),
         };
         let mut ecs = ECS {
             user,
-            entities: &mut instance.entities,
             containers: &mut instance.containers,
+            registry: &mut instance.registry,
             scheduler: &mut instance.scheduler,
         };
 
@@ -73,8 +74,8 @@ impl ECSInstance {
                 // Run the callback
                 callback(&mut ECS {
                     user,
-                    entities: &mut self.entities,
                     containers: &mut self.containers,
+                    registry: &mut self.registry,
                     scheduler: &mut self.scheduler,
                 });
             } else {
@@ -134,6 +135,7 @@ mod test {
         MyComponent::register(ecs).unwrap();
         ecs.add(e, MyComponent::default());
         ecs.add(e, Identifier::new("test"));
+        ecs.add(e, Stage::default());
         ecs.invoke(stage, Invocation::NextFrame);
 
         let e = ecs.create();
@@ -156,6 +158,14 @@ mod test {
         for e in q.entities(ecs) {
             println!("components: {}", e);
         }
+
+        ecs.for_each2::<Component, Identifier>(|e, c, i| {
+            println!("[{}]: {}", e, i.ident());
+        });
+
+        ecs.for_each3::<Stage, MyComponent, Identifier>(|e, s, c, i| {
+            println!("hell [{}]: {}", e, i.ident());
+        });
     }
 
     #[test]

@@ -5,11 +5,10 @@ use mini3d_derive::Serialize;
 use mini3d_utils::{slot_map_key, slotmap::SlotMap};
 
 use crate::{
-    bitset::{BitIndex, Bitset},
     component::{
         component::{Component, ComponentStorage},
         identifier::{Identifier, IdentifierContainer},
-        ComponentPostCallback, NamedComponent, SingleComponent,
+        ComponentPostCallback, NamedComponent, NativeComponent,
     },
     ecs::ECS,
     entity::Entity,
@@ -36,7 +35,7 @@ pub trait Container {
     ) -> Result<Option<ComponentPostCallback>, ComponentError>;
 }
 
-pub trait SingleContainer<C: SingleComponent>: Default + Container {
+pub trait NativeContainer<C: NativeComponent>: Default + Container {
     fn get(&self, entity: Entity) -> Option<&C>;
     fn get_mut(&mut self, entity: Entity) -> Option<&mut C>;
     fn add(
@@ -61,7 +60,6 @@ pub(crate) enum ComponentKind {
 
 pub(crate) struct ContainerEntry {
     pub(crate) container: Box<dyn Container>,
-    pub(crate) bitset: Bitset,
     pub(crate) entity: Entity,
 }
 
@@ -72,19 +70,44 @@ pub(crate) struct ContainerTable {
     pub(crate) identifier_id: ComponentId,
 }
 
+macro_rules! get_many_mutn {
+    ($ident:ident, $($ids:ident),*) => {
+        #[allow(non_snake_case, unused)]
+        #[allow(clippy::too_many_arguments)]
+        pub(crate) fn $ident<$($ids: NativeComponent),*>(
+            &mut self,
+            $($ids: ComponentId),*,
+        ) -> Result<($(&mut $ids::Container),*), ComponentError> {
+            let mut containers = self
+                .entries
+                .get_many_mut([$($ids),*])
+                .ok_or(ComponentError::EntryNotFound)?
+                .into_iter();
+            Ok((
+                $(containers
+                    .next()
+                    .unwrap()
+                    .container
+                    .as_any_mut()
+                    .downcast_mut::<$ids::Container>()
+                    .unwrap(),
+                )*
+            ))
+        }
+    }
+}
+
 impl ContainerTable {
     pub(crate) fn setup(ecs: &mut ECS) {
         // Insert containers
-        let component_e = ecs.entities.create();
+        let component_e = ecs.registry.create();
         ecs.containers.component_id = ecs.containers.entries.add(ContainerEntry {
             container: Box::<LinearContainer<Component>>::default(),
-            bitset: Default::default(),
             entity: component_e,
         });
-        let identifier_e = ecs.entities.create();
+        let identifier_e = ecs.registry.create();
         ecs.containers.identifier_id = ecs.containers.entries.add(ContainerEntry {
             container: Box::<IdentifierContainer>::default(),
-            bitset: Default::default(),
             entity: identifier_e,
         });
 
@@ -95,7 +118,7 @@ impl ContainerTable {
             .containers
             .get_mut::<Component>(ecs.containers.component_id)
             .unwrap();
-        SingleContainer::add(
+        NativeContainer::add(
             component_container,
             component_e,
             Component {
@@ -105,7 +128,7 @@ impl ContainerTable {
             &mut (),
         )
         .unwrap();
-        SingleContainer::add(
+        NativeContainer::add(
             component_container,
             identifier_e,
             Component {
@@ -115,38 +138,32 @@ impl ContainerTable {
             &mut (),
         )
         .unwrap();
-        ecs.containers.entries[component_id]
-            .bitset
-            .set(component_e.index() as BitIndex, true);
-        ecs.containers.entries[component_id]
-            .bitset
-            .set(identifier_e.index() as BitIndex, true);
+        ecs.registry.add_bitset(component_id);
+        ecs.registry.add_bitset(identifier_id);
+        ecs.registry.set(component_e, component_id);
+        ecs.registry.set(identifier_e, component_id);
 
         // Add manually identifiers
         let identifier_container = ecs
             .containers
             .get_mut::<Identifier>(ecs.containers.identifier_id)
             .unwrap();
-        SingleContainer::add(
+        NativeContainer::add(
             identifier_container,
             component_e,
             Identifier::new(Component::IDENT),
             &mut (),
         )
         .unwrap();
-        SingleContainer::add(
+        NativeContainer::add(
             identifier_container,
             identifier_e,
             Identifier::new(Identifier::IDENT),
             &mut (),
         )
         .unwrap();
-        ecs.containers.entries[identifier_id]
-            .bitset
-            .set(component_e.index() as BitIndex, true);
-        ecs.containers.entries[ecs.containers.identifier_id]
-            .bitset
-            .set(identifier_e.index() as BitIndex, true);
+        ecs.registry.set(component_e, identifier_id);
+        ecs.registry.set(identifier_e, identifier_id);
     }
 
     pub(crate) fn add_container(
@@ -154,14 +171,13 @@ impl ContainerTable {
         entity: Entity,
         container: Box<dyn Container>,
     ) -> Result<ComponentId, ComponentError> {
-        Ok(self.entries.add(ContainerEntry {
-            container,
-            bitset: Default::default(),
-            entity,
-        }))
+        Ok(self.entries.add(ContainerEntry { container, entity }))
     }
 
-    pub(crate) fn remove_container(&mut self, entity: Entity) -> Result<(), ComponentError> {
+    pub(crate) fn remove_container(
+        &mut self,
+        entity: Entity,
+    ) -> Result<ComponentId, ComponentError> {
         let id = self.entries.iter().find_map(|(id, entry)| {
             if entry.entity == entity {
                 Some(id)
@@ -171,7 +187,7 @@ impl ContainerTable {
         });
         if let Some(id) = id {
             self.entries.remove(id);
-            Ok(())
+            Ok(id)
         } else {
             Err(ComponentError::EntryNotFound)
         }
@@ -198,7 +214,7 @@ impl ContainerTable {
             .find(ident)
     }
 
-    pub fn add<C: SingleComponent>(
+    pub fn add<C: NativeComponent>(
         &mut self,
         e: Entity,
         id: ComponentId,
@@ -206,8 +222,7 @@ impl ContainerTable {
         user: &mut dyn Any,
     ) -> Result<(), ComponentError> {
         let container = self.get_mut::<C>(id)?;
-        SingleContainer::add(container, e, c, user)?;
-        self.entries[id].bitset.set(e.index() as BitIndex, true);
+        NativeContainer::add(container, e, c, user)?;
         Ok(())
     }
 
@@ -217,41 +232,40 @@ impl ContainerTable {
         id: ComponentId,
         user: &mut dyn Any,
     ) -> Result<Option<ComponentPostCallback>, ComponentError> {
-        let container = self.get_mut_any(id)?;
+        let container = self.get_any_mut(id)?;
         let post_removed = container.remove(e, user)?;
-        self.entries[id].bitset.set(e.index() as BitIndex, false);
         Ok(post_removed)
     }
 
-    pub(crate) fn get<C: SingleComponent>(
+    pub(crate) fn get<C: NativeComponent>(
         &self,
         id: ComponentId,
-    ) -> Result<&<C as SingleComponent>::Container, ComponentError> {
+    ) -> Result<&<C as NativeComponent>::Container, ComponentError> {
         if let Some(entry) = self.entries.get(id) {
             return entry
                 .container
                 .as_any()
-                .downcast_ref::<<C as SingleComponent>::Container>()
+                .downcast_ref::<<C as NativeComponent>::Container>()
                 .ok_or(ComponentError::InvalidContainerType);
         }
         Err(ComponentError::EntryNotFound)
     }
 
-    pub(crate) fn get_mut<C: SingleComponent>(
+    pub(crate) fn get_mut<C: NativeComponent>(
         &mut self,
         id: ComponentId,
-    ) -> Result<&mut <C as SingleComponent>::Container, ComponentError> {
+    ) -> Result<&mut <C as NativeComponent>::Container, ComponentError> {
         if let Some(entry) = self.entries.get_mut(id) {
             return entry
                 .container
                 .as_any_mut()
-                .downcast_mut::<<C as SingleComponent>::Container>()
+                .downcast_mut::<<C as NativeComponent>::Container>()
                 .ok_or(ComponentError::InvalidContainerType);
         }
         Err(ComponentError::EntryNotFound)
     }
 
-    pub(crate) fn get_mut_any(
+    pub(crate) fn get_any_mut(
         &mut self,
         id: ComponentId,
     ) -> Result<&mut dyn Container, ComponentError> {
@@ -261,10 +275,11 @@ impl ContainerTable {
         Err(ComponentError::EntryNotFound)
     }
 
-    pub(crate) fn has(&self, e: Entity, id: ComponentId) -> bool {
-        self.entries
-            .get(id)
-            .map(|container| container.bitset.is_set(e.index() as BitIndex))
-            .unwrap_or(false)
-    }
+    get_many_mutn!(get_many_mut2, C0, C1);
+    get_many_mutn!(get_many_mut3, C0, C1, C2);
+    get_many_mutn!(get_many_mut4, C0, C1, C2, C3);
+    get_many_mutn!(get_many_mut5, C0, C1, C2, C3, C4);
+    get_many_mutn!(get_many_mut6, C0, C1, C2, C3, C4, C5);
+    get_many_mutn!(get_many_mut7, C0, C1, C2, C3, C4, C5, C6);
+    get_many_mutn!(get_many_mut8, C0, C1, C2, C3, C4, C5, C6, C7);
 }

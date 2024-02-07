@@ -3,24 +3,24 @@ use core::any::Any;
 use alloc::vec::Vec;
 
 use crate::{
-    component::{ComponentPostCallback, SingleComponent},
+    component::{ComponentPostCallback, NativeComponent},
     entity::Entity,
     error::ComponentError,
 };
 
-use super::{Container, SingleContainer};
+use super::{Container, NativeContainer};
 
-pub struct LinearContainer<C: SingleComponent> {
+pub struct LinearContainer<C: NativeComponent> {
     data: Vec<(Entity, C)>,
 }
 
-impl<C: SingleComponent> Default for LinearContainer<C> {
+impl<C: NativeComponent> Default for LinearContainer<C> {
     fn default() -> Self {
         Self { data: Vec::new() }
     }
 }
 
-impl<C: SingleComponent> LinearContainer<C> {
+impl<C: NativeComponent> LinearContainer<C> {
     pub(crate) fn with_capacity(capacity: u16) -> Self {
         Self {
             data: Vec::with_capacity(capacity as usize),
@@ -48,7 +48,7 @@ impl<C: SingleComponent> LinearContainer<C> {
     }
 }
 
-impl<C: SingleComponent> Container for LinearContainer<C> {
+impl<C: NativeComponent> Container for LinearContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -70,12 +70,12 @@ impl<C: SingleComponent> Container for LinearContainer<C> {
         entity: Entity,
         user: &mut dyn Any,
     ) -> Result<Option<ComponentPostCallback>, ComponentError> {
-        SingleContainer::remove(self, entity, user)?;
+        NativeContainer::remove(self, entity, user)?;
         Ok(Some(C::on_post_removed))
     }
 }
 
-impl<C: SingleComponent> SingleContainer<C> for LinearContainer<C> {
+impl<C: NativeComponent> NativeContainer<C> for LinearContainer<C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.data
             .get(entity.index() as usize)

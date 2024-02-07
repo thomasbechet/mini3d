@@ -4,12 +4,12 @@ use mini3d_derive::Serialize;
 use mini3d_utils::string::AsciiArray;
 
 use crate::{
-    container::{linear::LinearContainer, Container, SingleContainer},
+    container::{linear::LinearContainer, Container, NativeContainer},
     entity::Entity,
     error::ComponentError,
 };
 
-use super::{ComponentPostCallback, NamedComponent, SingleComponent};
+use super::{ComponentPostCallback, NamedComponent, NativeComponent};
 
 #[derive(Default, Serialize)]
 pub struct Identifier {
@@ -20,7 +20,7 @@ impl NamedComponent for Identifier {
     const IDENT: &'static str = "identifier";
 }
 
-impl SingleComponent for Identifier {
+impl NativeComponent for Identifier {
     type Container = IdentifierContainer;
 }
 
@@ -66,12 +66,12 @@ impl Container for IdentifierContainer {
         entity: Entity,
         user: &mut dyn Any,
     ) -> Result<Option<ComponentPostCallback>, ComponentError> {
-        SingleContainer::remove(self, entity, user)?;
+        NativeContainer::remove(self, entity, user)?;
         Ok(Some(Identifier::on_post_removed))
     }
 }
 
-impl SingleContainer<Identifier> for IdentifierContainer {
+impl NativeContainer<Identifier> for IdentifierContainer {
     fn get(&self, entity: Entity) -> Option<&Identifier> {
         self.0.get(entity)
     }
@@ -93,11 +93,11 @@ impl SingleContainer<Identifier> for IdentifierContainer {
         {
             return Err(ComponentError::DuplicatedEntry);
         }
-        SingleContainer::add(&mut self.0, entity, component, user)
+        NativeContainer::add(&mut self.0, entity, component, user)
     }
 
     fn remove(&mut self, entity: Entity, user: &mut dyn Any) -> Result<(), ComponentError> {
-        SingleContainer::remove(&mut self.0, entity, user)
+        NativeContainer::remove(&mut self.0, entity, user)
     }
 }
 

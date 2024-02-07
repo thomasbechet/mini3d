@@ -8,7 +8,7 @@ use crate::{
     error::ComponentError,
 };
 
-use super::{NamedComponent, SingleComponent};
+use super::{NamedComponent, NativeComponent};
 
 #[derive(Serialize, Default)]
 pub enum ComponentStorage {
@@ -31,7 +31,7 @@ impl NamedComponent for Component {
     const IDENT: &'static str = "component";
 }
 
-impl SingleComponent for Component {
+impl NativeComponent for Component {
     type Container = LinearContainer<Self>;
 
     fn on_post_added(ecs: &mut ECS, entity: Entity) -> Result<(), ComponentError> {
@@ -43,27 +43,30 @@ impl SingleComponent for Component {
             .take()
             .unwrap();
         let id = ecs.containers.add_container(entity, container)?;
+        ecs.registry.add_bitset(id);
         ecs.get_mut::<Component>(entity).unwrap().id.0 = id;
         Ok(())
     }
 
     fn on_post_removed(ecs: &mut ECS, entity: Entity) -> Result<(), ComponentError> {
-        ecs.containers.remove_container(entity)
+        let id = ecs.containers.remove_container(entity)?;
+        ecs.registry.remove_bitset(id);
+        Ok(())
     }
 }
 
 impl Component {
-    pub fn single<C: SingleComponent + NamedComponent>() -> Self {
+    pub fn single<C: NativeComponent + NamedComponent>() -> Self {
         Self {
             storage: ComponentStorage::Single,
             id: (
                 Default::default(),
-                Some(Box::<<C as SingleComponent>::Container>::default()),
+                Some(Box::<<C as NativeComponent>::Container>::default()),
             ),
         }
     }
 
-    pub fn array<C: SingleComponent + NamedComponent>(size: u16) -> Self {
+    pub fn array<C: NativeComponent + NamedComponent>(size: u16) -> Self {
         // TODO: Check if size is valid
         Self {
             storage: ComponentStorage::Array(size),

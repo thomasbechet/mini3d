@@ -2,7 +2,7 @@ use mini3d_derive::Serialize;
 
 use crate::{container::linear::LinearContainer, ecs::ECS, entity::Entity, error::ComponentError};
 
-use super::{NamedComponent, SingleComponent};
+use super::{NamedComponent, NativeComponent};
 
 #[derive(Default, Clone, Serialize)]
 pub enum SystemKind {
@@ -25,7 +25,7 @@ impl NamedComponent for System {
     const IDENT: &'static str = "system";
 }
 
-impl SingleComponent for System {
+impl NativeComponent for System {
     type Container = LinearContainer<Self>;
 
     fn on_post_added(ecs: &mut ECS, _entity: Entity) -> Result<(), ComponentError> {

@@ -1,4 +1,7 @@
-use core::ops::{Index, IndexMut};
+use core::{
+    mem::MaybeUninit,
+    ops::{Index, IndexMut},
+};
 
 use alloc::vec::Vec;
 
@@ -140,7 +143,7 @@ impl<K: Key, V> SlotMap<K, V> {
         Some(&self.entries[index].value)
     }
 
-    fn get_mut_unchecked(&mut self, index: usize) -> Option<&mut V> {
+    fn get_unchecked_mut(&mut self, index: usize) -> Option<&mut V> {
         Some(&mut self.entries[index].value)
     }
 
@@ -159,9 +162,53 @@ impl<K: Key, V> SlotMap<K, V> {
             if index >= self.entries.len() || self.entries[index].key != key {
                 None
             } else {
-                self.get_mut_unchecked(index)
+                self.get_unchecked_mut(index)
             }
         })
+    }
+
+    #[inline]
+    pub fn get_many_mut<const N: usize>(&mut self, keys: [K; N]) -> Option<[&mut V; N]> {
+        unsafe {
+            let ptrs = self.get_many_mut_pointers(keys)?;
+            for (i, &cur) in ptrs.iter().enumerate() {
+                if ptrs[..i].iter().any(|&prev| core::ptr::eq::<V>(prev, cur)) {
+                    return None;
+                }
+            }
+            Some(core::mem::transmute_copy(&ptrs))
+        }
+    }
+
+    /// # Safety
+    ///
+    /// This function should not be used with indentical keys.
+    #[inline]
+    pub unsafe fn get_many_unchecked_mut<const N: usize>(
+        &mut self,
+        keys: [K; N],
+    ) -> Option<[&mut V; N]> {
+        let ptrs = self.get_many_mut_pointers(keys)?;
+        Some(core::mem::transmute_copy(&ptrs))
+    }
+
+    /// # Safety
+    ///
+    /// This function should not be used with indentical keys.
+    #[inline]
+    pub unsafe fn get_many_mut_pointers<const N: usize>(
+        &mut self,
+        keys: [K; N],
+    ) -> Option<[*mut V; N]> {
+        let mut outs: MaybeUninit<[*mut V; N]> = MaybeUninit::uninit();
+        let ptrs = outs.as_mut_ptr();
+
+        for (i, &key) in keys.iter().enumerate() {
+            let cur = self.get_mut(key)?;
+            *(*ptrs).get_unchecked_mut(i) = cur as *mut V;
+        }
+
+        Some(outs.assume_init())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (K, &V)> {

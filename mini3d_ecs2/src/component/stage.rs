@@ -2,7 +2,7 @@ use mini3d_derive::Serialize;
 
 use crate::{container::linear::LinearContainer, scheduler::NodeKey};
 
-use super::{NamedComponent, SingleComponent};
+use super::{NamedComponent, NativeComponent};
 
 #[derive(Default, Clone, Serialize)]
 pub struct Stage {
@@ -22,6 +22,6 @@ impl NamedComponent for Stage {
     const IDENT: &'static str = "stage";
 }
 
-impl SingleComponent for Stage {
+impl NativeComponent for Stage {
     type Container = LinearContainer<Self>;
 }

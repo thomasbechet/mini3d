@@ -3,6 +3,7 @@ use crate::{
     container::ComponentId,
     ecs::ECS,
     entity::Entity,
+    registry::Registry,
 };
 
 #[derive(Default)]
@@ -45,37 +46,37 @@ impl Query {
     }
 
     pub fn entities<'a>(&'a self, ecs: &'a ECS) -> EntityQuery<'a> {
-        EntityQuery::new(ecs, self)
+        EntityQuery::new(&ecs.registry, self)
     }
 }
 
 pub struct EntityQuery<'a> {
-    ecs: &'a ECS<'a>,
+    registry: &'a Registry,
     query: &'a Query,
     iter: BitsetMaskIter,
 }
 
 impl<'a> EntityQuery<'a> {
-    fn fetch_mask(ecs: &ECS, query: &Query, index: usize) -> u32 {
+    fn fetch_mask(registry: &'a Registry, query: &Query, index: usize) -> u32 {
         let mut mask = if query.all_size > 0 {
-            ecs.containers.entries[query.all[0]].bitset.mask(index)
+            registry.mask(query.all[0], index)
         } else {
             0
         };
         for i in 1..query.all_size {
-            mask &= ecs.containers.entries[query.all[i]].bitset.mask(index);
+            mask &= registry.mask(query.all[i], index);
         }
         for i in 0..query.any_size {
-            mask |= ecs.containers.entries[query.any[i]].bitset.mask(index);
+            mask |= registry.mask(query.any[i], index);
         }
         mask
     }
 
-    pub(crate) fn new(ecs: &'a ECS, query: &'a Query) -> Self {
+    pub(crate) fn new(registry: &'a Registry, query: &'a Query) -> Self {
         Self {
-            ecs,
+            registry,
             query,
-            iter: BitsetMaskIter::new(Self::fetch_mask(ecs, query, 0)),
+            iter: BitsetMaskIter::new(Self::fetch_mask(registry, query, 0)),
         }
     }
 }
@@ -87,13 +88,13 @@ impl Iterator for EntityQuery<'_> {
         loop {
             match self.iter.next() {
                 IterAnswer::Some(index) => {
-                    let version = self.ecs.entities.version(index);
+                    let version = self.registry.entity_version(index);
                     return Some(Entity::new(index, version));
                 }
                 IterAnswer::None => return None,
                 IterAnswer::NewMask(index) => {
                     self.iter
-                        .set_mask(Self::fetch_mask(self.ecs, self.query, index));
+                        .set_mask(Self::fetch_mask(self.registry, self.query, index));
                     continue;
                 }
             }

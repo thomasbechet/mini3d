@@ -229,7 +229,7 @@ fn derive_struct(
     let name = meta.name;
 
     let q = quote! {
-        impl mini3d_ecs2::component::SingleComponent for MyComponent {
+        impl mini3d_ecs2::component::NativeComponent for MyComponent {
             type Container = #container;
         }
 

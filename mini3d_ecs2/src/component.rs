@@ -2,7 +2,7 @@ use core::any::Any;
 
 use mini3d_serialize::Serialize;
 
-use crate::{container::SingleContainer, ecs::ECS, entity::Entity, error::ComponentError};
+use crate::{container::NativeContainer, ecs::ECS, entity::Entity, error::ComponentError};
 
 use self::{component::Component, identifier::Identifier};
 
@@ -24,8 +24,8 @@ pub trait NamedComponent {
     const IDENT: &'static str;
 }
 
-pub trait SingleComponent: 'static + Default + Serialize {
-    type Container: SingleContainer<Self>;
+pub trait NativeComponent: 'static + Default + Serialize {
+    type Container: NativeContainer<Self>;
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         resolver.resolve(Default::default());
         Ok(())
@@ -50,7 +50,7 @@ pub trait RegisterComponent {
     fn register(ecs: &mut ECS) -> Result<Entity, ComponentError>;
 }
 
-impl<C: SingleComponent + NamedComponent> RegisterComponent for C {
+impl<C: NativeComponent + NamedComponent> RegisterComponent for C {
     fn register(ecs: &mut ECS) -> Result<Entity, ComponentError> {
         let e = ecs.create();
         ecs.add(e, Identifier::new(C::IDENT));
