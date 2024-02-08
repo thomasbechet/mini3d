@@ -24,9 +24,9 @@ pub(crate) struct PipelineNode {
 }
 
 #[derive(Default)]
-pub(crate) struct Scheduler {
+pub(crate) struct Scheduler<Context> {
     nodes: SlotMap<NodeKey, PipelineNode>,
-    pub(crate) callbacks: Vec<fn(&mut ECS)>,
+    pub(crate) callbacks: Vec<fn(&mut ECS<Context>)>,
     next_frame_stages: VecDeque<Entity>,
     frame_stages: VecDeque<Entity>,
     next_node: NodeKey,
@@ -35,8 +35,8 @@ pub(crate) struct Scheduler {
     pub(crate) tick_stage: Entity,
 }
 
-impl Scheduler {
-    pub(crate) fn setup(ecs: &mut ECS) {
+impl<Context> Scheduler<Context> {
+    pub(crate) fn setup(ecs: &mut ECS<Context>) {
         // Create stage container
         Stage::register(ecs).unwrap();
         ecs.scheduler.stage_id = ecs.find_component_id(Stage::IDENT).unwrap();
@@ -52,7 +52,7 @@ impl Scheduler {
         ecs.scheduler.tick_stage = e;
     }
 
-    pub(crate) fn rebuild(&mut self, containers: &mut ContainerTable) {
+    pub(crate) fn rebuild(&mut self, containers: &mut ContainerTable<Context>) {
         // Reset baked resources
         self.nodes.clear();
         self.callbacks.clear();
@@ -104,7 +104,12 @@ impl Scheduler {
                 // TODO: detect parallel nodes
 
                 // Insert instance
-                self.callbacks.push(callback);
+                self.callbacks.push(
+                    *callback
+                        .as_ref()
+                        .downcast_ref::<fn(&mut ECS<Context>)>()
+                        .unwrap(),
+                );
 
                 // Create exclusive node
                 let node = self.nodes.add(PipelineNode {
@@ -132,7 +137,10 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn next_node(&mut self, containers: &ContainerTable) -> Option<PipelineNode> {
+    pub(crate) fn next_node(
+        &mut self,
+        containers: &ContainerTable<Context>,
+    ) -> Option<PipelineNode> {
         // Detect end of current stage
         while self.next_node.is_null() {
             // Find next stage

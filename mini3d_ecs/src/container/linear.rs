@@ -48,7 +48,7 @@ impl<C: NativeComponent> LinearContainer<C> {
     }
 }
 
-impl<C: NativeComponent> Container for LinearContainer<C> {
+impl<C: NativeComponent + Default, Context> Container<Context> for LinearContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -60,22 +60,22 @@ impl<C: NativeComponent> Container for LinearContainer<C> {
     fn add(
         &mut self,
         _entity: Entity,
-        _user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
+        _ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
         Ok(Some(C::on_post_added))
     }
 
     fn remove(
         &mut self,
         entity: Entity,
-        user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
-        NativeContainer::remove(self, entity, user)?;
+        ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
+        NativeContainer::remove(self, entity, ctx)?;
         Ok(Some(C::on_post_removed))
     }
 }
 
-impl<C: NativeComponent> NativeContainer<C> for LinearContainer<C> {
+impl<C: NativeComponent + Default> NativeContainer<C> for LinearContainer<C> {
     fn get(&self, entity: Entity) -> Option<&C> {
         self.data
             .get(entity.index() as usize)
@@ -88,11 +88,11 @@ impl<C: NativeComponent> NativeContainer<C> for LinearContainer<C> {
             .and_then(|(e, data)| if *e == entity { Some(data) } else { None })
     }
 
-    fn add(
+    fn add<Context>(
         &mut self,
         entity: Entity,
         component: C,
-        user: &mut dyn Any,
+        ctx: &mut Context,
     ) -> Result<&mut C, ComponentError> {
         let index = entity.index();
         if index >= self.data.len() as u16 {
@@ -103,18 +103,18 @@ impl<C: NativeComponent> NativeContainer<C> for LinearContainer<C> {
         if *e == Entity::null() {
             *e = entity;
             *data = component;
-            (*data).on_added(entity, user)?;
+            (*data).on_added(entity, ctx)?;
             return Ok(data);
         }
         Err(ComponentError::DuplicatedEntry)
     }
 
-    fn remove(&mut self, entity: Entity, user: &mut dyn Any) -> Result<(), ComponentError> {
+    fn remove<Context>(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
         let index = entity.index();
         if let Some((e, data)) = self.data.get_mut(index as usize) {
             if *e == entity {
                 *e = Entity::null();
-                data.on_removed(entity, user)?;
+                data.on_removed(entity, ctx)?;
                 return Ok(());
             }
         }

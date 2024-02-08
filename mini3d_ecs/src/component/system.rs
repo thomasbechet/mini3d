@@ -1,12 +1,15 @@
+use core::any::Any;
+
+use alloc::boxed::Box;
 use mini3d_derive::Serialize;
 
 use crate::{container::linear::LinearContainer, ecs::ECS, entity::Entity, error::ComponentError};
 
 use super::{NamedComponent, NativeComponent};
 
-#[derive(Default, Clone, Serialize)]
+#[derive(Default, Serialize)]
 pub enum SystemKind {
-    Native(#[serialize(skip)] Option<fn(&mut ECS)>), // In option to allow serialization
+    Native(#[serialize(skip)] Option<Box<dyn Any>>), // In option to allow serialization
     #[default]
     Script,
 }
@@ -28,23 +31,33 @@ impl NamedComponent for System {
 impl NativeComponent for System {
     type Container = LinearContainer<Self>;
 
-    fn on_post_added(ecs: &mut ECS, _entity: Entity) -> Result<(), ComponentError> {
+    fn on_post_added<Context>(
+        ecs: &mut ECS<Context>,
+        _entity: Entity,
+    ) -> Result<(), ComponentError> {
         ecs.scheduler.rebuild(ecs.containers);
         Ok(())
     }
 
-    fn on_post_removed(ecs: &mut ECS, _entity: Entity) -> Result<(), ComponentError> {
+    fn on_post_removed<Context>(
+        ecs: &mut ECS<Context>,
+        _entity: Entity,
+    ) -> Result<(), ComponentError> {
         ecs.scheduler.rebuild(ecs.containers);
         Ok(())
     }
 }
 
 impl System {
-    pub fn native(callback: fn(&mut ECS), stage: Entity, order: SystemOrder) -> Self {
+    pub fn native<Context>(
+        callback: fn(&mut ECS<Context>),
+        stage: Entity,
+        order: SystemOrder,
+    ) -> Self {
         Self {
             stage,
             order,
-            kind: SystemKind::Native(Some(callback)),
+            kind: SystemKind::Native(Some(Box::new(callback))),
         }
     }
 }

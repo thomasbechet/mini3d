@@ -1,5 +1,3 @@
-use core::any::Any;
-
 use crate::{
     component::{NamedComponent, NativeComponent},
     container::{ComponentId, ContainerTable, NativeContainer},
@@ -10,11 +8,11 @@ use crate::{
     scheduler::{Invocation, Scheduler},
 };
 
-pub struct ECS<'a> {
-    pub(crate) user: &'a mut dyn Any,
-    pub(crate) containers: &'a mut ContainerTable,
+pub struct ECS<'a, Context> {
+    pub(crate) ctx: &'a mut Context,
+    pub(crate) containers: &'a mut ContainerTable<Context>,
     pub(crate) registry: &'a mut Registry,
-    pub(crate) scheduler: &'a mut Scheduler,
+    pub(crate) scheduler: &'a mut Scheduler<Context>,
 }
 
 macro_rules! for_eachn {
@@ -36,7 +34,7 @@ macro_rules! for_eachn {
     }
 }
 
-impl<'a> ECS<'a> {
+impl<'a, Context> ECS<'a, Context> {
     pub fn create(&mut self) -> Entity {
         self.registry.create()
     }
@@ -59,7 +57,7 @@ impl<'a> ECS<'a> {
         id: ComponentId,
         c: C,
     ) -> Result<(), ComponentError> {
-        self.containers.add(e, id, c, self.user)?;
+        self.containers.add(e, id, c, self.ctx)?;
         self.registry.set(e, id);
         C::on_post_added(self, e)?;
         Ok(())
@@ -71,7 +69,7 @@ impl<'a> ECS<'a> {
     }
 
     pub fn remove_from_id(&mut self, e: Entity, id: ComponentId) -> Result<(), ComponentError> {
-        if let Some(post_removed) = self.containers.remove(e, id, self.user)? {
+        if let Some(post_removed) = self.containers.remove(e, id, self.ctx)? {
             self.registry.unset(e, id);
             post_removed(self, e)?;
         }

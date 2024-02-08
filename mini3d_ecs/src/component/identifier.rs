@@ -44,7 +44,7 @@ impl Default for IdentifierContainer {
     }
 }
 
-impl Container for IdentifierContainer {
+impl<Context> Container<Context> for IdentifierContainer {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -56,17 +56,17 @@ impl Container for IdentifierContainer {
     fn add(
         &mut self,
         _entity: Entity,
-        _user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
+        _ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
         todo!()
     }
 
     fn remove(
         &mut self,
         entity: Entity,
-        user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
-        NativeContainer::remove(self, entity, user)?;
+        ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
+        NativeContainer::remove(self, entity, ctx)?;
         Ok(Some(Identifier::on_post_removed))
     }
 }
@@ -80,11 +80,11 @@ impl NativeContainer<Identifier> for IdentifierContainer {
         self.0.get_mut(entity)
     }
 
-    fn add(
+    fn add<Context>(
         &mut self,
         entity: Entity,
         component: Identifier,
-        user: &mut dyn Any,
+        ctx: &mut Context,
     ) -> Result<&mut Identifier, ComponentError> {
         if self
             .0
@@ -93,11 +93,11 @@ impl NativeContainer<Identifier> for IdentifierContainer {
         {
             return Err(ComponentError::DuplicatedEntry);
         }
-        NativeContainer::add(&mut self.0, entity, component, user)
+        NativeContainer::add(&mut self.0, entity, component, ctx)
     }
 
-    fn remove(&mut self, entity: Entity, user: &mut dyn Any) -> Result<(), ComponentError> {
-        NativeContainer::remove(&mut self.0, entity, user)
+    fn remove<Context>(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError> {
+        NativeContainer::remove(&mut self.0, entity, ctx)
     }
 }
 

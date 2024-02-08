@@ -1,7 +1,5 @@
 #![no_std]
 
-use core::any::Any;
-
 use container::ContainerTable;
 use ecs::ECS;
 use registry::Registry;
@@ -22,21 +20,21 @@ pub mod query;
 pub mod registry;
 pub mod scheduler;
 
-pub struct ECSInstance {
-    containers: ContainerTable,
+pub struct ECSInstance<Context> {
+    containers: ContainerTable<Context>,
     registry: Registry,
-    scheduler: Scheduler,
+    scheduler: Scheduler<Context>,
 }
 
-impl ECSInstance {
-    pub fn new(bootstrap: fn(&mut ECS), user: &mut dyn Any) -> Self {
+impl<Context: Default> ECSInstance<Context> {
+    pub fn new(bootstrap: fn(&mut ECS<Context>), context: &mut Context) -> Self {
         let mut instance = Self {
             containers: Default::default(),
             registry: Default::default(),
             scheduler: Default::default(),
         };
         let mut ecs = ECS {
-            user,
+            ctx: context,
             containers: &mut instance.containers,
             registry: &mut instance.registry,
             scheduler: &mut instance.scheduler,
@@ -52,7 +50,7 @@ impl ECSInstance {
         instance
     }
 
-    pub fn update(&mut self, user: &mut dyn Any) {
+    pub fn update(&mut self, context: &mut Context) {
         // Prepare frame stages
         self.scheduler.prepare_next_frame_stages();
 
@@ -73,7 +71,7 @@ impl ECSInstance {
 
                 // Run the callback
                 callback(&mut ECS {
-                    user,
+                    ctx: context,
                     containers: &mut self.containers,
                     registry: &mut self.registry,
                     scheduler: &mut self.scheduler,
@@ -104,22 +102,25 @@ mod test {
 
     use crate as mini3d_ecs2;
 
+    #[derive(Default)]
+    struct MyContext;
+
     #[derive(Default, Serialize, Component)]
     struct MyComponent {
         value: u32,
     }
 
-    fn system1(ecs: &mut ECS) {
+    fn system1(ecs: &mut ECS<MyContext>) {
         println!("system1");
     }
 
-    fn system2(ecs: &mut ECS) {
+    fn system2(ecs: &mut ECS<MyContext>) {
         let e = ecs.find("test").unwrap();
         ecs.get_mut::<MyComponent>(e).unwrap().value += 1;
         println!("value: {}", ecs.get::<MyComponent>(e).unwrap().value);
     }
 
-    fn bootstrap(ecs: &mut ECS) {
+    fn bootstrap(ecs: &mut ECS<MyContext>) {
         println!("hello");
         let stage = ecs.create();
         ecs.add(stage, Identifier::new("custom_stage"));
@@ -170,9 +171,9 @@ mod test {
 
     #[test]
     fn test() {
-        let mut ecs = ECSInstance::new(bootstrap, &mut ());
+        let mut ecs = ECSInstance::new(bootstrap, &mut MyContext);
         for _ in 0..10 {
-            ecs.update(&mut ());
+            ecs.update(&mut MyContext);
         }
     }
 }

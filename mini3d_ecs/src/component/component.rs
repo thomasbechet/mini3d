@@ -1,3 +1,5 @@
+use core::any::Any;
+
 use alloc::boxed::Box;
 use mini3d_derive::Serialize;
 
@@ -20,11 +22,20 @@ pub enum ComponentStorage {
     Spatial,
 }
 
-#[derive(Default, Serialize)]
+#[derive(Serialize)]
 pub struct Component {
     pub(crate) storage: ComponentStorage,
     #[serialize(skip)]
-    pub(crate) id: (ComponentId, Option<Box<dyn Container>>),
+    pub(crate) id: (ComponentId, Option<Box<dyn Any>>),
+}
+
+impl Default for Component {
+    fn default() -> Self {
+        Self {
+            storage: Default::default(),
+            id: Default::default(),
+        }
+    }
 }
 
 impl NamedComponent for Component {
@@ -34,13 +45,18 @@ impl NamedComponent for Component {
 impl NativeComponent for Component {
     type Container = LinearContainer<Self>;
 
-    fn on_post_added(ecs: &mut ECS, entity: Entity) -> Result<(), ComponentError> {
+    fn on_post_added<Context>(
+        ecs: &mut ECS<Context>,
+        entity: Entity,
+    ) -> Result<(), ComponentError> {
         let container = ecs
             .get_mut::<Component>(entity)
             .unwrap()
             .id
             .1
             .take()
+            .unwrap()
+            .downcast::<dyn Container<Context>>()
             .unwrap();
         let id = ecs.containers.add_container(entity, container)?;
         ecs.registry.add_bitset(id);
@@ -48,7 +64,10 @@ impl NativeComponent for Component {
         Ok(())
     }
 
-    fn on_post_removed(ecs: &mut ECS, entity: Entity) -> Result<(), ComponentError> {
+    fn on_post_removed<Context>(
+        ecs: &mut ECS<Context>,
+        entity: Entity,
+    ) -> Result<(), ComponentError> {
         let id = ecs.containers.remove_container(entity)?;
         ecs.registry.remove_bitset(id);
         Ok(())

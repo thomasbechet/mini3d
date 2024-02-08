@@ -45,7 +45,7 @@ impl Query {
         self
     }
 
-    pub fn entities<'a>(&'a self, ecs: &'a ECS) -> EntityQuery<'a> {
+    pub fn entities<'a, Context>(&'a self, ecs: &'a ECS<Context>) -> EntityQuery<'a> {
         EntityQuery::new(&ecs.registry, self)
     }
 }

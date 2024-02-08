@@ -20,31 +20,31 @@ pub use self::linear::LinearContainer;
 pub mod linear;
 pub mod sparse;
 
-pub trait Container {
+pub trait Container<Context>: Sized {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn add(
         &mut self,
         entity: Entity,
-        user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError>;
+        ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError>;
     fn remove(
         &mut self,
         entity: Entity,
-        user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError>;
+        ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError>;
 }
 
-pub trait NativeContainer<C: NativeComponent>: Default + Container {
+pub trait NativeContainer<C: NativeComponent>: Default {
     fn get(&self, entity: Entity) -> Option<&C>;
     fn get_mut(&mut self, entity: Entity) -> Option<&mut C>;
-    fn add(
+    fn add<Context>(
         &mut self,
         entity: Entity,
         component: C,
-        user: &mut dyn Any,
+        ctx: &mut Context,
     ) -> Result<&mut C, ComponentError>;
-    fn remove(&mut self, entity: Entity, user: &mut dyn Any) -> Result<(), ComponentError>;
+    fn remove<Context>(&mut self, entity: Entity, ctx: &mut Context) -> Result<(), ComponentError>;
 }
 
 slot_map_key!(ComponentId);
@@ -58,14 +58,14 @@ pub(crate) enum ComponentKind {
     Tag,
 }
 
-pub(crate) struct ContainerEntry {
-    pub(crate) container: Box<dyn Container>,
+pub(crate) struct ContainerEntry<Context> {
+    pub(crate) container: Box<dyn Container<Context>>,
     pub(crate) entity: Entity,
 }
 
 #[derive(Default)]
-pub(crate) struct ContainerTable {
-    pub(crate) entries: SlotMap<ComponentId, ContainerEntry>,
+pub(crate) struct ContainerTable<Context> {
+    pub(crate) entries: SlotMap<ComponentId, ContainerEntry<Context>>,
     pub(crate) component_id: ComponentId,
     pub(crate) identifier_id: ComponentId,
 }
@@ -97,8 +97,8 @@ macro_rules! get_many_mutn {
     }
 }
 
-impl ContainerTable {
-    pub(crate) fn setup(ecs: &mut ECS) {
+impl<Context> ContainerTable<Context> {
+    pub(crate) fn setup(ecs: &mut ECS<Context>) {
         // Insert containers
         let component_e = ecs.registry.create();
         ecs.containers.component_id = ecs.containers.entries.add(ContainerEntry {
@@ -169,7 +169,7 @@ impl ContainerTable {
     pub(crate) fn add_container(
         &mut self,
         entity: Entity,
-        container: Box<dyn Container>,
+        container: Box<dyn Container<Context>>,
     ) -> Result<ComponentId, ComponentError> {
         Ok(self.entries.add(ContainerEntry { container, entity }))
     }
@@ -219,10 +219,10 @@ impl ContainerTable {
         e: Entity,
         id: ComponentId,
         c: C,
-        user: &mut dyn Any,
+        ctx: &mut Context,
     ) -> Result<(), ComponentError> {
         let container = self.get_mut::<C>(id)?;
-        NativeContainer::add(container, e, c, user)?;
+        NativeContainer::add(container, e, c, ctx)?;
         Ok(())
     }
 
@@ -230,10 +230,10 @@ impl ContainerTable {
         &mut self,
         e: Entity,
         id: ComponentId,
-        user: &mut dyn Any,
-    ) -> Result<Option<ComponentPostCallback>, ComponentError> {
+        ctx: &mut Context,
+    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
         let container = self.get_any_mut(id)?;
-        let post_removed = container.remove(e, user)?;
+        let post_removed = container.remove(e, ctx)?;
         Ok(post_removed)
     }
 
@@ -268,7 +268,7 @@ impl ContainerTable {
     pub(crate) fn get_any_mut(
         &mut self,
         id: ComponentId,
-    ) -> Result<&mut dyn Container, ComponentError> {
+    ) -> Result<&mut dyn Container<Context>, ComponentError> {
         if let Some(entry) = self.entries.get_mut(id) {
             return Ok(entry.container.as_mut());
         }

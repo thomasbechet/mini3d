@@ -24,7 +24,7 @@ pub trait NamedComponent {
     const IDENT: &'static str;
 }
 
-pub trait NativeComponent: 'static + Default + Serialize {
+pub trait NativeComponent: Serialize {
     type Container: NativeContainer<Self>;
     fn resolve_entities(&mut self, resolver: &mut EntityResolver) -> Result<(), ComponentError> {
         resolver.resolve(Default::default());
@@ -36,22 +36,29 @@ pub trait NativeComponent: 'static + Default + Serialize {
     fn on_removed(&mut self, _entity: Entity, _user: &mut dyn Any) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_post_added(_ecs: &mut ECS, _entity: Entity) -> Result<(), ComponentError> {
+    fn on_post_added<Context>(
+        _ecs: &mut ECS<Context>,
+        _entity: Entity,
+    ) -> Result<(), ComponentError> {
         Ok(())
     }
-    fn on_post_removed(_ecs: &mut ECS, _entity: Entity) -> Result<(), ComponentError> {
+    fn on_post_removed<Context>(
+        _ecs: &mut ECS<Context>,
+        _entity: Entity,
+    ) -> Result<(), ComponentError> {
         Ok(())
     }
 }
 
-pub type ComponentPostCallback = fn(&mut ECS, Entity) -> Result<(), ComponentError>;
+pub type ComponentPostCallback<Context> =
+    fn(&mut ECS<Context>, Entity) -> Result<(), ComponentError>;
 
 pub trait RegisterComponent {
-    fn register(ecs: &mut ECS) -> Result<Entity, ComponentError>;
+    fn register<Context>(ecs: &mut ECS<Context>) -> Result<Entity, ComponentError>;
 }
 
 impl<C: NativeComponent + NamedComponent> RegisterComponent for C {
-    fn register(ecs: &mut ECS) -> Result<Entity, ComponentError> {
+    fn register<Context>(ecs: &mut ECS<Context>) -> Result<Entity, ComponentError> {
         let e = ecs.create();
         ecs.add(e, Identifier::new(C::IDENT));
         ecs.add(e, Component::single::<C>());
