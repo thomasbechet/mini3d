@@ -50,18 +50,21 @@ pub trait NativeComponent: Serialize {
     }
 }
 
-pub type ComponentPostCallback<Context> =
-    fn(&mut ECS<Context>, Entity) -> Result<(), ComponentError>;
-
 pub trait RegisterComponent {
-    fn register<Context>(ecs: &mut ECS<Context>) -> Result<Entity, ComponentError>;
+    fn register<Context>(
+        ecs: &mut ECS<Context>,
+        ctx: &mut Context,
+    ) -> Result<Entity, ComponentError>;
 }
 
 impl<C: NativeComponent + NamedComponent> RegisterComponent for C {
-    fn register<Context>(ecs: &mut ECS<Context>) -> Result<Entity, ComponentError> {
+    fn register<Context>(
+        ecs: &mut ECS<Context>,
+        ctx: &mut Context,
+    ) -> Result<Entity, ComponentError> {
         let e = ecs.create();
-        ecs.add(e, Identifier::new(C::IDENT));
-        ecs.add(e, Component::single::<C>());
+        ecs.add(e, Identifier::new(C::IDENT), ctx);
+        ecs.add(e, Component::single::<C>(), ctx);
         Ok(e)
     }
 }

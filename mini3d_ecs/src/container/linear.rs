@@ -2,11 +2,7 @@ use core::any::Any;
 
 use alloc::vec::Vec;
 
-use crate::{
-    component::{ComponentPostCallback, NativeComponent},
-    entity::Entity,
-    error::ComponentError,
-};
+use crate::{component::NativeComponent, entity::Entity, error::ComponentError};
 
 use super::{Container, NativeContainer};
 
@@ -48,30 +44,13 @@ impl<C: NativeComponent> LinearContainer<C> {
     }
 }
 
-impl<C: NativeComponent + Default, Context> Container<Context> for LinearContainer<C> {
+impl<C: NativeComponent + Default> Container for LinearContainer<C> {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn add(
-        &mut self,
-        _entity: Entity,
-        _ctx: &mut Context,
-    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
-        Ok(Some(C::on_post_added))
-    }
-
-    fn remove(
-        &mut self,
-        entity: Entity,
-        ctx: &mut Context,
-    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
-        NativeContainer::remove(self, entity, ctx)?;
-        Ok(Some(C::on_post_removed))
     }
 }
 

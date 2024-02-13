@@ -21,7 +21,7 @@ pub mod registry;
 pub mod scheduler;
 
 pub struct ECSInstance<Context> {
-    containers: ContainerTable<Context>,
+    containers: ContainerTable,
     registry: Registry,
     scheduler: Scheduler<Context>,
 }
@@ -34,7 +34,6 @@ impl<Context: Default> ECSInstance<Context> {
             scheduler: Default::default(),
         };
         let mut ecs = ECS {
-            ctx: context,
             containers: &mut instance.containers,
             registry: &mut instance.registry,
             scheduler: &mut instance.scheduler,
@@ -71,7 +70,6 @@ impl<Context: Default> ECSInstance<Context> {
 
                 // Run the callback
                 callback(&mut ECS {
-                    ctx: context,
                     containers: &mut self.containers,
                     registry: &mut self.registry,
                     scheduler: &mut self.scheduler,

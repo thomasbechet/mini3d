@@ -44,30 +44,13 @@ impl Default for IdentifierContainer {
     }
 }
 
-impl<Context> Container<Context> for IdentifierContainer {
+impl Container for IdentifierContainer {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn add(
-        &mut self,
-        _entity: Entity,
-        _ctx: &mut Context,
-    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
-        todo!()
-    }
-
-    fn remove(
-        &mut self,
-        entity: Entity,
-        ctx: &mut Context,
-    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError> {
-        NativeContainer::remove(self, entity, ctx)?;
-        Ok(Some(Identifier::on_post_removed))
     }
 }
 

@@ -10,6 +10,8 @@ members = [
     "mini3d_gui",
     "mini3d_importer",
     "mini3d_ecs",
+    "mini3d_db",
+    "mini3d_runner",
     # "mini3d_ecs_old",
     "mini3d_input",
     # "mini3d_os",

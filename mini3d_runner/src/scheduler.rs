@@ -1,12 +1,10 @@
-use crate::component::identifier::Identifier;
-use crate::component::stage::Stage;
-use crate::component::system::{System, SystemKind};
-use crate::component::{NamedComponent, RegisterComponent};
-use crate::container::{ComponentId, ContainerTable, NativeContainer};
+use crate::container::ContainerTable;
 use crate::ecs::ECS;
-use crate::entity::Entity;
+use crate::error::ComponentError;
 use alloc::{collections::VecDeque, vec::Vec};
+use mini3d_derive::Serialize;
 use mini3d_utils::slotmap::Key;
+use mini3d_utils::string::AsciiArray;
 use mini3d_utils::{slot_map_key, slotmap::SlotMap};
 
 pub enum Invocation {
@@ -15,6 +13,31 @@ pub enum Invocation {
 }
 
 slot_map_key!(NodeKey);
+slot_map_key!(StageId);
+slot_map_key!(SystemId);
+
+#[derive(Default, Serialize)]
+pub enum SystemKind {
+    Native(#[serialize(skip)] fn()), // In option to allow serialization
+    #[default]
+    Script,
+}
+
+#[derive(Default, Serialize)]
+pub struct SystemOrder {}
+
+#[derive(Default, Serialize)]
+pub struct System {
+    pub(crate) name: AsciiArray<32>,
+    pub(crate) stage: StageId,
+    pub(crate) order: SystemOrder,
+    pub(crate) kind: SystemKind,
+}
+
+pub(crate) struct Stage {
+    pub(crate) name: AsciiArray<32>,
+    pub(crate) first_node: NodeKey,
+}
 
 #[derive(Clone, Copy)]
 pub(crate) struct PipelineNode {
@@ -27,58 +50,46 @@ pub(crate) struct PipelineNode {
 pub(crate) struct Scheduler<Context> {
     nodes: SlotMap<NodeKey, PipelineNode>,
     pub(crate) callbacks: Vec<fn(&mut ECS<Context>)>,
-    next_frame_stages: VecDeque<Entity>,
-    frame_stages: VecDeque<Entity>,
+    next_frame_stages: VecDeque<StageId>,
+    frame_stages: VecDeque<StageId>,
     next_node: NodeKey,
-    stage_id: ComponentId,
-    system_id: ComponentId,
-    pub(crate) tick_stage: Entity,
+    stages: SlotMap<StageId, Stage>,
+    systems: SlotMap<SystemId, System>,
+    pub(crate) tick_stage: StageId,
 }
 
 impl<Context> Scheduler<Context> {
-    pub(crate) fn setup(ecs: &mut ECS<Context>) {
-        // Create stage container
-        Stage::register(ecs).unwrap();
-        ecs.scheduler.stage_id = ecs.find_component_id(Stage::IDENT).unwrap();
-
-        // Create system container
-        System::register(ecs).unwrap();
-        ecs.scheduler.system_id = ecs.find_component_id(System::IDENT).unwrap();
-
-        // Create tick stage
-        let e = ecs.create();
-        ecs.add(e, Stage::default());
-        ecs.add(e, Identifier::new(Stage::TICK));
-        ecs.scheduler.tick_stage = e;
+    pub(crate) fn new() -> Self {
+        let mut sched = Self {
+            nodes: Default::default(),
+            callbacks: Default::default(),
+            next_frame_stages: Default::default(),
+            frame_stages: Default::default(),
+            next_node: Default::default(),
+            stages: Default::default(),
+            systems: Default::default(),
+            tick_stage: Default::default(),
+        };
+        sched.add_stage("tick").unwrap();
+        sched
     }
 
-    pub(crate) fn rebuild(&mut self, containers: &mut ContainerTable) {
+    pub(crate) fn rebuild(&mut self) {
         // Reset baked resources
         self.nodes.clear();
         self.callbacks.clear();
         self.next_node = NodeKey::null();
 
         // Reset stage entry nodes
-        for (_, stage) in containers
-            .get_mut::<Stage>(self.stage_id)
-            .unwrap()
-            .iter_mut()
-        {
+        for stage in self.stages.values_mut() {
             stage.first_node = NodeKey::null();
         }
 
         // Collect stages
-        let stages = containers
-            .get::<Stage>(self.stage_id)
-            .unwrap()
-            .iter()
-            .map(|(e, _)| e)
-            .collect::<Vec<_>>();
-        for stage in stages {
+        for stage in self.stages.keys() {
             // Collect callbacks
-            let callbacks = containers
-                .get::<System>(self.system_id)
-                .unwrap()
+            let callbacks = self
+                .systems
                 .iter()
                 .filter_map(|(_, system)| {
                     if system.stage == stage {
@@ -123,12 +134,7 @@ impl<Context> Scheduler<Context> {
                     self.nodes[previous_node].next = node;
                 } else {
                     // Update stage first node
-                    containers
-                        .get_mut::<Stage>(self.stage_id)
-                        .unwrap()
-                        .get_mut(stage)
-                        .unwrap()
-                        .first_node = node;
+                    self.stages.get_mut(stage).unwrap().first_node = node;
                 }
 
                 // Next previous node
@@ -170,7 +176,7 @@ impl<Context> Scheduler<Context> {
         self.frame_stages.push_back(self.tick_stage);
     }
 
-    pub(crate) fn invoke(&mut self, stage: Entity, invocation: Invocation) {
+    pub(crate) fn invoke(&mut self, stage: StageId, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);
@@ -179,5 +185,53 @@ impl<Context> Scheduler<Context> {
                 self.next_frame_stages.push_back(stage);
             }
         }
+    }
+
+    pub(crate) fn find_stage(&self, name: &str) -> Option<StageId> {
+        self.stages.iter().find_map(|(id, stage)| {
+            if stage.name.as_str() == name {
+                Some(id)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub(crate) fn find_system(&self, name: &str) -> Option<SystemId> {
+        self.systems.iter().find_map(|(id, system)| {
+            if system.name.as_str() == name {
+                Some(id)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub(crate) fn add_stage(&mut self, name: &str) -> Result<StageId, ComponentError> {
+        if self.find_stage(name).is_some() {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        Ok(self.stages.insert(Stage {
+            name: AsciiArray::from(name),
+            first_node: NodeKey::null(),
+        }))
+    }
+
+    pub(crate) fn add_system(
+        &mut self,
+        name: &str,
+        stage: StageId,
+        order: SystemOrder,
+        kind: SystemKind,
+    ) -> Result<SystemId, ComponentError> {
+        if self.find_system(name).is_some() {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        Ok(self.systems.insert(System {
+            name: AsciiArray::from(name),
+            stage,
+            order,
+            kind,
+        }))
     }
 }

@@ -56,9 +56,9 @@ impl NativeComponent for Component {
             .1
             .take()
             .unwrap()
-            .downcast::<dyn Container<Context>>()
+            .downcast::<Box<dyn Container>>()
             .unwrap();
-        let id = ecs.containers.add_container(entity, container)?;
+        let id = ecs.containers.add_container(entity, *container)?;
         ecs.registry.add_bitset(id);
         ecs.get_mut::<Component>(entity).unwrap().id.0 = id;
         Ok(())

@@ -9,8 +9,7 @@ use crate::{
 };
 
 pub struct ECS<'a, Context> {
-    pub(crate) ctx: &'a mut Context,
-    pub(crate) containers: &'a mut ContainerTable<Context>,
+    pub(crate) containers: &'a mut ContainerTable,
     pub(crate) registry: &'a mut Registry,
     pub(crate) scheduler: &'a mut Scheduler<Context>,
 }
@@ -43,9 +42,9 @@ impl<'a, Context> ECS<'a, Context> {
         self.registry.destroy(e);
     }
 
-    pub fn add<C: NativeComponent + NamedComponent>(&mut self, e: Entity, c: C) {
+    pub fn add<C: NativeComponent + NamedComponent>(&mut self, e: Entity, c: C, ctx: &mut Context) {
         if let Some(id) = self.find_component_id(C::IDENT) {
-            self.add_from_id(e, id, c).unwrap();
+            self.add_from_id(e, id, c, ctx).unwrap();
         } else {
             panic!("Component type not found")
         }
@@ -56,20 +55,26 @@ impl<'a, Context> ECS<'a, Context> {
         e: Entity,
         id: ComponentId,
         c: C,
+        ctx: &mut Context,
     ) -> Result<(), ComponentError> {
-        self.containers.add(e, id, c, self.ctx)?;
+        self.containers.add_native(e, id, c, ctx)?;
         self.registry.set(e, id);
         C::on_post_added(self, e)?;
         Ok(())
     }
 
-    pub fn remove<C: NamedComponent>(&mut self, e: Entity) {
+    pub fn remove<C: NamedComponent>(&mut self, e: Entity, ctx: &mut Context) {
         let id = self.find_component_id(C::IDENT).unwrap();
-        self.remove_from_id(e, id).unwrap();
+        self.remove_from_id(e, id, ctx).unwrap();
     }
 
-    pub fn remove_from_id(&mut self, e: Entity, id: ComponentId) -> Result<(), ComponentError> {
-        if let Some(post_removed) = self.containers.remove(e, id, self.ctx)? {
+    pub fn remove_from_id(
+        &mut self,
+        e: Entity,
+        id: ComponentId,
+        ctx: &mut Context,
+    ) -> Result<(), ComponentError> {
+        if let Some(post_removed) = self.containers.remove(e, id, ctx)? {
             self.registry.unset(e, id);
             post_removed(self, e)?;
         }

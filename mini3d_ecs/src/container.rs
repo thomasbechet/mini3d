@@ -20,19 +20,9 @@ pub use self::linear::LinearContainer;
 pub mod linear;
 pub mod sparse;
 
-pub trait Container<Context>: Sized {
+pub trait Container {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn add(
-        &mut self,
-        entity: Entity,
-        ctx: &mut Context,
-    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError>;
-    fn remove(
-        &mut self,
-        entity: Entity,
-        ctx: &mut Context,
-    ) -> Result<Option<ComponentPostCallback<Context>>, ComponentError>;
 }
 
 pub trait NativeContainer<C: NativeComponent>: Default {
@@ -58,14 +48,14 @@ pub(crate) enum ComponentKind {
     Tag,
 }
 
-pub(crate) struct ContainerEntry<Context> {
-    pub(crate) container: Box<dyn Container<Context>>,
+pub(crate) struct ContainerEntry {
+    pub(crate) container: Box<dyn Container>,
     pub(crate) entity: Entity,
 }
 
 #[derive(Default)]
-pub(crate) struct ContainerTable<Context> {
-    pub(crate) entries: SlotMap<ComponentId, ContainerEntry<Context>>,
+pub(crate) struct ContainerTable {
+    pub(crate) entries: SlotMap<ComponentId, ContainerEntry>,
     pub(crate) component_id: ComponentId,
     pub(crate) identifier_id: ComponentId,
 }
@@ -97,8 +87,8 @@ macro_rules! get_many_mutn {
     }
 }
 
-impl<Context> ContainerTable<Context> {
-    pub(crate) fn setup(ecs: &mut ECS<Context>) {
+impl ContainerTable {
+    pub(crate) fn setup<Context>(ecs: &mut ECS<Context>) {
         // Insert containers
         let component_e = ecs.registry.create();
         ecs.containers.component_id = ecs.containers.entries.add(ContainerEntry {
@@ -169,7 +159,7 @@ impl<Context> ContainerTable<Context> {
     pub(crate) fn add_container(
         &mut self,
         entity: Entity,
-        container: Box<dyn Container<Context>>,
+        container: Box<dyn Container>,
     ) -> Result<ComponentId, ComponentError> {
         Ok(self.entries.add(ContainerEntry { container, entity }))
     }
@@ -214,7 +204,7 @@ impl<Context> ContainerTable<Context> {
             .find(ident)
     }
 
-    pub fn add<C: NativeComponent>(
+    pub fn add_native<C: NativeComponent, Context>(
         &mut self,
         e: Entity,
         id: ComponentId,
@@ -226,7 +216,7 @@ impl<Context> ContainerTable<Context> {
         Ok(())
     }
 
-    pub fn remove(
+    pub fn remove<Context>(
         &mut self,
         e: Entity,
         id: ComponentId,
@@ -268,7 +258,7 @@ impl<Context> ContainerTable<Context> {
     pub(crate) fn get_any_mut(
         &mut self,
         id: ComponentId,
-    ) -> Result<&mut dyn Container<Context>, ComponentError> {
+    ) -> Result<&mut dyn Container, ComponentError> {
         if let Some(entry) = self.entries.get_mut(id) {
             return Ok(entry.container.as_mut());
         }
