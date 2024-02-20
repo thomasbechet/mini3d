@@ -1,0 +1,17 @@
+[package]
+name = "mini3d_runtime"
+version = "0.1.0"
+authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+mini3d_derive = { path = "../mini3d_derive" }
+mini3d_serialize = { path = "../mini3d_serialize" }
+mini3d_utils = { path = "../mini3d_utils" }
+mini3d_math = { path = "../mini3d_math" }
+mini3d_db = { path = "../mini3d_db" }
+mini3d_io = { path = "../mini3d_io" }
+mini3d_input = { path = "../mini3d_input" }
+mini3d_renderer = { path = "../mini3d_renderer" }
+mini3d_logger = { path = "../mini3d_logger" }
+mini3d_scheduler = { path = "../mini3d_scheduler" }

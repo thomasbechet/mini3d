@@ -5,5 +5,4 @@ authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mini3d_core = { path = "../mini3d_core" }
 mini3d_derive = { path = "../mini3d_derive" }

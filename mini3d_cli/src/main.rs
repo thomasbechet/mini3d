@@ -1,19 +1,5 @@
-use mini3d_core::{
-    ecs::{
-        component::{FreeFlySystem, PropagateTransforms, Transform},
-        context::{Context, Resource, Time},
-        entity::Entity,
-        error::ResolverError,
-        query::Query,
-        resource::{System, SystemOrder, SystemSet, SystemStage},
-        system::{NativeExclusiveSystemInstance, Resolver},
-        view::native::single::{NativeSingleViewMut, NativeSingleViewRef},
-    },
-    info,
-    math::vec::V3I32F16,
-    simulation::{Simulation, SimulationConfig},
-};
-use mini3d_stdlog::logger::stdout::StdoutLogger;
+use mini3d_runtime::{Runtime, RuntimeConfig};
+use mini3d_stdlog::stdout::StdoutLogger;
 
 #[derive(Default, Clone)]
 struct SpawnSystem {
@@ -67,7 +53,7 @@ impl NativeExclusiveSystemInstance for TestSystem {
 }
 
 fn main() {
-    let mut simulation = Simulation::new(SimulationConfig::default().bootstrap(|ctx| {
+    let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
         let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
         let test = System::create_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
         let propagate_transform = System::find(ctx, PropagateTransforms::NAME).unwrap();
@@ -96,10 +82,10 @@ fn main() {
             println!("[{}] {}   {}", i + 1, info.name, ty_name);
         }
     }));
-    simulation.set_logger(StdoutLogger);
+    runtime.set_logger(StdoutLogger);
     for _ in 0..10 {
-        simulation.tick().expect("Simulation error");
+        runtime.tick().expect("Simulation error");
     }
-    println!("target_tps: {}", simulation.target_tps());
+    println!("target_tps: {}", runtime.target_tps());
     println!("DONE");
 }

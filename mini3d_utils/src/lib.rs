@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod handle;
 pub mod macros;
 pub mod prng;
 pub mod slotmap;

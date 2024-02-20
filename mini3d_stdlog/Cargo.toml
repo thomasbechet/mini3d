@@ -5,6 +5,6 @@ authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mini3d_core = { path = "../mini3d_core" }
 colored = "2.0.4"
 chrono = "0.4.30"
+mini3d_logger = { path = "../mini3d_logger" }

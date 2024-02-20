@@ -9,4 +9,3 @@ glam = "0.25.0"
 raw-window-handle = "0.5.0"
 bytemuck = { version = "1.10.0", features = [ "derive" ] }
 futures = { version = "0.3", features = ["compat"] }
-mini3d_core = { path = "../mini3d_core" }

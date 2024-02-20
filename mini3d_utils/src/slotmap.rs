@@ -4,6 +4,7 @@ use core::{
 };
 
 use alloc::vec::Vec;
+use mini3d_derive::Serialize;
 
 // A slot map key has two state:
 // - Null key:
@@ -22,7 +23,7 @@ pub trait Key: Copy + Clone + PartialEq + Eq {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DefaultKey(u32);
 
 impl Default for DefaultKey {

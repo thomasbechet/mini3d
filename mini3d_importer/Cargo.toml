@@ -5,6 +5,6 @@ authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mini3d_core = { path = "../mini3d_core" }
 wavefront_obj = "10.0.0"
 image = "0.24.3"
+mini3d_renderer = { path = "../mini3d_renderer" }

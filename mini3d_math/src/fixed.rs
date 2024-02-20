@@ -195,7 +195,7 @@ macro_rules! define_real {
             }
 
             fn powi(self, n: u32) -> Self {
-                self.powi(n)
+                Self::powi(self, n)
             }
 
             fn min(self, a: Self) -> Self {
@@ -944,7 +944,13 @@ macro_rules! define_num_unsigned {
             }
 
             fn powi(self, n: u32) -> Self {
-                self.powi(n)
+                let mut v = Self::ONE;
+                let mut i = 0;
+                while i < n {
+                    v = v.mul(self);
+                    i += 1;
+                }
+                v
             }
 
             fn min(self, x: Self) -> Self {

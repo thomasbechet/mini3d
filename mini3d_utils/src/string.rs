@@ -138,10 +138,12 @@ impl<const SIZE: usize> Serialize for AsciiArray<SIZE> {
 
     fn deserialize(
         decoder: &mut impl Decoder,
-        header: &Self::Header,
+        _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
-        let mut array = Self::default();
-        array.len = decoder.read_u32()? as usize;
+        let mut array = AsciiArray::<SIZE> {
+            len: decoder.read_u32()? as usize,
+            ..Default::default()
+        };
         array.data.copy_from_slice(
             decoder
                 .read_bytes(array.len)

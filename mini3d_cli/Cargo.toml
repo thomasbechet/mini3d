@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-mini3d_core = { path = "../mini3d_core" }
 mini3d_derive = { path = "../mini3d_derive" }
 mini3d_stdlog = { path = "../mini3d_stdlog" }
+mini3d_runtime = { path = "../mini3d_runtime" }
 # mini3d_os = { path = "../mini3d_os" }
 # mini3d_importer = { path = "../mini3d_importer" }

@@ -1,4 +1,3 @@
-use mini3d_core::renderer::provider::RendererProvider;
 use wgpu::StoreOp;
 
 use crate::{

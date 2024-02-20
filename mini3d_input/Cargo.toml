@@ -1,9 +1,11 @@
 [package]
 name = "mini3d_input"
 version = "0.1.0"
+authors = ["Thomas <thomas.bechet.pro@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-mini3d_core = { path = "../mini3d_core" }
-serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0.64"
+mini3d_derive = { path = "../mini3d_derive" }
+mini3d_serialize = { path = "../mini3d_serialize" }
+mini3d_utils = { path = "../mini3d_utils" }
+mini3d_math = { path = "../mini3d_math" }

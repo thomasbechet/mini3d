@@ -18,14 +18,14 @@ macro_rules! define_provider_handle {
                 handle.0
             }
         }
-        impl From<$crate::utils::uid::UID> for $name {
-            fn from(uid: $crate::utils::uid::UID) -> Self {
+        impl From<$crate::uid::UID> for $name {
+            fn from(uid: $crate::uid::UID) -> Self {
                 Self(uid.into())
             }
         }
-        impl From<$name> for $crate::utils::uid::UID {
+        impl From<$name> for $crate::uid::UID {
             fn from(handle: $name) -> Self {
-                $crate::utils::uid::UID::from(handle.0)
+                $crate::uid::UID::from(handle.0)
             }
         }
     };
@@ -34,7 +34,7 @@ macro_rules! define_provider_handle {
 #[macro_export]
 macro_rules! slot_map_key {
     ($name:ident) => {
-        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(mini3d_derive::Serialize, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name($crate::slotmap::DefaultKey);
 
         impl $crate::slotmap::Key for $name {

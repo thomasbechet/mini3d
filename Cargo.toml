@@ -1,26 +1,29 @@
 [workspace]
 members = [
-    "mini3d_cli",
-    "mini3d_core",
     "mini3d_derive",
-    "mini3d_ffi",
     "mini3d_math",
     "mini3d_utils",
     "mini3d_serialize",
-    "mini3d_gui",
-    "mini3d_importer",
-    "mini3d_ecs",
+    "mini3d_asset",
+    # "mini3d_ffi",
+
+    "mini3d_runtime",
+    "mini3d_scheduler",
     "mini3d_db",
-    "mini3d_runner",
-    # "mini3d_ecs_old",
     "mini3d_input",
-    # "mini3d_os",
-    "mini3d_stdlog",
-    "mini3d_wgpu",
-    # "mini3d_win32",
-    "mini3d_winit",
+    "mini3d_renderer",
+    "mini3d_logger",
+    "mini3d_io",
+
+    "mini3d_cli",
+    # "mini3d_gui",
+    # "mini3d_importer",
+    # "mini3d_mapper",
+    # "mini3d_stdlog",
+    # "mini3d_wgpu",
+    # "mini3d_winit",
 ]
-default-members = ["mini3d_winit"]
+default-members = ["mini3d_cli"]
 resolver = "2"
 
 [profile.release]

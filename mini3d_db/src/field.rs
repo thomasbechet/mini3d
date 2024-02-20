@@ -5,6 +5,7 @@ use mini3d_math::{
     mat::M4I32F16,
     quat::QI32F16,
 };
+use mini3d_utils::handle::RawHandle;
 use mini3d_utils::string::AsciiArray;
 
 use crate::{
@@ -89,7 +90,10 @@ impl<'a> ComponentField<'a> {
                     Storage::String(vec![String::new(); n as usize])
                 }
             },
-            ComponentFieldType::Handle => Storage::Handle,
+            ComponentFieldType::Handle => match self.collection {
+                ComponentFieldCollection::Scalar => Storage::Handle(Vec::new()),
+                ComponentFieldCollection::Array(_) => Storage::Handle(Vec::new()),
+            },
         }
     }
 }
@@ -102,7 +106,7 @@ pub(crate) enum Storage {
     QI32F16(Vec<QI32F16>),
     Entity(Vec<Entity>),
     String(Vec<String>),
-    Handle,
+    Handle(Vec<RawHandle>),
 }
 
 impl Storage {
@@ -115,7 +119,7 @@ impl Storage {
             Storage::QI32F16(v) => v.resize(size, QI32F16::default()),
             Storage::Entity(v) => v.resize(size, Entity::null()),
             Storage::String(v) => v.resize(size, String::new()),
-            Storage::Handle => {}
+            Storage::Handle(v) => v.resize(size, RawHandle::null()),
         }
     }
 
@@ -128,7 +132,7 @@ impl Storage {
             Storage::QI32F16(v) => v.len(),
             Storage::Entity(v) => v.len(),
             Storage::String(v) => v.len(),
-            Storage::Handle => 0,
+            Storage::Handle(v) => v.len(),
         }
     }
 
@@ -145,7 +149,7 @@ impl Storage {
             Storage::QI32F16(v) => v[index] = Default::default(),
             Storage::Entity(v) => v[index] = Default::default(),
             Storage::String(v) => v[index] = Default::default(),
-            Storage::Handle => {}
+            Storage::Handle(v) => v[index] = Default::default(),
         }
     }
 

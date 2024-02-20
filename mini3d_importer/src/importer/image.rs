@@ -1,10 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use mini3d_core::{
-    platform::event::{AssetImportEntry, ImportAssetEvent},
-    renderer::resource::{Texture, TextureFormat},
-};
-
 pub struct ImageImport {
     texture: AssetImportEntry<Texture>,
 }
