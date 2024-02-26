@@ -1,3 +1,6 @@
+use mini3d_asset::{font::Font, material::Material, mesh::Mesh, texture::Texture};
+use mini3d_utils::string::AsciiArray;
+
 pub struct AssetImportEntry<T> {
     pub name: AsciiArray<32>,
     pub data: T,

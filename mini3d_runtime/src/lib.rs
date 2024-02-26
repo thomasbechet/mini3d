@@ -1,6 +1,6 @@
 #![no_std]
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 use api::API;
 use mini3d_db::database::Database;
 use mini3d_derive::Error;
@@ -8,7 +8,9 @@ use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
 use mini3d_logger::{provider::LoggerProvider, LoggerManager};
 use mini3d_renderer::{provider::RendererProvider, RendererManager};
+use mini3d_scheduler::{Scheduler, SystemId};
 use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError};
+use mini3d_utils::slotmap::SecondaryMap;
 
 pub mod api;
 pub mod import;
@@ -51,7 +53,7 @@ impl RuntimeConfig {
 }
 
 pub struct Runtime {
-    pub(crate) runner: Runner,
+    pub(crate) scheduler: Scheduler,
     pub(crate) db: Database,
     pub(crate) disk: DiskManager,
     pub(crate) input: InputManager,
@@ -59,32 +61,13 @@ pub struct Runtime {
     pub(crate) logger: LoggerManager,
     request_stop: bool,
     target_tps: u16,
-    pub(crate) callbacks: Vec<fn(&mut ECS<Context>)>,
+    pub(crate) callbacks: SecondaryMap<SystemId, Option<fn(&mut API)>>,
 }
 
 impl Runtime {
-    fn setup_ecs(&mut self, config: &RuntimeConfig) {}
-
-    fn run_bootstrap(&mut self, config: &RuntimeConfig) {
-        if let Some(bootstrap) = config.bootstrap {
-            bootstrap(&mut Context {
-                input: &mut self.input,
-                renderer: &mut self.renderer,
-                platform: &mut self.platform,
-                logger: &mut self.logger,
-                time: TimeContext {
-                    delta: fixed!(0),
-                    frame: 0,
-                    target_tps: self.ecs.target_tps,
-                },
-            });
-            self.ecs.flush_commands(&mut self.resource);
-        }
-    }
-
     pub fn new(config: RuntimeConfig) -> Self {
         let mut runtime = Self {
-            runner: Default::default(),
+            scheduler: Default::default(),
             db: Default::default(),
             disk: Default::default(),
             input: Default::default(),
@@ -92,7 +75,11 @@ impl Runtime {
             logger: Default::default(),
             request_stop: false,
             target_tps: config.target_tps,
+            callbacks: Default::default(),
         };
+        if let Some(bootstrap) = config.bootstrap {
+            bootstrap(&mut API { db: &mut runtime.db, input: &mut runtime.input });
+        }
         runtime
     }
 
@@ -149,22 +136,21 @@ impl Runtime {
         // TODO: protect against infinite loops
         loop {
             // Acquire next node
-            let node = self.scheduler.next_node(&self.containers);
-            if node.is_none() {
+            let systems = self.scheduler.next_systems();
+            if systems.is_none() {
                 break;
             }
-            let node = node.unwrap();
+            let systems = systems.unwrap();
 
             // Execute node
-            if node.count == 1 {
+            if systems.len() == 1 {
                 // Find callback
-                let callback = self.scheduler.callbacks[node.first as usize];
+                let callback = &self.callbacks[systems[0]].unwrap();
 
                 // Run the callback
-                callback(&mut ECS {
-                    containers: &mut self.containers,
-                    registry: &mut self.registry,
-                    scheduler: &mut self.scheduler,
+                callback(&mut API {
+                    db: &mut self.db,
+                    input: &mut self.input,
                 });
             } else {
                 // TODO: use thread pool

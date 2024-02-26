@@ -15,3 +15,4 @@ mini3d_input = { path = "../mini3d_input" }
 mini3d_renderer = { path = "../mini3d_renderer" }
 mini3d_logger = { path = "../mini3d_logger" }
 mini3d_scheduler = { path = "../mini3d_scheduler" }
+mini3d_asset = { path = "../mini3d_asset" }

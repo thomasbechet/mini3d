@@ -45,13 +45,13 @@ pub(crate) struct Stage {
 
 #[derive(Clone, Copy)]
 pub(crate) struct PipelineNode {
-    pub(crate) first: u16, // Offset in instance indices
-    pub(crate) count: u16, // Number of instances
-    pub(crate) next: NodeId,
+    first: u16, // Offset in instance indices
+    count: u16, // Number of instances
+    next: NodeId,
 }
 
 #[derive(Default)]
-pub(crate) struct Scheduler {
+pub struct Scheduler {
     nodes: SlotMap<NodeId, PipelineNode>,
     next_frame_stages: VecDeque<StageId>,
     frame_stages: VecDeque<StageId>,
@@ -63,7 +63,7 @@ pub(crate) struct Scheduler {
 }
 
 impl Scheduler {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let mut sched = Self {
             nodes: Default::default(),
             next_frame_stages: Default::default(),
@@ -78,7 +78,7 @@ impl Scheduler {
         sched
     }
 
-    pub(crate) fn rebuild(&mut self) {
+    pub fn rebuild(&mut self) {
         // Reset baked resources
         self.nodes.clear();
         self.next_node = NodeId::null();
@@ -149,7 +149,12 @@ impl Scheduler {
         Some(node)
     }
 
-    pub(crate) fn prepare_next_frame_stages(&mut self) {
+    pub fn next_systems(&mut self) -> Option<&'_ [SystemId]> {
+        let node = self.next_node()?;
+        Some(&self.indices[node.first as usize..(node.first + node.count) as usize])
+    }
+
+    pub fn prepare_next_frame_stages(&mut self) {
         // Collect previous frame stages
         self.frame_stages.clear();
         for stage in self.next_frame_stages.drain(..) {
@@ -159,7 +164,7 @@ impl Scheduler {
         self.frame_stages.push_back(self.tick_stage);
     }
 
-    pub(crate) fn invoke(&mut self, stage: StageId, invocation: Invocation) {
+    pub fn invoke(&mut self, stage: StageId, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 self.frame_stages.push_front(stage);
@@ -170,7 +175,7 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn find_stage(&self, name: &str) -> Option<StageId> {
+    pub fn find_stage(&self, name: &str) -> Option<StageId> {
         self.stages.iter().find_map(|(id, stage)| {
             if stage.name.as_str() == name {
                 Some(id)
@@ -180,7 +185,7 @@ impl Scheduler {
         })
     }
 
-    pub(crate) fn find_system(&self, name: &str) -> Option<SystemId> {
+    pub fn find_system(&self, name: &str) -> Option<SystemId> {
         self.systems.iter().find_map(|(id, system)| {
             if system.name.as_str() == name {
                 Some(id)
@@ -190,7 +195,7 @@ impl Scheduler {
         })
     }
 
-    pub(crate) fn add_stage(&mut self, name: &str) -> Result<StageId, SchedulerError> {
+    pub fn add_stage(&mut self, name: &str) -> Result<StageId, SchedulerError> {
         if self.find_stage(name).is_some() {
             return Err(SchedulerError::DuplicatedEntry);
         }
@@ -200,7 +205,7 @@ impl Scheduler {
         }))
     }
 
-    pub(crate) fn add_system(
+    pub fn add_system(
         &mut self,
         name: &str,
         stage: StageId,
