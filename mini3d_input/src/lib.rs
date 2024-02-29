@@ -87,7 +87,7 @@ impl InputManager {
     }
 
     pub fn add_action(&mut self, name: &str) -> Result<InputActionId, InputError> {
-        if self.actions.values().any(|action| action.name == name) {
+        if self.find_action(name).is_some() {
             return Err(InputError::DuplicatedAction);
         }
         let id = self.actions.add(InputAction {
@@ -119,12 +119,17 @@ impl InputManager {
         self.actions.get(id)
     }
 
+    pub fn find_action(&self, name: &str) -> Option<(InputActionId, &InputAction)> {
+        self.actions.iter().find_map(|(id, action)| if action.name == name { Some((id, action)) } else { None })
+    }
+
+
     pub fn add_axis(
         &mut self,
         name: &str,
         range: InputAxisRange,
     ) -> Result<InputAxisId, InputError> {
-        if self.axis.values().any(|axis: &InputAxis| axis.name == name) {
+        if self.find_axis(name).is_some() {
             return Err(InputError::DuplicatedAxis);
         }
         let id = self.axis.add(InputAxis {
@@ -155,5 +160,9 @@ impl InputManager {
 
     pub fn axis(&self, id: InputAxisId) -> Option<&InputAxis> {
         self.axis.get(id)
+    }
+
+    pub fn find_axis(&self, name: &str) -> Option<(InputAxisId, &InputAxis)> {
+        self.axis.iter().find_map(|(id, axis)| if axis.name == name { Some((id, axis)) } else { None })
     }
 }

@@ -144,6 +144,14 @@ impl<'a> API<'a> {
     }
 
     /// INPUT API
+    
+    pub fn find_action(&self, name: &str) -> Option<InputActionId> {
+        self.input.find_action(name).map(|(id, _)| id)
+    }
+
+    pub fn find_axis(&self, name: &str) -> Option<InputAxisId> {
+        self.input.find_axis(name).map(|(id, _)| id)
+    }
 
     pub fn is_action_pressed(&self, id: InputActionId) -> bool {
         self.input.action(id).unwrap().is_pressed()
