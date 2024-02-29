@@ -1,15 +1,15 @@
 use alloc::string::String;
 use mini3d_math::fixed::I32F16;
 
-use crate::{action::InputActionHandle, axis::InputAxisHandle, text::InputTextHandle};
+use crate::{action::InputActionId, axis::InputAxisId, text::InputTextHandle};
 
 pub struct InputActionEvent {
-    pub action: InputActionHandle,
+    pub action: InputActionId,
     pub pressed: bool,
 }
 
 pub struct InputAxisEvent {
-    pub axis: InputAxisHandle,
+    pub axis: InputAxisId,
     pub value: I32F16,
 }
 

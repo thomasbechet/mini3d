@@ -3,7 +3,7 @@ use mini3d_utils::{slot_map_key, string::AsciiArray};
 
 use crate::provider::InputProviderHandle;
 
-slot_map_key!(InputActionHandle);
+slot_map_key!(InputActionId);
 
 #[derive(Default, Clone, Serialize)]
 pub struct InputActionState {

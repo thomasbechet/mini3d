@@ -54,6 +54,8 @@ use mini3d_stdlog::stdout::StdoutLogger;
 
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
+        let tick_stage = api.find_stage("tick").unwrap();
+
     }));
     // let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
     //     let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();

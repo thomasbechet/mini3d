@@ -1,6 +1,6 @@
 #![no_std]
 
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 use api::API;
 use mini3d_db::database::Database;
 use mini3d_derive::Error;
@@ -31,7 +31,6 @@ pub enum TickError {
 #[derive(Clone)]
 pub struct RuntimeConfig {
     bootstrap: Option<fn(&mut API)>,
-    renderer: bool,
     target_tps: u16,
 }
 
@@ -39,7 +38,6 @@ impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
             bootstrap: None,
-            renderer: true,
             target_tps: 60,
         }
     }
@@ -52,6 +50,19 @@ impl RuntimeConfig {
     }
 }
 
+pub(crate) struct RuntimeState {
+    request_stop: bool,
+    target_tps: u16,
+}
+
+impl Default for RuntimeState {
+    fn default() -> Self {
+        Self { request_stop: Default::default(), target_tps: 60 }
+    }
+}
+
+pub(crate) type CallbackList = SecondaryMap<SystemId, Option<fn(&mut API)>>;
+
 pub struct Runtime {
     pub(crate) scheduler: Scheduler,
     pub(crate) db: Database,
@@ -59,9 +70,8 @@ pub struct Runtime {
     pub(crate) input: InputManager,
     pub(crate) renderer: RendererManager,
     pub(crate) logger: LoggerManager,
-    request_stop: bool,
-    target_tps: u16,
-    pub(crate) callbacks: SecondaryMap<SystemId, Option<fn(&mut API)>>,
+    pub(crate) state: RuntimeState,
+    pub(crate) callbacks: CallbackList,
 }
 
 impl Runtime {
@@ -73,12 +83,18 @@ impl Runtime {
             input: Default::default(),
             renderer: Default::default(),
             logger: Default::default(),
-            request_stop: false,
-            target_tps: config.target_tps,
+            state: Default::default(),
             callbacks: Default::default(),
         };
+        runtime.state.target_tps = config.target_tps;
         if let Some(bootstrap) = config.bootstrap {
-            bootstrap(&mut API { db: &mut runtime.db, input: &mut runtime.input });
+            bootstrap(&mut API {
+                db: &mut runtime.db,
+                scheduler: &mut runtime.scheduler,
+                state: &mut runtime.state,
+                callbacks: &mut runtime.callbacks,
+                input: &mut runtime.input,
+            });
         }
         runtime
     }
@@ -108,7 +124,7 @@ impl Runtime {
     }
 
     pub fn target_tps(&self) -> u16 {
-        self.target_tps
+        self.state.target_tps
     }
 
     pub fn tick(&mut self) -> Result<(), TickError> {
@@ -150,6 +166,9 @@ impl Runtime {
                 // Run the callback
                 callback(&mut API {
                     db: &mut self.db,
+                    scheduler: &mut self.scheduler,
+                    callbacks: &mut self.callbacks,
+                    state: &mut self.state,
                     input: &mut self.input,
                 });
             } else {

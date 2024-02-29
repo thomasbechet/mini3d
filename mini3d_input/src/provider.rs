@@ -3,8 +3,8 @@ use mini3d_derive::Error;
 use mini3d_utils::define_provider_handle;
 
 use crate::{
-    action::InputActionHandle,
-    axis::{InputAxisHandle, InputAxisRange},
+    action::InputActionId,
+    axis::{InputAxisId, InputAxisRange},
     event::InputEvent,
 };
 
@@ -26,13 +26,13 @@ pub trait InputProvider {
     fn add_action(
         &mut self,
         name: &str,
-        handle: InputActionHandle,
+        handle: InputActionId,
     ) -> Result<InputProviderHandle, InputProviderError>;
     fn add_axis(
         &mut self,
         name: &str,
         range: &InputAxisRange,
-        handle: InputAxisHandle,
+        handle: InputAxisId,
     ) -> Result<InputProviderHandle, InputProviderError>;
     fn remove_action(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
     fn remove_axis(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
@@ -52,7 +52,7 @@ impl InputProvider for PassiveInputProvider {
     fn add_action(
         &mut self,
         _name: &str,
-        _handle: InputActionHandle,
+        _handle: InputActionId,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
     }
@@ -60,7 +60,7 @@ impl InputProvider for PassiveInputProvider {
         &mut self,
         _name: &str,
         _range: &InputAxisRange,
-        _handle: InputAxisHandle,
+        _handle: InputAxisId,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
     }

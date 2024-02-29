@@ -50,7 +50,6 @@ pub(crate) struct PipelineNode {
     next: NodeId,
 }
 
-#[derive(Default)]
 pub struct Scheduler {
     nodes: SlotMap<NodeId, PipelineNode>,
     next_frame_stages: VecDeque<StageId>,
@@ -62,8 +61,8 @@ pub struct Scheduler {
     pub(crate) tick_stage: StageId,
 }
 
-impl Scheduler {
-    pub fn new() -> Self {
+impl Default for Scheduler {
+    fn default() -> Self {
         let mut sched = Self {
             nodes: Default::default(),
             next_frame_stages: Default::default(),
@@ -74,9 +73,12 @@ impl Scheduler {
             indices: Default::default(),
             tick_stage: Default::default(),
         };
-        sched.add_stage("tick").unwrap();
+        sched.tick_stage = sched.add_stage("tick").unwrap();
         sched
     }
+}
+
+impl Scheduler {
 
     pub fn rebuild(&mut self) {
         // Reset baked resources
@@ -108,7 +110,7 @@ impl Scheduler {
 
                 // Create exclusive node
                 let node = self.nodes.add(PipelineNode {
-                    first: index as u16 - 1,
+                    first: index as u16,
                     count: 1,
                     next: Default::default(),
                 });
@@ -155,6 +157,8 @@ impl Scheduler {
     }
 
     pub fn prepare_next_frame_stages(&mut self) {
+        // Reset next node
+        self.next_node = Default::default();
         // Collect previous frame stages
         self.frame_stages.clear();
         for stage in self.next_frame_stages.drain(..) {

@@ -4,7 +4,7 @@ use mini3d_utils::{slot_map_key, string::AsciiArray};
 
 use crate::provider::InputProviderHandle;
 
-slot_map_key!(InputAxisHandle);
+slot_map_key!(InputAxisId);
 
 #[derive(Default, Clone, Copy, Serialize)]
 pub enum InputAxisRange {
