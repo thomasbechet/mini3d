@@ -1,5 +1,5 @@
 use mini3d_db::{
-    container::Component,
+    container::ComponentId,
     database::Database,
     entity::Entity,
     error::ComponentError,
@@ -32,7 +32,7 @@ impl<'a> API<'a> {
 
     /// DATABASE API
 
-    pub fn register_tag(&mut self, name: &str) -> Result<Component, ComponentError> {
+    pub fn register_tag(&mut self, name: &str) -> Result<ComponentId, ComponentError> {
         self.db.register_tag(name)
     }
 
@@ -40,11 +40,11 @@ impl<'a> API<'a> {
         &mut self,
         name: &str,
         fields: &[ComponentField],
-    ) -> Result<Component, ComponentError> {
+    ) -> Result<ComponentId, ComponentError> {
         self.db.register(name, fields)
     }
 
-    pub fn unregister(&mut self, c: Component) {
+    pub fn unregister(&mut self, c: ComponentId) {
         self.db.unregister(c)
     }
 
@@ -56,15 +56,15 @@ impl<'a> API<'a> {
         self.db.destroy(e)
     }
 
-    pub fn add_default(&mut self, e: Entity, c: Component) {
+    pub fn add_default(&mut self, e: Entity, c: ComponentId) {
         self.db.add_default(e, c)
     }
 
-    pub fn remove(&mut self, e: Entity, c: Component) {
+    pub fn remove(&mut self, e: Entity, c: ComponentId) {
         self.db.remove(e, c)
     }
 
-    pub fn has(&self, e: Entity, c: Component) -> bool {
+    pub fn has(&self, e: Entity, c: ComponentId) -> bool {
         self.db.has(e, c)
     }
 
@@ -80,11 +80,11 @@ impl<'a> API<'a> {
         self.db.entities()
     }
 
-    pub fn find_component(&self, name: &str) -> Option<Component> {
+    pub fn find_component(&self, name: &str) -> Option<ComponentId> {
         self.db.find_component(name)
     }
 
-    pub fn find_field<T: FieldType>(&self, c: Component, name: &str) -> Option<Field<T>> {
+    pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
         self.db.find_field(c, name)
     }
 

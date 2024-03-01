@@ -79,7 +79,7 @@ impl InputManager {
                         axis.set_value(event.value);
                     }
                 }
-                InputEvent::Text(event) => {
+                InputEvent::Text(_event) => {
                     todo!()
                 }
             }
@@ -120,9 +120,14 @@ impl InputManager {
     }
 
     pub fn find_action(&self, name: &str) -> Option<(InputActionId, &InputAction)> {
-        self.actions.iter().find_map(|(id, action)| if action.name == name { Some((id, action)) } else { None })
+        self.actions.iter().find_map(|(id, action)| {
+            if action.name == name {
+                Some((id, action))
+            } else {
+                None
+            }
+        })
     }
-
 
     pub fn add_axis(
         &mut self,
@@ -163,6 +168,12 @@ impl InputManager {
     }
 
     pub fn find_axis(&self, name: &str) -> Option<(InputAxisId, &InputAxis)> {
-        self.axis.iter().find_map(|(id, axis)| if axis.name == name { Some((id, axis)) } else { None })
+        self.axis.iter().find_map(|(id, axis)| {
+            if axis.name == name {
+                Some((id, axis))
+            } else {
+                None
+            }
+        })
     }
 }

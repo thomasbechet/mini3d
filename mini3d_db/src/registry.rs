@@ -3,7 +3,7 @@ use mini3d_utils::slotmap::SecondaryMap;
 
 use crate::{
     bitset::{BitIndex, Bitset},
-    container::Component,
+    container::ComponentId,
     entity::{Entity, EntityIndex, EntityVersion},
 };
 
@@ -13,7 +13,7 @@ pub(crate) struct Registry {
     next_index: EntityIndex, // Default index is 0
     versions: Vec<EntityVersion>,
     entity_map: Bitset,
-    bitsets: SecondaryMap<Component, Bitset>,
+    bitsets: SecondaryMap<ComponentId, Bitset>,
 }
 
 impl Registry {
@@ -41,11 +41,11 @@ impl Registry {
         ));
     }
 
-    pub(crate) fn add_bitset(&mut self, id: Component) {
+    pub(crate) fn add_bitset(&mut self, id: ComponentId) {
         self.bitsets.insert(id, Bitset::default());
     }
 
-    pub(crate) fn remove_bitset(&mut self, id: Component) {
+    pub(crate) fn remove_bitset(&mut self, id: ComponentId) {
         self.bitsets.remove(id);
     }
 
@@ -59,28 +59,28 @@ impl Registry {
         self.versions[index as usize]
     }
 
-    pub(crate) fn has(&self, e: Entity, c: Component) -> bool {
+    pub(crate) fn has(&self, e: Entity, c: ComponentId) -> bool {
         self.bitsets
             .get(c)
             .map(|bitset| bitset.is_set(e.index() as BitIndex))
             .unwrap_or(false)
     }
 
-    pub(crate) fn set(&mut self, e: Entity, c: Component) {
+    pub(crate) fn set(&mut self, e: Entity, c: ComponentId) {
         self.bitsets
             .get_mut(c)
             .unwrap()
             .set(e.index() as BitIndex, true);
     }
 
-    pub(crate) fn unset(&mut self, e: Entity, c: Component) {
+    pub(crate) fn unset(&mut self, e: Entity, c: ComponentId) {
         self.bitsets
             .get_mut(c)
             .unwrap()
             .set(e.index() as BitIndex, false);
     }
 
-    pub(crate) fn mask(&self, c: Component, index: usize) -> u32 {
+    pub(crate) fn mask(&self, c: ComponentId, index: usize) -> u32 {
         self.bitsets[c].mask(index)
     }
 }

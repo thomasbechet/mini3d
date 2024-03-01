@@ -1,5 +1,5 @@
 use crate::{
-    container::{Component, ComponentTable},
+    container::{ComponentId, ComponentTable},
     entity::Entity,
     error::ComponentError,
     field::{ComponentField, Field, FieldType},
@@ -14,7 +14,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn register_tag(&mut self, name: &str) -> Result<Component, ComponentError> {
+    pub fn register_tag(&mut self, name: &str) -> Result<ComponentId, ComponentError> {
         let id = self.containers.register_tag(name)?;
         self.registry.add_bitset(id);
         Ok(id)
@@ -24,13 +24,13 @@ impl Database {
         &mut self,
         name: &str,
         fields: &[ComponentField],
-    ) -> Result<Component, ComponentError> {
+    ) -> Result<ComponentId, ComponentError> {
         let id = self.containers.register(name, fields)?;
         self.registry.add_bitset(id);
         Ok(id)
     }
 
-    pub fn unregister(&mut self, c: Component) {
+    pub fn unregister(&mut self, c: ComponentId) {
         self.containers.entries.remove(c);
         self.registry.remove_bitset(c);
     }
@@ -44,17 +44,17 @@ impl Database {
         self.containers.remove_all(e);
     }
 
-    pub fn add_default(&mut self, e: Entity, c: Component) {
+    pub fn add_default(&mut self, e: Entity, c: ComponentId) {
         self.containers.add_default(e, c);
         self.registry.set(e, c);
     }
 
-    pub fn remove(&mut self, e: Entity, c: Component) {
+    pub fn remove(&mut self, e: Entity, c: ComponentId) {
         self.containers.remove(e, c);
         self.registry.unset(e, c);
     }
 
-    pub fn has(&self, e: Entity, c: Component) -> bool {
+    pub fn has(&self, e: Entity, c: ComponentId) -> bool {
         self.registry.has(e, c)
     }
 
@@ -70,11 +70,11 @@ impl Database {
         self.registry.entities()
     }
 
-    pub fn find_component(&self, name: &str) -> Option<Component> {
+    pub fn find_component(&self, name: &str) -> Option<ComponentId> {
         self.containers.find_component(name)
     }
 
-    pub fn find_field<T: FieldType>(&self, c: Component, name: &str) -> Option<Field<T>> {
+    pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
         self.containers
             .find_field(c, name)
             .map(|f| Field(c, f, Default::default()))

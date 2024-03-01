@@ -1,6 +1,6 @@
 use crate::{
     bitset::{BitsetMaskIter, IterAnswer},
-    container::Component,
+    container::ComponentId,
     database::Database,
     entity::Entity,
     registry::Registry,
@@ -8,9 +8,9 @@ use crate::{
 
 #[derive(Default)]
 pub struct Query {
-    all: [Component; Self::MAX_ALL],
-    any: [Component; Self::MAX_ANY],
-    not: [Component; Self::MAX_NOT],
+    all: [ComponentId; Self::MAX_ALL],
+    any: [ComponentId; Self::MAX_ANY],
+    not: [ComponentId; Self::MAX_NOT],
     all_size: usize,
     any_size: usize,
     not_size: usize,
@@ -21,7 +21,7 @@ impl Query {
     pub const MAX_ANY: usize = 8;
     pub const MAX_NOT: usize = 8;
 
-    pub fn all(mut self, ids: &[Component]) -> Self {
+    pub fn all(mut self, ids: &[ComponentId]) -> Self {
         for (i, id) in ids.iter().enumerate() {
             self.all[i] = *id;
         }
@@ -29,7 +29,7 @@ impl Query {
         self
     }
 
-    pub fn any(mut self, ids: &[Component]) -> Self {
+    pub fn any(mut self, ids: &[ComponentId]) -> Self {
         for (i, id) in ids.iter().enumerate() {
             self.any[i] = *id;
         }
@@ -37,7 +37,7 @@ impl Query {
         self
     }
 
-    pub fn not(mut self, ids: &[Component]) -> Self {
+    pub fn not(mut self, ids: &[ComponentId]) -> Self {
         for (i, id) in ids.iter().enumerate() {
             self.not[i] = *id;
         }

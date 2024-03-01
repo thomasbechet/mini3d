@@ -7,9 +7,10 @@ pub trait NativeComponent {
     type Mut;
     type ViewRef;
     type ViewMut;
-    fn register(ecs: &mut Database) {}
+    fn register(db: &mut Database) {}
 }
 
+/// Specialized version of Field for Rust components (without ComponentId)
 pub struct NativeField<T: FieldType>(pub(crate) FieldIndex, core::marker::PhantomData<T>);
 
 // pub struct MyTestComponent {

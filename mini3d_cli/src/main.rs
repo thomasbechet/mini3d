@@ -1,5 +1,14 @@
-use mini3d_runtime::{Runtime, RuntimeConfig};
+use mini3d_runtime::{Runtime, RuntimeConfig, vec::V3I32F16, quat::QI32F16};
 use mini3d_stdlog::stdout::StdoutLogger;
+
+pub struct Transform {
+    pub pos: V3I32F16,
+    pub rot: QI32F16,
+    pub sca: V3I32F16,
+}
+
+pub struct TransformMeta {
+}
 
 // #[derive(Default, Clone)]
 // struct SpawnSystem {
@@ -55,7 +64,6 @@ use mini3d_stdlog::stdout::StdoutLogger;
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
         let tick_stage = api.find_stage("tick").unwrap();
-
     }));
     // let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
     //     let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();

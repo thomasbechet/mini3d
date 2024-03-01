@@ -9,12 +9,12 @@ use mini3d_utils::handle::RawHandle;
 use mini3d_utils::string::AsciiArray;
 
 use crate::{
-    container::{Component, FieldIndex},
+    container::{ComponentId, FieldIndex},
     entity::Entity,
 };
 
 pub struct Field<T: FieldType>(
-    pub(crate) Component,
+    pub(crate) ComponentId,
     pub(crate) FieldIndex,
     pub(crate) core::marker::PhantomData<T>,
 );
