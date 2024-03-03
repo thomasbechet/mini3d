@@ -74,7 +74,7 @@ impl<'a> EntityQuery<'a> {
         }
     }
 
-    pub fn next_entity(&mut self, db: &'a Database) -> Option<Entity> {
+    fn next_entity(&mut self, db: &'a Database) -> Option<Entity> {
         loop {
             match self.iter.next() {
                 IterAnswer::Some(index) => {

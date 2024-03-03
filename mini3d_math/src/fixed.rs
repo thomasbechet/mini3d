@@ -147,7 +147,7 @@ pub trait TrigFixedPoint: Sized + Copy + Clone {
 
 macro_rules! define_real {
     ($name:ident, $inner:ty, $inter:ty, $frac:expr, $signed:tt) => {
-        #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
         pub struct $name($inner);
 
         impl FixedPoint for $name {
@@ -815,6 +815,12 @@ macro_rules! define_real {
                     frac &= Self::FRAC_MASK;
                 }
                 Ok(())
+            }
+        }
+
+        impl core::fmt::Debug for $name {
+            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+                write!(f, "{}", self)
             }
         }
 

@@ -6,7 +6,7 @@ use mini3d_db::database::Database;
 use mini3d_derive::Error;
 use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
-use mini3d_logger::{provider::LoggerProvider, LoggerManager};
+use mini3d_logger::provider::LoggerProvider;
 use mini3d_renderer::{provider::RendererProvider, RendererManager};
 use mini3d_scheduler::{Scheduler, SystemId};
 use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError};
@@ -20,8 +20,9 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
-pub use mini3d_math::*;
 pub use mini3d_db::*;
+pub use mini3d_logger::*;
+pub use mini3d_math::*;
 
 #[derive(Error, Debug)]
 pub enum TickError {
@@ -60,7 +61,10 @@ pub(crate) struct RuntimeState {
 
 impl Default for RuntimeState {
     fn default() -> Self {
-        Self { request_stop: Default::default(), target_tps: 60 }
+        Self {
+            request_stop: Default::default(),
+            target_tps: 60,
+        }
     }
 }
 
@@ -94,6 +98,7 @@ impl Runtime {
             bootstrap(&mut API {
                 db: &mut runtime.db,
                 scheduler: &mut runtime.scheduler,
+                logger: &mut runtime.logger,
                 state: &mut runtime.state,
                 callbacks: &mut runtime.callbacks,
                 input: &mut runtime.input,
@@ -171,6 +176,7 @@ impl Runtime {
                     db: &mut self.db,
                     scheduler: &mut self.scheduler,
                     callbacks: &mut self.callbacks,
+                    logger: &mut self.logger,
                     state: &mut self.state,
                     input: &mut self.input,
                 });

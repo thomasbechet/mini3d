@@ -27,7 +27,7 @@ impl LoggerManager {
         self.provider.get_mut().on_connect();
     }
 
-    pub(crate) fn log(
+    pub fn log(
         &self,
         args: Arguments<'_>,
         level: LogLevel,
@@ -39,7 +39,7 @@ impl LoggerManager {
         }
     }
 
-    pub(crate) fn set_max_level(&mut self, level: LogLevel) {
+    pub fn set_max_level(&mut self, level: LogLevel) {
         self.max_level = level;
     }
 }

@@ -1,3 +1,5 @@
+use core::fmt::Arguments;
+
 use mini3d_db::{
     container::ComponentId,
     database::Database,
@@ -11,6 +13,7 @@ use mini3d_input::{
     axis::{InputAxisId, InputAxisRange},
     InputError, InputManager,
 };
+use mini3d_logger::{level::LogLevel, LoggerManager};
 use mini3d_scheduler::{Scheduler, SchedulerError, StageId, SystemId, SystemOrder};
 
 use crate::{CallbackList, RuntimeState};
@@ -18,6 +21,7 @@ use crate::{CallbackList, RuntimeState};
 pub struct API<'a> {
     pub(crate) db: &'a mut Database,
     pub(crate) scheduler: &'a mut Scheduler,
+    pub(crate) logger: &'a mut LoggerManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) state: &'a mut RuntimeState,
     pub(crate) callbacks: &'a mut CallbackList,
@@ -80,16 +84,16 @@ impl<'a> API<'a> {
         self.db.entities()
     }
 
+    pub fn query_entities<'b, 'c: 'b >(&'c self, query: &'b Query) -> impl Iterator<Item = Entity> + 'b {
+        self.db.query_entities(query).into_iter(self.db)
+    }
+
     pub fn find_component(&self, name: &str) -> Option<ComponentId> {
         self.db.find_component(name)
     }
 
     pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
         self.db.find_field(c, name)
-    }
-
-    pub fn query_entities<'b>(&self, query: &'b Query) -> EntityQuery<'b> {
-        self.db.query_entities(query)
     }
 
     /// SCHEDULER API
@@ -143,8 +147,18 @@ impl<'a> API<'a> {
         self.input.remove_axis(id)
     }
 
+    /// LOGGER API
+
+    pub fn log(&self, args: Arguments<'_>, level: LogLevel, source: Option<(&'static str, u32)>) {
+        self.logger.log(args, level, source)
+    }
+
+    pub fn set_max_log_level(&mut self, level: LogLevel) {
+        self.logger.set_max_level(level)
+    }
+
     /// INPUT API
-    
+
     pub fn find_action(&self, name: &str) -> Option<InputActionId> {
         self.input.find_action(name).map(|(id, _)| id)
     }
@@ -168,4 +182,32 @@ impl<'a> API<'a> {
     pub fn is_action_just_released(&self, id: InputActionId) -> bool {
         self.input.action(id).unwrap().is_just_released()
     }
+}
+
+#[macro_export]
+macro_rules! info {
+    ($api:ident, $($arg:tt)*) => {{
+        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Info, Some((file!(), line!())));
+    }}
+}
+
+#[macro_export]
+macro_rules! debug {
+    ($api:ident, $($arg:tt)*) => {{
+        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Debug, Some((file!(), line!())));
+    }}
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($api:ident, $($arg:tt)*) => {{
+        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Warning, Some((file!(), line!())));
+    }}
+}
+
+#[macro_export]
+macro_rules! error {
+    ($api:ident, $($arg:tt)*) => {{
+        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Error, Some((file!(), line!())));
+    }}
 }

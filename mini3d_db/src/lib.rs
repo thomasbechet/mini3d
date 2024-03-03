@@ -6,7 +6,6 @@ extern crate std;
 extern crate alloc;
 
 pub mod bitset;
-pub mod component;
 pub mod container;
 pub mod database;
 pub mod entity;
@@ -22,19 +21,11 @@ mod test {
     use crate::database::Database;
 
     use crate::entity::Entity;
-    use crate::field::{ComponentField, ComponentFieldCollection, ComponentFieldType, Field};
+    use crate::field::{ComponentField, ComponentFieldCollection, ComponentFieldType};
     use crate::query::Query;
 
     #[derive(Default)]
     struct MyContext;
-
-    struct MyComponent {
-        value: u32,
-    }
-
-    struct MyComponentMeta {
-        value: Field<u32>,
-    }
 
     #[test]
     fn test() {

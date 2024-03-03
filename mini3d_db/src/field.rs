@@ -1,5 +1,6 @@
 use alloc::vec;
 use alloc::{string::String, vec::Vec};
+use mini3d_math::vec::{V3I32F16, V3I32F24, V4I32F16, V4I32F24};
 use mini3d_math::{
     fixed::{FixedPoint, I32F24},
     mat::M4I32F16,
@@ -31,6 +32,8 @@ pub enum ComponentFieldType {
     I32,
     U32,
     I32F24,
+    V3I32F16,
+    V4I32F16,
     M4I32F16,
     QI32F16,
     Entity,
@@ -64,6 +67,18 @@ impl<'a> ComponentField<'a> {
                 ComponentFieldCollection::Scalar => Storage::I32F24(Vec::new()),
                 ComponentFieldCollection::Array(n) => {
                     Storage::I32F24(vec![I32F24::ZERO; n as usize])
+                }
+            },
+            ComponentFieldType::V3I32F16 => match self.collection {
+                ComponentFieldCollection::Scalar => Storage::V3I32F16(Vec::new()),
+                ComponentFieldCollection::Array(n) => {
+                    Storage::V3I32F16(vec![Default::default(); n as usize])
+                }
+            },
+            ComponentFieldType::V4I32F16 => match self.collection {
+                ComponentFieldCollection::Scalar => Storage::V4I32F16(Vec::new()),
+                ComponentFieldCollection::Array(n) => {
+                    Storage::V4I32F16(vec![Default::default(); n as usize])
                 }
             },
             ComponentFieldType::M4I32F16 => match self.collection {
@@ -102,6 +117,8 @@ pub(crate) enum Storage {
     I32(Vec<i32>),
     U32(Vec<u32>),
     I32F24(Vec<I32F24>),
+    V3I32F16(Vec<V3I32F16>),
+    V4I32F16(Vec<V4I32F16>),
     M4I32F16(Vec<M4I32F16>),
     QI32F16(Vec<QI32F16>),
     Entity(Vec<Entity>),
@@ -114,12 +131,14 @@ impl Storage {
         match self {
             Storage::I32(v) => v.resize(size, 0),
             Storage::U32(v) => v.resize(size, 0),
-            Storage::I32F24(v) => v.resize(size, I32F24::ZERO),
-            Storage::M4I32F16(v) => v.resize(size, M4I32F16::IDENTITY),
-            Storage::QI32F16(v) => v.resize(size, QI32F16::default()),
-            Storage::Entity(v) => v.resize(size, Entity::null()),
-            Storage::String(v) => v.resize(size, String::new()),
-            Storage::Handle(v) => v.resize(size, RawHandle::null()),
+            Storage::I32F24(v) => v.resize(size, Default::default()),
+            Storage::V3I32F16(v) => v.resize(size, Default::default()),
+            Storage::V4I32F16(v) => v.resize(size, Default::default()),
+            Storage::M4I32F16(v) => v.resize(size, Default::default()),
+            Storage::QI32F16(v) => v.resize(size, Default::default()),
+            Storage::Entity(v) => v.resize(size, Default::default()),
+            Storage::String(v) => v.resize(size, Default::default()),
+            Storage::Handle(v) => v.resize(size, Default::default()),
         }
     }
 
@@ -128,6 +147,8 @@ impl Storage {
             Storage::I32(v) => v.len(),
             Storage::U32(v) => v.len(),
             Storage::I32F24(v) => v.len(),
+            Storage::V3I32F16(v) => v.len(),
+            Storage::V4I32F16(v) => v.len(),
             Storage::M4I32F16(v) => v.len(),
             Storage::QI32F16(v) => v.len(),
             Storage::Entity(v) => v.len(),
@@ -142,9 +163,11 @@ impl Storage {
             self.resize(index + 1);
         }
         match self {
-            Storage::I32(v) => v[index] = 0,
-            Storage::U32(v) => v[index] = 0,
+            Storage::I32(v) => v[index] = Default::default(),
+            Storage::U32(v) => v[index] = Default::default(),
             Storage::I32F24(v) => v[index] = Default::default(),
+            Storage::V3I32F16(v) => v[index] = Default::default(),
+            Storage::V4I32F16(v) => v[index] = Default::default(),
             Storage::M4I32F16(v) => v[index] = Default::default(),
             Storage::QI32F16(v) => v[index] = Default::default(),
             Storage::Entity(v) => v[index] = Default::default(),
@@ -162,6 +185,7 @@ pub struct FieldEntry {
 }
 
 pub trait FieldType: Sized {
+    fn named(name: &str) -> ComponentField;
     fn read(entry: &FieldEntry, e: Entity) -> Option<Self>;
     fn write(entry: &mut FieldEntry, e: Entity, v: Self);
 }
@@ -184,6 +208,13 @@ pub trait FieldType: Sized {
 macro_rules! impl_field_scalar {
     ($scalar:ty, $kind:ident) => {
         impl FieldType for $scalar {
+    fn named(name: &str) -> ComponentField {
+            ComponentField {
+                name,
+                ty: ComponentFieldType::$kind,
+                collection: ComponentFieldCollection::Scalar,
+            }
+    }
             fn read(entry: &FieldEntry, e: Entity) -> Option<Self> {
                 match &entry.data {
                     Storage::$kind(s) => s.get(e.index() as usize).copied(),
@@ -203,6 +234,7 @@ macro_rules! impl_field_scalar {
 impl_field_scalar!(i32, I32);
 impl_field_scalar!(u32, U32);
 impl_field_scalar!(I32F24, I32F24);
+impl_field_scalar!(V3I32F16, V3I32F16);
 impl_field_scalar!(M4I32F16, M4I32F16);
 impl_field_scalar!(QI32F16, QI32F16);
 impl_field_scalar!(Entity, Entity);

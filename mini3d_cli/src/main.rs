@@ -1,13 +1,46 @@
-use mini3d_runtime::{Runtime, RuntimeConfig, vec::V3I32F16, quat::QI32F16};
+use mini3d_derive::fixed;
+use mini3d_runtime::{
+    api::API,
+    container::ComponentId,
+    field::{Field, FieldType},
+    fixed::I32F16,
+    info,
+    quat::QI32F16,
+    query::Query,
+    vec::V3I32F16,
+    Runtime, RuntimeConfig,
+};
 use mini3d_stdlog::stdout::StdoutLogger;
 
 pub struct Transform {
-    pub pos: V3I32F16,
-    pub rot: QI32F16,
-    pub sca: V3I32F16,
+    pub id: ComponentId,
+    pub pos: Field<V3I32F16>,
+    pub rot: Field<QI32F16>,
+    pub sca: Field<V3I32F16>,
 }
 
-pub struct TransformMeta {
+impl Transform {
+    pub fn register(api: &mut API) -> Self {
+        api.register(
+            "transform",
+            &[
+                V3I32F16::named("pos"),
+                QI32F16::named("rot"),
+                V3I32F16::named("sca"),
+            ],
+        )
+        .unwrap();
+        Self::meta(api)
+    }
+    pub fn meta(api: &API) -> Self {
+        let id = api.find_component("transform").unwrap();
+        Self {
+            id,
+            pos: api.find_field(id, "pos").unwrap(),
+            rot: api.find_field(id, "rot").unwrap(),
+            sca: api.find_field(id, "sca").unwrap(),
+        }
+    }
 }
 
 // #[derive(Default, Clone)]
@@ -61,9 +94,31 @@ pub struct TransformMeta {
 //     }
 // }
 
+fn my_system(api: &mut API) {
+    let transform = Transform::meta(api);
+    let query = Query::default().all(&[transform.id]);
+    info!(api, "hello world");
+    let e = api.entities().next().unwrap();
+    let mut pos = api.read(e, transform.pos).unwrap();
+    info!(api, "{:?}", pos);
+    pos.x += fixed!(0.5i32f16);
+    api.write(e, transform.pos, pos);
+    for e in api.query_entities(&query) {
+        let pos = api.read(e, transform.pos).unwrap();
+        info!(api, "t {:?}", pos);
+    }
+}
+
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
+        let meta = Transform::register(api);
         let tick_stage = api.find_stage("tick").unwrap();
+        api.add_system("my_system", tick_stage, Default::default(), my_system)
+            .unwrap();
+        let e = api.create();
+        api.add_default(e, meta.id);
+        let e = api.create();
+        api.add_default(e, meta.id);
     }));
     // let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
     //     let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
