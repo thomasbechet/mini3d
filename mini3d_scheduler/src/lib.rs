@@ -1,6 +1,6 @@
 #![no_std]
 
-use alloc::{collections::VecDeque, vec::Vec};
+use alloc::{vec::Vec};
 use mini3d_derive::{Error, Serialize};
 use mini3d_utils::{
     slot_map_key,
@@ -17,11 +17,6 @@ extern crate alloc;
 pub enum SchedulerError {
     #[error("Duplicated entry")]
     DuplicatedEntry,
-}
-
-pub enum Invocation {
-    Immediate,
-    NextFrame,
 }
 
 slot_map_key!(NodeId);
@@ -50,40 +45,18 @@ pub(crate) struct PipelineNode {
     next: NodeId,
 }
 
+#[derive(Default)]
 pub struct Scheduler {
     nodes: SlotMap<NodeId, PipelineNode>,
-    next_frame_stages: VecDeque<StageId>,
-    frame_stages: VecDeque<StageId>,
-    next_node: NodeId,
     stages: SlotMap<StageId, Stage>,
     systems: SlotMap<SystemId, System>,
     indices: Vec<SystemId>,
-    pub(crate) tick_stage: StageId,
-}
-
-impl Default for Scheduler {
-    fn default() -> Self {
-        let mut sched = Self {
-            nodes: Default::default(),
-            next_frame_stages: Default::default(),
-            frame_stages: Default::default(),
-            next_node: Default::default(),
-            stages: Default::default(),
-            systems: Default::default(),
-            indices: Default::default(),
-            tick_stage: Default::default(),
-        };
-        sched.tick_stage = sched.add_stage("tick").unwrap();
-        sched
-    }
 }
 
 impl Scheduler {
-
     pub fn rebuild(&mut self) {
         // Reset baked resources
         self.nodes.clear();
-        self.next_node = NodeId::null();
         self.indices.clear();
 
         // Reset stage entry nodes
@@ -129,54 +102,22 @@ impl Scheduler {
         }
     }
 
-    pub(crate) fn next_node(&mut self) -> Option<PipelineNode> {
-        // Detect end of current stage
-        while self.next_node.is_null() {
-            // Find next stage
-            if let Some(stage) = self.frame_stages.pop_front() {
-                // If the stage exists, find first node
-                self.next_node = self
-                    .stages
-                    .get(stage)
-                    .map(|stage| stage.first_node)
-                    .unwrap_or(NodeId::null());
-            } else {
-                // No more stages
-                return None;
-            }
-        }
-        // Find next node
-        let node = self.nodes[self.next_node];
-        self.next_node = node.next;
-        Some(node)
+    pub fn first_node(&self, stage: StageId) -> Option<NodeId> {
+        self.stages.get(stage).map(|stage| stage.first_node)
     }
 
-    pub fn next_systems(&mut self) -> Option<&'_ [SystemId]> {
-        let node = self.next_node()?;
-        Some(&self.indices[node.first as usize..(node.first + node.count) as usize])
+    pub fn next_node(&self, node: NodeId) -> Option<NodeId> {
+        let next = self.nodes[node].next;
+        if next.is_null() {
+            None
+        } else {
+            Some(next)
+        }
     }
 
-    pub fn prepare_next_frame_stages(&mut self) {
-        // Reset next node
-        self.next_node = Default::default();
-        // Collect previous frame stages
-        self.frame_stages.clear();
-        for stage in self.next_frame_stages.drain(..) {
-            self.frame_stages.push_back(stage);
-        }
-        // Append tick stage
-        self.frame_stages.push_back(self.tick_stage);
-    }
-
-    pub fn invoke(&mut self, stage: StageId, invocation: Invocation) {
-        match invocation {
-            Invocation::Immediate => {
-                self.frame_stages.push_front(stage);
-            }
-            Invocation::NextFrame => {
-                self.next_frame_stages.push_back(stage);
-            }
-        }
+    pub fn systems(&self, node: NodeId) -> &'_ [SystemId] {
+        let node = self.nodes[node];
+        &self.indices[node.first as usize..(node.first + node.count) as usize]
     }
 
     pub fn find_stage(&self, name: &str) -> Option<StageId> {

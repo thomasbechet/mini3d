@@ -41,7 +41,10 @@ impl Database {
 
     pub fn destroy(&mut self, e: Entity) {
         self.registry.destroy(e);
-        self.containers.remove_all(e);
+    }
+
+    pub fn find_next_component(&self, e: Entity, c: ComponentId) -> Option<ComponentId> {
+        self.registry.find_next_component(e, c)
     }
 
     pub fn add_default(&mut self, e: Entity, c: ComponentId) {

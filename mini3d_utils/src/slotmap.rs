@@ -508,6 +508,19 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
     pub fn contains(&self, key: K) -> bool {
         self.get(key).is_some()
     }
+
+    pub fn next(&self, key: K) -> Option<K> {
+        let mut index = key.index().unwrap() + 1;
+        while index < self.entries.len() {
+            if self.entries[index].key.index().is_some()
+                && self.entries[index].key.index().unwrap() == index
+            {
+                return Some(self.entries[index].key);
+            }
+            index += 1;
+        }
+        None
+    }
 }
 
 impl<K: Key, V: Default> Default for SecondaryMap<K, V> {

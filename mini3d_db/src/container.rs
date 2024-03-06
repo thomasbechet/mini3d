@@ -100,12 +100,6 @@ impl ComponentTable {
         entry.remove(e)
     }
 
-    pub(crate) fn remove_all(&mut self, e: Entity) {
-        for entry in self.entries.values_mut() {
-            entry.remove(e);
-        }
-    }
-
     pub(crate) fn read<T: FieldType>(&self, e: Entity, c: ComponentId, f: FieldIndex) -> Option<T> {
         let field = &self.entries[c].fields[f as usize];
         T::read(field, e)

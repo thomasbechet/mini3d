@@ -21,7 +21,7 @@ mod test {
     use crate::database::Database;
 
     use crate::entity::Entity;
-    use crate::field::{ComponentField, ComponentFieldCollection, ComponentFieldType};
+    use crate::field::{ComponentField, DataType, FieldType, Primitive};
     use crate::query::Query;
 
     #[derive(Default)]
@@ -37,13 +37,11 @@ mod test {
                 &[
                     ComponentField {
                         name: "f0",
-                        ty: ComponentFieldType::Entity,
-                        collection: ComponentFieldCollection::Scalar,
+                        ty: DataType::Scalar(Primitive::Entity),
                     },
                     ComponentField {
                         name: "f1",
-                        ty: ComponentFieldType::U32,
-                        collection: ComponentFieldCollection::Scalar,
+                        ty: DataType::Scalar(Primitive::U32),
                     },
                 ],
             )

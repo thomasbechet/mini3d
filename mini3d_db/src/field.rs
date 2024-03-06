@@ -28,7 +28,7 @@ impl<T: FieldType> Clone for Field<T> {
 
 impl<T: FieldType> Copy for Field<T> {}
 
-pub enum ComponentFieldType {
+pub enum Primitive {
     I32,
     U32,
     I32F24,
@@ -41,74 +41,61 @@ pub enum ComponentFieldType {
     Handle,
 }
 
-pub enum ComponentFieldCollection {
-    Scalar,
-    Array(u32),
+pub enum DataType {
+    Scalar(Primitive),
+    Array(Primitive, u32),
 }
 
 pub struct ComponentField<'a> {
     pub name: &'a str,
-    pub ty: ComponentFieldType,
-    pub collection: ComponentFieldCollection,
+    pub ty: DataType,
 }
 
 impl<'a> ComponentField<'a> {
     pub(crate) fn create_storage(&self) -> Storage {
         match self.ty {
-            ComponentFieldType::I32 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::I32(Vec::new()),
-                ComponentFieldCollection::Array(n) => Storage::I32(vec![0; n as usize]),
-            },
-            ComponentFieldType::U32 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::U32(Vec::new()),
-                ComponentFieldCollection::Array(n) => Storage::U32(vec![0; n as usize]),
-            },
-            ComponentFieldType::I32F24 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::I32F24(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::I32F24(vec![I32F24::ZERO; n as usize])
-                }
-            },
-            ComponentFieldType::V3I32F16 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::V3I32F16(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::V3I32F16(vec![Default::default(); n as usize])
-                }
-            },
-            ComponentFieldType::V4I32F16 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::V4I32F16(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::V4I32F16(vec![Default::default(); n as usize])
-                }
-            },
-            ComponentFieldType::M4I32F16 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::M4I32F16(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::M4I32F16(vec![M4I32F16::IDENTITY; n as usize])
-                }
-            },
-            ComponentFieldType::QI32F16 => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::QI32F16(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::QI32F16(vec![QI32F16::default(); n as usize])
-                }
-            },
-            ComponentFieldType::Entity => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::Entity(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::Entity(vec![Entity::null(); n as usize])
-                }
-            },
-            ComponentFieldType::String => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::String(Vec::new()),
-                ComponentFieldCollection::Array(n) => {
-                    Storage::String(vec![String::new(); n as usize])
-                }
-            },
-            ComponentFieldType::Handle => match self.collection {
-                ComponentFieldCollection::Scalar => Storage::Handle(Vec::new()),
-                ComponentFieldCollection::Array(_) => Storage::Handle(Vec::new()),
-            },
+            // Scalar types
+            DataType::Scalar(Primitive::I32) => Storage::I32(Default::default()),
+            DataType::Scalar(Primitive::U32) => Storage::U32(Default::default()),
+            DataType::Scalar(Primitive::I32F24) => Storage::I32F24(Default::default()),
+            DataType::Scalar(Primitive::V3I32F16) => Storage::V3I32F16(Default::default()),
+            DataType::Scalar(Primitive::V4I32F16) => Storage::V4I32F16(Default::default()),
+            DataType::Scalar(Primitive::M4I32F16) => Storage::M4I32F16(Default::default()),
+            DataType::Scalar(Primitive::QI32F16) => Storage::QI32F16(Default::default()),
+            DataType::Scalar(Primitive::Entity) => Storage::Entity(Default::default()),
+            DataType::Scalar(Primitive::String) => Storage::String(Default::default()),
+            DataType::Scalar(Primitive::Handle) => Storage::Handle(Default::default()),
+            // Array types
+            DataType::Array(Primitive::I32, n) => {
+                Storage::I32(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::U32, n) => {
+                Storage::U32(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::I32F24, n) => {
+                Storage::I32F24(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::V3I32F16, n) => {
+                Storage::V3I32F16(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::V4I32F16, n) => {
+                Storage::V4I32F16(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::M4I32F16, n) => {
+                Storage::M4I32F16(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::QI32F16, n) => {
+                Storage::QI32F16(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::Entity, n) => {
+                Storage::Entity(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::String, n) => {
+                Storage::String(vec![Default::default(); n as usize])
+            }
+            DataType::Array(Primitive::Handle, n) => {
+                Storage::Handle(vec![Default::default(); n as usize])
+            }
         }
     }
 }
@@ -208,13 +195,12 @@ pub trait FieldType: Sized {
 macro_rules! impl_field_scalar {
     ($scalar:ty, $kind:ident) => {
         impl FieldType for $scalar {
-    fn named(name: &str) -> ComponentField {
-            ComponentField {
-                name,
-                ty: ComponentFieldType::$kind,
-                collection: ComponentFieldCollection::Scalar,
+            fn named(name: &str) -> ComponentField {
+                ComponentField {
+                    name,
+                    ty: DataType::Scalar(Primitive::$kind),
+                }
             }
-    }
             fn read(entry: &FieldEntry, e: Entity) -> Option<Self> {
                 match &entry.data {
                     Storage::$kind(s) => s.get(e.index() as usize).copied(),

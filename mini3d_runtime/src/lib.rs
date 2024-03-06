@@ -1,18 +1,20 @@
 #![no_std]
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, collections::VecDeque};
 use api::API;
-use mini3d_db::database::Database;
+use event::ComponentEventStages;
+use mini3d_db::{container::ComponentId, database::Database};
 use mini3d_derive::Error;
 use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
 use mini3d_logger::provider::LoggerProvider;
 use mini3d_renderer::{provider::RendererProvider, RendererManager};
-use mini3d_scheduler::{Scheduler, SystemId};
+use mini3d_scheduler::{Scheduler, StageId, SystemId};
 use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use mini3d_utils::slotmap::SecondaryMap;
 
 pub mod api;
+pub mod event;
 pub mod import;
 
 extern crate alloc;
@@ -54,21 +56,22 @@ impl RuntimeConfig {
     }
 }
 
+pub enum Invocation {
+    Immediate,
+    NextStage,
+    NextTick,
+}
+
+#[derive(Default)]
 pub(crate) struct RuntimeState {
     request_stop: bool,
     target_tps: u16,
+    tick_stage: StageId,
+    next_tick_stages: VecDeque<StageId>,
+    next_stages: VecDeque<StageId>,
+    pub(crate) systems: SecondaryMap<SystemId, Option<fn(&mut API)>>,
+    pub(crate) components: SecondaryMap<ComponentId, ComponentEventStages>,
 }
-
-impl Default for RuntimeState {
-    fn default() -> Self {
-        Self {
-            request_stop: Default::default(),
-            target_tps: 60,
-        }
-    }
-}
-
-pub(crate) type CallbackList = SecondaryMap<SystemId, Option<fn(&mut API)>>;
 
 pub struct Runtime {
     pub(crate) scheduler: Scheduler,
@@ -78,7 +81,26 @@ pub struct Runtime {
     pub(crate) renderer: RendererManager,
     pub(crate) logger: LoggerManager,
     pub(crate) state: RuntimeState,
-    pub(crate) callbacks: CallbackList,
+}
+
+pub(crate) fn execute_stage(stage: StageId, api: &mut API) {
+    // Acquire first node of this stage
+    let mut next_node = api.scheduler.first_node(stage);
+    // Iterate over stage nodes
+    while next_node.is_some() {
+        let node = next_node.unwrap();
+        // Execute node
+        let systems = api.scheduler.systems(node);
+        if systems.len() == 1 {
+            // Find callback
+            let callback = &api.state.systems[systems[0]].unwrap();
+            // Run the callback
+            callback(api);
+        } else {
+            // TODO: use thread pool
+        }
+        next_node = api.scheduler.next_node(node);
+    }
 }
 
 impl Runtime {
@@ -91,16 +113,15 @@ impl Runtime {
             renderer: Default::default(),
             logger: Default::default(),
             state: Default::default(),
-            callbacks: Default::default(),
         };
         runtime.state.target_tps = config.target_tps;
+        runtime.state.tick_stage = runtime.scheduler.add_stage("tick").unwrap();
         if let Some(bootstrap) = config.bootstrap {
             bootstrap(&mut API {
                 db: &mut runtime.db,
                 scheduler: &mut runtime.scheduler,
                 logger: &mut runtime.logger,
                 state: &mut runtime.state,
-                callbacks: &mut runtime.callbacks,
                 input: &mut runtime.input,
             });
         }
@@ -135,6 +156,16 @@ impl Runtime {
         self.state.target_tps
     }
 
+    fn prepare_next_stages(&mut self) {
+        // Collect previous frame stages
+        self.state.next_stages.clear();
+        for stage in self.state.next_tick_stages.drain(..) {
+            self.state.next_stages.push_back(stage);
+        }
+        // Append tick stage
+        self.state.next_stages.push_back(self.state.tick_stage);
+    }
+
     pub fn tick(&mut self) -> Result<(), TickError> {
         // ================= PREPARE STAGE ================== //
 
@@ -154,35 +185,21 @@ impl Runtime {
         // ============ UPDATE/FIXED-UPDATE STAGE =========== //
 
         // Prepare frame stages
-        self.scheduler.prepare_next_frame_stages();
+        self.prepare_next_stages();
 
         // Run stages
         // TODO: protect against infinite loops
-        loop {
-            // Acquire next node
-            let systems = self.scheduler.next_systems();
-            if systems.is_none() {
-                break;
-            }
-            let systems = systems.unwrap();
-
-            // Execute node
-            if systems.len() == 1 {
-                // Find callback
-                let callback = &self.callbacks[systems[0]].unwrap();
-
-                // Run the callback
-                callback(&mut API {
+        while let Some(stage) = self.state.next_stages.pop_front() {
+            execute_stage(
+                stage,
+                &mut API {
                     db: &mut self.db,
                     scheduler: &mut self.scheduler,
-                    callbacks: &mut self.callbacks,
                     logger: &mut self.logger,
                     state: &mut self.state,
                     input: &mut self.input,
-                });
-            } else {
-                // TODO: use thread pool
-            }
+                },
+            );
         }
 
         // ================= POST-UPDATE STAGE ================== //

@@ -66,6 +66,16 @@ impl Registry {
             .unwrap_or(false)
     }
 
+    pub(crate) fn find_next_component(&self, e: Entity, mut c: ComponentId) -> Option<ComponentId> {
+        while let Some(n) = self.bitsets.next(c) {
+            if self.has(e, n) {
+                return Some(n);
+            }
+            c = n;
+        }
+        None
+    }
+
     pub(crate) fn set(&mut self, e: Entity, c: ComponentId) {
         self.bitsets
             .get_mut(c)

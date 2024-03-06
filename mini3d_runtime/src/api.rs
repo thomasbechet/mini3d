@@ -5,8 +5,8 @@ use mini3d_db::{
     database::Database,
     entity::Entity,
     error::ComponentError,
-    field::{ComponentField, Field, FieldType},
-    query::{EntityQuery, Query},
+    field::{ComponentField, Field, FieldType, Primitive},
+    query::Query,
 };
 use mini3d_input::{
     action::InputActionId,
@@ -16,7 +16,7 @@ use mini3d_input::{
 use mini3d_logger::{level::LogLevel, LoggerManager};
 use mini3d_scheduler::{Scheduler, SchedulerError, StageId, SystemId, SystemOrder};
 
-use crate::{CallbackList, RuntimeState};
+use crate::{event::EventStage, execute_stage, Invocation, RuntimeState};
 
 pub struct API<'a> {
     pub(crate) db: &'a mut Database,
@@ -24,7 +24,6 @@ pub struct API<'a> {
     pub(crate) logger: &'a mut LoggerManager,
     pub(crate) input: &'a mut InputManager,
     pub(crate) state: &'a mut RuntimeState,
-    pub(crate) callbacks: &'a mut CallbackList,
 }
 
 impl<'a> API<'a> {
@@ -49,7 +48,8 @@ impl<'a> API<'a> {
     }
 
     pub fn unregister(&mut self, c: ComponentId) {
-        self.db.unregister(c)
+        self.db.unregister(c);
+        self.state.components.remove(c);
     }
 
     pub fn create(&mut self) -> Entity {
@@ -57,14 +57,25 @@ impl<'a> API<'a> {
     }
 
     pub fn destroy(&mut self, e: Entity) {
+        let mut c = Default::default();
+        while let Some(n) = self.db.find_next_component(e, c) {
+            c = n;
+            self.remove(e, c);
+        }
         self.db.destroy(e)
     }
 
     pub fn add_default(&mut self, e: Entity, c: ComponentId) {
-        self.db.add_default(e, c)
+        self.db.add_default(e, c);
+        // if let Some(constructor) = self.callbacks.constructors[c] {
+        //     constructor(self);
+        // }
     }
 
     pub fn remove(&mut self, e: Entity, c: ComponentId) {
+        // if let Some(destructor) = self.callbacks.destructors[c] {
+        //     destructor(self);
+        // }
         self.db.remove(e, c)
     }
 
@@ -84,7 +95,10 @@ impl<'a> API<'a> {
         self.db.entities()
     }
 
-    pub fn query_entities<'b, 'c: 'b >(&'c self, query: &'b Query) -> impl Iterator<Item = Entity> + 'b {
+    pub fn query_entities<'b, 'c: 'b>(
+        &'c self,
+        query: &'b Query,
+    ) -> impl Iterator<Item = Entity> + 'b {
         self.db.query_entities(query).into_iter(self.db)
     }
 
@@ -100,6 +114,14 @@ impl<'a> API<'a> {
 
     pub fn find_stage(&self, name: &str) -> Option<StageId> {
         self.scheduler.find_stage(name)
+    }
+
+    pub fn event_stage(&self, event: EventStage) -> Option<StageId> {
+        match event {
+            EventStage::Tick => Some(self.state.tick_stage),
+            EventStage::ComponentAdded(c) => self.state.components[c].on_added,
+            EventStage::ComponentRemoved(c) => self.state.components[c].on_removed,
+        }
     }
 
     pub fn find_system(&self, name: &str) -> Option<SystemId> {
@@ -120,12 +142,39 @@ impl<'a> API<'a> {
         callback: fn(&mut API),
     ) -> Result<SystemId, SchedulerError> {
         let system = self.scheduler.add_system(name, stage, order)?;
-        self.callbacks.insert(system, Some(callback));
+        self.state.systems.insert(system, Some(callback));
         self.scheduler.rebuild();
         Ok(system)
     }
 
-    /// SCHEDULER API
+    pub fn invoke(&mut self, stage: StageId, invocation: Invocation) {
+        match invocation {
+            Invocation::Immediate => {
+                // Recursive call
+                execute_stage(stage, self);
+            },
+            Invocation::NextStage => {
+                // Called after the current stage
+                self.state.next_stages.push_back(stage);
+            },
+            Invocation::NextTick => {
+                // Called on the next tick
+                self.state.next_tick_stages.push_back(stage);
+            }
+        }
+    }
+
+    /// LOGGER API
+
+    pub fn log(&self, args: Arguments<'_>, level: LogLevel, source: Option<(&'static str, u32)>) {
+        self.logger.log(args, level, source)
+    }
+
+    pub fn set_max_log_level(&mut self, level: LogLevel) {
+        self.logger.set_max_level(level)
+    }
+
+    /// INPUT API
 
     pub fn add_action(&mut self, name: &str) -> Result<InputActionId, InputError> {
         self.input.add_action(name)
@@ -146,19 +195,6 @@ impl<'a> API<'a> {
     pub fn remove_axis(&mut self, id: InputAxisId) -> Result<(), InputError> {
         self.input.remove_axis(id)
     }
-
-    /// LOGGER API
-
-    pub fn log(&self, args: Arguments<'_>, level: LogLevel, source: Option<(&'static str, u32)>) {
-        self.logger.log(args, level, source)
-    }
-
-    pub fn set_max_log_level(&mut self, level: LogLevel) {
-        self.logger.set_max_level(level)
-    }
-
-    /// INPUT API
-
     pub fn find_action(&self, name: &str) -> Option<InputActionId> {
         self.input.find_action(name).map(|(id, _)| id)
     }
