@@ -18,10 +18,6 @@ impl LoggerProvider for StdoutLogger {
     }
 
     fn log(&mut self, args: Arguments<'_>, level: LogLevel, source: Option<(&'static str, u32)>) {
-        let (file, line) = match source {
-            Some((file, line)) => (file, line),
-            None => ("", 0),
-        };
         let now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true).cyan();
         let level = match level {
             LogLevel::Info => "INFO".blue().bold(),
@@ -30,12 +26,21 @@ impl LoggerProvider for StdoutLogger {
             LogLevel::Error => "ERROR".red().bold(),
             LogLevel::Critical => "CRITICAL".red().bold(),
         };
-        println!(
-            "[{}][{}][{}] {}",
-            now,
-            level,
-            format!("{}:{}", file, line).green(),
-            args.to_string().bright_black()
-        );
+        if let Some((file, line)) = source {
+            println!(
+                "[{}][{}][{}] {}",
+                now,
+                level,
+                format!("{}:{}", file, line).green(),
+                args.to_string().bright_black()
+            );
+        } else {
+            println!(
+                "[{}][{}] {}",
+                now,
+                level,
+                args.to_string().bright_black()
+            );
+        }
     }
 }

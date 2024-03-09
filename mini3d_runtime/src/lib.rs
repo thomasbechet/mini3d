@@ -14,6 +14,7 @@ use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use mini3d_utils::slotmap::SecondaryMap;
 
 pub mod api;
+pub mod component;
 pub mod event;
 pub mod import;
 
@@ -25,6 +26,7 @@ extern crate std;
 pub use mini3d_db::*;
 pub use mini3d_logger::*;
 pub use mini3d_math::*;
+pub use crate as mini3d_runtime;
 
 #[derive(Error, Debug)]
 pub enum TickError {
@@ -63,14 +65,20 @@ pub enum Invocation {
 }
 
 #[derive(Default)]
+pub(crate) struct Stages {
+    pub(crate) next_tick_stages: VecDeque<StageId>,
+    pub(crate) next_stages: VecDeque<StageId>,
+    pub(crate) start_stage: StageId,
+    pub(crate) tick_stage: StageId,
+    pub(crate) components: SecondaryMap<ComponentId, ComponentEventStages>,
+}
+
+#[derive(Default)]
 pub(crate) struct RuntimeState {
     request_stop: bool,
     target_tps: u16,
-    tick_stage: StageId,
-    next_tick_stages: VecDeque<StageId>,
-    next_stages: VecDeque<StageId>,
     pub(crate) systems: SecondaryMap<SystemId, Option<fn(&mut API)>>,
-    pub(crate) components: SecondaryMap<ComponentId, ComponentEventStages>,
+    pub(crate) stages: Stages,
 }
 
 pub struct Runtime {
@@ -84,6 +92,7 @@ pub struct Runtime {
 }
 
 pub(crate) fn execute_stage(stage: StageId, api: &mut API) {
+    debug!(api, "running stage {}", api.scheduler.stage(stage).unwrap().name);
     // Acquire first node of this stage
     let mut next_node = api.scheduler.first_node(stage);
     // Iterate over stage nodes
@@ -115,7 +124,9 @@ impl Runtime {
             state: Default::default(),
         };
         runtime.state.target_tps = config.target_tps;
-        runtime.state.tick_stage = runtime.scheduler.add_stage("tick").unwrap();
+        runtime.state.stages.start_stage = runtime.scheduler.add_stage("_start").unwrap();
+        runtime.state.stages.tick_stage = runtime.scheduler.add_stage("_tick").unwrap();
+        runtime.scheduler.rebuild();
         if let Some(bootstrap) = config.bootstrap {
             bootstrap(&mut API {
                 db: &mut runtime.db,
@@ -125,6 +136,11 @@ impl Runtime {
                 input: &mut runtime.input,
             });
         }
+        runtime
+            .state
+            .stages
+            .next_tick_stages
+            .push_back(runtime.state.stages.start_stage);
         runtime
     }
 
@@ -158,12 +174,15 @@ impl Runtime {
 
     fn prepare_next_stages(&mut self) {
         // Collect previous frame stages
-        self.state.next_stages.clear();
-        for stage in self.state.next_tick_stages.drain(..) {
-            self.state.next_stages.push_back(stage);
+        self.state.stages.next_stages.clear();
+        for stage in self.state.stages.next_tick_stages.drain(..) {
+            self.state.stages.next_stages.push_back(stage);
         }
         // Append tick stage
-        self.state.next_stages.push_back(self.state.tick_stage);
+        self.state
+            .stages
+            .next_stages
+            .push_back(self.state.stages.tick_stage);
     }
 
     pub fn tick(&mut self) -> Result<(), TickError> {
@@ -189,7 +208,7 @@ impl Runtime {
 
         // Run stages
         // TODO: protect against infinite loops
-        while let Some(stage) = self.state.next_stages.pop_front() {
+        while let Some(stage) = self.state.stages.next_stages.pop_front() {
             execute_stage(
                 stage,
                 &mut API {

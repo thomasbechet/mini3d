@@ -1,11 +1,12 @@
 use core::fmt::Arguments;
 
+use alloc::format;
 use mini3d_db::{
     container::ComponentId,
     database::Database,
     entity::Entity,
     error::ComponentError,
-    field::{ComponentField, Field, FieldType, Primitive},
+    field::{ComponentField, Field, FieldType},
     query::Query,
 };
 use mini3d_input::{
@@ -16,7 +17,7 @@ use mini3d_input::{
 use mini3d_logger::{level::LogLevel, LoggerManager};
 use mini3d_scheduler::{Scheduler, SchedulerError, StageId, SystemId, SystemOrder};
 
-use crate::{event::EventStage, execute_stage, Invocation, RuntimeState};
+use crate::{event::ComponentEventStages, execute_stage, Invocation, RuntimeState};
 
 pub struct API<'a> {
     pub(crate) db: &'a mut Database,
@@ -44,12 +45,33 @@ impl<'a> API<'a> {
         name: &str,
         fields: &[ComponentField],
     ) -> Result<ComponentId, ComponentError> {
-        self.db.register(name, fields)
+        let id = self.db.register(name, fields)?;
+        let on_added = self
+            .scheduler
+            .add_stage(&format!("_on_{}_added", name))
+            .unwrap();
+        let on_removed = self
+            .scheduler
+            .add_stage(&format!("_on_{}_removed", name))
+            .unwrap();
+        self.state.stages.components.insert(
+            id,
+            ComponentEventStages {
+                on_added,
+                on_removed,
+            },
+        );
+        self.scheduler.rebuild();
+        Ok(id)
     }
 
     pub fn unregister(&mut self, c: ComponentId) {
         self.db.unregister(c);
-        self.state.components.remove(c);
+        let stages = &self.state.stages.components[c];
+        // self.scheduler.remove_stage(stages.on_added);
+        // self.scheduler.remove_stage(stages.on_removed);
+        self.state.stages.components.remove(c);
+        self.scheduler.rebuild();
     }
 
     pub fn create(&mut self) -> Entity {
@@ -62,20 +84,17 @@ impl<'a> API<'a> {
             c = n;
             self.remove(e, c);
         }
+        // TODO: find proper solution to prevent corrupted database
         self.db.destroy(e)
     }
 
     pub fn add_default(&mut self, e: Entity, c: ComponentId) {
         self.db.add_default(e, c);
-        // if let Some(constructor) = self.callbacks.constructors[c] {
-        //     constructor(self);
-        // }
+        execute_stage(self.state.stages.components[c].on_added, self);
     }
 
     pub fn remove(&mut self, e: Entity, c: ComponentId) {
-        // if let Some(destructor) = self.callbacks.destructors[c] {
-        //     destructor(self);
-        // }
+        execute_stage(self.state.stages.components[c].on_removed, self);
         self.db.remove(e, c)
     }
 
@@ -116,25 +135,33 @@ impl<'a> API<'a> {
         self.scheduler.find_stage(name)
     }
 
-    pub fn event_stage(&self, event: EventStage) -> Option<StageId> {
-        match event {
-            EventStage::Tick => Some(self.state.tick_stage),
-            EventStage::ComponentAdded(c) => self.state.components[c].on_added,
-            EventStage::ComponentRemoved(c) => self.state.components[c].on_removed,
-        }
+    pub fn tick_stage(&self) -> StageId {
+        self.state.stages.tick_stage
+    }
+
+    pub fn start_stage(&self) -> StageId {
+        self.state.stages.start_stage
+    }
+
+    pub fn on_component_added_stage(&self, c: ComponentId) -> StageId {
+        self.state.stages.components[c].on_added
+    }
+
+    pub fn on_component_removed_stage(&self, c: ComponentId) -> StageId {
+        self.state.stages.components[c].on_removed
     }
 
     pub fn find_system(&self, name: &str) -> Option<SystemId> {
         self.scheduler.find_system(name)
     }
 
-    pub fn add_stage(&mut self, name: &str) -> Result<StageId, SchedulerError> {
+    pub fn create_stage(&mut self, name: &str) -> Result<StageId, SchedulerError> {
         let stage = self.scheduler.add_stage(name)?;
         self.scheduler.rebuild();
         Ok(stage)
     }
 
-    pub fn add_system(
+    pub fn create_system(
         &mut self,
         name: &str,
         stage: StageId,
@@ -152,15 +179,22 @@ impl<'a> API<'a> {
             Invocation::Immediate => {
                 // Recursive call
                 execute_stage(stage, self);
-            },
+            }
             Invocation::NextStage => {
                 // Called after the current stage
-                self.state.next_stages.push_back(stage);
-            },
+                self.state.stages.next_stages.push_back(stage);
+            }
             Invocation::NextTick => {
                 // Called on the next tick
-                self.state.next_tick_stages.push_back(stage);
+                self.state.stages.next_tick_stages.push_back(stage);
             }
+        }
+    }
+
+    pub fn debug_sched(&mut self) {
+        for stage in self.scheduler.iter_stages() {
+            let stage = self.scheduler.stage(stage).unwrap();
+            self.logger.log(format_args!("STAGE {}", stage.name), LogLevel::Debug, None);
         }
     }
 
@@ -184,7 +218,7 @@ impl<'a> API<'a> {
         self.input.remove_action(id)
     }
 
-    pub fn add_axis(
+    pub fn create_axis(
         &mut self,
         name: &str,
         range: InputAxisRange,
@@ -192,7 +226,7 @@ impl<'a> API<'a> {
         self.input.add_axis(name, range)
     }
 
-    pub fn remove_axis(&mut self, id: InputAxisId) -> Result<(), InputError> {
+    pub fn delete_axis(&mut self, id: InputAxisId) -> Result<(), InputError> {
         self.input.remove_axis(id)
     }
     pub fn find_action(&self, name: &str) -> Option<InputActionId> {

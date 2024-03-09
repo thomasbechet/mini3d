@@ -15,10 +15,10 @@ pub fn derive_serialize(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(Component, attributes(component))]
-pub fn derive_component(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    component::derive(&input)
+#[proc_macro_attribute]
+pub fn component(_args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut ast = parse_macro_input!(input as DeriveInput);
+    component::derive(&mut ast)
         .unwrap_or_else(|e| e.to_compile_error())
         .into()
 }

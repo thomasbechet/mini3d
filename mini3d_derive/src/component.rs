@@ -1,25 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields, FieldsNamed, FieldsUnnamed,
-    Generics, Result, Token, Type, Visibility,
+    parse::Parser, Attribute, Data, DataStruct, DeriveInput, Error, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Generics, Result, Token, Type, Visibility,
 };
-
-pub fn derive(input: &DeriveInput) -> Result<TokenStream> {
-    match &input.data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields),
-            ..
-        }) => derive_struct(
-            &input.ident,
-            &input.vis,
-            &input.attrs,
-            &input.generics,
-            fields,
-        ),
-        _ => Err(Error::new(Span::call_site(), "Only struct are supported")),
-    }
-}
 
 struct ComponentMeta {
     name: String,
@@ -82,54 +66,71 @@ impl syn::parse::Parse for ComponentAttribute {
     }
 }
 
-struct StructFieldEntry {
-    ident: Ident,
-    ty: Type,
-}
-
-fn parse_struct_field_entries(
-    fields: &FieldsNamed,
-) -> Result<Vec<StructFieldEntry>> {
-    let mut entries = Vec::new();
-
-    // for field in &fields.named {
-    //     let attributes = FieldAttributes::build(&field.attrs)?;
-    //     entries.push(StructFieldEntry {
-    //         ident: field.ident.as_ref().unwrap().clone(),
-    //         ty: field.ty.clone(),
-    //     });
-    // }
-    
-    Ok(entries)
-}
-
-// fn generate_struct_field(entry: &StructFieldEntry) -> Result<TokenStream> {
-// }
-
-fn derive_struct(
-    ident: &Ident,
-    vis: &Visibility,
-    attrs: &[Attribute],
-    generics: &Generics,
-    fields: &FieldsNamed,
-) -> Result<TokenStream> {
-    let (_, ty_generics, where_clause) = generics.split_for_impl();
-
-    let mut meta = ComponentMeta::new(ident);
-    for attribute in attrs {
+pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
+    let mut meta = ComponentMeta::new(&ast.ident);
+    for attribute in &ast.attrs {
         if attribute.path().is_ident("component") {
             meta.merge(attribute.parse_args::<ComponentAttribute>()?)?;
         }
     }
 
     let name = meta.name;
+    let ident = &ast.ident;
+    let mut named_fields = Vec::new();
+    let mut find_fields = Vec::new();
 
-    let q = quote! {
-
-        impl mini3d_ecs2::component::NamedComponent for MyComponent {
-            const IDENT: &'static str = #name;
+    match ast.data {
+        Data::Struct(DataStruct {
+            fields: Fields::Named(ref mut fields),
+            ..
+        }) => {
+            for field in fields.named.iter_mut() {
+                let ty = field.ty.clone();
+                let ident = field.ident.clone().unwrap();
+                // Replace field with Field type
+                *field =
+                    Field::parse_named.parse2(quote!(pub #ident: mini3d_db::field::Field<#ty>))?;
+                // Build field constructors
+                let name = ident.to_string();
+                named_fields.push(quote!(<#ty as mini3d_db::field::FieldType>::named(#name)));
+                find_fields.push(quote!(#ident: api.find_field(id, #name).unwrap()));
+            }
+            fields
+                .named
+                .push(Field::parse_named.parse2(quote!(_id: mini3d_db::container::ComponentId))?);
         }
+        _ => return Err(Error::new(Span::call_site(), "Only struct are supported")),
+    }
 
-    };
-    Ok(q)
+    Ok(quote! {
+        #ast
+
+        impl #ident {
+            pub const NAME: &'static str = #name;
+
+            pub fn id(&self) -> mini3d_db::container::ComponentId {
+                self._id
+            }
+
+            pub fn register(api: &mut mini3d_runtime::api::API) -> Self {
+                let id = api
+                    .register(
+                        #name,
+                        &[
+                            #(#named_fields),*
+                        ],
+                    )
+                    .unwrap();
+                Self::meta(api)
+            }
+
+            pub fn meta(api: &mini3d_runtime::api::API) -> Self {
+                let id = api.find_component(#name).unwrap();
+                Self {
+                    _id: id,
+                    #(#find_fields),*
+                }
+            }
+        }
+    })
 }

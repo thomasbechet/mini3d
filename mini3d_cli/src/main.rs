@@ -1,45 +1,14 @@
 use mini3d_derive::fixed;
 use mini3d_runtime::{
-    api::API, container::ComponentId, entity::Entity, event::EventStage, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, warn, Runtime, RuntimeConfig
+    api::API, component::transform::Transform, container::ComponentId, entity::Entity, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, Runtime, RuntimeConfig
 };
 use mini3d_stdlog::stdout::StdoutLogger;
 
-pub struct Transform {
-    _id: ComponentId,
-    pub pos: Field<V3I32F16>,
-    pub rot: Field<QI32F16>,
-    pub sca: Field<V3I32F16>,
+fn on_transform_added(api: &mut API) {
+    info!(api, "TRANSFORM ADDED")
 }
-
-impl Transform {
-    pub fn register(api: &mut API) -> Self {
-        api.register(
-            "transform",
-            &[
-                V3I32F16::named("pos"),
-                QI32F16::named("rot"),
-                V3I32F16::named("sca"),
-            ],
-        )
-        .unwrap();
-        Self::meta(api)
-    }
-    pub fn meta(api: &API) -> Self {
-        let id = api.find_component("transform").unwrap();
-        Self {
-            _id: id,
-            pos: api.find_field(id, "pos").unwrap(),
-            rot: api.find_field(id, "rot").unwrap(),
-            sca: api.find_field(id, "sca").unwrap(),
-        }
-    }
-    pub fn id(&self) -> ComponentId {
-        self._id
-    }
-    pub fn add(&self, api: &mut API, e: Entity, pos: V3I32F16) {
-        api.add_default(e, self.id());
-        api.write(e, self.pos, pos);
-    }
+fn on_transform_removed(api: &mut API) {
+    info!(api, "TRANSFORM REMOVED")
 }
 
 // #[derive(Default, Clone)]
@@ -94,32 +63,33 @@ impl Transform {
 // }
 
 fn my_system(api: &mut API) {
+    info!(api, "my_system");
     let transform = Transform::meta(api);
     let query = Query::default().all(&[transform.id()]);
     info!(api, "hello world");
     let e = api.entities().next().unwrap();
-    let mut pos = api.read(e, transform.pos).unwrap();
+    let mut pos = api.read(e, transform.translation).unwrap();
     info!(api, "{:?}", pos);
-    warn!(api, "WTF");
     pos.x += fixed!(0.5i32f16);
-    api.write(e, transform.pos, pos);
+    api.write(e, transform.translation, pos);
     for e in api.query_entities(&query) {
-        let pos = api.read(e, transform.pos).unwrap();
+        let pos = api.read(e, transform.translation).unwrap();
         info!(api, "t {:?}", pos);
     }
 }
 
+fn on_start(api: &mut API) {
+    let transform = Transform::register(api);
+    let e = api.create();
+    transform.add_from_translation(api, e, V3I32F16::ONE);
+    api.debug_sched();
+}
+
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
-        let transform = Transform::register(api);
-        let tick_stage = api.event_stage(EventStage::Tick).unwrap();
-        api.add_system("my_system", tick_stage, Default::default(), my_system)
+        api.create_system("my_system", api.tick_stage(), Default::default(), my_system)
             .unwrap();
-        let e = api.create();
-        api.add_default(e, transform.id());
-        let e = api.create();
-        api.add_default(e, transform.id());
-        transform.add(api, e, V3I32F16::ONE);
+        api.create_system("start_system", api.start_stage(), Default::default(), on_start).unwrap();
     }));
     // let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
     //     let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
@@ -151,7 +121,7 @@ fn main() {
     //     }
     // }));
     runtime.set_logger(StdoutLogger);
-    for _ in 0..5{
+    for _ in 0..5 {
         runtime.tick().expect("Simulation error");
     }
     println!("target_tps: {}", runtime.target_tps());

@@ -1,6 +1,6 @@
 #![no_std]
 
-use alloc::{vec::Vec};
+use alloc::vec::Vec;
 use mini3d_derive::{Error, Serialize};
 use mini3d_utils::{
     slot_map_key,
@@ -28,13 +28,13 @@ pub struct SystemOrder {}
 
 #[derive(Default, Serialize)]
 pub struct System {
-    pub(crate) name: AsciiArray<32>,
+    pub name: AsciiArray<32>,
     pub(crate) stage: StageId,
     pub(crate) order: SystemOrder,
 }
 
-pub(crate) struct Stage {
-    pub(crate) name: AsciiArray<32>,
+pub struct Stage {
+    pub name: AsciiArray<32>,
     pub(crate) first_node: NodeId,
 }
 
@@ -68,22 +68,24 @@ impl Scheduler {
         let stages = self.stages.keys().collect::<Vec<_>>();
         for stage in stages {
             // Collect systems in stage
+            let start_index = self.indices.len();
             for system in self.systems.iter() {
                 if system.1.stage == stage {
                     self.indices.push(system.0);
                 }
             }
+            let stop_index = self.indices.len();
 
             // TODO: apply ordering
 
             // Build nodes
             let mut previous_node = None;
-            for (index, _) in self.indices.iter().enumerate() {
+            for (index, _) in self.indices[start_index..stop_index].iter().enumerate() {
                 // TODO: detect parallel nodes
 
                 // Create exclusive node
                 let node = self.nodes.add(PipelineNode {
-                    first: index as u16,
+                    first: (start_index + index) as u16,
                     count: 1,
                     next: Default::default(),
                 });
@@ -103,7 +105,7 @@ impl Scheduler {
     }
 
     pub fn first_node(&self, stage: StageId) -> Option<NodeId> {
-        self.stages.get(stage).map(|stage| stage.first_node)
+        self.stages.get(stage).and_then(|stage| if stage.first_node.is_null() { None } else { Some(stage.first_node) })
     }
 
     pub fn next_node(&self, node: NodeId) -> Option<NodeId> {
@@ -164,5 +166,17 @@ impl Scheduler {
             stage,
             order,
         }))
+    }
+
+    pub fn iter_stages(&self) -> impl Iterator<Item = StageId> + '_ {
+        self.stages.keys()
+    }
+    
+    pub fn stage(&self, id: StageId) -> Option<&Stage> {
+        self.stages.get(id)
+    }
+
+    pub fn system(&self, id: SystemId) -> Option<&System> {
+        self.systems.get(id)
     }
 }
