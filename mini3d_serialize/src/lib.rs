@@ -2,6 +2,8 @@
 
 extern crate alloc;
 
+use core::num::NonZeroU32;
+
 use alloc::{boxed::Box, collections::VecDeque, string::String, vec::Vec};
 use mini3d_derive::Error;
 
@@ -278,6 +280,21 @@ impl Serialize for u32 {
         _header: &Self::Header,
     ) -> Result<Self, DecoderError> {
         decoder.read_u32()
+    }
+}
+
+impl Serialize for NonZeroU32 {
+    type Header = ();
+
+    fn serialize(&self, encoder: &mut impl Encoder) -> Result<(), EncoderError> {
+        encoder.write_u32(self.get())
+    }
+
+    fn deserialize(
+        decoder: &mut impl Decoder,
+        _header: &Self::Header,
+    ) -> Result<Self, DecoderError> {
+        NonZeroU32::new(decoder.read_u32()?).ok_or(DecoderError::CorruptedData)
     }
 }
 

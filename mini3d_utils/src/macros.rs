@@ -34,7 +34,7 @@ macro_rules! define_provider_handle {
 #[macro_export]
 macro_rules! slot_map_key {
     ($name:ident) => {
-        #[derive(mini3d_derive::Serialize, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(mini3d_derive::Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name($crate::slotmap::DefaultKey);
 
         impl $crate::slotmap::Key for $name {
@@ -42,15 +42,11 @@ macro_rules! slot_map_key {
                 Self($crate::slotmap::DefaultKey::new(index))
             }
 
-            fn null() -> Self {
-                Self($crate::slotmap::DefaultKey::null())
-            }
-
             fn update(&mut self, index: usize) {
                 self.0.update(index);
             }
 
-            fn index(&self) -> Option<usize> {
+            fn index(&self) -> usize {
                 self.0.index()
             }
         }

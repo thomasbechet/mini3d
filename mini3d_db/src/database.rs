@@ -43,7 +43,7 @@ impl Database {
         self.registry.destroy(e);
     }
 
-    pub fn find_next_component(&self, e: Entity, c: ComponentId) -> Option<ComponentId> {
+    pub fn find_next_component(&self, e: Entity, c: Option<ComponentId>) -> Option<ComponentId> {
         self.registry.find_next_component(e, c)
     }
 

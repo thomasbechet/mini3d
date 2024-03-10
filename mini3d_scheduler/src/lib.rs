@@ -26,7 +26,7 @@ slot_map_key!(SystemId);
 #[derive(Default, Serialize)]
 pub struct SystemOrder {}
 
-#[derive(Default, Serialize)]
+#[derive(Serialize)]
 pub struct System {
     pub name: AsciiArray<32>,
     pub(crate) stage: StageId,
@@ -35,14 +35,14 @@ pub struct System {
 
 pub struct Stage {
     pub name: AsciiArray<32>,
-    pub(crate) first_node: NodeId,
+    pub(crate) first_node: Option<NodeId>,
 }
 
 #[derive(Clone, Copy)]
 pub(crate) struct PipelineNode {
     first: u16, // Offset in instance indices
     count: u16, // Number of instances
-    next: NodeId,
+    next: Option<NodeId>,
 }
 
 #[derive(Default)]
@@ -61,7 +61,7 @@ impl Scheduler {
 
         // Reset stage entry nodes
         for stage in self.stages.values_mut() {
-            stage.first_node = NodeId::null();
+            stage.first_node = None; 
         }
 
         // Collect stages
@@ -92,10 +92,10 @@ impl Scheduler {
 
                 // Link previous node or create new stage
                 if let Some(previous_node) = previous_node {
-                    self.nodes[previous_node].next = node;
+                    self.nodes[previous_node].next = Some(node);
                 } else {
                     // Update stage first node
-                    self.stages.get_mut(stage).unwrap().first_node = node;
+                    self.stages.get_mut(stage).unwrap().first_node = Some(node);
                 }
 
                 // Next previous node
@@ -105,16 +105,11 @@ impl Scheduler {
     }
 
     pub fn first_node(&self, stage: StageId) -> Option<NodeId> {
-        self.stages.get(stage).and_then(|stage| if stage.first_node.is_null() { None } else { Some(stage.first_node) })
+        self.stages.get(stage).and_then(|stage| stage.first_node)
     }
 
     pub fn next_node(&self, node: NodeId) -> Option<NodeId> {
-        let next = self.nodes[node].next;
-        if next.is_null() {
-            None
-        } else {
-            Some(next)
-        }
+        self.nodes[node].next
     }
 
     pub fn systems(&self, node: NodeId) -> &'_ [SystemId] {
@@ -148,7 +143,7 @@ impl Scheduler {
         }
         Ok(self.stages.add(Stage {
             name: AsciiArray::from(name),
-            first_node: NodeId::null(),
+            first_node: None,
         }))
     }
 

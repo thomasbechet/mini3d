@@ -8,9 +8,9 @@ use crate::{
 
 #[derive(Default)]
 pub struct Query {
-    all: [ComponentId; Self::MAX_ALL],
-    any: [ComponentId; Self::MAX_ANY],
-    not: [ComponentId; Self::MAX_NOT],
+    all: [Option<ComponentId>; Self::MAX_ALL],
+    any: [Option<ComponentId>; Self::MAX_ANY],
+    not: [Option<ComponentId>; Self::MAX_NOT],
     all_size: usize,
     any_size: usize,
     not_size: usize,
@@ -23,7 +23,7 @@ impl Query {
 
     pub fn all(mut self, ids: &[ComponentId]) -> Self {
         for (i, id) in ids.iter().enumerate() {
-            self.all[i] = *id;
+            self.all[i] = Some(*id);
         }
         self.all_size = ids.len();
         self
@@ -31,7 +31,7 @@ impl Query {
 
     pub fn any(mut self, ids: &[ComponentId]) -> Self {
         for (i, id) in ids.iter().enumerate() {
-            self.any[i] = *id;
+            self.any[i] = Some(*id);
         }
         self.any_size = ids.len();
         self
@@ -39,7 +39,7 @@ impl Query {
 
     pub fn not(mut self, ids: &[ComponentId]) -> Self {
         for (i, id) in ids.iter().enumerate() {
-            self.not[i] = *id;
+            self.not[i] = Some(*id);
         }
         self.not_size = ids.len();
         self
@@ -54,15 +54,15 @@ pub struct EntityQuery<'a> {
 impl<'a> EntityQuery<'a> {
     fn fetch_mask(registry: &Registry, query: &Query, index: usize) -> u32 {
         let mut mask = if query.all_size > 0 {
-            registry.mask(query.all[0], index)
+            registry.mask(query.all[0].unwrap(), index)
         } else {
             0
         };
         for i in 1..query.all_size {
-            mask &= registry.mask(query.all[i], index);
+            mask &= registry.mask(query.all[i].unwrap(), index);
         }
         for i in 0..query.any_size {
-            mask |= registry.mask(query.any[i], index);
+            mask |= registry.mask(query.any[i].unwrap(), index);
         }
         mask
     }

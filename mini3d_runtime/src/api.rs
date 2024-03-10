@@ -79,10 +79,10 @@ impl<'a> API<'a> {
     }
 
     pub fn destroy(&mut self, e: Entity) {
-        let mut c = Default::default();
+        let mut c = None;
         while let Some(n) = self.db.find_next_component(e, c) {
-            c = n;
-            self.remove(e, c);
+            c = Some(n);
+            self.remove(e, n);
         }
         // TODO: find proper solution to prevent corrupted database
         self.db.destroy(e)
