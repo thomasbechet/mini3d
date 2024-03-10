@@ -1,10 +1,6 @@
 use alloc::vec::Vec;
-use mini3d_derive::{Component, Error, Reflect, Serialize};
-
-use crate::ecs::{
-    entity::Entity,
-    view::native::single::{NativeSingleView, NativeSingleViewMut},
-};
+use mini3d_db::entity::Entity;
+use mini3d_derive::Error;
 
 #[derive(Debug, Error)]
 pub enum HierarchyError {
@@ -16,9 +12,8 @@ pub enum HierarchyError {
     ParentWithoutChild,
 }
 
-#[derive(Default, Component, Reflect, Serialize, Clone)]
 pub struct Hierarchy {
-    parent: Option<Entity>,
+    parent: Entity,
     first_child: Option<Entity>,
     next_sibling: Option<Entity>,
 }

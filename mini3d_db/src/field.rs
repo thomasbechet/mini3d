@@ -192,6 +192,10 @@ pub trait FieldType: Sized {
 //     }
 // }
 
+// impl<T: FieldType> FieldType for Option<T> {
+//
+// }
+
 macro_rules! impl_field_scalar {
     ($scalar:ty, $kind:ident) => {
         impl FieldType for $scalar {
