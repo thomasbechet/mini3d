@@ -3,6 +3,9 @@ use core::marker::PhantomData;
 use mini3d_derive::Serialize;
 use mini3d_serialize::Serialize;
 
+// Raw handle representation
+// Null handle representation is possible but it should not be used
+// as sentinel value.
 #[derive(Serialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct RawHandle(u32);
 

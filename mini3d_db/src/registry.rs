@@ -71,7 +71,7 @@ impl Registry {
             if self.has(e, n) {
                 return Some(n);
             }
-            c = n;
+            c = Some(n);
         }
         None
     }

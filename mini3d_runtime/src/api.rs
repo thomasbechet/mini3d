@@ -57,8 +57,8 @@ impl<'a> API<'a> {
         self.state.stages.components.insert(
             id,
             ComponentEventStages {
-                on_added,
-                on_removed,
+                on_added: Some(on_added),
+                on_removed: Some(on_removed),
             },
         );
         self.scheduler.rebuild();
@@ -90,11 +90,11 @@ impl<'a> API<'a> {
 
     pub fn add_default(&mut self, e: Entity, c: ComponentId) {
         self.db.add_default(e, c);
-        execute_stage(self.state.stages.components[c].on_added, self);
+        execute_stage(self.state.stages.components[c].on_added.unwrap(), self);
     }
 
     pub fn remove(&mut self, e: Entity, c: ComponentId) {
-        execute_stage(self.state.stages.components[c].on_removed, self);
+        execute_stage(self.state.stages.components[c].on_removed.unwrap(), self);
         self.db.remove(e, c)
     }
 
@@ -136,19 +136,19 @@ impl<'a> API<'a> {
     }
 
     pub fn tick_stage(&self) -> StageId {
-        self.state.stages.tick_stage
+        self.state.stages.tick_stage.unwrap()
     }
 
     pub fn start_stage(&self) -> StageId {
-        self.state.stages.start_stage
+        self.state.stages.start_stage.unwrap()
     }
 
     pub fn on_component_added_stage(&self, c: ComponentId) -> StageId {
-        self.state.stages.components[c].on_added
+        self.state.stages.components[c].on_added.unwrap()
     }
 
     pub fn on_component_removed_stage(&self, c: ComponentId) -> StageId {
-        self.state.stages.components[c].on_removed
+        self.state.stages.components[c].on_removed.unwrap()
     }
 
     pub fn find_system(&self, name: &str) -> Option<SystemId> {

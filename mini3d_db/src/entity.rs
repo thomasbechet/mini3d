@@ -20,7 +20,15 @@ impl Entity {
     }
 
     pub fn null() -> Self {
-        Self(!0)
+        Self(0)
+    }
+
+    pub fn nonnull(self) -> Option<Self> {
+        if self == Self::null() {
+            None
+        } else {
+            Some(self)
+        }
     }
 
     pub fn raw(&self) -> u32 {

@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 use mini3d_db::entity::Entity;
-use mini3d_derive::Error;
+use mini3d_derive::{component, Error};
+
+use crate::{self as mini3d_runtime, api::API};
 
 #[derive(Debug, Error)]
 pub enum HierarchyError {
@@ -12,105 +14,94 @@ pub enum HierarchyError {
     ParentWithoutChild,
 }
 
+#[component]
 pub struct Hierarchy {
     parent: Entity,
-    first_child: Option<Entity>,
-    next_sibling: Option<Entity>,
+    first_child: Entity,
+    next_sibling: Entity,
 }
 
 impl Hierarchy {
-    pub fn parent(&self) -> Option<Entity> {
-        self.parent
+    pub fn parent(&self, api: &API, e: Entity) -> Entity {
+        api.read(e, self.parent).unwrap()
     }
 
-    pub fn first_child(&self) -> Option<Entity> {
-        self.first_child
+    pub fn first_child(&self, api: &API, e: Entity) -> Entity {
+        api.read(e, self.first_child).unwrap()
     }
 
-    pub fn next_sibling(&self) -> Option<Entity> {
-        self.next_sibling
+    pub fn next_sibling(&self, api: &API, e: Entity) -> Entity {
+        api.read(e, self.next_sibling).unwrap()
     }
 
-    pub fn collect_childs<V: NativeSingleView<Hierarchy>>(entity: Entity, view: &V) -> Vec<Entity> {
-        if let Some(first_child) = view.get(entity).unwrap().first_child {
-            let mut childs = Vec::new();
+    pub fn collect_childs(&self, api: &API, e: Entity) -> Vec<Entity> {
+        let mut childs = Vec::new();
+        if let Some(first_child) = self.first_child(api, e).nonnull() {
             childs.push(first_child);
-            while let Some(next) = view.get(*childs.last().unwrap()).unwrap().next_sibling {
+            while let Some(next) = self.next_sibling(api, *childs.last().unwrap()).nonnull() {
                 childs.push(next);
             }
-            childs
-        } else {
-            Vec::new()
         }
+        childs
     }
 
-    pub fn attach(
-        entity: Entity,
-        child: Entity,
-        view: &mut NativeSingleViewMut<Hierarchy>,
-    ) -> Result<(), HierarchyError> {
+    pub fn attach(&self, api: &mut API, e: Entity, child: Entity) -> Result<(), HierarchyError> {
         // Find the last child
-        let mut last_child: Option<Entity> = None;
-        if let Some(first_child) = view.get(entity).unwrap().first_child {
-            last_child = Some(first_child);
-            while let Some(next) = view.get(last_child.unwrap()).unwrap().next_sibling {
+        let mut last_child = self.first_child(api, e);
+        if last_child != Entity::null() {
+            while let Some(next) = self.next_sibling(api, last_child).nonnull() {
                 // Prevent circular references
-                if last_child.unwrap() == child {
+                if last_child == child {
                     return Err(HierarchyError::CircularReference);
                 }
-                last_child = Some(next);
+                last_child = next;
             }
         }
 
         // Append the child
-        if let Some(next_sibling) = last_child {
-            view.get_mut(next_sibling).unwrap().next_sibling = Some(child);
+        if let Some(next_sibling) = last_child.nonnull() {
+            api.write(next_sibling, self.next_sibling, child);
         } else {
-            view.get_mut(entity).unwrap().first_child = Some(child);
+            api.write(e, self.first_child, child);
         }
 
         // Set child parent
-        view.get_mut(child).unwrap().parent = Some(entity);
+        api.write(child, self.parent, e);
 
         Ok(())
     }
 
-    pub fn detach(
-        entity: Entity,
-        child: Entity,
-        view: &mut NativeSingleViewMut<Hierarchy>,
-    ) -> Result<(), HierarchyError> {
+    pub fn detach(&self, api: &mut API, e: Entity, child: Entity) -> Result<(), HierarchyError> {
         // Find the child
-        if let Some(first_child) = view.get(entity).unwrap().first_child {
+        if let Some(first_child) = self.first_child(api, e).nonnull() {
             if first_child == child {
                 // Remove child from the linked list
-                if let Some(next_next) = view.get(first_child).unwrap().next_sibling {
-                    view.get_mut(entity).unwrap().first_child = Some(next_next);
+                if let Some(next_next) = self.next_sibling(api, first_child).nonnull() {
+                    api.write(e, self.first_child, next_next);
                 } else {
-                    view.get_mut(entity).unwrap().first_child = None;
+                    api.write(e, self.first_child, Entity::null());
                 }
                 // Unset parent
-                view.get_mut(child).unwrap().parent = None;
+                api.write(child, self.parent, Entity::null());
                 return Ok(());
-            } else {
-                let mut next_child = first_child;
-                while let Some(next) = view.get(next_child).unwrap().next_sibling {
-                    // Child found
-                    if next == child {
-                        // Remove child from the linked list
-                        if let Some(next_next) = view.get(next).unwrap().next_sibling {
-                            view.get_mut(next_child).unwrap().next_sibling = Some(next_next);
-                        } else {
-                            view.get_mut(next_child).unwrap().next_sibling = None;
-                        }
-                        // Unset parent
-                        view.get_mut(child).unwrap().parent = None;
-                        return Ok(());
-                    }
-                    next_child = next;
-                }
-                return Err(HierarchyError::ChildNotFound);
             }
+            let mut next_child = first_child;
+            while let Some(next) = self.next_sibling(api, next_child).nonnull() {
+                // Child found
+                if next == child {
+                    // Remove child from the linked list
+                    if let Some(next_next) = self.next_sibling(api, next).nonnull() {
+                        api.write(next_child, self.next_sibling, next_next);
+                    } else {
+                        api.write(next_child, self.next_sibling, Entity::null());
+                    }
+                    // Unset parent
+                    api.write(child, self.parent, Entity::null());
+                    return Ok(());
+                }
+                next_child = next;
+            }
+            return Err(HierarchyError::ChildNotFound);
         }
         Err(HierarchyError::ParentWithoutChild)
     }

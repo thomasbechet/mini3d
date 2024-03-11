@@ -68,8 +68,8 @@ pub enum Invocation {
 pub(crate) struct Stages {
     pub(crate) next_tick_stages: VecDeque<StageId>,
     pub(crate) next_stages: VecDeque<StageId>,
-    pub(crate) start_stage: StageId,
-    pub(crate) tick_stage: StageId,
+    pub(crate) start_stage: Option<StageId>,
+    pub(crate) tick_stage: Option<StageId>,
     pub(crate) components: SecondaryMap<ComponentId, ComponentEventStages>,
 }
 
@@ -124,8 +124,8 @@ impl Runtime {
             state: Default::default(),
         };
         runtime.state.target_tps = config.target_tps;
-        runtime.state.stages.start_stage = runtime.scheduler.add_stage("_start").unwrap();
-        runtime.state.stages.tick_stage = runtime.scheduler.add_stage("_tick").unwrap();
+        runtime.state.stages.start_stage = Some(runtime.scheduler.add_stage("_start").unwrap());
+        runtime.state.stages.tick_stage = Some(runtime.scheduler.add_stage("_tick").unwrap());
         runtime.scheduler.rebuild();
         if let Some(bootstrap) = config.bootstrap {
             bootstrap(&mut API {
@@ -140,7 +140,7 @@ impl Runtime {
             .state
             .stages
             .next_tick_stages
-            .push_back(runtime.state.stages.start_stage);
+            .push_back(runtime.state.stages.start_stage.unwrap());
         runtime
     }
 
@@ -182,7 +182,7 @@ impl Runtime {
         self.state
             .stages
             .next_stages
-            .push_back(self.state.stages.tick_stage);
+            .push_back(self.state.stages.tick_stage.unwrap());
     }
 
     pub fn tick(&mut self) -> Result<(), TickError> {

@@ -59,6 +59,15 @@ impl<K: Key> SlotKey<K> {
             SlotKey::Free(k) => k.update(index),
         }
     }
+
+    fn mark_as_free(&mut self, free_index: usize) {
+        let mut k = match self {
+            SlotKey::Valid(k) => *k,
+            _ => unreachable!(),
+        };
+        k.update(free_index);
+        *self = SlotKey::Free(k);
+    }
 }
 
 struct SlotEntry<K: Key, V> {
@@ -149,12 +158,8 @@ impl<K: Key, V> SlotMap<K, V> {
             return;
         }
         // Mark slot as free and update version
-        if let Some(free) = self.free {
-            self.entries[index].key.update(free);
-        } else {
-            let len = self.entries.len();
-            self.entries[index].key.update(len);
-        }
+        let prev_free_index = self.free.unwrap_or(self.entries.len());
+        self.entries[index].key.mark_as_free(prev_free_index);
         // Keep reference to the slot
         self.free = Some(index);
     }
@@ -281,16 +286,13 @@ impl<K: Key, V> SlotMap<K, V> {
             })
     }
 
-    pub fn next(&self, key: K) -> Option<K> {
-        let mut index = key.index() + 1;
+    pub fn next(&self, key: Option<K>) -> Option<K> {
+        let mut index = key.map(|k| k.index() + 1).unwrap_or(0);
         while index < self.entries.len() {
-            match self.entries[index].key {
-                SlotKey::Valid(k) => {
-                    if k.index() == index {
-                        return Some(k);
-                    }
+            if let SlotKey::Valid(k) = self.entries[index].key {
+                if k.index() == index {
+                    return Some(k);
                 }
-                _ => {}
             }
             index += 1;
         }
@@ -508,7 +510,7 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
 
     pub fn remove(&mut self, key: K) {
         let index = key.index();
-        if index >= self.entries.len() || self.entries[index].key.map(|k| k != key).unwrap_or(false)
+        if index >= self.entries.len() || self.entries[index].key.map(|k| k != key).unwrap_or(true)
         {
             return;
         }
@@ -518,7 +520,7 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
     pub fn get(&self, key: K) -> Option<&V> {
         let index = key.index();
         self.entries.get(index).and_then(|entry| {
-            if entry.key.map(|k| k == key).unwrap_or(false) {
+            if entry.key.map(|k| k != key).unwrap_or(true) {
                 None
             } else {
                 Some(&entry.value)
@@ -529,7 +531,7 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
     pub fn get_mut(&mut self, key: K) -> Option<&mut V> {
         let index = key.index();
         self.entries.get_mut(index).and_then(|entry| {
-            if entry.key.map(|k| k == key).unwrap_or(false) {
+            if entry.key.map(|k| k != key).unwrap_or(true) {
                 None
             } else {
                 Some(&mut entry.value)
@@ -541,8 +543,8 @@ impl<K: Key, V: Default> SecondaryMap<K, V> {
         self.get(key).is_some()
     }
 
-    pub fn next(&self, key: K) -> Option<K> {
-        let mut index = key.index() + 1;
+    pub fn next(&self, key: Option<K>) -> Option<K> {
+        let mut index = key.map(|k| k.index() + 1).unwrap_or(0);
         while index < self.entries.len() {
             if self.entries[index].key.is_some()
                 && self.entries[index].key.unwrap().index() == index

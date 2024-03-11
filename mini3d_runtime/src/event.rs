@@ -14,6 +14,6 @@ pub struct EventData {
 
 #[derive(Default)]
 pub(crate) struct ComponentEventStages {
-    pub(crate) on_added: StageId,
-    pub(crate) on_removed: StageId,
+    pub(crate) on_added: Option<StageId>,
+    pub(crate) on_removed: Option<StageId>,
 }

@@ -1,6 +1,6 @@
 use mini3d_derive::fixed;
 use mini3d_runtime::{
-    api::API, component::transform::Transform, container::ComponentId, entity::Entity, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, Runtime, RuntimeConfig
+    api::API, component::{hierarchy::Hierarchy, transform::Transform}, container::ComponentId, entity::Entity, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, Runtime, RuntimeConfig
 };
 use mini3d_stdlog::stdout::StdoutLogger;
 
@@ -65,6 +65,7 @@ fn on_transform_removed(api: &mut API) {
 fn my_system(api: &mut API) {
     info!(api, "my_system");
     let transform = Transform::meta(api);
+    let hierarchy = Hierarchy::meta(api);
     let query = Query::default().all(&[transform.id()]);
     info!(api, "hello world");
     let e = api.entities().next().unwrap();
@@ -80,8 +81,10 @@ fn my_system(api: &mut API) {
 
 fn on_start(api: &mut API) {
     let transform = Transform::register(api);
+    let hierarchy = Hierarchy::register(api);
     let e = api.create();
     transform.add_from_translation(api, e, V3I32F16::ONE);
+    api.add_default(e, hierarchy.id());
     api.debug_sched();
 }
 
