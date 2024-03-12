@@ -89,9 +89,6 @@ impl Database {
     }
 
     pub fn remove(&mut self, e: Entity, c: ComponentId) {
-        for fid in self.components.get(c).unwrap().fields.iter() {
-            self.fields[*fid].data.remove(e);
-        }
         self.registry.unset(e, c);
     }
 

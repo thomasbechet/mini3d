@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::{string::String, vec::Vec};
 use mini3d_math::vec::{V3I32F16, V3I32F24, V4I32F16, V4I32F24};
@@ -31,7 +32,6 @@ pub enum Primitive {
     M4I32F16,
     QI32F16,
     Entity,
-    String,
     Handle,
 }
 
@@ -57,107 +57,94 @@ impl<'a> ComponentField<'a> {
             DataType::Scalar(Primitive::M4I32F16) => Storage::M4I32F16(Default::default()),
             DataType::Scalar(Primitive::QI32F16) => Storage::QI32F16(Default::default()),
             DataType::Scalar(Primitive::Entity) => Storage::Entity(Default::default()),
-            DataType::Scalar(Primitive::String) => Storage::String(Default::default()),
             DataType::Scalar(Primitive::Handle) => Storage::Handle(Default::default()),
-            // Array types
-            DataType::Array(Primitive::I32, n) => {
-                Storage::I32(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::U32, n) => {
-                Storage::U32(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::I32F24, n) => {
-                Storage::I32F24(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::V3I32F16, n) => {
-                Storage::V3I32F16(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::V4I32F16, n) => {
-                Storage::V4I32F16(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::M4I32F16, n) => {
-                Storage::M4I32F16(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::QI32F16, n) => {
-                Storage::QI32F16(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::Entity, n) => {
-                Storage::Entity(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::String, n) => {
-                Storage::String(vec![Default::default(); n as usize])
-            }
-            DataType::Array(Primitive::Handle, n) => {
-                Storage::Handle(vec![Default::default(); n as usize])
-            }
+            _ => unreachable!()
         }
+    }
+}
+
+#[derive(Default)]
+struct RawStorage<T> {
+    chunks: Vec<Option<Box<[T]>>>,
+}
+
+impl<T: Default + Copy> RawStorage<T> {
+    const CHUNK_SIZE: usize = 32;
+
+    fn indices(e: Entity) -> (usize, usize) {
+        let ei = e.index();
+        let ci = ei as usize / Self::CHUNK_SIZE; 
+        let ei = ei as usize % Self::CHUNK_SIZE;
+        (ci, ei)
+    }
+
+    fn get(&self, e: Entity) -> &T {
+        let (ci, ei) = Self::indices(e); 
+        self.chunks[ci].as_ref().unwrap().get(ei).unwrap()
+    }
+
+    fn get_mut(&mut self, e: Entity) -> &mut T {
+        let (ci, ei) = Self::indices(e); 
+        self.chunks[ci].as_mut().unwrap().get_mut(ei).unwrap()
+    }
+
+    fn set(&mut self, e: Entity, v: T) -> &mut T {
+        let (ci, ei) = Self::indices(e); 
+        if ci >= self.chunks.len() {
+            self.chunks.resize(ci + 1, Default::default());
+        } 
+        let chunk = &mut self.chunks[ci];
+        let chunk = chunk.get_or_insert(Box::new([Default::default(); Self::CHUNK_SIZE]));
+        let data = chunk.get_mut(ei).unwrap();
+        *data = v;
+        data
     }
 }
 
 pub(crate) enum Storage {
-    I32(Vec<i32>),
-    U32(Vec<u32>),
-    I32F24(Vec<I32F24>),
-    V3I32F16(Vec<V3I32F16>),
-    V4I32F16(Vec<V4I32F16>),
-    M4I32F16(Vec<M4I32F16>),
-    QI32F16(Vec<QI32F16>),
-    Entity(Vec<Entity>),
-    String(Vec<String>),
-    Handle(Vec<RawHandle>),
+    I32(RawStorage<i32>),
+    U32(RawStorage<u32>),
+    I32F24(RawStorage<I32F24>),
+    V3I32F16(RawStorage<V3I32F16>),
+    V4I32F16(RawStorage<V4I32F16>),
+    M4I32F16(RawStorage<M4I32F16>),
+    QI32F16(RawStorage<QI32F16>),
+    Entity(RawStorage<Entity>),
+    Handle(RawStorage<RawHandle>),
 }
 
 impl Storage {
-    fn resize(&mut self, size: usize) {
-        match self {
-            Storage::I32(v) => v.resize(size, 0),
-            Storage::U32(v) => v.resize(size, 0),
-            Storage::I32F24(v) => v.resize(size, Default::default()),
-            Storage::V3I32F16(v) => v.resize(size, Default::default()),
-            Storage::V4I32F16(v) => v.resize(size, Default::default()),
-            Storage::M4I32F16(v) => v.resize(size, Default::default()),
-            Storage::QI32F16(v) => v.resize(size, Default::default()),
-            Storage::Entity(v) => v.resize(size, Default::default()),
-            Storage::String(v) => v.resize(size, Default::default()),
-            Storage::Handle(v) => v.resize(size, Default::default()),
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            Storage::I32(v) => v.len(),
-            Storage::U32(v) => v.len(),
-            Storage::I32F24(v) => v.len(),
-            Storage::V3I32F16(v) => v.len(),
-            Storage::V4I32F16(v) => v.len(),
-            Storage::M4I32F16(v) => v.len(),
-            Storage::QI32F16(v) => v.len(),
-            Storage::Entity(v) => v.len(),
-            Storage::String(v) => v.len(),
-            Storage::Handle(v) => v.len(),
-        }
-    }
-
     pub(crate) fn add_default(&mut self, e: Entity) {
-        let index = e.index() as usize;
-        if index >= self.len() {
-            self.resize(index + 1);
-        }
         match self {
-            Storage::I32(v) => v[index] = Default::default(),
-            Storage::U32(v) => v[index] = Default::default(),
-            Storage::I32F24(v) => v[index] = Default::default(),
-            Storage::V3I32F16(v) => v[index] = Default::default(),
-            Storage::V4I32F16(v) => v[index] = Default::default(),
-            Storage::M4I32F16(v) => v[index] = Default::default(),
-            Storage::QI32F16(v) => v[index] = Default::default(),
-            Storage::Entity(v) => v[index] = Default::default(),
-            Storage::String(v) => v[index] = Default::default(),
-            Storage::Handle(v) => v[index] = Default::default(),
+            Storage::I32(s) => {
+                s.set(e, 0);
+            },
+            Storage::U32(s) => {
+                s.set(e, 0);
+            },
+            Storage::I32F24(s) => {
+                s.set(e, Default::default());
+            },
+            Storage::V3I32F16(s) => {
+                s.set(e, Default::default());
+            },
+            Storage::V4I32F16(s) => {
+                s.set(e, Default::default());
+            },
+            Storage::M4I32F16(s) => {
+                s.set(e, Default::default());
+            },
+            Storage::QI32F16(s) => {
+                s.set(e, Default::default());
+            },
+            Storage::Entity(s) => {
+                s.set(e, Default::default());
+            },
+            Storage::Handle(s) => {
+                s.set(e, Default::default());
+            },
         }
     }
-
-    pub(crate) fn remove(&mut self, e: Entity) {}
 }
 
 pub struct FieldEntry {
@@ -201,13 +188,13 @@ macro_rules! impl_field_scalar {
             }
             fn read(entry: &FieldEntry, e: Entity) -> Option<Self> {
                 match &entry.data {
-                    Storage::$kind(s) => s.get(e.index() as usize).copied(),
+                    Storage::$kind(s) => Some(*s.get(e)),
                     _ => None,
                 }
             }
             fn write(entry: &mut FieldEntry, e: Entity, v: Self) {
                 match entry.data {
-                    Storage::$kind(ref mut s) => s[e.index() as usize] = v,
+                    Storage::$kind(ref mut s) => *s.get_mut(e) = v,
                     _ => {}
                 }
             }
