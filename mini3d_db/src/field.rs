@@ -9,16 +9,10 @@ use mini3d_math::{
 use mini3d_utils::handle::RawHandle;
 use mini3d_utils::string::AsciiArray;
 
-use crate::{
-    container::{ComponentId, FieldIndex},
-    entity::Entity,
-};
+use crate::database::FieldId;
+use crate::entity::Entity;
 
-pub struct Field<T: FieldType>(
-    pub(crate) ComponentId,
-    pub(crate) FieldIndex,
-    pub(crate) core::marker::PhantomData<T>,
-);
+pub struct Field<T: FieldType>(pub(crate) FieldId, pub(crate) core::marker::PhantomData<T>);
 
 impl<T: FieldType> Clone for Field<T> {
     fn clone(&self) -> Self {

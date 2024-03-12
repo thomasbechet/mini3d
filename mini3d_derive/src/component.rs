@@ -97,7 +97,7 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
             }
             fields
                 .named
-                .push(Field::parse_named.parse2(quote!(_id: mini3d_db::container::ComponentId))?);
+                .push(Field::parse_named.parse2(quote!(_id: mini3d_db::database::ComponentId))?);
         }
         _ => return Err(Error::new(Span::call_site(), "Only struct are supported")),
     }
@@ -108,7 +108,7 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
         impl #ident {
             pub const NAME: &'static str = #name;
 
-            pub fn id(&self) -> mini3d_db::container::ComponentId {
+            pub fn id(&self) -> mini3d_db::database::ComponentId {
                 self._id
             }
 

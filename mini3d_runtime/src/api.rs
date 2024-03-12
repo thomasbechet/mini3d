@@ -2,8 +2,7 @@ use core::fmt::Arguments;
 
 use alloc::format;
 use mini3d_db::{
-    container::ComponentId,
-    database::Database,
+    database::{ComponentId, Database},
     entity::Entity,
     error::ComponentError,
     field::{ComponentField, Field, FieldType},

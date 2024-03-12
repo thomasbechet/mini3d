@@ -1,6 +1,6 @@
 use mini3d_derive::fixed;
 use mini3d_runtime::{
-    api::API, component::{hierarchy::Hierarchy, transform::Transform}, container::ComponentId, entity::Entity, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, Runtime, RuntimeConfig
+    api::API, component::{hierarchy::Hierarchy, transform::Transform}, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, Runtime, RuntimeConfig
 };
 use mini3d_stdlog::stdout::StdoutLogger;
 

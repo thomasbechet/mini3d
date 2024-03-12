@@ -1,22 +1,38 @@
+use alloc::vec::Vec;
+use mini3d_utils::{slot_map_key, slotmap::SlotMap, string::AsciiArray};
+
 use crate::{
-    container::{ComponentId, ComponentTable},
     entity::Entity,
     error::ComponentError,
-    field::{ComponentField, Field, FieldType},
+    field::{ComponentField, Field, FieldEntry, FieldType},
     query::{EntityQuery, Query},
     registry::Registry,
 };
 
+slot_map_key!(ComponentId);
+slot_map_key!(FieldId);
+
+pub(crate) struct ComponentEntry {
+    pub(crate) name: AsciiArray<32>,
+    pub(crate) fields: Vec<FieldId>,
+}
+
 #[derive(Default)]
 pub struct Database {
-    pub(crate) containers: ComponentTable,
     pub(crate) registry: Registry,
+    pub(crate) fields: SlotMap<FieldId, FieldEntry>,
+    pub(crate) components: SlotMap<ComponentId, ComponentEntry>,
 }
 
 impl Database {
     pub fn register_tag(&mut self, name: &str) -> Result<ComponentId, ComponentError> {
-        let id = self.containers.register_tag(name)?;
-        self.registry.add_bitset(id);
+        if self.find_component(name).is_some() {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        let id = self.components.add(ComponentEntry {
+            name: name.into(),
+            fields: Default::default(),
+        });
         Ok(id)
     }
 
@@ -25,13 +41,31 @@ impl Database {
         name: &str,
         fields: &[ComponentField],
     ) -> Result<ComponentId, ComponentError> {
-        let id = self.containers.register(name, fields)?;
+        if self.find_component(name).is_some() {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        let id = self.components.add(ComponentEntry {
+            name: name.into(),
+            fields: Vec::with_capacity(fields.len()),
+        });
+        let component = self.components.get_mut(id).unwrap();
+        for field in fields {
+            let fid = self.fields.add(FieldEntry {
+                name: field.name.into(),
+                data: field.create_storage(),
+            });
+            component.fields.push(fid);
+        }
         self.registry.add_bitset(id);
         Ok(id)
     }
 
     pub fn unregister(&mut self, c: ComponentId) {
-        self.containers.entries.remove(c);
+        for fid in self.components.get(c).unwrap().fields.iter() {
+            self.fields.remove(*fid);
+            // TODO trigger events ?
+        }
+        self.components.remove(c);
         self.registry.remove_bitset(c);
     }
 
@@ -48,12 +82,16 @@ impl Database {
     }
 
     pub fn add_default(&mut self, e: Entity, c: ComponentId) {
-        self.containers.add_default(e, c);
+        for fid in self.components.get(c).unwrap().fields.iter() {
+            self.fields[*fid].data.add_default(e);
+        }
         self.registry.set(e, c);
     }
 
     pub fn remove(&mut self, e: Entity, c: ComponentId) {
-        self.containers.remove(e, c);
+        for fid in self.components.get(c).unwrap().fields.iter() {
+            self.fields[*fid].data.remove(e);
+        }
         self.registry.unset(e, c);
     }
 
@@ -62,11 +100,11 @@ impl Database {
     }
 
     pub fn read<T: FieldType>(&self, e: Entity, f: Field<T>) -> Option<T> {
-        self.containers.read::<T>(e, f.0, f.1)
+        T::read(&self.fields[f.0], e)
     }
 
     pub fn write<T: FieldType>(&mut self, e: Entity, f: Field<T>, v: T) {
-        self.containers.write::<T>(e, f.0, f.1, v);
+        T::write(&mut self.fields[f.0], e, v)
     }
 
     pub fn entities(&self) -> impl Iterator<Item = Entity> + '_ {
@@ -74,13 +112,22 @@ impl Database {
     }
 
     pub fn find_component(&self, name: &str) -> Option<ComponentId> {
-        self.containers.find_component(name)
+        self.components.iter().find_map(|(id, entry)| {
+            if entry.name.as_str() == name {
+                Some(id)
+            } else {
+                None
+            }
+        })
     }
 
     pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
-        self.containers
-            .find_field(c, name)
-            .map(|f| Field(c, f, Default::default()))
+        for field in self.components[c].fields.iter() {
+            if self.fields[*field].name.as_str() == name {
+                return Some(Field(*field, Default::default()));
+            }
+        }
+        None
     }
 
     pub fn query_entities<'a>(&self, query: &'a Query) -> EntityQuery<'a> {

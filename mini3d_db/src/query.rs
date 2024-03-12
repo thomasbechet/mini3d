@@ -1,7 +1,6 @@
 use crate::{
     bitset::{BitsetMaskIter, IterAnswer},
-    container::ComponentId,
-    database::Database,
+    database::{ComponentId, Database},
     entity::Entity,
     registry::Registry,
 };

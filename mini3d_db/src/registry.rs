@@ -2,9 +2,7 @@ use alloc::vec::Vec;
 use mini3d_utils::slotmap::SecondaryMap;
 
 use crate::{
-    bitset::{BitIndex, Bitset},
-    container::ComponentId,
-    entity::{Entity, EntityIndex, EntityVersion},
+    bitset::{BitIndex, Bitset}, database::ComponentId, entity::{Entity, EntityIndex, EntityVersion}
 };
 
 #[derive(Default)]

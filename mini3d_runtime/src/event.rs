@@ -1,4 +1,4 @@
-use mini3d_db::{container::ComponentId, entity::Entity};
+use mini3d_db::{database::ComponentId, entity::Entity};
 use mini3d_scheduler::StageId;
 
 pub enum EventStage {

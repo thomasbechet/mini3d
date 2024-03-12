@@ -3,7 +3,7 @@
 use alloc::{boxed::Box, collections::VecDeque};
 use api::API;
 use event::ComponentEventStages;
-use mini3d_db::{container::ComponentId, database::Database};
+use mini3d_db::database::{ComponentId, Database};
 use mini3d_derive::Error;
 use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
