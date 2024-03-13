@@ -44,6 +44,10 @@ impl Default for Entity {
 
 impl core::fmt::Display for Entity {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:06X}", self.0)
+        if *self == Self::null() {
+            write!(f, "null")
+        } else {
+            write!(f, "{:06X}", self.0)
+        }
     }
 }

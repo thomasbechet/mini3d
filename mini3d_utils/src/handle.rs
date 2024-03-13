@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::{fmt::Display, marker::PhantomData};
 
 use mini3d_derive::Serialize;
 use mini3d_serialize::Serialize;
@@ -30,6 +30,12 @@ impl RawHandle {
 impl Default for RawHandle {
     fn default() -> Self {
         Self::null()
+    }
+}
+
+impl Display for RawHandle {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+       write!(f, "{}", self.0)
     }
 }
 

@@ -2,16 +2,29 @@ use alloc::vec::Vec;
 use mini3d_utils::slotmap::SecondaryMap;
 
 use crate::{
-    bitset::{BitIndex, Bitset}, database::ComponentId, entity::{Entity, EntityIndex, EntityVersion}
+    bitset::{BitIndex, Bitset},
+    database::ComponentId,
+    entity::{Entity, EntityIndex, EntityVersion},
 };
 
-#[derive(Default)]
 pub(crate) struct Registry {
     free_entities: Vec<Entity>,
-    next_index: EntityIndex, // Default index is 0
+    next_index: EntityIndex, // Default index is 1
     versions: Vec<EntityVersion>,
     entity_map: Bitset,
     bitsets: SecondaryMap<ComponentId, Bitset>,
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Self {
+            free_entities: Default::default(),
+            next_index: 1,
+            versions: Default::default(),
+            entity_map: Default::default(),
+            bitsets: Default::default(),
+        }
+    }
 }
 
 impl Registry {
@@ -64,7 +77,11 @@ impl Registry {
             .unwrap_or(false)
     }
 
-    pub(crate) fn find_next_component(&self, e: Entity, mut c: Option<ComponentId>) -> Option<ComponentId> {
+    pub(crate) fn find_next_component(
+        &self,
+        e: Entity,
+        mut c: Option<ComponentId>,
+    ) -> Option<ComponentId> {
         while let Some(n) = self.bitsets.next(c) {
             if self.has(e, n) {
                 return Some(n);

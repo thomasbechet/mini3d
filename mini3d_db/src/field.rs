@@ -1,3 +1,5 @@
+use core::fmt::Display;
+
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::{string::String, vec::Vec};
@@ -23,6 +25,7 @@ impl<T: FieldType> Clone for Field<T> {
 
 impl<T: FieldType> Copy for Field<T> {}
 
+#[derive(Debug, Copy, Clone)]
 pub enum Primitive {
     I32,
     U32,
@@ -35,9 +38,19 @@ pub enum Primitive {
     Handle,
 }
 
+#[derive(Copy, Clone)]
 pub enum DataType {
     Scalar(Primitive),
     Array(Primitive, u32),
+}
+
+impl Display for DataType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            DataType::Scalar(p) => write!(f, "{:?}", p),
+            DataType::Array(p, n) => write!(f, "[{:?}, {}]", p, n),
+        }
+    }
 }
 
 pub struct ComponentField<'a> {
@@ -58,7 +71,7 @@ impl<'a> ComponentField<'a> {
             DataType::Scalar(Primitive::QI32F16) => Storage::QI32F16(Default::default()),
             DataType::Scalar(Primitive::Entity) => Storage::Entity(Default::default()),
             DataType::Scalar(Primitive::Handle) => Storage::Handle(Default::default()),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -73,26 +86,26 @@ impl<T: Default + Copy> RawStorage<T> {
 
     fn indices(e: Entity) -> (usize, usize) {
         let ei = e.index();
-        let ci = ei as usize / Self::CHUNK_SIZE; 
+        let ci = ei as usize / Self::CHUNK_SIZE;
         let ei = ei as usize % Self::CHUNK_SIZE;
         (ci, ei)
     }
 
     fn get(&self, e: Entity) -> &T {
-        let (ci, ei) = Self::indices(e); 
+        let (ci, ei) = Self::indices(e);
         self.chunks[ci].as_ref().unwrap().get(ei).unwrap()
     }
 
     fn get_mut(&mut self, e: Entity) -> &mut T {
-        let (ci, ei) = Self::indices(e); 
+        let (ci, ei) = Self::indices(e);
         self.chunks[ci].as_mut().unwrap().get_mut(ei).unwrap()
     }
 
     fn set(&mut self, e: Entity, v: T) -> &mut T {
-        let (ci, ei) = Self::indices(e); 
+        let (ci, ei) = Self::indices(e);
         if ci >= self.chunks.len() {
             self.chunks.resize(ci + 1, Default::default());
-        } 
+        }
         let chunk = &mut self.chunks[ci];
         let chunk = chunk.get_or_insert(Box::new([Default::default(); Self::CHUNK_SIZE]));
         let data = chunk.get_mut(ei).unwrap();
@@ -118,31 +131,31 @@ impl Storage {
         match self {
             Storage::I32(s) => {
                 s.set(e, 0);
-            },
+            }
             Storage::U32(s) => {
                 s.set(e, 0);
-            },
+            }
             Storage::I32F24(s) => {
                 s.set(e, Default::default());
-            },
+            }
             Storage::V3I32F16(s) => {
                 s.set(e, Default::default());
-            },
+            }
             Storage::V4I32F16(s) => {
                 s.set(e, Default::default());
-            },
+            }
             Storage::M4I32F16(s) => {
                 s.set(e, Default::default());
-            },
+            }
             Storage::QI32F16(s) => {
                 s.set(e, Default::default());
-            },
+            }
             Storage::Entity(s) => {
                 s.set(e, Default::default());
-            },
+            }
             Storage::Handle(s) => {
                 s.set(e, Default::default());
-            },
+            }
         }
     }
 }
@@ -150,6 +163,43 @@ impl Storage {
 pub struct FieldEntry {
     pub(crate) name: AsciiArray<32>,
     pub(crate) data: Storage,
+    pub(crate) ty: DataType,
+}
+
+impl FieldEntry {
+    pub(crate) fn display(&self, f: &mut core::fmt::Formatter<'_>, e: Entity) -> core::fmt::Result {
+        write!(f, "{} ({}): ", self.name, self.ty)?;
+        match &self.data {
+            Storage::I32(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::U32(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::I32F24(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::V3I32F16(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::V4I32F16(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::M4I32F16(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::QI32F16(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::Entity(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+            Storage::Handle(s) => {
+                write!(f, "{}", *s.get(e))?;
+            }
+        }
+        Ok(())
+    }
 }
 
 pub trait FieldType: Sized {

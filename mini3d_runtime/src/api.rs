@@ -1,4 +1,4 @@
-use core::fmt::Arguments;
+use core::fmt::{Arguments, Display};
 
 use alloc::format;
 use mini3d_db::{
@@ -36,7 +36,7 @@ impl<'a> API<'a> {
     /// DATABASE API
 
     pub fn register_tag(&mut self, name: &str) -> Result<ComponentId, ComponentError> {
-        self.db.register_tag(name)
+        self.register(name, &[])
     }
 
     pub fn register(
@@ -126,6 +126,16 @@ impl<'a> API<'a> {
 
     pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
         self.db.find_field(c, name)
+    }
+
+    pub fn dump(&self, e: Entity) {
+        struct EntityFormatter<'a>(Entity, &'a Database);
+        impl<'a> Display for EntityFormatter<'a> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.1.display(f, self.0) 
+            }
+        }
+        self.log(format_args!("{}", EntityFormatter(e, self.db)), LogLevel::Info, None)
     }
 
     /// SCHEDULER API

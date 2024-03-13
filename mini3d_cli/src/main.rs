@@ -66,6 +66,7 @@ fn my_system(api: &mut API) {
     info!(api, "my_system");
     let transform = Transform::meta(api);
     let hierarchy = Hierarchy::meta(api);
+    let my_tag = api.find_component("my_tag").unwrap();
     let query = Query::default().all(&[transform.id()]);
     info!(api, "hello world");
     let e = api.entities().next().unwrap();
@@ -73,19 +74,22 @@ fn my_system(api: &mut API) {
     info!(api, "{:?}", pos);
     pos.x += fixed!(0.5i32f16);
     api.write(e, transform.translation, pos);
-    for e in api.query_entities(&query) {
-        let pos = api.read(e, transform.translation).unwrap();
-        info!(api, "t {:?}", pos);
+    for e in api.entities() {
+        api.dump(e);
     }
 }
 
 fn on_start(api: &mut API) {
     let transform = Transform::register(api);
     let hierarchy = Hierarchy::register(api);
+    let my_tag = api.register_tag("my_tag").unwrap();
     let e = api.create();
     transform.add_from_translation(api, e, V3I32F16::ONE);
     api.add_default(e, hierarchy.id());
     api.debug_sched();
+    api.add_default(e, my_tag);
+    let e = api.create();
+    api.add_default(e, my_tag);
 }
 
 fn main() {

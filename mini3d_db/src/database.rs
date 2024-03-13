@@ -1,3 +1,5 @@
+use core::fmt::{self, Formatter};
+
 use alloc::vec::Vec;
 use mini3d_utils::{slot_map_key, slotmap::SlotMap, string::AsciiArray};
 
@@ -33,6 +35,7 @@ impl Database {
             name: name.into(),
             fields: Default::default(),
         });
+        self.registry.add_bitset(id);
         Ok(id)
     }
 
@@ -53,6 +56,7 @@ impl Database {
             let fid = self.fields.add(FieldEntry {
                 name: field.name.into(),
                 data: field.create_storage(),
+                ty: field.ty,
             });
             component.fields.push(fid);
         }
@@ -129,5 +133,24 @@ impl Database {
 
     pub fn query_entities<'a>(&self, query: &'a Query) -> EntityQuery<'a> {
         EntityQuery::new(query, self)
+    }
+
+    pub fn display(&self, f: &mut Formatter, e: Entity) -> fmt::Result {
+        let mut next = None;
+        writeln!(f)?;
+        write!(f, "{}:", e)?;
+        while let Some(component) = self.registry.find_next_component(e, next) {
+            next = Some(component);
+            let component = &self.components[component];
+            writeln!(f)?;
+            write!(f, "- {}", component.name)?;
+            for field in component.fields.iter() {
+                let field = &self.fields[*field];
+                writeln!(f)?;
+                write!(f, "  - ")?;
+                field.display(f, e)?;
+            }
+        }
+        Ok(())
     }
 }
