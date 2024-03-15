@@ -40,6 +40,16 @@ impl Key for DefaultKey {
     }
 }
 
+impl DefaultKey {
+    pub fn from_raw(v: u32) -> Self {
+        unsafe { Self(NonZeroU32::new_unchecked(v)) }
+    }
+
+    pub fn raw(&self) -> u32 {
+        self.0.get()
+    }
+}
+
 enum SlotKey<K: Key> {
     Valid(K),
     Free(K), // Keep the previous key to keep the version

@@ -9,7 +9,7 @@ use mini3d_math::{
     mat::M4I32F16,
     quat::QI32F16,
 };
-use mini3d_utils::handle::RawHandle;
+use mini3d_utils::handle::Handle;
 use mini3d_utils::string::AsciiArray;
 
 use crate::database::FieldId;
@@ -77,7 +77,7 @@ impl<'a> ComponentField<'a> {
 }
 
 #[derive(Default)]
-struct RawStorage<T> {
+pub struct RawStorage<T> {
     chunks: Vec<Option<Box<[T]>>>,
 }
 
@@ -91,12 +91,12 @@ impl<T: Default + Copy> RawStorage<T> {
         (ci, ei)
     }
 
-    fn get(&self, e: Entity) -> &T {
+    pub fn get(&self, e: Entity) -> &T {
         let (ci, ei) = Self::indices(e);
         self.chunks[ci].as_ref().unwrap().get(ei).unwrap()
     }
 
-    fn get_mut(&mut self, e: Entity) -> &mut T {
+    pub fn get_mut(&mut self, e: Entity) -> &mut T {
         let (ci, ei) = Self::indices(e);
         self.chunks[ci].as_mut().unwrap().get_mut(ei).unwrap()
     }
@@ -114,7 +114,7 @@ impl<T: Default + Copy> RawStorage<T> {
     }
 }
 
-pub(crate) enum Storage {
+pub enum Storage {
     I32(RawStorage<i32>),
     U32(RawStorage<u32>),
     I32F24(RawStorage<I32F24>),
@@ -123,7 +123,7 @@ pub(crate) enum Storage {
     M4I32F16(RawStorage<M4I32F16>),
     QI32F16(RawStorage<QI32F16>),
     Entity(RawStorage<Entity>),
-    Handle(RawStorage<RawHandle>),
+    Handle(RawStorage<Handle>),
 }
 
 impl Storage {
@@ -162,7 +162,7 @@ impl Storage {
 
 pub struct FieldEntry {
     pub(crate) name: AsciiArray<32>,
-    pub(crate) data: Storage,
+    pub data: Storage,
     pub(crate) ty: DataType,
 }
 
@@ -223,10 +223,6 @@ pub trait FieldType: Sized {
 //     }
 // }
 
-// impl<T: FieldType> FieldType for Option<T> {
-//
-// }
-
 macro_rules! impl_field_scalar {
     ($scalar:ty, $kind:ident) => {
         impl FieldType for $scalar {
@@ -259,3 +255,68 @@ impl_field_scalar!(V3I32F16, V3I32F16);
 impl_field_scalar!(M4I32F16, M4I32F16);
 impl_field_scalar!(QI32F16, QI32F16);
 impl_field_scalar!(Entity, Entity);
+
+#[macro_export]
+macro_rules! slot_map_key_handle {
+    ($name:ident) => {
+        #[derive(mini3d_derive::Serialize, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub struct $name(Option<mini3d_utils::slotmap::DefaultKey>);
+
+        impl $name {
+            pub fn from_handle(h: mini3d_utils::handle::Handle) -> Self {
+                if h == mini3d_utils::handle::Handle::null() {
+                    Self(None)
+                } else {
+                    Self(Some(mini3d_utils::slotmap::DefaultKey::from_raw(h.raw())))
+                }
+            }
+
+            pub fn handle(&self) -> mini3d_utils::handle::Handle {
+                mini3d_utils::handle::Handle::from(self.0.map(|k| k.raw()).unwrap_or(0))
+            }
+        }
+
+        impl mini3d_utils::slotmap::Key for $name {
+            fn new(index: usize) -> Self {
+                Self(Some(mini3d_utils::slotmap::DefaultKey::new(index)))
+            }
+
+            fn update(&mut self, index: usize) {
+                self.0.unwrap().update(index);
+            }
+
+            fn index(&self) -> usize {
+                self.0.expect("null handle access").index()
+            }
+        }
+
+        impl $crate::field::FieldType for $name {
+            fn named(name: &str) -> $crate::field::ComponentField {
+                $crate::field::ComponentField {
+                    name,
+                    ty: $crate::field::DataType::Scalar($crate::field::Primitive::Handle),
+                }
+            }
+
+            fn read(
+                entry: &$crate::field::FieldEntry,
+                e: mini3d_db::entity::Entity,
+            ) -> Option<Self> {
+                if let $crate::field::Storage::Handle(s) = &entry.data {
+                    let h = *s.get(e);
+                    return Some(Self::from_handle(h));
+                }
+                None
+            }
+
+            fn write(entry: &mut $crate::field::FieldEntry, e: mini3d_db::entity::Entity, v: Self) {
+                match entry.data {
+                    $crate::field::Storage::Handle(ref mut s) => {
+                        *s.get_mut(e) = v.handle();
+                    }
+                    _ => {}
+                }
+            }
+        }
+    };
+}

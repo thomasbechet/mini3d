@@ -1,6 +1,6 @@
-use mini3d_derive::fixed;
+use mini3d_derive::{component, fixed};
 use mini3d_runtime::{
-    api::API, component::{hierarchy::Hierarchy, transform::Transform}, field::{Field, FieldType}, fixed::I32F16, info, quat::QI32F16, query::Query, vec::V3I32F16, Runtime, RuntimeConfig
+    api::API, component::{hierarchy::Hierarchy, transform::Transform}, db::query::Query, info, math::{fixed::I32F16, vec::V3I32F16}, renderer::TextureHandle, Runtime, RuntimeConfig
 };
 use mini3d_stdlog::stdout::StdoutLogger;
 
@@ -62,6 +62,11 @@ fn on_transform_removed(api: &mut API) {
 //     }
 // }
 
+#[component]
+struct MyComponent {
+    handle: TextureHandle, 
+}
+
 fn my_system(api: &mut API) {
     info!(api, "my_system");
     let transform = Transform::meta(api);
@@ -83,6 +88,7 @@ fn on_start(api: &mut API) {
     let transform = Transform::register(api);
     let hierarchy = Hierarchy::register(api);
     let my_tag = api.register_tag("my_tag").unwrap();
+    let my_component = MyComponent::register(api);
     let e = api.create();
     transform.add_from_translation(api, e, V3I32F16::ONE);
     api.add_default(e, hierarchy.id());
@@ -90,13 +96,20 @@ fn on_start(api: &mut API) {
     api.add_default(e, my_tag);
     let e = api.create();
     api.add_default(e, my_tag);
+    api.add_default(e, my_component.id());
 }
 
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
         api.create_system("my_system", api.tick_stage(), Default::default(), my_system)
             .unwrap();
-        api.create_system("start_system", api.start_stage(), Default::default(), on_start).unwrap();
+        api.create_system(
+            "start_system",
+            api.start_stage(),
+            Default::default(),
+            on_start,
+        )
+        .unwrap();
     }));
     // let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
     //     let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();

@@ -4,7 +4,6 @@ members = [
     "mini3d_math",
     "mini3d_utils",
     "mini3d_serialize",
-    "mini3d_asset",
     # "mini3d_ffi",
 
     "mini3d_runtime",

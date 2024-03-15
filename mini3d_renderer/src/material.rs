@@ -1,10 +1,10 @@
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::vec::V2I32F16;
-use mini3d_utils::handle::Handle;
 
 use crate::texture::TextureHandle;
 
-pub type MaterialHandle = Handle<Material>;
+slot_map_key_handle!(MaterialHandle);
 
 #[derive(Default, Serialize, Clone)]
 pub(crate) enum MaterialType {

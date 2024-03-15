@@ -1,16 +1,16 @@
 use alloc::vec::Vec;
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::{
     rect::IRect,
     vec::{V2, V2U32},
 };
-use mini3d_utils::handle::Handle;
 
 use crate::texture::Texture;
 
 use super::texture::TextureFormat;
 
-pub type FontHandle = Handle<Font>;
+slot_map_key_handle!(FontHandle);
 
 #[derive(Clone, Serialize)]
 pub struct Font {
@@ -24,7 +24,7 @@ impl Default for Font {
         let glyph_width = 8;
         let glyph_height = 8;
         let data = include_bytes!("../../assets/font.bin").to_vec();
-        let mut char_to_location = vec![0; Self::MAX_CHARS]; // Fill with default location
+        let mut char_to_location = alloc::vec![0; Self::MAX_CHARS]; // Fill with default location
         for (i, c) in Self::CHARS.chars().enumerate() {
             char_to_location[c as usize] = i;
         }
@@ -59,14 +59,14 @@ impl FontAtlas {
         let width = font.glyph_size.x as usize * Font::MAX_CHARS;
         let height = font.glyph_size.y as usize;
         let mut texture = Texture {
-            bytes: vec![0x0; width * height * 4],
+            bytes: alloc::vec![0x0; width * height * 4],
             format: TextureFormat::Color,
             width: width as u16,
             height: height as u16,
             usage: Default::default(),
         };
 
-        let mut extents = vec![IRect::default(); Font::MAX_CHARS];
+        let mut extents = alloc::vec![IRect::default(); Font::MAX_CHARS];
         let mut extent = IRect::new(0, 0, font.glyph_size.x, height as u32);
         for (c, location) in Font::CHARS
             .chars()

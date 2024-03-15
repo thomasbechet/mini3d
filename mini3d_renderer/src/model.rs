@@ -1,7 +1,7 @@
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
-use mini3d_utils::handle::Handle;
 
-pub type ModelHandle = Handle<Model>;
+slot_map_key_handle!(ModelHandle);
 
 #[derive(Default, Clone, Serialize)]
 pub struct Model {

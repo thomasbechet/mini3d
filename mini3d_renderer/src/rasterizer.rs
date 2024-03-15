@@ -1,8 +1,9 @@
-use mini3d_asset::font::Font;
 use mini3d_math::{
     rect::IRect,
     vec::{V2, V2I32},
 };
+
+use crate::font::Font;
 
 pub trait Plotable {
     /// Request a single point plot from the rasterizer

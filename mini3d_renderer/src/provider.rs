@@ -1,8 +1,9 @@
 use alloc::boxed::Box;
-use mini3d_asset::{font::Font, mesh::Mesh, texture::Texture};
 use mini3d_derive::Error;
 use mini3d_math::mat::M4I32F16;
 use mini3d_utils::define_provider_handle;
+
+use crate::{font::Font, mesh::Mesh, texture::Texture};
 
 #[derive(Debug, Error)]
 pub enum RendererProviderError {

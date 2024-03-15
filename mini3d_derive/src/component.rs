@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse::Parser, Attribute, Data, DataStruct, DeriveInput, Error, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Generics, Result, Token, Type, Visibility,
+    parse::Parser, Data, DataStruct, DeriveInput, Error, Field, Fields, FieldsNamed,
+    Result, Token, Type, Visibility,
 };
 
 struct ComponentMeta {
@@ -89,15 +89,15 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
                 let ident = field.ident.clone().unwrap();
                 // Replace field with Field type
                 *field =
-                    Field::parse_named.parse2(quote!(pub #ident: mini3d_db::field::Field<#ty>))?;
+                    Field::parse_named.parse2(quote!(pub #ident: mini3d_runtime::db::field::Field<#ty>))?;
                 // Build field constructors
                 let name = ident.to_string();
-                named_fields.push(quote!(<#ty as mini3d_db::field::FieldType>::named(#name)));
+                named_fields.push(quote!(<#ty as mini3d_runtime::db::field::FieldType>::named(#name)));
                 find_fields.push(quote!(#ident: api.find_field(id, #name).unwrap()));
             }
             fields
                 .named
-                .push(Field::parse_named.parse2(quote!(_id: mini3d_db::database::ComponentId))?);
+                .push(Field::parse_named.parse2(quote!(_id: mini3d_runtime::db::database::ComponentId))?);
         }
         _ => return Err(Error::new(Span::call_site(), "Only struct are supported")),
     }
@@ -108,7 +108,7 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
         impl #ident {
             pub const NAME: &'static str = #name;
 
-            pub fn id(&self) -> mini3d_db::database::ComponentId {
+            pub fn id(&self) -> mini3d_runtime::db::database::ComponentId {
                 self._id
             }
 

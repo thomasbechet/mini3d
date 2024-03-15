@@ -3,6 +3,7 @@
 use alloc::{boxed::Box, collections::VecDeque};
 use api::API;
 use event::ComponentEventStages;
+use logger::LoggerManager;
 use mini3d_db::database::{ComponentId, Database};
 use mini3d_derive::Error;
 use mini3d_input::{provider::InputProvider, InputManager};
@@ -23,10 +24,11 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
-pub use mini3d_db::*;
-pub use mini3d_logger::*;
-pub use mini3d_math::*;
 pub use crate as mini3d_runtime;
+pub use mini3d_logger as logger;
+pub use mini3d_renderer as renderer;
+pub use mini3d_math as math;
+pub use mini3d_db as db;
 
 #[derive(Error, Debug)]
 pub enum TickError {
@@ -92,7 +94,11 @@ pub struct Runtime {
 }
 
 pub(crate) fn execute_stage(stage: StageId, api: &mut API) {
-    debug!(api, "running stage {}", api.scheduler.stage(stage).unwrap().name);
+    debug!(
+        api,
+        "running stage {}",
+        api.scheduler.stage(stage).unwrap().name
+    );
     // Acquire first node of this stage
     let mut next_node = api.scheduler.first_node(stage);
     // Iterate over stage nodes

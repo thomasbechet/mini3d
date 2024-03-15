@@ -26,6 +26,8 @@ pub struct API<'a> {
     pub(crate) state: &'a mut RuntimeState,
 }
 
+pub struct ComponentHandle(pub(crate) ComponentId);
+
 impl<'a> API<'a> {
     /// RUNTIME STATE API
 
@@ -266,27 +268,27 @@ impl<'a> API<'a> {
 #[macro_export]
 macro_rules! info {
     ($api:ident, $($arg:tt)*) => {{
-        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Info, Some((file!(), line!())));
+        $api.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Info, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! debug {
     ($api:ident, $($arg:tt)*) => {{
-        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Debug, Some((file!(), line!())));
+        $api.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Debug, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! warn {
     ($api:ident, $($arg:tt)*) => {{
-        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Warning, Some((file!(), line!())));
+        $api.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Warning, Some((file!(), line!())));
     }}
 }
 
 #[macro_export]
 macro_rules! error {
     ($api:ident, $($arg:tt)*) => {{
-        $api.log(format_args!($($arg)*), $crate::level::LogLevel::Error, Some((file!(), line!())));
+        $api.log(format_args!($($arg)*), $crate::logger::level::LogLevel::Error, Some((file!(), line!())));
     }}
 }
