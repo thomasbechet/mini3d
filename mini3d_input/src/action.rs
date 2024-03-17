@@ -1,9 +1,10 @@
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
-use mini3d_utils::{slot_map_key, string::AsciiArray};
+use mini3d_utils::string::AsciiArray;
 
 use crate::provider::InputProviderHandle;
 
-slot_map_key!(InputActionId);
+slot_map_key_handle!(InputActionHandle);
 
 #[derive(Default, Clone, Serialize)]
 pub struct InputActionState {

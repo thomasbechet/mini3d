@@ -1,14 +1,9 @@
 use core::fmt::Display;
 
 use alloc::boxed::Box;
-use alloc::vec;
-use alloc::{string::String, vec::Vec};
-use mini3d_math::vec::{V3I32F16, V3I32F24, V4I32F16, V4I32F24};
-use mini3d_math::{
-    fixed::{FixedPoint, I32F24},
-    mat::M4I32F16,
-    quat::QI32F16,
-};
+use alloc::vec::Vec;
+use mini3d_math::vec::{V3I32F16, V4I32F16};
+use mini3d_math::{fixed::I32F24, mat::M4I32F16, quat::QI32F16};
 use mini3d_utils::handle::Handle;
 use mini3d_utils::string::AsciiArray;
 

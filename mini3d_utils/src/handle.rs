@@ -41,7 +41,7 @@ impl Display for Handle {
         if *self == Self::null() {
             write!(f, "null")
         } else {
-            write!(f, "{}", self.0)
+            write!(f, "{:#010x}", self.0)
         }
     }
 }

@@ -89,15 +89,15 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
                 let ident = field.ident.clone().unwrap();
                 // Replace field with Field type
                 *field =
-                    Field::parse_named.parse2(quote!(pub #ident: mini3d_runtime::db::field::Field<#ty>))?;
+                    Field::parse_named.parse2(quote!(pub #ident: mini3d::db::field::Field<#ty>))?;
                 // Build field constructors
                 let name = ident.to_string();
-                named_fields.push(quote!(<#ty as mini3d_runtime::db::field::FieldType>::named(#name)));
+                named_fields.push(quote!(<#ty as mini3d::db::field::FieldType>::named(#name)));
                 find_fields.push(quote!(#ident: api.find_field(id, #name).unwrap()));
             }
             fields
                 .named
-                .push(Field::parse_named.parse2(quote!(_id: mini3d_runtime::db::database::ComponentId))?);
+                .push(Field::parse_named.parse2(quote!(_id: mini3d::db::database::ComponentHandle))?);
         }
         _ => return Err(Error::new(Span::call_site(), "Only struct are supported")),
     }
@@ -108,13 +108,13 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
         impl #ident {
             pub const NAME: &'static str = #name;
 
-            pub fn id(&self) -> mini3d_runtime::db::database::ComponentId {
+            pub fn id(&self) -> mini3d::db::database::ComponentHandle {
                 self._id
             }
 
-            pub fn register(api: &mut mini3d_runtime::api::API) -> Self {
+            pub fn create_component(api: &mut mini3d::api::API) -> Self {
                 let id = api
-                    .register(
+                    .create_component(
                         #name,
                         &[
                             #(#named_fields),*
@@ -124,7 +124,7 @@ pub fn derive(ast: &mut DeriveInput) -> Result<TokenStream> {
                 Self::meta(api)
             }
 
-            pub fn meta(api: &mini3d_runtime::api::API) -> Self {
+            pub fn meta(api: &mini3d::api::API) -> Self {
                 let id = api.find_component(#name).unwrap();
                 Self {
                     _id: id,

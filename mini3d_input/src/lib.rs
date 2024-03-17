@@ -1,8 +1,8 @@
 #![no_std]
 
-use action::{InputAction, InputActionId, InputActionState};
+use action::{InputAction, InputActionHandle, InputActionState};
 use alloc::boxed::Box;
-use axis::{InputAxis, InputAxisId, InputAxisRange, InputAxisState};
+use axis::{InputAxis, InputAxisHandle, InputAxisRange, InputAxisState};
 use event::InputEvent;
 use mini3d_derive::Error;
 use mini3d_utils::slotmap::SlotMap;
@@ -41,8 +41,8 @@ pub enum InputError {
 #[derive(Default)]
 pub struct InputManager {
     provider: Box<dyn InputProvider>,
-    actions: SlotMap<InputActionId, InputAction>,
-    axis: SlotMap<InputAxisId, InputAxis>,
+    actions: SlotMap<InputActionHandle, InputAction>,
+    axis: SlotMap<InputAxisHandle, InputAxis>,
     texts: SlotMap<InputTextHandle, InputText>,
 }
 
@@ -86,7 +86,7 @@ impl InputManager {
         }
     }
 
-    pub fn add_action(&mut self, name: &str) -> Result<InputActionId, InputError> {
+    pub fn create_action(&mut self, name: &str) -> Result<InputActionHandle, InputError> {
         if self.find_action(name).is_some() {
             return Err(InputError::DuplicatedAction);
         }
@@ -97,29 +97,29 @@ impl InputManager {
         });
         let phandle = self
             .provider
-            .add_action(name, id)
+            .create_action(name, id)
             .map_err(InputError::ProviderError)?;
         self.actions[id].handle = phandle;
         Ok(id)
     }
 
-    pub fn remove_action(&mut self, id: InputActionId) -> Result<(), InputError> {
-        if !self.actions.contains(id) {
+    pub fn delete_action(&mut self, handle: InputActionHandle) -> Result<(), InputError> {
+        if !self.actions.contains(handle) {
             return Err(InputError::ActionNotFound);
         }
-        let phandle = self.actions[id].handle;
+        let phandle = self.actions[handle].handle;
         self.provider
-            .remove_action(phandle)
+            .delete_action(phandle)
             .map_err(InputError::ProviderError)?;
-        self.actions.remove(id);
+        self.actions.remove(handle);
         Ok(())
     }
 
-    pub fn action(&self, id: InputActionId) -> Option<&InputAction> {
-        self.actions.get(id)
+    pub fn action(&self, handle: InputActionHandle) -> Option<&InputAction> {
+        self.actions.get(handle)
     }
 
-    pub fn find_action(&self, name: &str) -> Option<(InputActionId, &InputAction)> {
+    pub fn find_action(&self, name: &str) -> Option<(InputActionHandle, &InputAction)> {
         self.actions.iter().find_map(|(id, action)| {
             if action.name == name {
                 Some((id, action))
@@ -129,11 +129,11 @@ impl InputManager {
         })
     }
 
-    pub fn add_axis(
+    pub fn create_axis(
         &mut self,
         name: &str,
         range: InputAxisRange,
-    ) -> Result<InputAxisId, InputError> {
+    ) -> Result<InputAxisHandle, InputError> {
         if self.find_axis(name).is_some() {
             return Err(InputError::DuplicatedAxis);
         }
@@ -145,29 +145,29 @@ impl InputManager {
         });
         let phandle = self
             .provider
-            .add_axis(name, &range, id)
+            .create_axis(name, &range, id)
             .map_err(InputError::ProviderError)?;
         self.axis[id].handle = phandle;
         Ok(id)
     }
 
-    pub fn remove_axis(&mut self, id: InputAxisId) -> Result<(), InputError> {
-        if !self.axis.contains(id) {
+    pub fn delete_axis(&mut self, handle: InputAxisHandle) -> Result<(), InputError> {
+        if !self.axis.contains(handle) {
             return Err(InputError::AxisNotFound);
         }
-        let phandle = self.axis[id].handle;
+        let phandle = self.axis[handle].handle;
         self.provider
-            .remove_axis(phandle)
+            .delete_axis(phandle)
             .map_err(InputError::ProviderError)?;
-        self.axis.remove(id);
+        self.axis.remove(handle);
         Ok(())
     }
 
-    pub fn axis(&self, id: InputAxisId) -> Option<&InputAxis> {
-        self.axis.get(id)
+    pub fn axis(&self, handle: InputAxisHandle) -> Option<&InputAxis> {
+        self.axis.get(handle)
     }
 
-    pub fn find_axis(&self, name: &str) -> Option<(InputAxisId, &InputAxis)> {
+    pub fn find_axis(&self, name: &str) -> Option<(InputAxisHandle, &InputAxis)> {
         self.axis.iter().find_map(|(id, axis)| {
             if axis.name == name {
                 Some((id, axis))

@@ -30,7 +30,7 @@ pub enum TextureUsage {
 }
 
 #[derive(Clone, Serialize, Default)]
-pub struct Texture {
+pub struct TextureData {
     pub(crate) format: TextureFormat,
     pub(crate) usage: TextureUsage,
     pub(crate) bytes: Vec<u8>,
@@ -38,7 +38,7 @@ pub struct Texture {
     pub(crate) height: u16,
 }
 
-impl Texture {
+impl TextureData {
     pub fn new(format: TextureFormat, bytes: Vec<u8>, width: u16, height: u16) -> Self {
         Self {
             format,

@@ -1,15 +1,15 @@
-use mini3d_db::{database::ComponentId, entity::Entity};
+use mini3d_db::{database::ComponentHandle, entity::Entity};
 use mini3d_scheduler::StageId;
 
 pub enum EventStage {
     Tick,
-    ComponentAdded(ComponentId),
-    ComponentRemoved(ComponentId),
+    ComponentAdded(ComponentHandle),
+    ComponentRemoved(ComponentHandle),
 }
 
 pub struct EventData {
     pub entity: Entity,
-    pub component: ComponentId,
+    pub component: ComponentHandle,
 }
 
 #[derive(Default)]

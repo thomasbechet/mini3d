@@ -2,9 +2,10 @@
 
 use alloc::{boxed::Box, collections::VecDeque};
 use api::API;
+use db::{database::ComponentHandle, entity::Entity};
 use event::ComponentEventStages;
 use logger::LoggerManager;
-use mini3d_db::database::{ComponentId, Database};
+use mini3d_db::database::Database;
 use mini3d_derive::Error;
 use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
@@ -25,10 +26,10 @@ extern crate alloc;
 extern crate std;
 
 pub use crate as mini3d_runtime;
-pub use mini3d_logger as logger;
-pub use mini3d_renderer as renderer;
-pub use mini3d_math as math;
 pub use mini3d_db as db;
+pub use mini3d_logger as logger;
+pub use mini3d_math as math;
+pub use mini3d_renderer as renderer;
 
 #[derive(Error, Debug)]
 pub enum TickError {
@@ -72,13 +73,14 @@ pub(crate) struct Stages {
     pub(crate) next_stages: VecDeque<StageId>,
     pub(crate) start_stage: Option<StageId>,
     pub(crate) tick_stage: Option<StageId>,
-    pub(crate) components: SecondaryMap<ComponentId, ComponentEventStages>,
+    pub(crate) components: SecondaryMap<ComponentHandle, ComponentEventStages>,
 }
 
 #[derive(Default)]
 pub(crate) struct RuntimeState {
     request_stop: bool,
     target_tps: u16,
+    event_entity: Entity,
     pub(crate) systems: SecondaryMap<SystemId, Option<fn(&mut API)>>,
     pub(crate) stages: Stages,
 }
@@ -140,6 +142,7 @@ impl Runtime {
                 logger: &mut runtime.logger,
                 state: &mut runtime.state,
                 input: &mut runtime.input,
+                renderer: &mut runtime.renderer,
             });
         }
         runtime
@@ -223,6 +226,7 @@ impl Runtime {
                     logger: &mut self.logger,
                     state: &mut self.state,
                     input: &mut self.input,
+                    renderer: &mut self.renderer,
                 },
             );
         }

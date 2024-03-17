@@ -2,9 +2,7 @@ use alloc::vec::Vec;
 use mini3d_utils::slotmap::SecondaryMap;
 
 use crate::{
-    bitset::{BitIndex, Bitset},
-    database::ComponentId,
-    entity::{Entity, EntityIndex, EntityVersion},
+    bitset::{BitIndex, Bitset}, database::ComponentHandle, entity::{Entity, EntityIndex, EntityVersion}
 };
 
 pub(crate) struct Registry {
@@ -12,7 +10,7 @@ pub(crate) struct Registry {
     next_index: EntityIndex, // Default index is 1
     versions: Vec<EntityVersion>,
     entity_map: Bitset,
-    bitsets: SecondaryMap<ComponentId, Bitset>,
+    bitsets: SecondaryMap<ComponentHandle, Bitset>,
 }
 
 impl Default for Registry {
@@ -52,12 +50,12 @@ impl Registry {
         ));
     }
 
-    pub(crate) fn add_bitset(&mut self, id: ComponentId) {
-        self.bitsets.insert(id, Bitset::default());
+    pub(crate) fn add_bitset(&mut self, handle: ComponentHandle) {
+        self.bitsets.insert(handle, Bitset::default());
     }
 
-    pub(crate) fn remove_bitset(&mut self, id: ComponentId) {
-        self.bitsets.remove(id);
+    pub(crate) fn remove_bitset(&mut self, handle: ComponentHandle) {
+        self.bitsets.remove(handle);
     }
 
     pub(crate) fn entities(&self) -> impl Iterator<Item = Entity> + '_ {
@@ -70,7 +68,7 @@ impl Registry {
         self.versions[index as usize]
     }
 
-    pub(crate) fn has(&self, e: Entity, c: ComponentId) -> bool {
+    pub(crate) fn has(&self, e: Entity, c: ComponentHandle) -> bool {
         self.bitsets
             .get(c)
             .map(|bitset| bitset.is_set(e.index() as BitIndex))
@@ -80,8 +78,8 @@ impl Registry {
     pub(crate) fn find_next_component(
         &self,
         e: Entity,
-        mut c: Option<ComponentId>,
-    ) -> Option<ComponentId> {
+        mut c: Option<ComponentHandle>,
+    ) -> Option<ComponentHandle> {
         while let Some(n) = self.bitsets.next(c) {
             if self.has(e, n) {
                 return Some(n);
@@ -91,21 +89,21 @@ impl Registry {
         None
     }
 
-    pub(crate) fn set(&mut self, e: Entity, c: ComponentId) {
+    pub(crate) fn set(&mut self, e: Entity, c: ComponentHandle) {
         self.bitsets
             .get_mut(c)
             .unwrap()
             .set(e.index() as BitIndex, true);
     }
 
-    pub(crate) fn unset(&mut self, e: Entity, c: ComponentId) {
+    pub(crate) fn unset(&mut self, e: Entity, c: ComponentHandle) {
         self.bitsets
             .get_mut(c)
             .unwrap()
             .set(e.index() as BitIndex, false);
     }
 
-    pub(crate) fn mask(&self, c: ComponentId, index: usize) -> u32 {
+    pub(crate) fn mask(&self, c: ComponentHandle, index: usize) -> u32 {
         self.bitsets[c].mask(index)
     }
 }

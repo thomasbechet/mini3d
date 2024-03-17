@@ -1,10 +1,11 @@
 use alloc::string::String;
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
-use mini3d_utils::{slot_map_key, string::AsciiArray};
+use mini3d_utils::string::AsciiArray;
 
 use crate::provider::InputProviderHandle;
 
-slot_map_key!(InputTextHandle);
+slot_map_key_handle!(InputTextHandle);
 
 #[derive(Clone, Serialize, Default)]
 pub struct InputTextState {

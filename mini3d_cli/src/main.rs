@@ -1,6 +1,12 @@
 use mini3d_derive::{component, fixed};
-use mini3d_runtime::{
-    api::API, component::{hierarchy::Hierarchy, transform::Transform}, db::query::Query, info, math::{fixed::I32F16, vec::V3I32F16}, renderer::TextureHandle, Runtime, RuntimeConfig
+use mini3d::{
+    api::API,
+    component::{hierarchy::Hierarchy, texture::Texture, transform::Transform},
+    db::query::Query,
+    info,
+    math::{fixed::I32F16, vec::V3I32F16},
+    renderer::{provider::RendererProvider, texture::TextureHandle},
+    Runtime, RuntimeConfig,
 };
 use mini3d_stdlog::stdout::StdoutLogger;
 
@@ -11,60 +17,24 @@ fn on_transform_removed(api: &mut API) {
     info!(api, "TRANSFORM REMOVED")
 }
 
-// #[derive(Default, Clone)]
-// struct SpawnSystem {
-//     transform: NativeSingleViewMut<Transform>,
-// }
-//
-// impl NativeExclusiveSystemInstance for SpawnSystem {
-//     fn setup(&mut self, resolver: &mut Resolver) -> Result<(), ResolverError> {
-//         self.transform.resolve(resolver, Transform::NAME)?;
-//         println!("RESOLVED");
-//         Ok(())
-//     }
-//     fn run(mut self, ctx: &mut Context) {
-//         let e = Entity::create(ctx);
-//         for i in 0..2 {
-//             let e = Entity::create(ctx);
-//             self.transform
-//                 .add(e, Transform::from_translation(V3I32F16::ZERO));
-//             if i == 1 {
-//                 Entity::destroy(ctx, e);
-//             }
-//             self.transform
-//                 .add(e, Transform::from_translation(V3I32F16::ZERO));
-//         }
-//         self.transform
-//             .add(e, Transform::from_translation(V3I32F16::ZERO));
-//         info!(ctx, "Spawned entity: {:?}", e);
-//     }
-// }
-//
-// #[derive(Default, Clone)]
-// struct TestSystem {
-//     transform: NativeSingleViewRef<Transform>,
-//     query: Query,
-// }
-//
-// impl NativeExclusiveSystemInstance for TestSystem {
-//     fn setup(&mut self, resolver: &mut Resolver) -> Result<(), ResolverError> {
-//         self.transform.resolve(resolver, Transform::NAME)?;
-//         self.query.resolve(resolver).all(&[Transform::NAME])?;
-//         Ok(())
-//     }
-//
-//     fn run(self, ctx: &mut Context) {
-//         for (i, e) in self.query.iter().enumerate() {
-//             let transform = &self.transform[e];
-//             info!(ctx, "{} {:?}", i, transform);
-//         }
-//         info!(ctx, "{:.3} {}", Time::delta(ctx), Time::frame(ctx));
-//     }
-// }
+struct LoggerRenderer;
+
+impl RendererProvider for LoggerRenderer {
+    fn create_texture(
+        &mut self,
+        data: &mini3d::renderer::texture::TextureData,
+    ) -> Result<
+        mini3d::renderer::provider::RendererProviderHandle,
+        mini3d::renderer::provider::RendererProviderError,
+    > {
+        println!("create texture");
+        Ok(Default::default())
+    }
+}
 
 #[component]
 struct MyComponent {
-    handle: TextureHandle, 
+    handle: TextureHandle,
 }
 
 fn my_system(api: &mut API) {
@@ -85,10 +55,11 @@ fn my_system(api: &mut API) {
 }
 
 fn on_start(api: &mut API) {
-    let transform = Transform::register(api);
-    let hierarchy = Hierarchy::register(api);
-    let my_tag = api.register_tag("my_tag").unwrap();
-    let my_component = MyComponent::register(api);
+    let transform = Transform::create_component(api);
+    let hierarchy = Hierarchy::create_component(api);
+    let my_tag = api.create_tag_component("my_tag").unwrap();
+    let my_component = MyComponent::create_component(api);
+    let texture = Texture::meta(api);
     let e = api.create();
     transform.add_from_translation(api, e, V3I32F16::ONE);
     api.add_default(e, hierarchy.id());
@@ -97,10 +68,13 @@ fn on_start(api: &mut API) {
     let e = api.create();
     api.add_default(e, my_tag);
     api.add_default(e, my_component.id());
+    texture.add_default(api, e);
 }
 
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
+        let texture = Texture::create_component(api);
+        texture.create_callbacks(api);
         api.create_system("my_system", api.tick_stage(), Default::default(), my_system)
             .unwrap();
         api.create_system(
@@ -111,37 +85,9 @@ fn main() {
         )
         .unwrap();
     }));
-    // let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|ctx| {
-    //     let spawn = System::create_native_exclusive::<SpawnSystem>(ctx, "SYS_SpawnSystem").unwrap();
-    //     let test = System::create_native_exclusive::<TestSystem>(ctx, "SYS_TestSystem").unwrap();
-    //     let propagate_transform = System::find(ctx, PropagateTransforms::NAME).unwrap();
-    //     let free_fly = System::find(ctx, FreeFlySystem::NAME).unwrap();
-    //     let start = SystemStage::find(ctx, SystemStage::START).unwrap();
-    //     let stage = SystemStage::find(ctx, SystemStage::TICK).unwrap();
-    //     let set = SystemSet::create(
-    //         ctx,
-    //         "SST_Root",
-    //         SystemSet::new()
-    //             .with("spawn", spawn, start, SystemOrder::default())
-    //             .with("test", test, stage, SystemOrder::default())
-    //             .with(
-    //                 "propagate_transforms",
-    //                 propagate_transform,
-    //                 stage,
-    //                 SystemOrder::default(),
-    //             )
-    //             .with("free_fly", free_fly, stage, SystemOrder::default()),
-    //     )
-    //     .unwrap();
-    //     SystemSet::add(ctx, set);
-    //     for (i, handle) in Resource::iter(ctx).enumerate() {
-    //         let info = Resource::info(ctx, handle).unwrap();
-    //         let ty_name = Resource::info(ctx, info.ty).unwrap().name;
-    //         println!("[{}] {}   {}", i + 1, info.name, ty_name);
-    //     }
-    // }));
     runtime.set_logger(StdoutLogger);
-    for _ in 0..5 {
+    runtime.set_renderer(LoggerRenderer);
+    for _ in 0..1 {
         runtime.tick().expect("Simulation error");
     }
     println!("target_tps: {}", runtime.target_tps());

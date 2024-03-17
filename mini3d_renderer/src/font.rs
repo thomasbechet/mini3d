@@ -6,7 +6,7 @@ use mini3d_math::{
     vec::{V2, V2U32},
 };
 
-use crate::texture::Texture;
+use crate::texture::TextureData;
 
 use super::texture::TextureFormat;
 
@@ -50,7 +50,7 @@ impl Font {
 
 #[derive(Default)]
 pub struct FontAtlas {
-    pub texture: Texture,
+    pub texture: TextureData,
     pub extents: Vec<IRect>,
 }
 
@@ -58,7 +58,7 @@ impl FontAtlas {
     pub fn new(font: &Font) -> FontAtlas {
         let width = font.glyph_size.x as usize * Font::MAX_CHARS;
         let height = font.glyph_size.y as usize;
-        let mut texture = Texture {
+        let mut texture = TextureData {
             bytes: alloc::vec![0x0; width * height * 4],
             format: TextureFormat::Color,
             width: width as u16,

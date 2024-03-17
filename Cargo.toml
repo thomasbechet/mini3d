@@ -6,7 +6,7 @@ members = [
     "mini3d_serialize",
     # "mini3d_ffi",
 
-    "mini3d_runtime",
+    "mini3d",
     "mini3d_scheduler",
     "mini3d_db",
     "mini3d_input",
@@ -14,11 +14,11 @@ members = [
     "mini3d_logger",
     "mini3d_io",
 
+    "mini3d_stdlog",
     "mini3d_cli",
     # "mini3d_gui",
     # "mini3d_importer",
-    # "mini3d_mapper",
-    # "mini3d_stdlog",
+    #"mini3d_mapper",
     # "mini3d_wgpu",
     # "mini3d_winit",
 ]

@@ -3,8 +3,8 @@ use mini3d_derive::Error;
 use mini3d_utils::define_provider_handle;
 
 use crate::{
-    action::InputActionId,
-    axis::{InputAxisId, InputAxisRange},
+    action::InputActionHandle,
+    axis::{InputAxisHandle, InputAxisRange},
     event::InputEvent,
 };
 
@@ -18,30 +18,6 @@ define_provider_handle!(InputProviderHandle);
 
 #[allow(unused_variables)]
 pub trait InputProvider {
-    fn on_connect(&mut self);
-    fn on_disconnect(&mut self);
-
-    fn next_event(&mut self) -> Option<InputEvent>;
-
-    fn add_action(
-        &mut self,
-        name: &str,
-        handle: InputActionId,
-    ) -> Result<InputProviderHandle, InputProviderError>;
-    fn add_axis(
-        &mut self,
-        name: &str,
-        range: &InputAxisRange,
-        handle: InputAxisId,
-    ) -> Result<InputProviderHandle, InputProviderError>;
-    fn remove_action(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
-    fn remove_axis(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError>;
-}
-
-#[derive(Default)]
-pub struct PassiveInputProvider;
-
-impl InputProvider for PassiveInputProvider {
     fn on_connect(&mut self) {}
     fn on_disconnect(&mut self) {}
 
@@ -49,28 +25,33 @@ impl InputProvider for PassiveInputProvider {
         None
     }
 
-    fn add_action(
+    fn create_action(
         &mut self,
-        _name: &str,
-        _handle: InputActionId,
+        name: &str,
+        handle: InputActionHandle,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
     }
-    fn add_axis(
+    fn create_axis(
         &mut self,
-        _name: &str,
-        _range: &InputAxisRange,
-        _handle: InputAxisId,
+        name: &str,
+        range: &InputAxisRange,
+        handle: InputAxisHandle,
     ) -> Result<InputProviderHandle, InputProviderError> {
         Ok(Default::default())
     }
-    fn remove_action(&mut self, _handle: InputProviderHandle) -> Result<(), InputProviderError> {
+    fn delete_action(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError> {
         Ok(())
     }
-    fn remove_axis(&mut self, _handle: InputProviderHandle) -> Result<(), InputProviderError> {
+    fn delete_axis(&mut self, handle: InputProviderHandle) -> Result<(), InputProviderError> {
         Ok(())
     }
 }
+
+#[derive(Default)]
+pub struct PassiveInputProvider;
+
+impl InputProvider for PassiveInputProvider {}
 
 impl Default for Box<dyn InputProvider> {
     fn default() -> Self {

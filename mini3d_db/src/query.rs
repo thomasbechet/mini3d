@@ -1,15 +1,15 @@
 use crate::{
     bitset::{BitsetMaskIter, IterAnswer},
-    database::{ComponentId, Database},
+    database::{ComponentHandle, Database},
     entity::Entity,
     registry::Registry,
 };
 
 #[derive(Default)]
 pub struct Query {
-    all: [Option<ComponentId>; Self::MAX_ALL],
-    any: [Option<ComponentId>; Self::MAX_ANY],
-    not: [Option<ComponentId>; Self::MAX_NOT],
+    all: [Option<ComponentHandle>; Self::MAX_ALL],
+    any: [Option<ComponentHandle>; Self::MAX_ANY],
+    not: [Option<ComponentHandle>; Self::MAX_NOT],
     all_size: usize,
     any_size: usize,
     not_size: usize,
@@ -20,7 +20,7 @@ impl Query {
     pub const MAX_ANY: usize = 8;
     pub const MAX_NOT: usize = 8;
 
-    pub fn all(mut self, ids: &[ComponentId]) -> Self {
+    pub fn all(mut self, ids: &[ComponentHandle]) -> Self {
         for (i, id) in ids.iter().enumerate() {
             self.all[i] = Some(*id);
         }
@@ -28,7 +28,7 @@ impl Query {
         self
     }
 
-    pub fn any(mut self, ids: &[ComponentId]) -> Self {
+    pub fn any(mut self, ids: &[ComponentHandle]) -> Self {
         for (i, id) in ids.iter().enumerate() {
             self.any[i] = Some(*id);
         }
@@ -36,7 +36,7 @@ impl Query {
         self
     }
 
-    pub fn not(mut self, ids: &[ComponentId]) -> Self {
+    pub fn not(mut self, ids: &[ComponentHandle]) -> Self {
         for (i, id) in ids.iter().enumerate() {
             self.not[i] = Some(*id);
         }

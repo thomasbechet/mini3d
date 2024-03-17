@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use mini3d_db::entity::Entity;
 use mini3d_derive::{component, Error};
 
-use crate::{self as mini3d_runtime, api::API};
+use crate::{self as mini3d, api::API};
 
 #[derive(Debug, Error)]
 pub enum HierarchyError {

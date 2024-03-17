@@ -3,7 +3,7 @@ use mini3d_derive::component;
 use mini3d_math::{mat::{M4, M4I32F16}, quat::QI32F16, vec::{V3, V3I32F16}};
 
 use crate::api::API;
-use crate as mini3d_runtime;
+use crate as mini3d;
 
 #[component]
 pub struct Transform {

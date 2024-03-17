@@ -8,10 +8,11 @@ use crate::{
     error::ComponentError,
     field::{ComponentField, Field, FieldEntry, FieldType},
     query::{EntityQuery, Query},
-    registry::Registry,
+    registry::Registry, slot_map_key_handle,
 };
+use crate as mini3d_db;
 
-slot_map_key!(ComponentId);
+slot_map_key_handle!(ComponentHandle);
 slot_map_key!(FieldId);
 
 pub(crate) struct ComponentEntry {
@@ -23,11 +24,11 @@ pub(crate) struct ComponentEntry {
 pub struct Database {
     pub(crate) registry: Registry,
     pub(crate) fields: SlotMap<FieldId, FieldEntry>,
-    pub(crate) components: SlotMap<ComponentId, ComponentEntry>,
+    pub(crate) components: SlotMap<ComponentHandle, ComponentEntry>,
 }
 
 impl Database {
-    pub fn register_tag(&mut self, name: &str) -> Result<ComponentId, ComponentError> {
+    pub fn register_tag(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
         if self.find_component(name).is_some() {
             return Err(ComponentError::DuplicatedEntry);
         }
@@ -43,7 +44,7 @@ impl Database {
         &mut self,
         name: &str,
         fields: &[ComponentField],
-    ) -> Result<ComponentId, ComponentError> {
+    ) -> Result<ComponentHandle, ComponentError> {
         if self.find_component(name).is_some() {
             return Err(ComponentError::DuplicatedEntry);
         }
@@ -64,7 +65,7 @@ impl Database {
         Ok(id)
     }
 
-    pub fn unregister(&mut self, c: ComponentId) {
+    pub fn delete_component(&mut self, c: ComponentHandle) {
         for fid in self.components.get(c).unwrap().fields.iter() {
             self.fields.remove(*fid);
             // TODO trigger events ?
@@ -81,22 +82,22 @@ impl Database {
         self.registry.destroy(e);
     }
 
-    pub fn find_next_component(&self, e: Entity, c: Option<ComponentId>) -> Option<ComponentId> {
+    pub fn find_next_component(&self, e: Entity, c: Option<ComponentHandle>) -> Option<ComponentHandle> {
         self.registry.find_next_component(e, c)
     }
 
-    pub fn add_default(&mut self, e: Entity, c: ComponentId) {
+    pub fn add_default(&mut self, e: Entity, c: ComponentHandle) {
         for fid in self.components.get(c).unwrap().fields.iter() {
             self.fields[*fid].data.add_default(e);
         }
         self.registry.set(e, c);
     }
 
-    pub fn remove(&mut self, e: Entity, c: ComponentId) {
+    pub fn remove(&mut self, e: Entity, c: ComponentHandle) {
         self.registry.unset(e, c);
     }
 
-    pub fn has(&self, e: Entity, c: ComponentId) -> bool {
+    pub fn has(&self, e: Entity, c: ComponentHandle) -> bool {
         self.registry.has(e, c)
     }
 
@@ -112,7 +113,7 @@ impl Database {
         self.registry.entities()
     }
 
-    pub fn find_component(&self, name: &str) -> Option<ComponentId> {
+    pub fn find_component(&self, name: &str) -> Option<ComponentHandle> {
         self.components.iter().find_map(|(id, entry)| {
             if entry.name.as_str() == name {
                 Some(id)
@@ -122,7 +123,7 @@ impl Database {
         })
     }
 
-    pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
+    pub fn find_field<T: FieldType>(&self, c: ComponentHandle, name: &str) -> Option<Field<T>> {
         for field in self.components[c].fields.iter() {
             if self.fields[*field].name.as_str() == name {
                 return Some(Field(*field, Default::default()));

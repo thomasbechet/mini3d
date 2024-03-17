@@ -2,18 +2,23 @@ use core::fmt::{Arguments, Display};
 
 use alloc::format;
 use mini3d_db::{
-    database::{ComponentId, Database},
+    database::{ComponentHandle, Database},
     entity::Entity,
     error::ComponentError,
     field::{ComponentField, Field, FieldType},
     query::Query,
 };
 use mini3d_input::{
-    action::InputActionId,
-    axis::{InputAxisId, InputAxisRange},
+    action::InputActionHandle,
+    axis::{InputAxisHandle, InputAxisRange},
     InputError, InputManager,
 };
 use mini3d_logger::{level::LogLevel, LoggerManager};
+use mini3d_renderer::{
+    mesh::{MeshData, MeshHandle},
+    texture::{TextureData, TextureHandle},
+    RendererManager,
+};
 use mini3d_scheduler::{Scheduler, SchedulerError, StageId, SystemId, SystemOrder};
 
 use crate::{event::ComponentEventStages, execute_stage, Invocation, RuntimeState};
@@ -23,10 +28,9 @@ pub struct API<'a> {
     pub(crate) scheduler: &'a mut Scheduler,
     pub(crate) logger: &'a mut LoggerManager,
     pub(crate) input: &'a mut InputManager,
+    pub(crate) renderer: &'a mut RendererManager,
     pub(crate) state: &'a mut RuntimeState,
 }
-
-pub struct ComponentHandle(pub(crate) ComponentId);
 
 impl<'a> API<'a> {
     /// RUNTIME STATE API
@@ -35,17 +39,21 @@ impl<'a> API<'a> {
         self.state.request_stop = true;
     }
 
-    /// DATABASE API
-
-    pub fn register_tag(&mut self, name: &str) -> Result<ComponentId, ComponentError> {
-        self.register(name, &[])
+    pub fn event_entity(&self) -> Entity {
+        self.state.event_entity
     }
 
-    pub fn register(
+    /// DATABASE API
+
+    pub fn create_tag_component(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
+        self.create_component(name, &[])
+    }
+
+    pub fn create_component(
         &mut self,
         name: &str,
         fields: &[ComponentField],
-    ) -> Result<ComponentId, ComponentError> {
+    ) -> Result<ComponentHandle, ComponentError> {
         let id = self.db.register(name, fields)?;
         let on_added = self
             .scheduler
@@ -66,8 +74,8 @@ impl<'a> API<'a> {
         Ok(id)
     }
 
-    pub fn unregister(&mut self, c: ComponentId) {
-        self.db.unregister(c);
+    pub fn delete_component(&mut self, c: ComponentHandle) {
+        self.db.delete_component(c);
         let stages = &self.state.stages.components[c];
         // self.scheduler.remove_stage(stages.on_added);
         // self.scheduler.remove_stage(stages.on_removed);
@@ -89,17 +97,17 @@ impl<'a> API<'a> {
         self.db.destroy(e)
     }
 
-    pub fn add_default(&mut self, e: Entity, c: ComponentId) {
+    pub fn add_default(&mut self, e: Entity, c: ComponentHandle) {
         self.db.add_default(e, c);
         execute_stage(self.state.stages.components[c].on_added.unwrap(), self);
     }
 
-    pub fn remove(&mut self, e: Entity, c: ComponentId) {
+    pub fn remove(&mut self, e: Entity, c: ComponentHandle) {
         execute_stage(self.state.stages.components[c].on_removed.unwrap(), self);
         self.db.remove(e, c)
     }
 
-    pub fn has(&self, e: Entity, c: ComponentId) -> bool {
+    pub fn has(&self, e: Entity, c: ComponentHandle) -> bool {
         self.db.has(e, c)
     }
 
@@ -122,11 +130,11 @@ impl<'a> API<'a> {
         self.db.query_entities(query).into_iter(self.db)
     }
 
-    pub fn find_component(&self, name: &str) -> Option<ComponentId> {
+    pub fn find_component(&self, name: &str) -> Option<ComponentHandle> {
         self.db.find_component(name)
     }
 
-    pub fn find_field<T: FieldType>(&self, c: ComponentId, name: &str) -> Option<Field<T>> {
+    pub fn find_field<T: FieldType>(&self, c: ComponentHandle, name: &str) -> Option<Field<T>> {
         self.db.find_field(c, name)
     }
 
@@ -134,10 +142,14 @@ impl<'a> API<'a> {
         struct EntityFormatter<'a>(Entity, &'a Database);
         impl<'a> Display for EntityFormatter<'a> {
             fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                self.1.display(f, self.0) 
+                self.1.display(f, self.0)
             }
         }
-        self.log(format_args!("{}", EntityFormatter(e, self.db)), LogLevel::Info, None)
+        self.log(
+            format_args!("{}", EntityFormatter(e, self.db)),
+            LogLevel::Info,
+            None,
+        )
     }
 
     /// SCHEDULER API
@@ -154,11 +166,11 @@ impl<'a> API<'a> {
         self.state.stages.start_stage.unwrap()
     }
 
-    pub fn on_component_added_stage(&self, c: ComponentId) -> StageId {
+    pub fn on_component_added_stage(&self, c: ComponentHandle) -> StageId {
         self.state.stages.components[c].on_added.unwrap()
     }
 
-    pub fn on_component_removed_stage(&self, c: ComponentId) -> StageId {
+    pub fn on_component_removed_stage(&self, c: ComponentHandle) -> StageId {
         self.state.stages.components[c].on_removed.unwrap()
     }
 
@@ -205,7 +217,8 @@ impl<'a> API<'a> {
     pub fn debug_sched(&mut self) {
         for stage in self.scheduler.iter_stages() {
             let stage = self.scheduler.stage(stage).unwrap();
-            self.logger.log(format_args!("STAGE {}", stage.name), LogLevel::Debug, None);
+            self.logger
+                .log(format_args!("STAGE {}", stage.name), LogLevel::Debug, None);
         }
     }
 
@@ -221,47 +234,65 @@ impl<'a> API<'a> {
 
     /// INPUT API
 
-    pub fn add_action(&mut self, name: &str) -> Result<InputActionId, InputError> {
-        self.input.add_action(name)
+    pub fn create_action(&mut self, name: &str) -> Result<InputActionHandle, InputError> {
+        self.input.create_action(name)
     }
 
-    pub fn remove_action(&mut self, id: InputActionId) -> Result<(), InputError> {
-        self.input.remove_action(id)
+    pub fn delete_action(&mut self, handle: InputActionHandle) -> Result<(), InputError> {
+        self.input.delete_action(handle)
     }
 
     pub fn create_axis(
         &mut self,
         name: &str,
         range: InputAxisRange,
-    ) -> Result<InputAxisId, InputError> {
-        self.input.add_axis(name, range)
+    ) -> Result<InputAxisHandle, InputError> {
+        self.input.create_axis(name, range)
     }
 
-    pub fn delete_axis(&mut self, id: InputAxisId) -> Result<(), InputError> {
-        self.input.remove_axis(id)
+    pub fn delete_axis(&mut self, handle: InputAxisHandle) -> Result<(), InputError> {
+        self.input.delete_axis(handle)
     }
-    pub fn find_action(&self, name: &str) -> Option<InputActionId> {
+    pub fn find_action(&self, name: &str) -> Option<InputActionHandle> {
         self.input.find_action(name).map(|(id, _)| id)
     }
 
-    pub fn find_axis(&self, name: &str) -> Option<InputAxisId> {
+    pub fn find_axis(&self, name: &str) -> Option<InputAxisHandle> {
         self.input.find_axis(name).map(|(id, _)| id)
     }
 
-    pub fn is_action_pressed(&self, id: InputActionId) -> bool {
-        self.input.action(id).unwrap().is_pressed()
+    pub fn is_action_pressed(&self, handle: InputActionHandle) -> bool {
+        self.input.action(handle).unwrap().is_pressed()
     }
 
-    pub fn is_action_released(&self, id: InputActionId) -> bool {
-        self.input.action(id).unwrap().is_released()
+    pub fn is_action_released(&self, handle: InputActionHandle) -> bool {
+        self.input.action(handle).unwrap().is_released()
     }
 
-    pub fn is_action_just_pressed(&self, id: InputActionId) -> bool {
-        self.input.action(id).unwrap().is_just_pressed()
+    pub fn is_action_just_pressed(&self, handle: InputActionHandle) -> bool {
+        self.input.action(handle).unwrap().is_just_pressed()
     }
 
-    pub fn is_action_just_released(&self, id: InputActionId) -> bool {
-        self.input.action(id).unwrap().is_just_released()
+    pub fn is_action_just_released(&self, handle: InputActionHandle) -> bool {
+        self.input.action(handle).unwrap().is_just_released()
+    }
+
+    /// RENDERER API
+
+    pub fn create_texture(&mut self, data: TextureData) -> TextureHandle {
+        self.renderer.create_texture(data).unwrap()
+    }
+
+    pub fn delete_texture(&mut self, handle: TextureHandle) {
+        self.renderer.delete_texture(handle).unwrap();
+    }
+
+    pub fn create_mesh(&mut self, data: MeshData) -> MeshHandle {
+        self.renderer.create_mesh(data).unwrap()
+    }
+
+    pub fn delete_mesh(&mut self, handle: MeshHandle) {
+        self.renderer.delete_mesh(handle).unwrap();
     }
 }
 

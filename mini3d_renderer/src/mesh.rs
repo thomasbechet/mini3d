@@ -1,6 +1,9 @@
 use alloc::vec::Vec;
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::vec::{V2I32F16, V3I32F16, V4I32F16};
+
+slot_map_key_handle!(MeshHandle);
 
 #[derive(Clone, Serialize)]
 pub struct Vertex {
@@ -17,11 +20,6 @@ pub struct SubMesh {
 }
 
 #[derive(Default, Clone, Serialize)]
-pub(crate) struct MeshData {
+pub struct MeshData {
     pub(crate) submeshes: Vec<SubMesh>,
-}
-
-#[derive(Default, Clone, Serialize)]
-pub struct Mesh {
-    pub(crate) data: MeshData,
 }
