@@ -7,3 +7,4 @@ edition = "2021"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.64"
 mini3d_input = { path = "../mini3d_input" }
+mini3d_utils = { path = "../mini3d_utils" }

@@ -3,10 +3,13 @@
 use core::cell::RefCell;
 
 use alloc::boxed::Box;
+use camera::{CameraData, CameraHandle};
 use mesh::{MeshData, MeshHandle};
 use mini3d_utils::slotmap::SlotMap;
 use provider::{RendererProvider, RendererProviderError, RendererProviderHandle};
+use renderpass::{RenderPassData, RenderPassHandle};
 use texture::{TextureData, TextureHandle};
+use transform::{RenderTransformData, RenderTransformHandle};
 
 pub mod camera;
 pub mod canvas;
@@ -16,8 +19,11 @@ pub mod graphics;
 pub mod material;
 pub mod mesh;
 pub mod provider;
+pub mod rendertarget;
 pub mod rasterizer;
+pub mod renderpass;
 pub mod texture;
+pub mod transform;
 
 extern crate alloc;
 
@@ -41,6 +47,9 @@ pub struct RendererManager {
     provider: RefCell<Box<dyn RendererProvider>>,
     textures: SlotMap<TextureHandle, ResourceEntry<TextureData>>,
     meshes: SlotMap<MeshHandle, ResourceEntry<MeshData>>,
+    transforms: SlotMap<RenderTransformHandle, ResourceEntry<RenderTransformData>>,
+    cameras: SlotMap<CameraHandle, ResourceEntry<CameraData>>,
+    passes: SlotMap<RenderPassHandle, ResourceEntry<RenderPassData>>,
 }
 
 impl RendererManager {

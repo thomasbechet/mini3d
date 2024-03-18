@@ -1,20 +1,10 @@
+use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::mat::M4I32F16;
 
-use crate::provider::RendererProviderHandle;
+slot_map_key_handle!(RenderTransformHandle);
 
 #[derive(Clone, Serialize, Default)]
-pub struct RenderTransform {
-    #[serialize(skip)]
-    pub(crate) handle: RendererProviderHandle,
-}
-
-impl RenderTransform {
-    pub fn update(value: M4I32F16, teleport: bool) {
-        todo!()
-    }
-
-    pub fn bind_axis(&mut self, x_axis: &InputAxis, y_axis: &InputAxis) {
-        todo!()
-    }
+pub struct RenderTransformData {
+    pub(crate) matrix: M4I32F16
 }

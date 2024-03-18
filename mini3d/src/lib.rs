@@ -26,6 +26,7 @@ extern crate alloc;
 extern crate std;
 
 pub use crate as mini3d_runtime;
+pub use mini3d_utils as utils;
 pub use mini3d_db as db;
 pub use mini3d_logger as logger;
 pub use mini3d_math as math;

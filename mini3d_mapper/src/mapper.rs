@@ -2,6 +2,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::{collections::HashMap, fs::File};
 
+use mini3d_input::action::InputActionHandle;
+use mini3d_input::axis::{InputAxisHandle, InputAxisRange};
+use mini3d_input::event::InputEvent;
+use mini3d_utils::uid::{ToUID, UID};
 use serde::{Deserialize, Deserializer, Serialize};
 
 pub trait InputMapperButton:
@@ -91,6 +95,7 @@ impl<'de, B: InputMapperButton, A: InputMapperAxis> serde::Deserialize<'de> for 
         Ok(Self {
             name,
             active,
+            instance: Default::default(),
             actions,
             axis,
         })

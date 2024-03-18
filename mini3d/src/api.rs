@@ -14,9 +14,16 @@ use mini3d_input::{
     InputError, InputManager,
 };
 use mini3d_logger::{level::LogLevel, LoggerManager};
+use mini3d_math::mat::M4I32F16;
 use mini3d_renderer::{
+    camera::CameraHandle,
+    font::FontHandle,
+    material::MaterialHandle,
     mesh::{MeshData, MeshHandle},
+    renderpass::RenderPassHandle,
+    rendertarget::RenderTargetHandle,
     texture::{TextureData, TextureHandle},
+    transform::RenderTransformHandle,
     RendererManager,
 };
 use mini3d_scheduler::{Scheduler, SchedulerError, StageId, SystemId, SystemOrder};
@@ -294,6 +301,62 @@ impl<'a> API<'a> {
     pub fn delete_mesh(&mut self, handle: MeshHandle) {
         self.renderer.delete_mesh(handle).unwrap();
     }
+
+    pub fn create_camera(&mut self) -> CameraHandle {
+        Default::default()
+    }
+
+    pub fn delete_camera(&mut self, handle: CameraHandle) {}
+
+    pub fn update_camera(&mut self, camera: CameraHandle, view: M4I32F16) {}
+
+    pub fn create_render_transform(&mut self) -> RenderTransformHandle {
+        Default::default()
+    }
+
+    pub fn delete_render_transform(&mut self, handle: RenderTransformHandle) {}
+
+    pub fn update_render_transform(&mut self, handle: RenderTransformHandle, matrix: M4I32F16) {}
+
+    pub fn create_render_target(&mut self) -> RenderTargetHandle {
+        Default::default()
+    }
+
+    pub fn screen_render_target(&mut self) -> RenderTargetHandle {
+        Default::default()
+    }
+
+    pub fn delete_render_target(&mut self, handle: RenderTargetHandle) {}
+
+    pub fn create_unlit_pass(&mut self) -> RenderPassHandle {
+        Default::default()
+    }
+
+    pub fn create_canvas_pass(&mut self) -> RenderPassHandle {Default::default()}
+
+    pub fn delete_pass(&mut self, handle: RenderPassHandle) {}
+
+    pub fn bind_transform(&mut self, pass: RenderPassHandle, transform: RenderTransformHandle) {}
+
+    pub fn bind_texture(&mut self, pass: RenderPassHandle, texture: TextureHandle) {}
+
+    pub fn bind_font(&mut self, font: FontHandle) {}
+
+    pub fn draw_mesh(&mut self, pass: RenderPassHandle, mesh: MeshHandle) {}
+
+    pub fn draw_mesh_skinned(&mut self, pass: RenderPassHandle, mesh: MeshHandle) {}
+
+    pub fn draw_billboard(&mut self, pass: RenderPassHandle, transform: RenderTransformHandle) {}
+
+    pub fn submit_unlit_pass(
+        &mut self,
+        pass: RenderPassHandle,
+        target: RenderTargetHandle,
+        camera: CameraHandle,
+    ) {
+    }
+
+    pub fn submut_canvas_pass(&mut self, pass: RenderPassHandle) {}
 }
 
 #[macro_export]

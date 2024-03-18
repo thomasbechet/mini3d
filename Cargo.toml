@@ -18,9 +18,9 @@ members = [
     "mini3d_cli",
     # "mini3d_gui",
     # "mini3d_importer",
-    #"mini3d_mapper",
+    "mini3d_mapper",
     # "mini3d_wgpu",
-    # "mini3d_winit",
+    "mini3d_winit",
 ]
 default-members = ["mini3d_cli"]
 resolver = "2"

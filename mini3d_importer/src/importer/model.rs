@@ -4,14 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use mini3d_core::{
-    math::{
-        fixed::{FixedPoint, RealFixedPoint, I32F16},
-        vec::{V2, V2I32F16, V3, V3I32F16, V4},
-    },
-    platform::event::{AssetImportEntry, ImportAssetEvent},
-    renderer::resource::{Material, Mesh, Model, SubMesh, Vertex},
-};
+use mini3d::{import::AssetImportEntry, math::{fixed::I32F16, vec::{V2, V2I32F16, V3, V3I32F16}}};
+use mini3d_renderer::mesh::MeshData;
 use wavefront_obj::obj::{self, Primitive};
 
 fn vec3_from_vertex(v: &obj::Vertex) -> V3I32F16 {
@@ -28,7 +22,7 @@ fn vec2_from_tvertex(v: &obj::TVertex) -> V2I32F16 {
 
 #[derive(Default)]
 pub struct ModelImport {
-    meshes: Vec<AssetImportEntry<Mesh>>,
+    meshes: Vec<AssetImportEntry<MeshData>>,
     materials: Vec<AssetImportEntry<Material>>,
     models: Vec<AssetImportEntry<Model>>,
 }

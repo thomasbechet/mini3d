@@ -1,13 +1,17 @@
-use mini3d_derive::{Reflect, Serialize};
+use mini3d_db::slot_map_key_handle;
 
-pub mod canvas;
-pub mod depth;
+use self::diffuse::DiffusePass;
+
+// pub mod canvas;
+// pub mod depth;
 pub mod diffuse;
-pub mod reflective;
-pub mod shadow;
-pub mod transparent;
+// pub mod reflective;
+// pub mod shadow;
+// pub mod transparent;
 pub mod unlit;
-pub mod wireframe;
+// pub mod wireframe;
+
+slot_map_key_handle!(RenderPassHandle);
 
 pub enum CullMode {
     None,
@@ -15,9 +19,7 @@ pub enum CullMode {
     Back,
 }
 
-#[derive(Default, Reflect, Serialize)]
 pub(crate) enum RenderPassType {
-    #[default]
     Unlit,
     Diffuse,
     Reflective,
@@ -26,4 +28,11 @@ pub(crate) enum RenderPassType {
     Shadow,
     Depth,
     Canvas,
+}
+
+#[derive(Default)]
+pub(crate) enum RenderPassData {
+    #[default]
+    Unknown,
+    Diffuse(DiffusePass),
 }

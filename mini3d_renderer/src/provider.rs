@@ -17,10 +17,6 @@ pub enum RendererProviderError {
 
 define_provider_handle!(RendererProviderHandle);
 
-pub struct ProviderMaterialInfo {
-    pub diffuse: RendererProviderHandle,
-}
-
 pub trait RendererProvider {
     fn on_connect(&mut self) {}
     fn on_disconnect(&mut self) {}
@@ -66,25 +62,22 @@ pub trait RendererProvider {
         Ok(())
     }
 
-    // fn add_material(
-    //     &mut self,
-    //     desc: ProviderMaterialInfo,
-    // ) -> Result<RendererProviderHandle, RendererProviderError>;
-    // fn remove_material(
-    //     &mut self,
-    //     handle: RendererProviderHandle,
-    // ) -> Result<(), RendererProviderError>;
-    //
-    // fn add_transform(&mut self) -> Result<RendererProviderHandle, RendererProviderError>;
-    // fn remove_transform(
-    //     &mut self,
-    //     handle: RendererProviderHandle,
-    // ) -> Result<(), RendererProviderError>;
-    // fn update_transform(
-    //     &mut self,
-    //     handle: RendererProviderHandle,
-    //     mat: M4I32F16,
-    // ) -> Result<(), RendererProviderError>;
+    fn create_transform(&mut self) -> Result<RendererProviderHandle, RendererProviderError> {
+        Ok(Default::default())
+    }
+    fn delete_transform(
+        &mut self,
+        handle: RendererProviderHandle,
+    ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
+    fn update_transform(
+        &mut self,
+        handle: RendererProviderHandle,
+        matrix: M4I32F16,
+    ) -> Result<(), RendererProviderError> {
+        Ok(())
+    }
 
     // fn add_diffuse_pass(
     //     &mut self,

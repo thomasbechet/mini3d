@@ -1,18 +1,12 @@
-use mini3d_derive::{Reflect, Serialize};
+use alloc::vec::Vec;
+use mini3d_math::vec::V3I32F16;
 
-use crate::{
-    ecs::context::Context,
-    math::vec::{V2I32, V3I32F16},
-    renderer::{
-        component::{Camera, Material, Mesh, RenderTransform, Texture},
-        provider::RendererProviderHandle,
-    },
-};
+use crate::provider::RendererProviderHandle;
 
-pub enum TextureRenderTarget<'a> {
-    Texture(&'a Texture),
-    CubeMap(&'a Texture),
-}
+// pub enum TextureRenderTarget<'a> {
+//     Texture(&'a Texture),
+//     CubeMap(&'a Texture),
+// }
 
 pub enum DiffusePassCommand {
     DrawMesh {
@@ -32,10 +26,10 @@ pub enum DiffusePassCommand {
     },
 }
 
-pub struct DiffusePassRenderInfo<'a> {
-    pub camera: &'a Camera,
-    pub target: TextureRenderTarget<'a>,
-}
+// pub struct DiffusePassRenderInfo<'a> {
+//     // pub camera: &'a Camera,
+//     // pub target: TextureRenderTarget<'a>,
+// }
 
 pub struct DiffusePassInfo {
     pub per_vertex_lighting: bool,
@@ -44,25 +38,24 @@ pub struct DiffusePassInfo {
     pub max_directional_lights: u8,
 }
 
-#[derive(Default, Reflect, Serialize)]
 pub struct DiffusePass {
-    #[serialize(skip)]
-    pub(crate) handle: RendererProviderHandle,
+    info: DiffusePassInfo,
+    cmds: Vec<DiffusePassCommand>,
 }
 
 impl DiffusePass {
-    pub fn render(&mut self, ctx: &mut Context, info: &DiffusePassRenderInfo) {
-        todo!()
-    }
+    // pub fn render(&mut self, info: &DiffusePassRenderInfo) {
+    //     todo!()
+    // }
 
-    pub fn add_point_light(ctx: &mut Context, position: V2I32) {}
-
-    pub fn draw_mesh(
-        ctx: &mut Context,
-        mesh: &Mesh,
-        material: &Material,
-        transform: &RenderTransform,
-        sort: u32,
-    ) {
-    }
+    // pub fn add_point_light(ctx: &mut Context, position: V2I32) {}
+    //
+    // pub fn draw_mesh(
+    //     ctx: &mut Context,
+    //     mesh: &Mesh,
+    //     material: &Material,
+    //     transform: &RenderTransform,
+    //     sort: u32,
+    // ) {
+    // }
 }
