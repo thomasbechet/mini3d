@@ -1,3 +1,3 @@
-use mini3d_db::slot_map_key_handle;
+use mini3d_utils::slot_map_key;
 
-slot_map_key_handle!(RenderTargetHandle);
+slot_map_key!(RenderTargetId);

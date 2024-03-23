@@ -50,12 +50,12 @@ impl Registry {
         ));
     }
 
-    pub(crate) fn add_bitset(&mut self, handle: ComponentHandle) {
-        self.bitsets.insert(handle, Bitset::default());
+    pub(crate) fn add_bitset(&mut self, id: ComponentHandle) {
+        self.bitsets.insert(id, Bitset::default());
     }
 
-    pub(crate) fn remove_bitset(&mut self, handle: ComponentHandle) {
-        self.bitsets.remove(handle);
+    pub(crate) fn remove_bitset(&mut self, id: ComponentHandle) {
+        self.bitsets.remove(id);
     }
 
     pub(crate) fn entities(&self) -> impl Iterator<Item = Entity> + '_ {

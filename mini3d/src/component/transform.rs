@@ -14,7 +14,7 @@ pub struct Transform {
 
 impl Transform {
     pub fn add_from_translation(&self, api: &mut API, e: Entity, translation: V3I32F16) {
-        api.add_default(e, self.id());
+        api.add_default(e, self);
         api.write(e, self.translation, translation);
         api.write(e, self.scale, V3::ONE);
     }

@@ -1,8 +1,8 @@
-use mini3d_db::slot_map_key_handle;
 use mini3d_derive::{fixed, Serialize};
 use mini3d_math::fixed::U32F16;
+use mini3d_utils::slot_map_key;
 
-slot_map_key_handle!(CameraHandle);
+slot_map_key!(CameraId);
 
 #[derive(Serialize, Clone)]
 pub struct CameraData {

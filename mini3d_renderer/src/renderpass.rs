@@ -1,4 +1,4 @@
-use mini3d_db::slot_map_key_handle;
+use mini3d_utils::slot_map_key;
 
 use self::diffuse::DiffusePass;
 
@@ -11,7 +11,7 @@ pub mod diffuse;
 pub mod unlit;
 // pub mod wireframe;
 
-slot_map_key_handle!(RenderPassHandle);
+slot_map_key!(RenderPassId);
 
 pub enum CullMode {
     None,

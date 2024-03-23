@@ -3,13 +3,13 @@
 use core::cell::RefCell;
 
 use alloc::boxed::Box;
-use camera::{CameraData, CameraHandle};
-use mesh::{MeshData, MeshHandle};
+use camera::{CameraData, CameraId};
+use mesh::{MeshData, MeshId};
 use mini3d_utils::slotmap::SlotMap;
 use provider::{RendererProvider, RendererProviderError, RendererProviderHandle};
-use renderpass::{RenderPassData, RenderPassHandle};
-use texture::{TextureData, TextureHandle};
-use transform::{RenderTransformData, RenderTransformHandle};
+use renderpass::{RenderPassData, RenderPassId};
+use texture::{TextureData, TextureId};
+use transform::{RenderTransformData, RenderTransformId};
 
 pub mod camera;
 pub mod canvas;
@@ -45,11 +45,11 @@ impl<T: Default> ResourceEntry<T> {
 #[derive(Default)]
 pub struct RendererManager {
     provider: RefCell<Box<dyn RendererProvider>>,
-    textures: SlotMap<TextureHandle, ResourceEntry<TextureData>>,
-    meshes: SlotMap<MeshHandle, ResourceEntry<MeshData>>,
-    transforms: SlotMap<RenderTransformHandle, ResourceEntry<RenderTransformData>>,
-    cameras: SlotMap<CameraHandle, ResourceEntry<CameraData>>,
-    passes: SlotMap<RenderPassHandle, ResourceEntry<RenderPassData>>,
+    textures: SlotMap<TextureId, ResourceEntry<TextureData>>,
+    meshes: SlotMap<MeshId, ResourceEntry<MeshData>>,
+    transforms: SlotMap<RenderTransformId, ResourceEntry<RenderTransformData>>,
+    cameras: SlotMap<CameraId, ResourceEntry<CameraData>>,
+    passes: SlotMap<RenderPassId, ResourceEntry<RenderPassData>>,
 }
 
 impl RendererManager {
@@ -60,13 +60,13 @@ impl RendererManager {
     pub fn create_texture(
         &mut self,
         data: TextureData,
-    ) -> Result<TextureHandle, RendererProviderError> {
+    ) -> Result<TextureId, RendererProviderError> {
         let handle = self.provider.get_mut().create_texture(&data)?;
         let handle = self.textures.add(ResourceEntry::new(data, handle));
         Ok(handle)
     }
 
-    pub fn delete_texture(&mut self, handle: TextureHandle) -> Result<(), RendererProviderError> {
+    pub fn delete_texture(&mut self, handle: TextureId) -> Result<(), RendererProviderError> {
         self.provider.get_mut().delete_texture(
             self.textures
                 .get(handle)
@@ -77,13 +77,13 @@ impl RendererManager {
         Ok(())
     }
 
-    pub fn create_mesh(&mut self, data: MeshData) -> Result<MeshHandle, RendererProviderError> {
+    pub fn create_mesh(&mut self, data: MeshData) -> Result<MeshId, RendererProviderError> {
         let handle = self.provider.get_mut().create_mesh(&data)?;
         let handle = self.meshes.add(ResourceEntry::new(data, handle));
         Ok(handle)
     }
 
-    pub fn delete_mesh(&mut self, handle: MeshHandle) -> Result<(), RendererProviderError> {
+    pub fn delete_mesh(&mut self, handle: MeshId) -> Result<(), RendererProviderError> {
         self.provider.get_mut().delete_texture(
             self.meshes
                 .get(handle)

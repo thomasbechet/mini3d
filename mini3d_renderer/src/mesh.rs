@@ -1,9 +1,9 @@
 use alloc::vec::Vec;
-use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::vec::{V2I32F16, V3I32F16, V4I32F16};
+use mini3d_utils::slot_map_key;
 
-slot_map_key_handle!(MeshHandle);
+slot_map_key!(MeshId);
 
 #[derive(Clone, Serialize)]
 pub struct Vertex {

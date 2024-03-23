@@ -50,5 +50,15 @@ macro_rules! slot_map_key {
                 self.0.index()
             }
         }
+
+        impl $name {
+            pub fn from_raw(v: u32) -> Self {
+                Self($crate::slotmap::DefaultKey::from_raw(v))
+            }
+        
+            pub fn raw(&self) -> u32 {
+                self.0.raw()
+            }
+        }
     };
 }

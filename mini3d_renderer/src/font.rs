@@ -1,16 +1,16 @@
 use alloc::vec::Vec;
-use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::{
     rect::IRect,
     vec::{V2, V2U32},
 };
+use mini3d_utils::slot_map_key;
 
 use crate::texture::TextureData;
 
 use super::texture::TextureFormat;
 
-slot_map_key_handle!(FontHandle);
+slot_map_key!(FontId);
 
 #[derive(Clone, Serialize)]
 pub struct Font {

@@ -20,21 +20,32 @@ pub enum SchedulerError {
 }
 
 slot_map_key!(NodeId);
-slot_map_key!(StageId);
-slot_map_key!(SystemId);
+slot_map_key!(StageHandle);
+slot_map_key!(SystemHandle);
 
 #[derive(Default, Serialize)]
 pub struct SystemOrder {}
 
+#[derive(Default, Serialize, PartialEq, Eq)]
+pub enum RegisterItemState {
+    #[default]
+    Created,
+    Running,
+    Deleted,
+}
+
 #[derive(Serialize)]
 pub struct System {
     pub name: AsciiArray<32>,
-    pub(crate) stage: StageId,
+    pub state: RegisterItemState,
+    pub active: bool,
+    pub(crate) stage: StageHandle,
     pub(crate) order: SystemOrder,
 }
 
 pub struct Stage {
     pub name: AsciiArray<32>,
+    pub state: RegisterItemState,
     pub(crate) first_node: Option<NodeId>,
 }
 
@@ -48,20 +59,34 @@ pub(crate) struct PipelineNode {
 #[derive(Default)]
 pub struct Scheduler {
     nodes: SlotMap<NodeId, PipelineNode>,
-    stages: SlotMap<StageId, Stage>,
-    systems: SlotMap<SystemId, System>,
-    indices: Vec<SystemId>,
+    stages: SlotMap<StageHandle, Stage>,
+    systems: SlotMap<SystemHandle, System>,
+    indices: Vec<SystemHandle>,
 }
 
 impl Scheduler {
     pub fn rebuild(&mut self) {
+        // Update registry
+        for id in self.stages_from_state(RegisterItemState::Deleted) {
+            self.stages.remove(id);
+        }
+        for id in self.stages_from_state(RegisterItemState::Created) {
+            self.stages[id].state = RegisterItemState::Running;
+        }
+        for id in self.systems_from_state(RegisterItemState::Deleted) {
+            self.systems.remove(id);
+        }
+        for id in self.systems_from_state(RegisterItemState::Created) {
+            self.systems[id].state = RegisterItemState::Running;
+        }
+
         // Reset baked resources
         self.nodes.clear();
         self.indices.clear();
 
         // Reset stage entry nodes
         for stage in self.stages.values_mut() {
-            stage.first_node = None; 
+            stage.first_node = None;
         }
 
         // Collect stages
@@ -104,7 +129,7 @@ impl Scheduler {
         }
     }
 
-    pub fn first_node(&self, stage: StageId) -> Option<NodeId> {
+    pub fn first_node(&self, stage: StageHandle) -> Option<NodeId> {
         self.stages.get(stage).and_then(|stage| stage.first_node)
     }
 
@@ -112,14 +137,14 @@ impl Scheduler {
         self.nodes[node].next
     }
 
-    pub fn systems(&self, node: NodeId) -> &'_ [SystemId] {
+    pub fn systems(&self, node: NodeId) -> &'_ [SystemHandle] {
         let node = self.nodes[node];
         &self.indices[node.first as usize..(node.first + node.count) as usize]
     }
 
-    pub fn find_stage(&self, name: &str) -> Option<StageId> {
+    pub fn find_stage(&self, name: &str) -> Option<StageHandle> {
         self.stages.iter().find_map(|(id, stage)| {
-            if stage.name.as_str() == name {
+            if stage.name.as_str() == name && stage.state != RegisterItemState::Deleted {
                 Some(id)
             } else {
                 None
@@ -127,9 +152,9 @@ impl Scheduler {
         })
     }
 
-    pub fn find_system(&self, name: &str) -> Option<SystemId> {
+    pub fn find_system(&self, name: &str) -> Option<SystemHandle> {
         self.systems.iter().find_map(|(id, system)| {
-            if system.name.as_str() == name {
+            if system.name.as_str() == name && system.state != RegisterItemState::Deleted {
                 Some(id)
             } else {
                 None
@@ -137,12 +162,13 @@ impl Scheduler {
         })
     }
 
-    pub fn add_stage(&mut self, name: &str) -> Result<StageId, SchedulerError> {
+    pub fn add_stage(&mut self, name: &str) -> Result<StageHandle, SchedulerError> {
         if self.find_stage(name).is_some() {
             return Err(SchedulerError::DuplicatedEntry);
         }
         Ok(self.stages.add(Stage {
             name: AsciiArray::from(name),
+            state: RegisterItemState::Created,
             first_node: None,
         }))
     }
@@ -150,28 +176,68 @@ impl Scheduler {
     pub fn add_system(
         &mut self,
         name: &str,
-        stage: StageId,
+        stage: StageHandle,
         order: SystemOrder,
-    ) -> Result<SystemId, SchedulerError> {
+    ) -> Result<SystemHandle, SchedulerError> {
         if self.find_system(name).is_some() {
             return Err(SchedulerError::DuplicatedEntry);
         }
         Ok(self.systems.add(System {
             name: AsciiArray::from(name),
+            state: RegisterItemState::Created,
+            active: true,
             stage,
             order,
         }))
     }
 
-    pub fn iter_stages(&self) -> impl Iterator<Item = StageId> + '_ {
+    pub fn remove_system(&mut self, id: SystemHandle) {
+        self.systems[id].state = RegisterItemState::Deleted;
+    }
+
+    pub fn remove_stage(&mut self, id: StageHandle) {
+        self.stages[id].state = RegisterItemState::Deleted;
+    }
+
+    pub fn iter_stages(&self) -> impl Iterator<Item = StageHandle> + '_ {
         self.stages.keys()
     }
-    
-    pub fn stage(&self, id: StageId) -> Option<&Stage> {
+
+    pub fn iter_systems(&self) -> impl Iterator<Item = SystemHandle> + '_ {
+        self.systems.keys()
+    }
+
+    pub fn stage(&self, id: StageHandle) -> Option<&Stage> {
         self.stages.get(id)
     }
 
-    pub fn system(&self, id: SystemId) -> Option<&System> {
+    pub fn system(&self, id: SystemHandle) -> Option<&System> {
         self.systems.get(id)
+    }
+
+    pub fn systems_from_state(&self, state: RegisterItemState) -> Vec<SystemHandle> {
+        self.systems
+            .iter()
+            .filter_map(|(id, system)| {
+                if system.state == state {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn stages_from_state(&self, state: RegisterItemState) -> Vec<StageHandle> {
+        self.stages
+            .iter()
+            .filter_map(|(id, system)| {
+                if system.state == state {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

@@ -1,6 +1,7 @@
 use core::fmt::{self, Formatter};
 
 use alloc::vec::Vec;
+use mini3d_derive::Serialize;
 use mini3d_utils::{slot_map_key, slotmap::SlotMap, string::AsciiArray};
 
 use crate::{
@@ -8,36 +9,73 @@ use crate::{
     error::ComponentError,
     field::{ComponentField, Field, FieldEntry, FieldType},
     query::{EntityQuery, Query},
-    registry::Registry, slot_map_key_handle,
+    registry::Registry,
 };
-use crate as mini3d_db;
 
-slot_map_key_handle!(ComponentHandle);
-slot_map_key!(FieldId);
+slot_map_key!(ComponentHandle);
+slot_map_key!(FieldHandle);
+
+pub trait GetComponentHandle {
+    fn handle(&self) -> ComponentHandle;
+}
+
+impl GetComponentHandle for ComponentHandle {
+    fn handle(&self) -> ComponentHandle {
+        *self
+    }
+}
+
+#[derive(Default, Serialize, PartialEq, Eq)]
+pub enum ComponentState {
+    #[default]
+    Created,
+    Active,
+    Deleted,
+}
 
 pub(crate) struct ComponentEntry {
     pub(crate) name: AsciiArray<32>,
-    pub(crate) fields: Vec<FieldId>,
+    pub(crate) state: ComponentState,
+    pub(crate) fields: Vec<FieldHandle>,
 }
 
 #[derive(Default)]
 pub struct Database {
     pub(crate) registry: Registry,
-    pub(crate) fields: SlotMap<FieldId, FieldEntry>,
+    pub(crate) fields: SlotMap<FieldHandle, FieldEntry>,
     pub(crate) components: SlotMap<ComponentHandle, ComponentEntry>,
 }
 
 impl Database {
-    pub fn register_tag(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
-        if self.find_component(name).is_some() {
-            return Err(ComponentError::DuplicatedEntry);
+    pub fn rebuild(&mut self) {
+        for id in self.components_from_state(ComponentState::Deleted) {
+            for fid in self.components.get(id).unwrap().fields.iter() {
+                self.fields.remove(*fid);
+                // TODO trigger events ?
+            }
+            self.components.remove(id);
+            self.registry.remove_bitset(id);
         }
-        let id = self.components.add(ComponentEntry {
-            name: name.into(),
-            fields: Default::default(),
-        });
-        self.registry.add_bitset(id);
-        Ok(id)
+        for id in self.components_from_state(ComponentState::Created) {
+            self.components[id].state = ComponentState::Active;
+        }
+    }
+
+    pub fn components_from_state(&self, state: ComponentState) -> Vec<ComponentHandle> {
+        self.components
+            .iter()
+            .filter_map(|(id, system)| {
+                if system.state == state {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn register_tag(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
+        self.register(name, &[])
     }
 
     pub fn register(
@@ -50,6 +88,7 @@ impl Database {
         }
         let id = self.components.add(ComponentEntry {
             name: name.into(),
+            state: ComponentState::Created,
             fields: Vec::with_capacity(fields.len()),
         });
         let component = self.components.get_mut(id).unwrap();
@@ -65,20 +104,15 @@ impl Database {
         Ok(id)
     }
 
-    pub fn delete_component(&mut self, c: ComponentHandle) {
-        for fid in self.components.get(c).unwrap().fields.iter() {
-            self.fields.remove(*fid);
-            // TODO trigger events ?
-        }
-        self.components.remove(c);
-        self.registry.remove_bitset(c);
+    pub fn unregister_component(&mut self, c: ComponentHandle) {
+        self.components[c].state = ComponentState::Deleted;
     }
 
     pub fn create(&mut self) -> Entity {
         self.registry.create()
     }
 
-    pub fn destroy(&mut self, e: Entity) {
+    pub fn delete(&mut self, e: Entity) {
         self.registry.destroy(e);
     }
 

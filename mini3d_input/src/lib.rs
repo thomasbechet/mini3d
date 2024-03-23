@@ -7,7 +7,7 @@ use event::InputEvent;
 use mini3d_derive::Error;
 use mini3d_utils::slotmap::SlotMap;
 use provider::{InputProvider, InputProviderError};
-use text::{InputText, InputTextHandle};
+use text::{InputText, InputTextId};
 
 pub mod action;
 pub mod axis;
@@ -43,7 +43,7 @@ pub struct InputManager {
     provider: Box<dyn InputProvider>,
     actions: SlotMap<InputActionHandle, InputAction>,
     axis: SlotMap<InputAxisHandle, InputAxis>,
-    texts: SlotMap<InputTextHandle, InputText>,
+    texts: SlotMap<InputTextId, InputText>,
 }
 
 impl InputManager {

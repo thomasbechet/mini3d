@@ -1,10 +1,10 @@
-use mini3d_db::slot_map_key_handle;
 use mini3d_derive::Serialize;
 use mini3d_math::vec::V2I32F16;
+use mini3d_utils::slot_map_key;
 
-use crate::texture::TextureHandle;
+use crate::texture::TextureId;
 
-slot_map_key_handle!(MaterialHandle);
+slot_map_key!(MaterialId);
 
 #[derive(Default, Serialize, Clone)]
 pub(crate) enum MaterialType {
@@ -16,8 +16,8 @@ pub(crate) enum MaterialType {
 #[derive(Default, Clone, Serialize)]
 pub struct Material {
     pub(crate) ty: MaterialType,
-    pub(crate) tex0: TextureHandle,
-    pub(crate) tex1: TextureHandle,
+    pub(crate) tex0: Option<TextureId>,
+    pub(crate) tex1: Option<TextureId>,
     pub(crate) uv0_offset: V2I32F16,
     pub(crate) uv0_scale: V2I32F16,
     pub(crate) uv1_offset: V2I32F16,

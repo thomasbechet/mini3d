@@ -48,6 +48,7 @@ mod test {
             .unwrap();
         let f0 = db.find_field::<Entity>(c0, "f0").unwrap();
         let f1 = db.find_field::<u32>(c0, "f1").unwrap();
+        db.rebuild();
         let e = db.create();
         db.add_default(e, tag);
         db.add_default(e, c0);

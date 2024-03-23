@@ -1,8 +1,11 @@
-use core::fmt::{Arguments, Display};
+use core::{
+    cell::RefCell,
+    fmt::{Arguments, Display},
+};
 
-use alloc::format;
+use alloc::{boxed::Box, format};
 use mini3d_db::{
-    database::{ComponentHandle, Database},
+    database::{ComponentHandle, Database, GetComponentHandle},
     entity::Entity,
     error::ComponentError,
     field::{ComponentField, Field, FieldType},
@@ -16,22 +19,23 @@ use mini3d_input::{
 use mini3d_logger::{level::LogLevel, LoggerManager};
 use mini3d_math::mat::M4I32F16;
 use mini3d_renderer::{
-    camera::CameraHandle,
-    font::FontHandle,
-    material::MaterialHandle,
-    mesh::{MeshData, MeshHandle},
-    renderpass::RenderPassHandle,
-    rendertarget::RenderTargetHandle,
-    texture::{TextureData, TextureHandle},
-    transform::RenderTransformHandle,
+    camera::CameraId,
+    font::FontId,
+    mesh::{MeshData, MeshId},
+    renderpass::RenderPassId,
+    rendertarget::RenderTargetId,
+    texture::{TextureData, TextureId},
+    transform::RenderTransformId,
     RendererManager,
 };
-use mini3d_scheduler::{Scheduler, SchedulerError, StageId, SystemId, SystemOrder};
+use mini3d_scheduler::{Scheduler, SchedulerError, StageHandle, SystemHandle, SystemOrder};
 
-use crate::{event::ComponentEventStages, execute_stage, Invocation, RuntimeState};
+use crate::{
+    event::ComponentEventStages, execute_stage, system::IntoSystem, Invocation, RuntimeState,
+};
 
 pub struct API<'a> {
-    pub(crate) db: &'a mut Database,
+    pub(crate) database: &'a mut Database,
     pub(crate) scheduler: &'a mut Scheduler,
     pub(crate) logger: &'a mut LoggerManager,
     pub(crate) input: &'a mut InputManager,
@@ -52,16 +56,16 @@ impl<'a> API<'a> {
 
     /// DATABASE API
 
-    pub fn create_tag_component(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
-        self.create_component(name, &[])
+    pub fn register_tag(&mut self, name: &str) -> ComponentHandle {
+        self.register_component(name, &[])
     }
 
-    pub fn create_component(
+    pub fn register_component(
         &mut self,
         name: &str,
         fields: &[ComponentField],
-    ) -> Result<ComponentHandle, ComponentError> {
-        let id = self.db.register(name, fields)?;
+    ) -> ComponentHandle {
+        let id = self.database.register(name, fields).unwrap();
         let on_added = self
             .scheduler
             .add_stage(&format!("_on_{}_added", name))
@@ -70,79 +74,88 @@ impl<'a> API<'a> {
             .scheduler
             .add_stage(&format!("_on_{}_removed", name))
             .unwrap();
-        self.state.stages.components.insert(
+        self.state.base_stages.components.insert(
             id,
             ComponentEventStages {
                 on_added: Some(on_added),
                 on_removed: Some(on_removed),
             },
         );
-        self.scheduler.rebuild();
-        Ok(id)
+        self.state.rebuild_scheduler = true;
+        id
     }
 
-    pub fn delete_component(&mut self, c: ComponentHandle) {
-        self.db.delete_component(c);
-        let stages = &self.state.stages.components[c];
+    pub fn unregister_component(&mut self, c: ComponentHandle) {
+        self.database.unregister_component(c);
+        let stages = &self.state.base_stages.components[c];
         // self.scheduler.remove_stage(stages.on_added);
         // self.scheduler.remove_stage(stages.on_removed);
-        self.state.stages.components.remove(c);
-        self.scheduler.rebuild();
+        self.state.base_stages.components.remove(c);
+        self.state.rebuild_scheduler = true;
     }
 
-    pub fn create(&mut self) -> Entity {
-        self.db.create()
+    pub fn spawn(&mut self) -> Entity {
+        self.database.create()
     }
 
-    pub fn destroy(&mut self, e: Entity) {
+    pub fn despawn(&mut self, e: Entity) {
         let mut c = None;
-        while let Some(n) = self.db.find_next_component(e, c) {
+        while let Some(n) = self.database.find_next_component(e, c) {
             c = Some(n);
             self.remove(e, n);
         }
         // TODO: find proper solution to prevent corrupted database
-        self.db.destroy(e)
+        self.database.delete(e)
     }
 
-    pub fn add_default(&mut self, e: Entity, c: ComponentHandle) {
-        self.db.add_default(e, c);
-        execute_stage(self.state.stages.components[c].on_added.unwrap(), self);
+    pub fn add_default(&mut self, e: Entity, c: impl GetComponentHandle) {
+        self.database.add_default(e, c.handle());
+        execute_stage(self.state.base_stages.components[c.handle()].on_added.unwrap(), self);
     }
 
-    pub fn remove(&mut self, e: Entity, c: ComponentHandle) {
-        execute_stage(self.state.stages.components[c].on_removed.unwrap(), self);
-        self.db.remove(e, c)
+    pub fn remove(&mut self, e: Entity, c: impl GetComponentHandle) {
+        execute_stage(
+            self.state.base_stages.components[c.handle()]
+                .on_removed
+                .unwrap(),
+            self,
+        );
+        self.database.remove(e, c.handle())
     }
 
-    pub fn has(&self, e: Entity, c: ComponentHandle) -> bool {
-        self.db.has(e, c)
+    pub fn has(&self, e: Entity, c: impl GetComponentHandle) -> bool {
+        self.database.has(e, c.handle())
     }
 
     pub fn read<T: FieldType>(&self, e: Entity, f: Field<T>) -> Option<T> {
-        self.db.read(e, f)
+        self.database.read(e, f)
     }
 
     pub fn write<T: FieldType>(&mut self, e: Entity, f: Field<T>, v: T) {
-        self.db.write(e, f, v)
+        self.database.write(e, f, v)
     }
 
     pub fn entities(&self) -> impl Iterator<Item = Entity> + '_ {
-        self.db.entities()
+        self.database.entities()
     }
 
     pub fn query_entities<'b, 'c: 'b>(
         &'c self,
         query: &'b Query,
     ) -> impl Iterator<Item = Entity> + 'b {
-        self.db.query_entities(query).into_iter(self.db)
+        self.database.query_entities(query).into_iter(self.database)
     }
 
     pub fn find_component(&self, name: &str) -> Option<ComponentHandle> {
-        self.db.find_component(name)
+        self.database.find_component(name)
     }
 
-    pub fn find_field<T: FieldType>(&self, c: ComponentHandle, name: &str) -> Option<Field<T>> {
-        self.db.find_field(c, name)
+    pub fn find_field<T: FieldType>(
+        &self,
+        c: impl GetComponentHandle,
+        name: &str,
+    ) -> Option<Field<T>> {
+        self.database.find_field(c.handle(), name)
     }
 
     pub fn dump(&self, e: Entity) {
@@ -153,7 +166,7 @@ impl<'a> API<'a> {
             }
         }
         self.log(
-            format_args!("{}", EntityFormatter(e, self.db)),
+            format_args!("{}", EntityFormatter(e, self.database)),
             LogLevel::Info,
             None,
         )
@@ -161,50 +174,56 @@ impl<'a> API<'a> {
 
     /// SCHEDULER API
 
-    pub fn find_stage(&self, name: &str) -> Option<StageId> {
+    pub fn find_stage(&self, name: &str) -> Option<StageHandle> {
         self.scheduler.find_stage(name)
     }
 
-    pub fn tick_stage(&self) -> StageId {
-        self.state.stages.tick_stage.unwrap()
+    pub fn tick_stage(&self) -> StageHandle {
+        self.state.base_stages.tick_stage.unwrap()
     }
 
-    pub fn start_stage(&self) -> StageId {
-        self.state.stages.start_stage.unwrap()
+    pub fn start_stage(&self) -> StageHandle {
+        self.state.base_stages.start_stage.unwrap()
     }
 
-    pub fn on_component_added_stage(&self, c: ComponentHandle) -> StageId {
-        self.state.stages.components[c].on_added.unwrap()
+    pub fn on_component_added_stage(&self, c: impl GetComponentHandle) -> StageHandle {
+        self.state.base_stages.components[c.handle()]
+            .on_added
+            .unwrap()
     }
 
-    pub fn on_component_removed_stage(&self, c: ComponentHandle) -> StageId {
-        self.state.stages.components[c].on_removed.unwrap()
+    pub fn on_component_removed_stage(&self, c: impl GetComponentHandle) -> StageHandle {
+        self.state.base_stages.components[c.handle()]
+            .on_removed
+            .unwrap()
     }
 
-    pub fn find_system(&self, name: &str) -> Option<SystemId> {
+    pub fn find_system(&self, name: &str) -> Option<SystemHandle> {
         self.scheduler.find_system(name)
     }
 
-    pub fn create_stage(&mut self, name: &str) -> Result<StageId, SchedulerError> {
-        let stage = self.scheduler.add_stage(name)?;
-        self.scheduler.rebuild();
-        Ok(stage)
+    pub fn register_stage(&mut self, name: &str) -> Result<StageHandle, SchedulerError> {
+        let id = self.scheduler.add_stage(name)?;
+        self.state.rebuild_scheduler = true;
+        Ok(id)
     }
 
-    pub fn create_system(
+    pub fn register_system<Params>(
         &mut self,
         name: &str,
-        stage: StageId,
+        stage: StageHandle,
         order: SystemOrder,
-        callback: fn(&mut API),
-    ) -> Result<SystemId, SchedulerError> {
-        let system = self.scheduler.add_system(name, stage, order)?;
-        self.state.systems.insert(system, Some(callback));
-        self.scheduler.rebuild();
-        Ok(system)
+        callback: impl IntoSystem<Params>,
+    ) -> SystemHandle {
+        let id = self.scheduler.add_system(name, stage, order).unwrap();
+        self.state
+            .created_native_systems
+            .push((id, Box::new(callback.into_system())));
+        self.state.rebuild_scheduler = true;
+        id
     }
 
-    pub fn invoke(&mut self, stage: StageId, invocation: Invocation) {
+    pub fn invoke(&mut self, stage: StageHandle, invocation: Invocation) {
         match invocation {
             Invocation::Immediate => {
                 // Recursive call
@@ -212,11 +231,11 @@ impl<'a> API<'a> {
             }
             Invocation::NextStage => {
                 // Called after the current stage
-                self.state.stages.next_stages.push_back(stage);
+                self.state.base_stages.next_stages.push_back(stage);
             }
             Invocation::NextTick => {
                 // Called on the next tick
-                self.state.stages.next_tick_stages.push_back(stage);
+                self.state.base_stages.next_tick_stages.push_back(stage);
             }
         }
     }
@@ -286,77 +305,59 @@ impl<'a> API<'a> {
 
     /// RENDERER API
 
-    pub fn create_texture(&mut self, data: TextureData) -> TextureHandle {
-        self.renderer.create_texture(data).unwrap()
+    pub fn delete_camera(&mut self, handle: CameraId) {}
+
+    pub fn update_camera(&mut self, camera: CameraId, view: M4I32F16) {}
+
+    pub fn create_render_transform(&mut self) -> RenderTransformId {
+        unimplemented!()
     }
 
-    pub fn delete_texture(&mut self, handle: TextureHandle) {
-        self.renderer.delete_texture(handle).unwrap();
+    pub fn delete_render_transform(&mut self, handle: RenderTransformId) {}
+
+    pub fn update_render_transform(&mut self, handle: RenderTransformId, matrix: M4I32F16) {}
+
+    pub fn create_render_target(&mut self) -> RenderTargetId {
+        unimplemented!()
     }
 
-    pub fn create_mesh(&mut self, data: MeshData) -> MeshHandle {
-        self.renderer.create_mesh(data).unwrap()
+    pub fn screen_render_target(&mut self) -> RenderTargetId {
+        unimplemented!()
     }
 
-    pub fn delete_mesh(&mut self, handle: MeshHandle) {
-        self.renderer.delete_mesh(handle).unwrap();
+    pub fn delete_render_target(&mut self, handle: RenderTargetId) {}
+
+    pub fn create_unlit_pass(&mut self) -> RenderPassId {
+        unimplemented!()
     }
 
-    pub fn create_camera(&mut self) -> CameraHandle {
-        Default::default()
+    pub fn create_canvas_pass(&mut self) -> RenderPassId {
+        unimplemented!()
     }
 
-    pub fn delete_camera(&mut self, handle: CameraHandle) {}
+    pub fn delete_pass(&mut self, handle: RenderPassId) {}
 
-    pub fn update_camera(&mut self, camera: CameraHandle, view: M4I32F16) {}
+    pub fn bind_transform(&mut self, pass: RenderPassId, transform: RenderTransformId) {}
 
-    pub fn create_render_transform(&mut self) -> RenderTransformHandle {
-        Default::default()
-    }
+    pub fn bind_texture(&mut self, pass: RenderPassId, texture: TextureId) {}
 
-    pub fn delete_render_transform(&mut self, handle: RenderTransformHandle) {}
+    pub fn bind_font(&mut self, font: FontId) {}
 
-    pub fn update_render_transform(&mut self, handle: RenderTransformHandle, matrix: M4I32F16) {}
+    pub fn draw_mesh(&mut self, pass: RenderPassId, mesh: MeshId) {}
 
-    pub fn create_render_target(&mut self) -> RenderTargetHandle {
-        Default::default()
-    }
+    pub fn draw_mesh_skinned(&mut self, pass: RenderPassId, mesh: MeshId) {}
 
-    pub fn screen_render_target(&mut self) -> RenderTargetHandle {
-        Default::default()
-    }
-
-    pub fn delete_render_target(&mut self, handle: RenderTargetHandle) {}
-
-    pub fn create_unlit_pass(&mut self) -> RenderPassHandle {
-        Default::default()
-    }
-
-    pub fn create_canvas_pass(&mut self) -> RenderPassHandle {Default::default()}
-
-    pub fn delete_pass(&mut self, handle: RenderPassHandle) {}
-
-    pub fn bind_transform(&mut self, pass: RenderPassHandle, transform: RenderTransformHandle) {}
-
-    pub fn bind_texture(&mut self, pass: RenderPassHandle, texture: TextureHandle) {}
-
-    pub fn bind_font(&mut self, font: FontHandle) {}
-
-    pub fn draw_mesh(&mut self, pass: RenderPassHandle, mesh: MeshHandle) {}
-
-    pub fn draw_mesh_skinned(&mut self, pass: RenderPassHandle, mesh: MeshHandle) {}
-
-    pub fn draw_billboard(&mut self, pass: RenderPassHandle, transform: RenderTransformHandle) {}
+    pub fn draw_billboard(&mut self, pass: RenderPassId, transform: RenderTransformId) {}
 
     pub fn submit_unlit_pass(
         &mut self,
-        pass: RenderPassHandle,
-        target: RenderTargetHandle,
-        camera: CameraHandle,
+        pass: RenderPassId,
+        target: RenderTargetId,
+        camera: CameraId,
     ) {
     }
 
-    pub fn submut_canvas_pass(&mut self, pass: RenderPassHandle) {}
+    pub fn submut_canvas_pass(&mut self, pass: RenderPassId) {}
 }
 
 #[macro_export]

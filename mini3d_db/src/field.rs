@@ -4,13 +4,12 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use mini3d_math::vec::{V3I32F16, V4I32F16};
 use mini3d_math::{fixed::I32F24, mat::M4I32F16, quat::QI32F16};
-use mini3d_utils::handle::Handle;
 use mini3d_utils::string::AsciiArray;
 
-use crate::database::FieldId;
+use crate::database::FieldHandle;
 use crate::entity::Entity;
 
-pub struct Field<T: FieldType>(pub(crate) FieldId, pub(crate) core::marker::PhantomData<T>);
+pub struct Field<T: FieldType>(pub(crate) FieldHandle, pub(crate) core::marker::PhantomData<T>);
 
 impl<T: FieldType> Clone for Field<T> {
     fn clone(&self) -> Self {
@@ -65,7 +64,6 @@ impl<'a> ComponentField<'a> {
             DataType::Scalar(Primitive::M4I32F16) => Storage::M4I32F16(Default::default()),
             DataType::Scalar(Primitive::QI32F16) => Storage::QI32F16(Default::default()),
             DataType::Scalar(Primitive::Entity) => Storage::Entity(Default::default()),
-            DataType::Scalar(Primitive::Handle) => Storage::Handle(Default::default()),
             _ => unreachable!(),
         }
     }
@@ -118,7 +116,6 @@ pub enum Storage {
     M4I32F16(RawStorage<M4I32F16>),
     QI32F16(RawStorage<QI32F16>),
     Entity(RawStorage<Entity>),
-    Handle(RawStorage<Handle>),
 }
 
 impl Storage {
@@ -146,9 +143,6 @@ impl Storage {
                 s.set(e, Default::default());
             }
             Storage::Entity(s) => {
-                s.set(e, Default::default());
-            }
-            Storage::Handle(s) => {
                 s.set(e, Default::default());
             }
         }
@@ -187,9 +181,6 @@ impl FieldEntry {
                 write!(f, "{}", *s.get(e))?;
             }
             Storage::Entity(s) => {
-                write!(f, "{}", *s.get(e))?;
-            }
-            Storage::Handle(s) => {
                 write!(f, "{}", *s.get(e))?;
             }
         }
@@ -251,67 +242,67 @@ impl_field_scalar!(M4I32F16, M4I32F16);
 impl_field_scalar!(QI32F16, QI32F16);
 impl_field_scalar!(Entity, Entity);
 
-#[macro_export]
-macro_rules! slot_map_key_handle {
-    ($name:ident) => {
-        #[derive(mini3d_derive::Serialize, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub struct $name(Option<mini3d_utils::slotmap::DefaultKey>);
-
-        impl $name {
-            pub fn from_handle(h: mini3d_utils::handle::Handle) -> Self {
-                if h == mini3d_utils::handle::Handle::null() {
-                    Self(None)
-                } else {
-                    Self(Some(mini3d_utils::slotmap::DefaultKey::from_raw(h.raw())))
-                }
-            }
-
-            pub fn handle(&self) -> mini3d_utils::handle::Handle {
-                mini3d_utils::handle::Handle::from(self.0.map(|k| k.raw()).unwrap_or(0))
-            }
-        }
-
-        impl mini3d_utils::slotmap::Key for $name {
-            fn new(index: usize) -> Self {
-                Self(Some(mini3d_utils::slotmap::DefaultKey::new(index)))
-            }
-
-            fn update(&mut self, index: usize) {
-                self.0.unwrap().update(index);
-            }
-
-            fn index(&self) -> usize {
-                self.0.expect("null handle access").index()
-            }
-        }
-
-        impl $crate::field::FieldType for $name {
-            fn named(name: &str) -> $crate::field::ComponentField {
-                $crate::field::ComponentField {
-                    name,
-                    ty: $crate::field::DataType::Scalar($crate::field::Primitive::Handle),
-                }
-            }
-
-            fn read(
-                entry: &$crate::field::FieldEntry,
-                e: mini3d_db::entity::Entity,
-            ) -> Option<Self> {
-                if let $crate::field::Storage::Handle(s) = &entry.data {
-                    let h = *s.get(e);
-                    return Some(Self::from_handle(h));
-                }
-                None
-            }
-
-            fn write(entry: &mut $crate::field::FieldEntry, e: mini3d_db::entity::Entity, v: Self) {
-                match entry.data {
-                    $crate::field::Storage::Handle(ref mut s) => {
-                        *s.get_mut(e) = v.handle();
-                    }
-                    _ => {}
-                }
-            }
-        }
-    };
-}
+// #[macro_export]
+// macro_rules! slot_map_key_handle {
+//     ($name:ident) => {
+//         #[derive(mini3d_derive::Serialize, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+//         pub struct $name(Option<mini3d_utils::slotmap::DefaultKey>);
+//
+//         impl $name {
+//             pub fn from_handle(h: mini3d_utils::handle::Handle) -> Self {
+//                 if h == mini3d_utils::handle::Handle::null() {
+//                     Self(None)
+//                 } else {
+//                     Self(Some(mini3d_utils::slotmap::DefaultKey::from_raw(h.raw())))
+//                 }
+//             }
+//
+//             pub fn handle(&self) -> mini3d_utils::handle::Handle {
+//                 mini3d_utils::handle::Handle::from(self.0.map(|k| k.raw()).unwrap_or(0))
+//             }
+//         }
+//
+//         impl mini3d_utils::slotmap::Key for $name {
+//             fn new(index: usize) -> Self {
+//                 Self(Some(mini3d_utils::slotmap::DefaultKey::new(index)))
+//             }
+//
+//             fn update(&mut self, index: usize) {
+//                 self.0.unwrap().update(index);
+//             }
+//
+//             fn index(&self) -> usize {
+//                 self.0.expect("null handle access").index()
+//             }
+//         }
+//
+//         impl $crate::field::FieldType for $name {
+//             fn named(name: &str) -> $crate::field::ComponentField {
+//                 $crate::field::ComponentField {
+//                     name,
+//                     ty: $crate::field::DataType::Scalar($crate::field::Primitive::Handle),
+//                 }
+//             }
+//
+//             fn read(
+//                 entry: &$crate::field::FieldEntry,
+//                 e: mini3d_db::entity::Entity,
+//             ) -> Option<Self> {
+//                 if let $crate::field::Storage::Handle(s) = &entry.data {
+//                     let h = *s.get(e);
+//                     return Some(Self::from_handle(h));
+//                 }
+//                 None
+//             }
+//
+//             fn write(entry: &mut $crate::field::FieldEntry, e: mini3d_db::entity::Entity, v: Self) {
+//                 match entry.data {
+//                     $crate::field::Storage::Handle(ref mut s) => {
+//                         *s.get_mut(e) = v.handle();
+//                     }
+//                     _ => {}
+//                 }
+//             }
+//         }
+//     };
+// }
