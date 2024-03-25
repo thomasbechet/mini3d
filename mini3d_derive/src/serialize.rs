@@ -583,8 +583,12 @@ fn generate_tuple_field_deserialize(entry: &TupleFieldEntry) -> Result<TokenStre
     })
 }
 
-fn build_header_type_ident(ident: &Ident) -> Ident {
-    Ident::new(&format!("{}Header", ident), Span::call_site())
+fn build_header_type_ident(parent: Option<&Ident>, ident: &Ident) -> Ident {
+    if let Some(parent) = parent {
+        Ident::new(&format!("{}{}Header", parent, ident), Span::call_site())
+    } else {
+        Ident::new(&format!("{}Header", ident), Span::call_site())
+    }
 }
 
 fn build_header_field_ident(ident: &Ident) -> Ident {
@@ -621,7 +625,7 @@ pub(crate) fn derive_struct(
         .collect::<Vec<_>>();
 
     // Generate header
-    let header_ident = build_header_type_ident(ident);
+    let header_ident = build_header_type_ident(None, ident);
     let header = generate_header_struct(
         &header_ident,
         vis,
@@ -683,7 +687,7 @@ pub(crate) fn derive_tuple(
         .collect::<Vec<_>>();
 
     // Generate header
-    let header_ident = build_header_type_ident(ident);
+    let header_ident = build_header_type_ident(None, ident);
     let header = generate_header_tuple(
         &header_ident,
         vis,
@@ -749,7 +753,8 @@ pub(crate) fn derive_enum(
                 hash,
                 entries,
             } => {
-                let header_ident = build_header_type_ident(variant_ident);
+                let header_ident = build_header_type_ident(Some(ident), variant_ident);
+
                 // let field_idents = entries.iter().map(|entry| build_header_field_ident(&entry.ident)).collect::<Vec<_>>();
                 let field_idents = entries
                     .iter()
@@ -809,7 +814,7 @@ pub(crate) fn derive_enum(
                 hash,
                 entries,
             } => {
-                let header_ident = build_header_type_ident(variant_ident);
+                let header_ident = build_header_type_ident(Some(ident), variant_ident);
                 let field_idents = entries
                     .iter()
                     .map(|entry| build_tuple_field_ident(entry.index))
@@ -864,7 +869,7 @@ pub(crate) fn derive_enum(
                 ident: variant_ident,
                 hash,
             } => {
-                let header_ident = build_header_type_ident(variant_ident);
+                let header_ident = build_header_type_ident(Some(ident), variant_ident);
                 variant_header_structs.push(generate_header(
                     &header_ident,
                     vis,
@@ -901,15 +906,15 @@ pub(crate) fn derive_enum(
     }
 
     // Generate enum header
-    let header_ident = build_header_type_ident(ident);
+    let header_ident = build_header_type_ident(None, ident);
     let mut header_types = Vec::new();
     for entry in entries {
-        let ident = match entry {
+        let entry_ident = match entry {
             EnumFieldEntry::Struct { ident, .. } => ident,
             EnumFieldEntry::Tuple { ident, .. } => ident,
             EnumFieldEntry::Unit { ident, .. } => ident,
         };
-        header_types.push(build_header_type_ident(&ident).to_token_stream());
+        header_types.push(build_header_type_ident(Some(ident), &entry_ident).to_token_stream());
     }
 
     let (major, minor, patch) = enum_attributes.version;

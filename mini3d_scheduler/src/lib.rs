@@ -23,7 +23,15 @@ slot_map_key!(SystemHandle);
 pub struct SystemOrder {}
 
 #[derive(Default, Debug, Serialize, PartialEq, Eq)]
-pub enum RegisterItemState {
+pub enum SystemState {
+    #[default]
+    Created,
+    Running,
+    Deleted,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq, Eq)]
+pub enum StageState {
     #[default]
     Created,
     Running,
@@ -33,7 +41,7 @@ pub enum RegisterItemState {
 #[derive(Serialize, Debug)]
 pub struct System {
     pub name: AsciiArray<32>,
-    pub state: RegisterItemState,
+    pub state: SystemState,
     pub active: bool,
     pub(crate) stage: StageHandle,
     pub(crate) order: SystemOrder,
@@ -41,7 +49,7 @@ pub struct System {
 
 pub struct Stage {
     pub name: AsciiArray<32>,
-    pub state: RegisterItemState,
+    pub state: StageState,
     pub(crate) first_node: Option<NodeId>,
 }
 
@@ -63,17 +71,17 @@ pub struct Scheduler {
 impl Scheduler {
     pub fn rebuild(&mut self) {
         // Update registry
-        for id in self.stages_from_state(RegisterItemState::Deleted) {
+        for id in self.stages_from_state(StageState::Deleted) {
             self.stages.remove(id);
         }
-        for id in self.stages_from_state(RegisterItemState::Created) {
-            self.stages[id].state = RegisterItemState::Running;
+        for id in self.stages_from_state(StageState::Created) {
+            self.stages[id].state = StageState::Running;
         }
-        for id in self.systems_from_state(RegisterItemState::Deleted) {
+        for id in self.systems_from_state(SystemState::Deleted) {
             self.systems.remove(id);
         }
-        for id in self.systems_from_state(RegisterItemState::Created) {
-            self.systems[id].state = RegisterItemState::Running;
+        for id in self.systems_from_state(SystemState::Created) {
+            self.systems[id].state = SystemState::Running;
         }
 
         // Reset baked resources
@@ -140,7 +148,7 @@ impl Scheduler {
 
     pub fn find_stage(&self, name: &str) -> Option<StageHandle> {
         self.stages.iter().find_map(|(id, stage)| {
-            if stage.name.as_str() == name && stage.state != RegisterItemState::Deleted {
+            if stage.name.as_str() == name && stage.state != StageState::Deleted {
                 Some(id)
             } else {
                 None
@@ -150,7 +158,7 @@ impl Scheduler {
 
     pub fn find_system(&self, name: &str) -> Option<SystemHandle> {
         self.systems.iter().find_map(|(id, system)| {
-            if system.name.as_str() == name && system.state != RegisterItemState::Deleted {
+            if system.name.as_str() == name && system.state != SystemState::Deleted {
                 Some(id)
             } else {
                 None
@@ -164,7 +172,7 @@ impl Scheduler {
         }
         Ok(self.stages.add(Stage {
             name: AsciiArray::from(name),
-            state: RegisterItemState::Created,
+            state: StageState::Created,
             first_node: None,
         }))
     }
@@ -180,7 +188,7 @@ impl Scheduler {
         }
         Ok(self.systems.add(System {
             name: AsciiArray::from(name),
-            state: RegisterItemState::Created,
+            state: SystemState::Created,
             active: true,
             stage,
             order,
@@ -188,11 +196,11 @@ impl Scheduler {
     }
 
     pub fn remove_system(&mut self, id: SystemHandle) {
-        self.systems[id].state = RegisterItemState::Deleted;
+        self.systems[id].state = SystemState::Deleted;
     }
 
     pub fn remove_stage(&mut self, id: StageHandle) {
-        self.stages[id].state = RegisterItemState::Deleted;
+        self.stages[id].state = StageState::Deleted;
     }
 
     pub fn iter_stages(&self) -> impl Iterator<Item = StageHandle> + '_ {
@@ -211,7 +219,7 @@ impl Scheduler {
         self.systems.get(id)
     }
 
-    pub fn systems_from_state(&self, state: RegisterItemState) -> Vec<SystemHandle> {
+    pub fn systems_from_state(&self, state: SystemState) -> Vec<SystemHandle> {
         self.systems
             .iter()
             .filter_map(|(id, system)| {
@@ -224,7 +232,7 @@ impl Scheduler {
             .collect()
     }
 
-    pub fn stages_from_state(&self, state: RegisterItemState) -> Vec<StageHandle> {
+    pub fn stages_from_state(&self, state: StageState) -> Vec<StageHandle> {
         self.stages
             .iter()
             .filter_map(|(id, system)| {

@@ -13,7 +13,7 @@ use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
 use mini3d_logger::provider::LoggerProvider;
 use mini3d_renderer::{provider::RendererProvider, RendererManager};
-use mini3d_scheduler::{RegisterItemState, Scheduler, StageHandle, SystemHandle};
+use mini3d_scheduler::{SystemState, Scheduler, StageHandle, SystemHandle};
 use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use mini3d_utils::slotmap::SecondaryMap;
 use system::System;
@@ -176,7 +176,7 @@ impl Runtime {
 
             for id in self
                 .scheduler
-                .systems_from_state(RegisterItemState::Created)
+                .systems_from_state(SystemState::Created)
             {
                 let found = self
                     .state
@@ -208,7 +208,7 @@ impl Runtime {
 
             for id in self
                 .scheduler
-                .systems_from_state(RegisterItemState::Running)
+                .systems_from_state(SystemState::Running)
             {
                 // Thank you rust
                 self.state
