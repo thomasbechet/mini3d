@@ -34,22 +34,20 @@ impl RendererProvider for LoggerRenderer {
 
 fn my_system2(api: &mut API, transform: &Transform) {}
 
-// fn my_system(api: &mut API) {
-//     info!(api, "my_system");
-//     let transform = Transform::meta(api);
-//     let hierarchy = Hierarchy::meta(api);
-//     let my_tag = api.find_component("my_tag").unwrap();
-//     let query = Query::default().all(&[transform.id()]);
-//     info!(api, "hello world");
-//     let e = api.entities().next().unwrap();
-//     let mut pos = api.read(e, transform.translation).unwrap();
-//     info!(api, "{:?}", pos);
-//     pos.x += fixed!(0.5i32f16);
-//     api.write(e, transform.translation, pos);
-//     for e in api.entities() {
-//         api.dump(e);
-//     }
-// }
+fn my_system(api: &mut API, transform: &Transform, hierarchy: &Hierarchy) {
+    info!(api, "my_system");
+    let my_tag = api.find_component("my_tag").unwrap();
+    let query = Query::default().all(&[transform]);
+    info!(api, "hello world");
+    let e = api.entities().next().unwrap();
+    let mut pos = api.read(e, transform.translation).unwrap();
+    info!(api, "{:?}", pos);
+    pos.x += fixed!(0.5i32f16);
+    api.write(e, transform.translation, pos);
+    for e in api.entities() {
+        api.dump(e);
+    }
+}
 
 #[component]
 struct MyComponent {}
@@ -60,7 +58,6 @@ fn on_start(
     transform: &Transform,
     hierarchy: &Hierarchy,
     my_component: &MyComponent,
-    component: &Component,
 ) {
     let my_tag = api.find_component("my_tag").unwrap();
     let e = api.spawn();
@@ -77,23 +74,28 @@ fn on_start(
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
         Texture::register(api);
-        Texture::register_callbacks(api);
-        // Transform::register(api);
-        // Hierarchy::register(api);
-        // api.register_tag("my_tag");
-        // MyComponent::register(api);
-        // api.register_system(
-        //     "my_system",
-        //     api.tick_stage(),
-        //     Default::default(),
-        //     my_system2,
-        // );
-        // api.register_system(
-        //     "start_system",
-        //     api.start_stage(),
-        //     Default::default(),
-        //     on_start,
-        // );
+        Transform::register(api);
+        Hierarchy::register(api);
+        api.register_component_tag("my_tag");
+        MyComponent::register(api);
+        api.register_system(
+            "my_system2",
+            api.tick_stage(),
+            Default::default(),
+            my_system2,
+        );
+        api.register_system(
+            "my_system",
+            api.tick_stage(),
+            Default::default(),
+            my_system,
+        );
+        api.register_system(
+            "start_system",
+            api.start_stage(),
+            Default::default(),
+            on_start,
+        );
     }));
     runtime.set_logger(StdoutLogger);
     runtime.set_renderer(LoggerRenderer);

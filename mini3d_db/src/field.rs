@@ -94,7 +94,7 @@ impl<T: Default + Copy> RawStorage<T> {
         self.chunks[ci].as_mut().unwrap().get_mut(ei).unwrap()
     }
 
-    fn set(&mut self, e: Entity, v: T) -> &mut T {
+    pub fn set(&mut self, e: Entity, v: T) -> &mut T {
         let (ci, ei) = Self::indices(e);
         if ci >= self.chunks.len() {
             self.chunks.resize(ci + 1, Default::default());

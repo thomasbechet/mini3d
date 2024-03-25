@@ -1,13 +1,9 @@
-use core::{
-    cell::RefCell,
-    fmt::{Arguments, Display},
-};
+use core::fmt::{Arguments, Display};
 
 use alloc::{boxed::Box, format};
 use mini3d_db::{
     database::{ComponentHandle, Database, GetComponentHandle},
     entity::Entity,
-    error::ComponentError,
     field::{ComponentField, Field, FieldType},
     query::Query,
 };
@@ -19,16 +15,12 @@ use mini3d_input::{
 use mini3d_logger::{level::LogLevel, LoggerManager};
 use mini3d_math::mat::M4I32F16;
 use mini3d_renderer::{
-    camera::CameraId,
-    font::FontId,
-    mesh::{MeshData, MeshId},
-    renderpass::RenderPassId,
-    rendertarget::RenderTargetId,
-    texture::{TextureData, TextureId},
-    transform::RenderTransformId,
+    camera::CameraId, font::FontId, mesh::MeshId, renderpass::RenderPassId,
+    rendertarget::RenderTargetId, texture::TextureId, transform::RenderTransformId,
     RendererManager,
 };
 use mini3d_scheduler::{Scheduler, SchedulerError, StageHandle, SystemHandle, SystemOrder};
+use mini3d_utils::slotmap::DefaultKey;
 
 use crate::{
     event::ComponentEventStages, execute_stage, system::IntoSystem, Invocation, RuntimeState,
@@ -56,16 +48,25 @@ impl<'a> API<'a> {
 
     /// DATABASE API
 
-    pub fn register_tag(&mut self, name: &str) -> ComponentHandle {
-        self.register_component(name, &[])
+    pub fn register_component_tag(&mut self, name: &str) -> ComponentHandle {
+        let id = self.database.register_tag(name).unwrap();
+        self.register_component_callbacks(id, name);
+        id
     }
 
-    pub fn register_component(
-        &mut self,
-        name: &str,
-        fields: &[ComponentField],
-    ) -> ComponentHandle {
+    pub fn register_component(&mut self, name: &str, fields: &[ComponentField]) -> ComponentHandle {
         let id = self.database.register(name, fields).unwrap();
+        self.register_component_callbacks(id, name);
+        id
+    }
+
+    pub fn register_component_key(&mut self, name: &str) -> ComponentHandle {
+        let id = self.database.register_key(name).unwrap();
+        self.register_component_callbacks(id, name);
+        id
+    }
+
+    fn register_component_callbacks(&mut self, c: ComponentHandle, name: &str) {
         let on_added = self
             .scheduler
             .add_stage(&format!("_on_{}_added", name))
@@ -75,14 +76,13 @@ impl<'a> API<'a> {
             .add_stage(&format!("_on_{}_removed", name))
             .unwrap();
         self.state.base_stages.components.insert(
-            id,
+            c,
             ComponentEventStages {
                 on_added: Some(on_added),
                 on_removed: Some(on_removed),
             },
         );
         self.state.rebuild_scheduler = true;
-        id
     }
 
     pub fn unregister_component(&mut self, c: ComponentHandle) {
@@ -110,7 +110,12 @@ impl<'a> API<'a> {
 
     pub fn add_default(&mut self, e: Entity, c: impl GetComponentHandle) {
         self.database.add_default(e, c.handle());
-        execute_stage(self.state.base_stages.components[c.handle()].on_added.unwrap(), self);
+        execute_stage(
+            self.state.base_stages.components[c.handle()]
+                .on_added
+                .unwrap(),
+            self,
+        );
     }
 
     pub fn remove(&mut self, e: Entity, c: impl GetComponentHandle) {
@@ -133,6 +138,14 @@ impl<'a> API<'a> {
 
     pub fn write<T: FieldType>(&mut self, e: Entity, f: Field<T>, v: T) {
         self.database.write(e, f, v)
+    }
+
+    pub fn read_key(&self, e: Entity, c: impl GetComponentHandle) -> Option<DefaultKey> {
+        self.database.read_key(e, c.handle())
+    }
+
+    pub fn write_key(&mut self, e: Entity, c: impl GetComponentHandle, v: DefaultKey) {
+        self.database.write_key(e, c.handle(), v)
     }
 
     pub fn entities(&self) -> impl Iterator<Item = Entity> + '_ {

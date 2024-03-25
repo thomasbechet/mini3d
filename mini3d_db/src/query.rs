@@ -1,6 +1,6 @@
 use crate::{
     bitset::{BitsetMaskIter, IterAnswer},
-    database::{ComponentHandle, Database},
+    database::{ComponentHandle, Database, GetComponentHandle},
     entity::Entity,
     registry::Registry,
 };
@@ -20,25 +20,25 @@ impl Query {
     pub const MAX_ANY: usize = 8;
     pub const MAX_NOT: usize = 8;
 
-    pub fn all(mut self, ids: &[ComponentHandle]) -> Self {
+    pub fn all(mut self, ids: &[impl GetComponentHandle]) -> Self {
         for (i, id) in ids.iter().enumerate() {
-            self.all[i] = Some(*id);
+            self.all[i] = Some(id.handle());
         }
         self.all_size = ids.len();
         self
     }
 
-    pub fn any(mut self, ids: &[ComponentHandle]) -> Self {
+    pub fn any(mut self, ids: &[impl GetComponentHandle]) -> Self {
         for (i, id) in ids.iter().enumerate() {
-            self.any[i] = Some(*id);
+            self.any[i] = Some(id.handle());
         }
         self.any_size = ids.len();
         self
     }
 
-    pub fn not(mut self, ids: &[ComponentHandle]) -> Self {
+    pub fn not(mut self, ids: &[impl GetComponentHandle]) -> Self {
         for (i, id) in ids.iter().enumerate() {
-            self.not[i] = Some(*id);
+            self.not[i] = Some(id.handle());
         }
         self.not_size = ids.len();
         self

@@ -59,6 +59,14 @@ macro_rules! slot_map_key {
             pub fn raw(&self) -> u32 {
                 self.0.raw()
             }
+
+            pub fn from_key(k: $crate::slotmap::DefaultKey) -> Self {
+                Self(k)
+            }
+
+            pub fn key(&self) -> $crate::slotmap::DefaultKey {
+                self.0
+            }
         }
     };
 }

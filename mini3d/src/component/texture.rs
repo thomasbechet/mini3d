@@ -1,15 +1,26 @@
-use crate::{self as mini3d, api::API};
-use mini3d_derive::component;
+use crate::{self as mini3d, api::API, system::SystemParam};
+use mini3d_db::database::{ComponentHandle, GetComponentHandle};
 use mini3d_renderer::texture::TextureId;
 
-#[component]
-pub struct Texture {
-    handle: u32,
+pub struct Texture(ComponentHandle);
+
+impl SystemParam for Texture {
+    fn resolve(db: &mini3d_db::database::Database) -> Self {
+        Self(db.find_component(Self::NAME).unwrap())
+    }
+}
+
+impl GetComponentHandle for &Texture {
+    fn handle(&self) -> ComponentHandle {
+        self.0
+    }
 }
 
 impl Texture {
-    pub fn register_callbacks(api: &mut API) {
-        let handle = api.find_component(Self::NAME).unwrap();
+    pub const NAME: &'static str = "texture";
+
+    pub fn register(api: &mut API) {
+        let handle = api.register_component_key(Self::NAME);
         api.register_system(
             "create_texture",
             api.on_component_added_stage(handle),
@@ -26,15 +37,15 @@ impl Texture {
 }
 
 fn create_texture(api: &mut API, texture: &Texture) {
-    let handle = api.renderer.create_texture(Default::default()).unwrap();
-    api.write(api.event_entity(), texture.handle, handle.raw());
+    let key = api
+        .renderer
+        .create_texture(Default::default())
+        .unwrap()
+        .key();
+    api.write_key(api.event_entity(), texture, key);
 }
 
 fn delete_texture(api: &mut API, texture: &Texture) {
-    let handle = api.read(api.event_entity(), texture.handle).unwrap();
-    if handle != 0 {
-        api.renderer
-            .delete_texture(TextureId::from_raw(handle))
-            .unwrap();
-    }
+    let key = TextureId::from_key(api.read_key(api.event_entity(), texture).unwrap());
+    api.renderer.delete_texture(key).unwrap();
 }

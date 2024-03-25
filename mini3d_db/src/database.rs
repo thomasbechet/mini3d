@@ -1,13 +1,20 @@
-use core::fmt::{self, Formatter};
+use core::{
+    fmt::{self, Formatter},
+    num::NonZeroU32,
+};
 
 use alloc::vec::Vec;
 use mini3d_derive::Serialize;
-use mini3d_utils::{slot_map_key, slotmap::SlotMap, string::AsciiArray};
+use mini3d_utils::{
+    slot_map_key,
+    slotmap::{DefaultKey, SlotMap},
+    string::AsciiArray,
+};
 
 use crate::{
     entity::Entity,
     error::ComponentError,
-    field::{ComponentField, Field, FieldEntry, FieldType},
+    field::{ComponentField, Field, FieldEntry, FieldType, RawStorage},
     query::{EntityQuery, Query},
     registry::Registry,
 };
@@ -33,10 +40,16 @@ pub enum ComponentState {
     Deleted,
 }
 
+pub(crate) enum ComponentData {
+    Fields(Vec<FieldHandle>),
+    Key(RawStorage<Option<DefaultKey>>),
+    Tag,
+}
+
 pub(crate) struct ComponentEntry {
     pub(crate) name: AsciiArray<32>,
     pub(crate) state: ComponentState,
-    pub(crate) fields: Vec<FieldHandle>,
+    pub(crate) data: ComponentData,
 }
 
 #[derive(Default)]
@@ -49,9 +62,11 @@ pub struct Database {
 impl Database {
     pub fn rebuild(&mut self) {
         for id in self.components_from_state(ComponentState::Deleted) {
-            for fid in self.components.get(id).unwrap().fields.iter() {
-                self.fields.remove(*fid);
-                // TODO trigger events ?
+            if let ComponentData::Fields(fields) = &mut self.components.get_mut(id).unwrap().data {
+                for fid in fields.iter() {
+                    self.fields.remove(*fid);
+                    // TODO trigger events ?
+                }
             }
             self.components.remove(id);
             self.registry.remove_bitset(id);
@@ -75,7 +90,29 @@ impl Database {
     }
 
     pub fn register_tag(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
-        self.register(name, &[])
+        if self.find_component(name).is_some() {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        let id = self.components.add(ComponentEntry {
+            name: name.into(),
+            state: ComponentState::Created,
+            data: ComponentData::Tag,
+        });
+        self.registry.add_bitset(id);
+        Ok(id)
+    }
+
+    pub fn register_key(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
+        if self.find_component(name).is_some() {
+            return Err(ComponentError::DuplicatedEntry);
+        }
+        let id = self.components.add(ComponentEntry {
+            name: name.into(),
+            state: ComponentState::Created,
+            data: ComponentData::Key(Default::default()),
+        });
+        self.registry.add_bitset(id);
+        Ok(id)
     }
 
     pub fn register(
@@ -89,7 +126,7 @@ impl Database {
         let id = self.components.add(ComponentEntry {
             name: name.into(),
             state: ComponentState::Created,
-            fields: Vec::with_capacity(fields.len()),
+            data: ComponentData::Fields(Vec::with_capacity(fields.len())),
         });
         let component = self.components.get_mut(id).unwrap();
         for field in fields {
@@ -98,7 +135,9 @@ impl Database {
                 data: field.create_storage(),
                 ty: field.ty,
             });
-            component.fields.push(fid);
+            if let ComponentData::Fields(component_fields) = &mut component.data {
+                component_fields.push(fid);
+            }
         }
         self.registry.add_bitset(id);
         Ok(id)
@@ -116,13 +155,29 @@ impl Database {
         self.registry.destroy(e);
     }
 
-    pub fn find_next_component(&self, e: Entity, c: Option<ComponentHandle>) -> Option<ComponentHandle> {
+    pub fn find_next_component(
+        &self,
+        e: Entity,
+        c: Option<ComponentHandle>,
+    ) -> Option<ComponentHandle> {
         self.registry.find_next_component(e, c)
     }
 
     pub fn add_default(&mut self, e: Entity, c: ComponentHandle) {
-        for fid in self.components.get(c).unwrap().fields.iter() {
-            self.fields[*fid].data.add_default(e);
+        let component = self.components.get(c).expect("Component not found");
+        if component.state == ComponentState::Created {
+            panic!("Trying to in creation component");
+        }
+        match &mut self.components.get_mut(c).unwrap().data {
+            ComponentData::Fields(fields) => {
+                for fid in fields.iter() {
+                    self.fields[*fid].data.add_default(e);
+                }
+            }
+            ComponentData::Key(handles) => {
+                handles.set(e, None);
+            }
+            ComponentData::Tag => {}
         }
         self.registry.set(e, c);
     }
@@ -143,6 +198,21 @@ impl Database {
         T::write(&mut self.fields[f.0], e, v)
     }
 
+    pub fn read_key(&self, e: Entity, id: ComponentHandle) -> Option<DefaultKey> {
+        if let ComponentData::Key(keys) = &self.components[id].data {
+            return *keys.get(e);
+        }
+        panic!("not a key component")
+    }
+
+    pub fn write_key(&mut self, e: Entity, id: ComponentHandle, k: DefaultKey) {
+        if let ComponentData::Key(keys) = &mut self.components[id].data {
+            keys.set(e, Some(k));
+        } else {
+            panic!("not a key component");
+        }
+    }
+
     pub fn entities(&self) -> impl Iterator<Item = Entity> + '_ {
         self.registry.entities()
     }
@@ -158,9 +228,11 @@ impl Database {
     }
 
     pub fn find_field<T: FieldType>(&self, c: ComponentHandle, name: &str) -> Option<Field<T>> {
-        for field in self.components[c].fields.iter() {
-            if self.fields[*field].name.as_str() == name {
-                return Some(Field(*field, Default::default()));
+        if let ComponentData::Fields(fields) = &self.components[c].data {
+            for field in fields.iter() {
+                if self.fields[*field].name.as_str() == name {
+                    return Some(Field(*field, Default::default()));
+                }
             }
         }
         None
@@ -178,12 +250,28 @@ impl Database {
             next = Some(component);
             let component = &self.components[component];
             writeln!(f)?;
-            write!(f, "- {}", component.name)?;
-            for field in component.fields.iter() {
-                let field = &self.fields[*field];
-                writeln!(f)?;
-                write!(f, "  - ")?;
-                field.display(f, e)?;
+            match &component.data {
+                ComponentData::Fields(fields) => {
+                    write!(f, "- {} (fields)", component.name)?;
+                    for field in fields.iter() {
+                        let field = &self.fields[*field];
+                        writeln!(f)?;
+                        write!(f, "  - ")?;
+                        field.display(f, e)?;
+                    }
+                }
+                ComponentData::Key(keys) => {
+                    write!(f, "- {} (key)", component.name)?;
+                    let key = keys.get(e);
+                    if let Some(key) = key {
+                        write!(f, ": {:08X}", key.raw())?;
+                    } else {
+                        write!(f, ": null")?;
+                    }
+                }
+                ComponentData::Tag => {
+                    write!(f, "- {} (tag)", component.name)?;
+                }
             }
         }
         Ok(())

@@ -2,11 +2,7 @@
 
 use alloc::vec::Vec;
 use mini3d_derive::{Error, Serialize};
-use mini3d_utils::{
-    slot_map_key,
-    slotmap::{Key, SlotMap},
-    string::AsciiArray,
-};
+use mini3d_utils::{slot_map_key, slotmap::SlotMap, string::AsciiArray};
 
 #[cfg(test)]
 extern crate std;
@@ -23,10 +19,10 @@ slot_map_key!(NodeId);
 slot_map_key!(StageHandle);
 slot_map_key!(SystemHandle);
 
-#[derive(Default, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct SystemOrder {}
 
-#[derive(Default, Serialize, PartialEq, Eq)]
+#[derive(Default, Debug, Serialize, PartialEq, Eq)]
 pub enum RegisterItemState {
     #[default]
     Created,
@@ -34,7 +30,7 @@ pub enum RegisterItemState {
     Deleted,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct System {
     pub name: AsciiArray<32>,
     pub state: RegisterItemState,

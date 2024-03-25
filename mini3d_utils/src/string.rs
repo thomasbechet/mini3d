@@ -1,5 +1,5 @@
 use core::{
-    fmt::{Display, Formatter},
+    fmt::{Debug, Display, Formatter},
     ops::Deref,
 };
 
@@ -64,6 +64,12 @@ impl<const SIZE: usize> AsciiArray<SIZE> {
 impl<const SIZE: usize> Display for AsciiArray<SIZE> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl<const SIZE: usize> Debug for AsciiArray<SIZE> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+       write!(f, "{}", self.as_str()) 
     }
 }
 

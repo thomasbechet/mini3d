@@ -160,14 +160,69 @@ impl Runtime {
                 renderer: &mut runtime.renderer,
             });
         }
-        runtime.database.rebuild();
-        runtime.scheduler.rebuild();
         runtime
             .state
             .base_stages
             .next_tick_stages
             .push_back(runtime.state.base_stages.start_stage.unwrap());
+        runtime.flush_database_and_scheduler();
         runtime
+    }
+
+    fn flush_database_and_scheduler(&mut self) {
+        // Update scheduler if needed
+        if self.state.rebuild_scheduler {
+            self.database.rebuild();
+
+            for id in self
+                .scheduler
+                .systems_from_state(RegisterItemState::Created)
+            {
+                let found = self
+                    .state
+                    .created_native_systems
+                    .iter()
+                    .position(|(sid, _)| *sid == id)
+                    .unwrap();
+                let native_system = self.state.created_native_systems.swap_remove(found);
+                self.state
+                    .native_systems
+                    .borrow_mut()
+                    .insert(id, Some(native_system.1));
+                self.logger
+                    .log(format_args!("found {}", found), LogLevel::Debug, None);
+            }
+
+            assert!(self.state.created_native_systems.is_empty());
+
+            self.scheduler.rebuild();
+
+            for stage in self.scheduler.iter_stages() {
+                let stage = self.scheduler.stage(stage).unwrap();
+                self.logger.log(
+                    format_args!("STAGE {} {:?}", stage.name, stage.state),
+                    LogLevel::Debug,
+                    None,
+                );
+            }
+
+            for id in self
+                .scheduler
+                .systems_from_state(RegisterItemState::Running)
+            {
+                // Thank you rust
+                self.state
+                    .native_systems
+                    .borrow_mut()
+                    .get_mut(id)
+                    .unwrap()
+                    .as_mut()
+                    .unwrap()
+                    .resolve(&self.database);
+            }
+
+            self.state.rebuild_scheduler = false;
+        }
     }
 
     pub fn set_renderer(&mut self, provider: impl RendererProvider + 'static) {
@@ -250,53 +305,7 @@ impl Runtime {
 
         // ================= POST-UPDATE STAGE ================== //
 
-        // Update scheduler if needed
-        if self.state.rebuild_scheduler {
-            self.database.rebuild();
-
-            for id in self
-                .scheduler
-                .systems_from_state(RegisterItemState::Created)
-            {
-                self.state.native_systems.borrow_mut().remove(id);
-            }
-            for id in self
-                .scheduler
-                .systems_from_state(RegisterItemState::Created)
-            {
-                let found = self
-                    .state
-                    .created_native_systems
-                    .iter()
-                    .position(|(sid, _)| *sid == id)
-                    .unwrap();
-                let native_system = self.state.created_native_systems.swap_remove(found);
-                self.state
-                    .native_systems
-                    .borrow_mut()
-                    .insert(id, Some(native_system.1));
-            }
-
-            self.scheduler.rebuild();
-
-            for id in self
-                .scheduler
-                .systems_from_state(RegisterItemState::Running)
-            {
-                // Thank you rust
-                self.logger.log(format_args!("hello"), LogLevel::Info, None);
-                self.state
-                    .native_systems
-                    .borrow_mut()
-                    .get_mut(id)
-                    .unwrap()
-                    .as_mut()
-                    .unwrap()
-                    .resolve(&self.database);
-            }
-
-            self.state.rebuild_scheduler = false;
-        }
+        self.flush_database_and_scheduler();
 
         Ok(())
     }
