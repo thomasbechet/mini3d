@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use mini3d_derive::Serialize;
 use mini3d_utils::slot_map_key;
 
-slot_map_key!(TextureId);
+slot_map_key!(TextureHandle);
 
 #[derive(Clone, Serialize, Default)]
 pub enum TextureFormat {

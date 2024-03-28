@@ -1,11 +1,14 @@
 use mini3d::{
     api::API,
-    component::{event::UserEvent, hierarchy::Hierarchy, input::InputAction, texture::Texture, transform::Transform},
+    component::{
+        event::UserEvent, hierarchy::Hierarchy, input::InputAction, renderer::Texture,
+        transform::Transform,
+    },
     db::query::Query,
     event::Event,
     info,
     math::{fixed::I32F16, vec::V3I32F16},
-    renderer::{provider::RendererProvider, texture::TextureId},
+    renderer::provider::RendererProvider,
     Runtime, RuntimeConfig,
 };
 use mini3d_derive::{component, fixed};

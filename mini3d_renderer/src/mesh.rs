@@ -3,7 +3,7 @@ use mini3d_derive::Serialize;
 use mini3d_math::vec::{V2I32F16, V3I32F16, V4I32F16};
 use mini3d_utils::slot_map_key;
 
-slot_map_key!(MeshId);
+slot_map_key!(MeshHandle);
 
 #[derive(Clone, Serialize)]
 pub struct Vertex {

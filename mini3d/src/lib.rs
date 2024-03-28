@@ -4,7 +4,7 @@ use core::cell::RefCell;
 
 use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
 use api::API;
-use component::{event::UserEvent, hierarchy::Hierarchy, input::{InputAction, InputAxis, InputText}, texture::Texture, transform::Transform};
+use component::{event::UserEvent, hierarchy::Hierarchy, input::{InputAction, InputAxis, InputText}, renderer::{Mesh, Texture}, transform::Transform};
 use db::entity::Entity;
 use event::EventTable;
 use logger::{level::LogLevel, LoggerManager};
@@ -146,6 +146,7 @@ impl Runtime {
             renderer: &mut runtime.renderer,
         };
         Texture::register(api);
+        Mesh::register(api);
         Transform::register(api);
         Hierarchy::register(api);
         UserEvent::register(api);

@@ -7,16 +7,12 @@ use mini3d_db::{
     field::{ComponentField, Field, FieldType},
     query::Query,
 };
-use mini3d_input::{
-    action::InputActionHandle,
-    axis::{InputAxisHandle, InputAxisRange},
-    InputError, InputManager,
-};
+use mini3d_input::{action::InputActionHandle, axis::InputAxisHandle, InputManager};
 use mini3d_logger::{level::LogLevel, LoggerManager};
 use mini3d_math::mat::M4I32F16;
 use mini3d_renderer::{
-    camera::CameraId, font::FontId, mesh::MeshId, renderpass::RenderPassId,
-    rendertarget::RenderTargetId, texture::TextureId, transform::RenderTransformId,
+    camera::CameraId, font::FontId, mesh::MeshHandle, renderpass::RenderPassId,
+    rendertarget::RenderTargetId, texture::TextureHandle, transform::RenderTransformId,
     RendererManager,
 };
 use mini3d_scheduler::{Scheduler, StageId, SystemHandle, SystemOrder};
@@ -123,7 +119,12 @@ impl<'a> API<'a> {
         self.database.write(e, f, v)
     }
 
-    pub(crate) fn write_handle(&mut self, e: Entity, c: impl GetComponentHandle, v: impl Into<Handle>) {
+    pub(crate) fn write_handle(
+        &mut self,
+        e: Entity,
+        c: impl GetComponentHandle,
+        v: impl Into<Handle>,
+    ) {
         self.database.write_handle(e, c.handle(), v.into())
     }
 
@@ -288,13 +289,13 @@ impl<'a> API<'a> {
 
     pub fn bind_transform(&mut self, pass: RenderPassId, transform: RenderTransformId) {}
 
-    pub fn bind_texture(&mut self, pass: RenderPassId, texture: TextureId) {}
+    pub fn bind_texture(&mut self, pass: RenderPassId, texture: TextureHandle) {}
 
     pub fn bind_font(&mut self, font: FontId) {}
 
-    pub fn draw_mesh(&mut self, pass: RenderPassId, mesh: MeshId) {}
+    pub fn draw_mesh(&mut self, pass: RenderPassId, mesh: MeshHandle) {}
 
-    pub fn draw_mesh_skinned(&mut self, pass: RenderPassId, mesh: MeshId) {}
+    pub fn draw_mesh_skinned(&mut self, pass: RenderPassId, mesh: MeshHandle) {}
 
     pub fn draw_billboard(&mut self, pass: RenderPassId, transform: RenderTransformId) {}
 

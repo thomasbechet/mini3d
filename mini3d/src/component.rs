@@ -1,7 +1,7 @@
 pub mod event;
 pub mod hierarchy;
 pub mod input;
-pub mod texture;
+pub mod renderer;
 pub mod transform;
 
 #[macro_export]
