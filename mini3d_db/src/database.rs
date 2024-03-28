@@ -6,9 +6,7 @@ use core::{
 use alloc::vec::Vec;
 use mini3d_derive::Serialize;
 use mini3d_utils::{
-    slot_map_key,
-    slotmap::{DefaultKey, SlotMap},
-    string::AsciiArray,
+    handle::Handle, slot_map_key, slotmap::{DefaultKey, SlotMap}, string::AsciiArray
 };
 
 use crate::{
@@ -42,7 +40,7 @@ pub enum ComponentState {
 
 pub(crate) enum ComponentData {
     Fields(Vec<FieldHandle>),
-    Key(RawStorage<Option<DefaultKey>>),
+    Handle(RawStorage<Handle>),
     Tag,
 }
 
@@ -102,14 +100,14 @@ impl Database {
         Ok(id)
     }
 
-    pub fn register_key(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
+    pub fn register_handle(&mut self, name: &str) -> Result<ComponentHandle, ComponentError> {
         if self.find_component(name).is_some() {
             return Err(ComponentError::DuplicatedEntry);
         }
         let id = self.components.add(ComponentEntry {
             name: name.into(),
             state: ComponentState::Created,
-            data: ComponentData::Key(Default::default()),
+            data: ComponentData::Handle(Default::default()),
         });
         self.registry.add_bitset(id);
         Ok(id)
@@ -174,8 +172,8 @@ impl Database {
                     self.fields[*fid].data.add_default(e);
                 }
             }
-            ComponentData::Key(handles) => {
-                handles.set(e, None);
+            ComponentData::Handle(handles) => {
+                handles.set(e, Default::default());
             }
             ComponentData::Tag => {}
         }
@@ -198,16 +196,16 @@ impl Database {
         T::write(&mut self.fields[f.0], e, v)
     }
 
-    pub fn read_key(&self, e: Entity, id: ComponentHandle) -> Option<DefaultKey> {
-        if let ComponentData::Key(keys) = &self.components[id].data {
-            return *keys.get(e);
+    pub fn read_handle(&self, e: Entity, id: ComponentHandle) -> Handle {
+        if let ComponentData::Handle(handles) = &self.components[id].data {
+            return *handles.get(e);
         }
         panic!("not a key component")
     }
 
-    pub fn write_key(&mut self, e: Entity, id: ComponentHandle, k: DefaultKey) {
-        if let ComponentData::Key(keys) = &mut self.components[id].data {
-            keys.set(e, Some(k));
+    pub fn write_handle(&mut self, e: Entity, id: ComponentHandle, h: Handle) {
+        if let ComponentData::Handle(handles) = &mut self.components[id].data {
+            handles.set(e, h);
         } else {
             panic!("not a key component");
         }
@@ -260,11 +258,11 @@ impl Database {
                         field.display(f, e)?;
                     }
                 }
-                ComponentData::Key(keys) => {
-                    write!(f, "- {} (key)", component.name)?;
-                    let key = keys.get(e);
-                    if let Some(key) = key {
-                        write!(f, ": {:08X}", key.raw())?;
+                ComponentData::Handle(handles) => {
+                    write!(f, "- {} (handle)", component.name)?;
+                    let handle = handles.get(e);
+                    if let Some(handle) = handle.nonnull() {
+                        write!(f, ": {:08X}", handle.raw())?;
                     } else {
                         write!(f, ": null")?;
                     }

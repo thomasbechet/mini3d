@@ -28,6 +28,14 @@ impl Handle {
     pub fn raw(&self) -> u32 {
         self.0
     }
+
+    pub fn nonnull(self) -> Option<Self> {
+        if self == Self::null() {
+            None
+        } else {
+            Some(self)
+        }
+    }
 }
 
 impl Default for Handle {

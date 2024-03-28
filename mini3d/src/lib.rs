@@ -4,8 +4,9 @@ use core::cell::RefCell;
 
 use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
 use api::API;
-use db::{database::ComponentHandle, entity::Entity};
-use event::ComponentEventStages;
+use component::{event::UserEvent, hierarchy::Hierarchy, input::{InputAction, InputAxis, InputText}, texture::Texture, transform::Transform};
+use db::entity::Entity;
+use event::EventTable;
 use logger::{level::LogLevel, LoggerManager};
 use mini3d_db::database::Database;
 use mini3d_derive::Error;
@@ -13,7 +14,7 @@ use mini3d_input::{provider::InputProvider, InputManager};
 use mini3d_io::{disk::DiskManager, provider::DiskProvider};
 use mini3d_logger::provider::LoggerProvider;
 use mini3d_renderer::{provider::RendererProvider, RendererManager};
-use mini3d_scheduler::{SystemState, Scheduler, StageHandle, SystemHandle};
+use mini3d_scheduler::{Scheduler, StageId, SystemHandle, SystemState};
 use mini3d_serialize::{Decoder, DecoderError, Encoder, EncoderError};
 use mini3d_utils::slotmap::SecondaryMap;
 use system::System;
@@ -73,20 +74,13 @@ pub enum Invocation {
 }
 
 #[derive(Default)]
-pub(crate) struct BaseStages {
-    pub(crate) next_tick_stages: VecDeque<StageHandle>,
-    pub(crate) next_stages: VecDeque<StageHandle>,
-    pub(crate) start_stage: Option<StageHandle>,
-    pub(crate) tick_stage: Option<StageHandle>,
-    pub(crate) components: SecondaryMap<ComponentHandle, ComponentEventStages>,
-}
-
-#[derive(Default)]
 pub(crate) struct RuntimeState {
+    pub(crate) next_tick_stages: VecDeque<StageId>,
+    pub(crate) next_stages: VecDeque<StageId>,
     request_stop: bool,
     target_tps: u16,
     event_entity: Entity,
-    pub(crate) base_stages: BaseStages,
+    pub(crate) events: EventTable,
     pub(crate) native_systems: Rc<RefCell<SecondaryMap<SystemHandle, Option<Box<dyn System>>>>>,
     created_native_systems: Vec<(SystemHandle, Box<dyn System>)>,
     rebuild_scheduler: bool,
@@ -102,12 +96,7 @@ pub struct Runtime {
     pub(crate) state: RuntimeState,
 }
 
-pub(crate) fn execute_stage(stage: StageHandle, api: &mut API) {
-    debug!(
-        api,
-        "running stage {}",
-        api.scheduler.stage(stage).unwrap().name
-    );
+pub(crate) fn execute_stage(stage: StageId, api: &mut API) {
     // Acquire first node of this stage
     let mut next_node = api.scheduler.first_node(stage);
     // Iterate over stage nodes
@@ -146,25 +135,30 @@ impl Runtime {
             state: Default::default(),
         };
         runtime.state.target_tps = config.target_tps;
-        runtime.state.base_stages.start_stage =
-            Some(runtime.scheduler.add_stage("_start").unwrap());
-        runtime.state.base_stages.tick_stage = Some(runtime.scheduler.add_stage("_tick").unwrap());
+        runtime.state.events.setup(&mut runtime.scheduler);
         runtime.scheduler.rebuild();
+        let api = &mut API {
+            database: &mut runtime.database,
+            scheduler: &mut runtime.scheduler,
+            logger: &mut runtime.logger,
+            state: &mut runtime.state,
+            input: &mut runtime.input,
+            renderer: &mut runtime.renderer,
+        };
+        Texture::register(api);
+        Transform::register(api);
+        Hierarchy::register(api);
+        UserEvent::register(api);
+        InputAction::register(api);
+        InputAxis::register(api);
+        InputText::register(api);
         if let Some(bootstrap) = config.bootstrap {
-            bootstrap(&mut API {
-                database: &mut runtime.database,
-                scheduler: &mut runtime.scheduler,
-                logger: &mut runtime.logger,
-                state: &mut runtime.state,
-                input: &mut runtime.input,
-                renderer: &mut runtime.renderer,
-            });
+            bootstrap(api);
         }
         runtime
             .state
-            .base_stages
             .next_tick_stages
-            .push_back(runtime.state.base_stages.start_stage.unwrap());
+            .push_back(runtime.state.events.start.unwrap());
         runtime.flush_database_and_scheduler();
         runtime
     }
@@ -174,10 +168,7 @@ impl Runtime {
         if self.state.rebuild_scheduler {
             self.database.rebuild();
 
-            for id in self
-                .scheduler
-                .systems_from_state(SystemState::Created)
-            {
+            for id in self.scheduler.systems_from_state(SystemState::Created) {
                 let found = self
                     .state
                     .created_native_systems
@@ -197,19 +188,7 @@ impl Runtime {
 
             self.scheduler.rebuild();
 
-            for stage in self.scheduler.iter_stages() {
-                let stage = self.scheduler.stage(stage).unwrap();
-                self.logger.log(
-                    format_args!("STAGE {} {:?}", stage.name, stage.state),
-                    LogLevel::Debug,
-                    None,
-                );
-            }
-
-            for id in self
-                .scheduler
-                .systems_from_state(SystemState::Running)
-            {
+            for id in self.scheduler.systems_from_state(SystemState::Running) {
                 // Thank you rust
                 self.state
                     .native_systems
@@ -255,15 +234,14 @@ impl Runtime {
 
     fn prepare_next_stages(&mut self) {
         // Collect previous frame stages
-        self.state.base_stages.next_stages.clear();
-        for stage in self.state.base_stages.next_tick_stages.drain(..) {
-            self.state.base_stages.next_stages.push_back(stage);
+        self.state.next_stages.clear();
+        for stage in self.state.next_tick_stages.drain(..) {
+            self.state.next_stages.push_back(stage);
         }
         // Append tick stage
         self.state
-            .base_stages
             .next_stages
-            .push_back(self.state.base_stages.tick_stage.unwrap());
+            .push_back(self.state.events.tick.unwrap());
     }
 
     pub fn tick(&mut self) -> Result<(), TickError> {
@@ -289,7 +267,7 @@ impl Runtime {
 
         // Run stages
         // TODO: protect against infinite loops
-        while let Some(stage) = self.state.base_stages.next_stages.pop_front() {
+        while let Some(stage) = self.state.next_stages.pop_front() {
             execute_stage(
                 stage,
                 &mut API {

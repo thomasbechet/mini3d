@@ -68,5 +68,21 @@ macro_rules! slot_map_key {
                 self.0
             }
         }
+
+        impl From<$crate::handle::Handle> for $name {
+            fn from(h: $crate::handle::Handle) -> Self {
+                if let Some(h) = h.nonnull() {
+                    Self::from_raw(h.raw())
+                } else {
+                    panic!("conversion from null handle")
+                }
+            }
+        }
+        
+        impl Into<$crate::handle::Handle> for $name {
+            fn into(self) -> $crate::handle::Handle {
+                self.raw().into()
+            }
+        }
     };
 }

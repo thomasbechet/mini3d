@@ -48,6 +48,14 @@ impl DefaultKey {
     pub fn raw(&self) -> u32 {
         self.0.get()
     }
+
+    pub fn from_key(self) -> Self {
+        self
+    }
+
+    pub fn key(&self) -> Self {
+        *self
+    }
 }
 
 enum SlotKey<K: Key> {

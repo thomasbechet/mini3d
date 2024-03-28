@@ -1,7 +1,7 @@
 use alloc::string::String;
 use mini3d_math::fixed::I32F16;
 
-use crate::{action::InputActionHandle, axis::InputAxisHandle, text::InputTextId};
+use crate::{action::InputActionHandle, axis::InputAxisHandle, text::InputTextHandle};
 
 pub struct InputActionEvent {
     pub action: InputActionHandle,
@@ -14,7 +14,7 @@ pub struct InputAxisEvent {
 }
 
 pub struct InputTextEvent {
-    pub text: InputTextId,
+    pub text: InputTextHandle,
     pub value: String,
 }
 

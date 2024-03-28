@@ -4,7 +4,7 @@ use mini3d_utils::{slot_map_key, string::AsciiArray};
 
 use crate::provider::InputProviderHandle;
 
-slot_map_key!(InputTextId);
+slot_map_key!(InputTextHandle);
 
 #[derive(Clone, Serialize, Default)]
 pub struct InputTextState {

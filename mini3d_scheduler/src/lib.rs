@@ -16,7 +16,7 @@ pub enum SchedulerError {
 }
 
 slot_map_key!(NodeId);
-slot_map_key!(StageHandle);
+slot_map_key!(StageId);
 slot_map_key!(SystemHandle);
 
 #[derive(Default, Debug, Serialize)]
@@ -43,12 +43,11 @@ pub struct System {
     pub name: AsciiArray<32>,
     pub state: SystemState,
     pub active: bool,
-    pub(crate) stage: StageHandle,
+    pub(crate) stage: StageId,
     pub(crate) order: SystemOrder,
 }
 
 pub struct Stage {
-    pub name: AsciiArray<32>,
     pub state: StageState,
     pub(crate) first_node: Option<NodeId>,
 }
@@ -63,7 +62,7 @@ pub(crate) struct PipelineNode {
 #[derive(Default)]
 pub struct Scheduler {
     nodes: SlotMap<NodeId, PipelineNode>,
-    stages: SlotMap<StageHandle, Stage>,
+    stages: SlotMap<StageId, Stage>,
     systems: SlotMap<SystemHandle, System>,
     indices: Vec<SystemHandle>,
 }
@@ -133,7 +132,7 @@ impl Scheduler {
         }
     }
 
-    pub fn first_node(&self, stage: StageHandle) -> Option<NodeId> {
+    pub fn first_node(&self, stage: StageId) -> Option<NodeId> {
         self.stages.get(stage).and_then(|stage| stage.first_node)
     }
 
@@ -146,15 +145,6 @@ impl Scheduler {
         &self.indices[node.first as usize..(node.first + node.count) as usize]
     }
 
-    pub fn find_stage(&self, name: &str) -> Option<StageHandle> {
-        self.stages.iter().find_map(|(id, stage)| {
-            if stage.name.as_str() == name && stage.state != StageState::Deleted {
-                Some(id)
-            } else {
-                None
-            }
-        })
-    }
 
     pub fn find_system(&self, name: &str) -> Option<SystemHandle> {
         self.systems.iter().find_map(|(id, system)| {
@@ -166,21 +156,17 @@ impl Scheduler {
         })
     }
 
-    pub fn add_stage(&mut self, name: &str) -> Result<StageHandle, SchedulerError> {
-        if self.find_stage(name).is_some() {
-            return Err(SchedulerError::DuplicatedEntry);
-        }
-        Ok(self.stages.add(Stage {
-            name: AsciiArray::from(name),
+    pub fn add_stage(&mut self) -> StageId {
+        self.stages.add(Stage {
             state: StageState::Created,
             first_node: None,
-        }))
+        })
     }
 
     pub fn add_system(
         &mut self,
         name: &str,
-        stage: StageHandle,
+        stage: StageId,
         order: SystemOrder,
     ) -> Result<SystemHandle, SchedulerError> {
         if self.find_system(name).is_some() {
@@ -199,11 +185,11 @@ impl Scheduler {
         self.systems[id].state = SystemState::Deleted;
     }
 
-    pub fn remove_stage(&mut self, id: StageHandle) {
+    pub fn remove_stage(&mut self, id: StageId) {
         self.stages[id].state = StageState::Deleted;
     }
 
-    pub fn iter_stages(&self) -> impl Iterator<Item = StageHandle> + '_ {
+    pub fn iter_stages(&self) -> impl Iterator<Item = StageId> + '_ {
         self.stages.keys()
     }
 
@@ -211,7 +197,7 @@ impl Scheduler {
         self.systems.keys()
     }
 
-    pub fn stage(&self, id: StageHandle) -> Option<&Stage> {
+    pub fn stage(&self, id: StageId) -> Option<&Stage> {
         self.stages.get(id)
     }
 
@@ -232,7 +218,7 @@ impl Scheduler {
             .collect()
     }
 
-    pub fn stages_from_state(&self, state: StageState) -> Vec<StageHandle> {
+    pub fn stages_from_state(&self, state: StageState) -> Vec<StageId> {
         self.stages
             .iter()
             .filter_map(|(id, system)| {

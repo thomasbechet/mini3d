@@ -1,6 +1,6 @@
 use core::fmt::{Arguments, Display};
 
-use alloc::{boxed::Box, format};
+use alloc::boxed::Box;
 use mini3d_db::{
     database::{ComponentHandle, Database, GetComponentHandle},
     entity::Entity,
@@ -19,11 +19,14 @@ use mini3d_renderer::{
     rendertarget::RenderTargetId, texture::TextureId, transform::RenderTransformId,
     RendererManager,
 };
-use mini3d_scheduler::{Scheduler, SchedulerError, StageHandle, SystemHandle, SystemOrder};
-use mini3d_utils::slotmap::DefaultKey;
+use mini3d_scheduler::{Scheduler, StageId, SystemHandle, SystemOrder};
+use mini3d_utils::{handle::Handle, slotmap::DefaultKey};
 
 use crate::{
-    event::ComponentEventStages, execute_stage, system::IntoSystem, Invocation, RuntimeState,
+    event::{Event, UserEventHandle},
+    execute_stage,
+    system::IntoSystem,
+    Invocation, RuntimeState,
 };
 
 pub struct API<'a> {
@@ -48,49 +51,36 @@ impl<'a> API<'a> {
 
     /// DATABASE API
 
-    pub fn register_component_tag(&mut self, name: &str) -> ComponentHandle {
-        let id = self.database.register_tag(name).unwrap();
-        self.register_component_callbacks(id, name);
-        id
-    }
-
     pub fn register_component(&mut self, name: &str, fields: &[ComponentField]) -> ComponentHandle {
         let id = self.database.register(name, fields).unwrap();
-        self.register_component_callbacks(id, name);
+        self.register_component_callbacks(id);
         id
     }
 
-    pub fn register_component_key(&mut self, name: &str) -> ComponentHandle {
-        let id = self.database.register_key(name).unwrap();
-        self.register_component_callbacks(id, name);
+    pub fn register_component_tag(&mut self, name: &str) -> ComponentHandle {
+        let id = self.database.register_tag(name).unwrap();
+        self.register_component_callbacks(id);
         id
     }
 
-    fn register_component_callbacks(&mut self, c: ComponentHandle, name: &str) {
-        let on_added = self
-            .scheduler
-            .add_stage(&format!("_on_{}_added", name))
-            .unwrap();
-        let on_removed = self
-            .scheduler
-            .add_stage(&format!("_on_{}_removed", name))
-            .unwrap();
-        self.state.base_stages.components.insert(
-            c,
-            ComponentEventStages {
-                on_added: Some(on_added),
-                on_removed: Some(on_removed),
-            },
-        );
+    pub fn register_component_handle(&mut self, name: &str) -> ComponentHandle {
+        let id = self.database.register_handle(name).unwrap();
+        self.register_component_callbacks(id);
+        id
+    }
+
+    fn register_component_callbacks(&mut self, c: ComponentHandle) {
+        self.state
+            .events
+            .register_component_callbacks(self.scheduler, c);
         self.state.rebuild_scheduler = true;
     }
 
     pub fn unregister_component(&mut self, c: ComponentHandle) {
         self.database.unregister_component(c);
-        let stages = &self.state.base_stages.components[c];
-        // self.scheduler.remove_stage(stages.on_added);
-        // self.scheduler.remove_stage(stages.on_removed);
-        self.state.base_stages.components.remove(c);
+        self.state
+            .events
+            .unregister_component_callbacks(self.scheduler, c);
         self.state.rebuild_scheduler = true;
     }
 
@@ -110,19 +100,12 @@ impl<'a> API<'a> {
 
     pub fn add_default(&mut self, e: Entity, c: impl GetComponentHandle) {
         self.database.add_default(e, c.handle());
-        execute_stage(
-            self.state.base_stages.components[c.handle()]
-                .on_added
-                .unwrap(),
-            self,
-        );
+        execute_stage(self.state.events.component[c.handle()].added.unwrap(), self);
     }
 
     pub fn remove(&mut self, e: Entity, c: impl GetComponentHandle) {
         execute_stage(
-            self.state.base_stages.components[c.handle()]
-                .on_removed
-                .unwrap(),
+            self.state.events.component[c.handle()].removed.unwrap(),
             self,
         );
         self.database.remove(e, c.handle())
@@ -140,12 +123,12 @@ impl<'a> API<'a> {
         self.database.write(e, f, v)
     }
 
-    pub fn read_key(&self, e: Entity, c: impl GetComponentHandle) -> Option<DefaultKey> {
-        self.database.read_key(e, c.handle())
+    pub(crate) fn write_handle(&mut self, e: Entity, c: impl GetComponentHandle, v: impl Into<Handle>) {
+        self.database.write_handle(e, c.handle(), v.into())
     }
 
-    pub fn write_key(&mut self, e: Entity, c: impl GetComponentHandle, v: DefaultKey) {
-        self.database.write_key(e, c.handle(), v)
+    pub(crate) fn read_handle(&self, e: Entity, c: impl GetComponentHandle) -> Handle {
+        self.database.read_handle(e, c.handle())
     }
 
     pub fn entities(&self) -> impl Iterator<Item = Entity> + '_ {
@@ -187,47 +170,22 @@ impl<'a> API<'a> {
 
     /// SCHEDULER API
 
-    pub fn find_stage(&self, name: &str) -> Option<StageHandle> {
-        self.scheduler.find_stage(name)
-    }
-
-    pub fn tick_stage(&self) -> StageHandle {
-        self.state.base_stages.tick_stage.unwrap()
-    }
-
-    pub fn start_stage(&self) -> StageHandle {
-        self.state.base_stages.start_stage.unwrap()
-    }
-
-    pub fn on_component_added_stage(&self, c: impl GetComponentHandle) -> StageHandle {
-        self.state.base_stages.components[c.handle()]
-            .on_added
-            .unwrap()
-    }
-
-    pub fn on_component_removed_stage(&self, c: impl GetComponentHandle) -> StageHandle {
-        self.state.base_stages.components[c.handle()]
-            .on_removed
-            .unwrap()
+    pub fn find_event(&self, name: &str) -> Entity {
+        self.state.events.find_user_event(name).unwrap()
     }
 
     pub fn find_system(&self, name: &str) -> Option<SystemHandle> {
         self.scheduler.find_system(name)
     }
 
-    pub fn register_stage(&mut self, name: &str) -> Result<StageHandle, SchedulerError> {
-        let id = self.scheduler.add_stage(name)?;
-        self.state.rebuild_scheduler = true;
-        Ok(id)
-    }
-
     pub fn register_system<Params>(
         &mut self,
         name: &str,
-        stage: StageHandle,
+        event: Event,
         order: SystemOrder,
         callback: impl IntoSystem<Params>,
     ) -> SystemHandle {
+        let stage = self.state.events.get_stage_from_event(event).unwrap();
         let id = self.scheduler.add_system(name, stage, order).unwrap();
         self.state
             .created_native_systems
@@ -236,7 +194,8 @@ impl<'a> API<'a> {
         id
     }
 
-    pub fn invoke(&mut self, stage: StageHandle, invocation: Invocation) {
+    pub fn invoke(&mut self, event: UserEventHandle, invocation: Invocation) {
+        let stage = self.state.events.user[event].stage.unwrap();
         match invocation {
             Invocation::Immediate => {
                 // Recursive call
@@ -244,21 +203,17 @@ impl<'a> API<'a> {
             }
             Invocation::NextStage => {
                 // Called after the current stage
-                self.state.base_stages.next_stages.push_back(stage);
+                self.state.next_stages.push_back(stage);
             }
             Invocation::NextTick => {
                 // Called on the next tick
-                self.state.base_stages.next_tick_stages.push_back(stage);
+                self.state.next_tick_stages.push_back(stage);
             }
         }
     }
 
     pub fn debug_sched(&mut self) {
-        for stage in self.scheduler.iter_stages() {
-            let stage = self.scheduler.stage(stage).unwrap();
-            self.logger
-                .log(format_args!("STAGE {}", stage.name), LogLevel::Debug, None);
-        }
+        self.state.events.debug(self.logger);
     }
 
     /// LOGGER API
@@ -273,25 +228,6 @@ impl<'a> API<'a> {
 
     /// INPUT API
 
-    pub fn create_action(&mut self, name: &str) -> Result<InputActionHandle, InputError> {
-        self.input.create_action(name)
-    }
-
-    pub fn delete_action(&mut self, handle: InputActionHandle) -> Result<(), InputError> {
-        self.input.delete_action(handle)
-    }
-
-    pub fn create_axis(
-        &mut self,
-        name: &str,
-        range: InputAxisRange,
-    ) -> Result<InputAxisHandle, InputError> {
-        self.input.create_axis(name, range)
-    }
-
-    pub fn delete_axis(&mut self, handle: InputAxisHandle) -> Result<(), InputError> {
-        self.input.delete_axis(handle)
-    }
     pub fn find_action(&self, name: &str) -> Option<InputActionHandle> {
         self.input.find_action(name).map(|(id, _)| id)
     }

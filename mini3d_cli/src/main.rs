@@ -1,7 +1,8 @@
 use mini3d::{
     api::API,
-    component::{component::Component, hierarchy::Hierarchy, texture::Texture, transform::Transform},
+    component::{event::UserEvent, hierarchy::Hierarchy, input::InputAction, texture::Texture, transform::Transform},
     db::query::Query,
+    event::Event,
     info,
     math::{fixed::I32F16, vec::V3I32F16},
     renderer::{provider::RendererProvider, texture::TextureId},
@@ -58,6 +59,8 @@ fn on_start(
     transform: &Transform,
     hierarchy: &Hierarchy,
     my_component: &MyComponent,
+    user_event: &UserEvent,
+    input_action: &InputAction,
 ) {
     let my_tag = api.find_component("my_tag").unwrap();
     let e = api.spawn();
@@ -65,37 +68,22 @@ fn on_start(
     api.add_default(e, hierarchy);
     api.debug_sched();
     api.add_default(e, my_tag);
+    input_action.add(api, e, "my_input");
     let e = api.spawn();
+    user_event.add(api, e, "my_event");
     api.add_default(e, my_tag);
     api.add_default(e, my_component);
     api.add_default(e, texture);
+    api.add_default(e, input_action);
 }
 
 fn main() {
     let mut runtime = Runtime::new(RuntimeConfig::default().bootstrap(|api| {
-        Texture::register(api);
-        Transform::register(api);
-        Hierarchy::register(api);
         api.register_component_tag("my_tag");
         MyComponent::register(api);
-        api.register_system(
-            "my_system2",
-            api.tick_stage(),
-            Default::default(),
-            my_system2,
-        );
-        api.register_system(
-            "my_system",
-            api.tick_stage(),
-            Default::default(),
-            my_system,
-        );
-        api.register_system(
-            "start_system",
-            api.start_stage(),
-            Default::default(),
-            on_start,
-        );
+        api.register_system("my_system2", Event::Tick, Default::default(), my_system2);
+        api.register_system("my_system", Event::Tick, Default::default(), my_system);
+        api.register_system("start_system", Event::Start, Default::default(), on_start);
     }));
     runtime.set_logger(StdoutLogger);
     runtime.set_renderer(LoggerRenderer);
